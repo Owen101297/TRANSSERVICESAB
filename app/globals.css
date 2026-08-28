@@ -1,0 +1,92 @@
+@import url("https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
+@import "tailwindcss";
+
+/*
+  A&B OS — Design Tokens
+  Dirección: centro de mando de operación y seguridad vial, 24/7.
+  Base tipo asfalto nocturno + señalización vial reflectante.
+*/
+:root {
+  --color-asphalt-950: #0b0e12;
+  --color-asphalt-900: #11151b;
+  --color-asphalt-800: #191f27;
+  --color-asphalt-700: #232b36;
+  --color-line-600: #384357;
+  --color-line-500: #4a5872;
+  --color-fog-400: #7c8a9e;
+  --color-mist-200: #c3ccd8;
+  --color-paper-50: #eef2f6;
+
+  --color-signal-amber: #f2a63d;
+  --color-signal-amber-dim: #4a3a1f;
+  --color-radar-cyan: #34c9c2;
+  --color-radar-cyan-dim: #17393a;
+  --color-alert-red: #e2554f;
+  --color-alert-red-dim: #45211f;
+  --color-ok-green: #5cb87a;
+  --color-ok-green-dim: #223a2b;
+
+  --background: var(--color-asphalt-950);
+  --foreground: var(--color-paper-50);
+
+  --font-display: "Big Shoulders Display", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-asphalt-950: var(--color-asphalt-950);
+  --color-asphalt-900: var(--color-asphalt-900);
+  --color-asphalt-800: var(--color-asphalt-800);
+  --color-asphalt-700: var(--color-asphalt-700);
+  --color-line-600: var(--color-line-600);
+  --color-line-500: var(--color-line-500);
+  --color-fog-400: var(--color-fog-400);
+  --color-mist-200: var(--color-mist-200);
+  --color-paper-50: var(--color-paper-50);
+
+  --color-signal-amber: var(--color-signal-amber);
+  --color-signal-amber-dim: var(--color-signal-amber-dim);
+  --color-radar-cyan: var(--color-radar-cyan);
+  --color-radar-cyan-dim: var(--color-radar-cyan-dim);
+  --color-alert-red: var(--color-alert-red);
+  --color-alert-red-dim: var(--color-alert-red-dim);
+  --color-ok-green: var(--color-ok-green);
+  --color-ok-green-dim: var(--color-ok-green-dim);
+
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+}
+
+/* Motivo de firma: línea de ruta punteada — usado en divisores y conectores */
+.route-line {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--color-line-500) 0px,
+    var(--color-line-500) 4px,
+    transparent 4px,
+    transparent 10px
+  );
+  width: 1px;
+}
+
+.route-line-h {
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--color-line-500) 0px,
+    var(--color-line-500) 4px,
+    transparent 4px,
+    transparent 10px
+  );
+  height: 1px;
+}
