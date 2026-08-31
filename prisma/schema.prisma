@@ -294,10 +294,47 @@ model Fuec {
   qrCodeUrl                 String?
   observaciones             String?
 
-  createdAt                 DateTime            @default(now())
-  updatedAt                 DateTime            @updatedAt
+// --------------------------------------------------------
+// PORTAL CONDUCTOR & PREOPERACIONAL DIARIO (PESV PASO 14)
+// --------------------------------------------------------
 
-  @@index([codigoFUEC])
+model InspeccionPreoperacional {
+  id                    String   @id @default(cuid())
+  conductorId           String
+  conductorNombre       String
+  vehiculoId            String
+  placa                 String
+  fecha                 DateTime @default(now())
+  kilometraje           Float?
+  checklist             Json     // { [item: string]: boolean }
+  hallazgoDetectado     Boolean  @default(false)
+  descripcionHallazgo   String?
+  fotoEvidenciaUrl      String?
+  estadoConcepto        String   @default("apto") // apto, no_apto, apto_con_observacion
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([conductorId])
   @@index([placa])
-  @@index([estado])
+  @@index([fecha])
+}
+
+model NovedadConductor {
+  id                    String   @id @default(cuid())
+  conductorId           String
+  conductorNombre       String
+  vehiculoId            String?
+  placa                 String?
+  tipo                  String   // mecanica, vial, seguridad, otro
+  descripcion           String
+  fotoUrl               String?
+  fecha                 DateTime @default(now())
+  atendida              Boolean  @default(false)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([conductorId])
+  @@index([fecha])
 }
