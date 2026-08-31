@@ -3,15 +3,22 @@ import { SEED_PERSONAS } from "../lib/data/personas";
 import { SEED_CONTRATISTAS } from "../lib/data/contratistas";
 import { SEED_VEHICULOS } from "../lib/data/vehiculos";
 import { SEED_ASIGNACIONES } from "../lib/data/asignaciones";
+import { SEED_HALLAZGOS } from "../lib/data/hallazgos";
+import { SEED_ITEMS_SGSST } from "../lib/data/sgsst-items";
+import { SEED_PASOS_PESV } from "../lib/data/pesv-pasos";
+import { SEED_CAPACITACIONES } from "../lib/data/capacitaciones";
+import { SEED_ROLES } from "../lib/data/roles";
+import { SEED_VIAJES } from "../lib/data/viajes";
+import { SEED_FUECS } from "../lib/data/fuec";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("Iniciando seed de datos para A&B OS...");
+  console.log("Iniciando seed de datos para TRANSSERVICES ERP...");
 
   // 1. Contratistas
   for (const c of SEED_CONTRATISTAS) {
-    await prisma.contratista.upsert({
+    await (prisma as any).contratista.upsert({
       where: { id: c.id },
       update: {
         razonSocial: c.nombre,
@@ -36,7 +43,7 @@ async function main() {
 
   // 2. Personas y Expedientes
   for (const p of SEED_PERSONAS) {
-    await prisma.persona.upsert({
+    await (prisma as any).persona.upsert({
       where: { numeroDocumento: p.numeroDocumento },
       update: {
         nombres: p.nombres,
@@ -65,57 +72,14 @@ async function main() {
         contratistaId: p.contratistaId ?? null,
         contratistaNombre: p.contratistaNombre ?? null,
         fotoIniciales: p.fotoIniciales,
-        datosSalud: p.datosSalud
-          ? {
-              create: {
-                grupoSanguineoRH: p.datosSalud.grupoSanguineoRH,
-                eps: p.datosSalud.eps,
-                arl: p.datosSalud.arl,
-                fondoPensiones: p.datosSalud.fondoPensiones ?? null,
-                alergias: p.datosSalud.alergias ?? null,
-              },
-            }
-          : undefined,
-        contactoEmergencia: p.contactoEmergencia
-          ? {
-              create: {
-                nombreCompleto: p.contactoEmergencia.nombreCompleto,
-                parentesco: p.contactoEmergencia.parentesco,
-                telefono: p.contactoEmergencia.telefono,
-              },
-            }
-          : undefined,
-        licenciaConduccion: p.licenciaConduccion
-          ? {
-              create: {
-                numero: p.licenciaConduccion.numero,
-                categorias: p.licenciaConduccion.categorias,
-                fechaVencimiento: new Date(p.licenciaConduccion.fechaVencimiento),
-                organismoTransito: p.licenciaConduccion.organismoTransito ?? null,
-              },
-            }
-          : undefined,
-        examenMedico: p.examenMedico
-          ? {
-              create: {
-                tipo: p.examenMedico.tipo,
-                fechaRealizacion: new Date(p.examenMedico.fechaRealizacion),
-                fechaVigencia: new Date(p.examenMedico.fechaVigencia),
-                enfasis: p.examenMedico.enfasis,
-                concepto: p.examenMedico.concepto,
-                restricciones: p.examenMedico.restricciones ?? null,
-                centroMedico: p.examenMedico.centroMedico ?? null,
-              },
-            }
-          : undefined,
       },
     });
   }
-  console.log("✓ Personas y expedientes sembrados.");
+  console.log("✓ Personas sembradas.");
 
   // 3. Vehículos
   for (const v of SEED_VEHICULOS) {
-    await prisma.vehiculo.upsert({
+    await (prisma as any).vehiculo.upsert({
       where: { placa: v.placa },
       update: {
         marca: v.marca,
@@ -153,7 +117,7 @@ async function main() {
 
   // 4. Asignaciones
   for (const a of SEED_ASIGNACIONES) {
-    await prisma.asignacion.upsert({
+    await (prisma as any).asignacion.upsert({
       where: { id: a.id },
       update: {
         conductorId: a.conductorId,
@@ -188,41 +152,15 @@ async function main() {
   }
   console.log("✓ Asignaciones sembradas.");
 
-  // 5. Contratos de Transporte
-  const { SEED_CONTRATOS, SEED_FUECS } = await import("../lib/data/fuec");
-  for (const c of SEED_CONTRATOS) {
-    await (prisma as any).contratoTransporte.upsert({
-      where: { numeroContrato: c.numeroContrato },
-      update: {
-        contratanteNombre: c.contratanteNombre,
-        contratanteNit: c.contratanteNit,
-        objetoContrato: c.objetoContrato,
-        fechaInicio: new Date(c.fechaInicio),
-        fechaFin: new Date(c.fechaFin),
-        estado: c.estado,
-      },
-      create: {
-        id: c.id,
-        numeroContrato: c.numeroContrato,
-        contratanteNombre: c.contratanteNombre,
-        contratanteNit: c.contratanteNit,
-        objetoContrato: c.objetoContrato,
-        fechaInicio: new Date(c.fechaInicio),
-        fechaFin: new Date(c.fechaFin),
-        estado: c.estado,
-      },
-    });
-  }
-  console.log("✓ Contratos de transporte sembrados.");
-
-  // 6. FUECs oficiales
+  // 5. FUECs
   for (const f of SEED_FUECS) {
     await (prisma as any).fuec.upsert({
-      where: { codigoFUEC: f.codigoFUEC },
+      where: { id: f.id },
       update: {
-        contratoId: f.contratoId,
+        numeroConsecutivo: f.numeroConsecutivo,
+        codigoUnicoNacional: f.codigoUnicoNacional,
         contratoNumero: f.contratoNumero,
-        contratante: f.contratante,
+        contratanteNombre: f.contratanteNombre,
         objetoContrato: f.objetoContrato,
         origen: f.origen,
         destino: f.destino,
@@ -231,21 +169,18 @@ async function main() {
         placa: f.placa,
         marca: f.marca,
         modelo: f.modelo,
-        tarjetaOperacionNumero: f.tarjetaOperacionNumero ?? null,
         conductorPrincipalId: f.conductorPrincipalId,
         conductorPrincipalNombre: f.conductorPrincipalNombre,
         fechaInicio: new Date(f.fechaInicio),
         fechaFin: new Date(f.fechaFin),
         estado: f.estado,
-        qrCodeUrl: f.qrCodeUrl ?? null,
       },
       create: {
         id: f.id,
         numeroConsecutivo: f.numeroConsecutivo,
-        codigoFUEC: f.codigoFUEC,
-        contratoId: f.contratoId,
+        codigoUnicoNacional: f.codigoUnicoNacional,
         contratoNumero: f.contratoNumero,
-        contratante: f.contratante,
+        contratanteNombre: f.contratanteNombre,
         objetoContrato: f.objetoContrato,
         origen: f.origen,
         destino: f.destino,
@@ -254,20 +189,17 @@ async function main() {
         placa: f.placa,
         marca: f.marca,
         modelo: f.modelo,
-        tarjetaOperacionNumero: f.tarjetaOperacionNumero ?? null,
         conductorPrincipalId: f.conductorPrincipalId,
         conductorPrincipalNombre: f.conductorPrincipalNombre,
         fechaInicio: new Date(f.fechaInicio),
         fechaFin: new Date(f.fechaFin),
         estado: f.estado,
-        qrCodeUrl: f.qrCodeUrl ?? null,
       },
     });
   }
-  console.log("✓ FUECs oficiales sembrados.");
+  console.log("✓ FUECs sembrados.");
 
-  // 7. Viajes Operacionales
-  const { SEED_VIAJES } = await import("../lib/data/viajes");
+  // 6. Viajes
   for (const v of SEED_VIAJES) {
     await (prisma as any).viaje.upsert({
       where: { id: v.id },
@@ -299,20 +231,154 @@ async function main() {
         duracionEstimadaHoras: v.duracionEstimadaHoras,
         fechaLlegadaReal: v.fechaLlegadaReal ? new Date(v.fechaLlegadaReal) : null,
         estado: v.estado,
-        novedades: {
-          create: v.novedades.map((n) => ({
-            id: n.id,
-            fecha: new Date(n.fecha),
-            descripcion: n.descripcion,
-          })),
-        },
       },
     });
   }
   console.log("✓ Viajes sembrados.");
 
+  // 7. HSEQ Hallazgos
+  for (const h of SEED_HALLAZGOS) {
+    await (prisma as any).hallazgoHseq.upsert({
+      where: { id: h.id },
+      update: {
+        codigo: h.codigo,
+        titulo: h.titulo,
+        descripcion: h.descripcion,
+        tipo: h.tipo,
+        severidad: h.severidad,
+        estado: h.estado,
+        origenModulo: h.origenModulo,
+        responsableNombre: h.responsableNombre,
+        fechaReporte: new Date(h.fechaReporte),
+        fechaCierre: h.fechaCierre ? new Date(h.fechaCierre) : null,
+      },
+      create: {
+        id: h.id,
+        codigo: h.codigo,
+        titulo: h.titulo,
+        descripcion: h.descripcion,
+        tipo: h.tipo,
+        severidad: h.severidad,
+        estado: h.estado,
+        origenModulo: h.origenModulo,
+        responsableNombre: h.responsableNombre,
+        fechaReporte: new Date(h.fechaReporte),
+        fechaCierre: h.fechaCierre ? new Date(h.fechaCierre) : null,
+      },
+    });
+  }
+  console.log("✓ Hallazgos HSEQ sembrados.");
 
-  console.log("¡Seed completado con éxito!");
+  // 8. SG-SST Items
+  for (const i of SEED_ITEMS_SGSST) {
+    await (prisma as any).itemSgsst.upsert({
+      where: { id: i.id },
+      update: {
+        estandarId: i.estandarId,
+        numeral: i.numeral,
+        descripcion: i.descripcion,
+        pesoPorcentual: i.pesoPorcentual,
+        estado: i.estado,
+        evidenciaDescripcion: i.evidenciaDescripcion ?? null,
+      },
+      create: {
+        id: i.id,
+        estandarId: i.estandarId,
+        numeral: i.numeral,
+        descripcion: i.descripcion,
+        pesoPorcentual: i.pesoPorcentual,
+        estado: i.estado,
+        evidenciaDescripcion: i.evidenciaDescripcion ?? null,
+      },
+    });
+  }
+  console.log("✓ Ítems SG-SST sembrados.");
+
+  // 9. PESV Pasos
+  for (const p of SEED_PASOS_PESV) {
+    await (prisma as any).pasoPesv.upsert({
+      where: { id: p.id },
+      update: {
+        numero: p.numero,
+        fase: p.fase,
+        nombre: p.nombre,
+        descripcion: p.descripcion,
+        nivelVigencia: p.nivelVigencia,
+        estado: p.estado,
+        aplica: p.aplica,
+      },
+      create: {
+        id: p.id,
+        numero: p.numero,
+        fase: p.fase,
+        nombre: p.nombre,
+        descripcion: p.descripcion,
+        nivelVigencia: p.nivelVigencia,
+        estado: p.estado,
+        aplica: p.aplica,
+      },
+    });
+  }
+  console.log("✓ Pasos PESV sembrados.");
+
+  // 10. Capacitaciones
+  for (const cap of SEED_CAPACITACIONES) {
+    await (prisma as any).capacitacion.upsert({
+      where: { id: cap.id },
+      update: {
+        tema: cap.tema,
+        fecha: new Date(cap.fecha),
+        hora: cap.hora,
+        duracionHoras: cap.duracionHoras,
+        modalidad: cap.modalidad,
+        facilitador: cap.facilitador,
+        lugar: cap.lugar ?? null,
+        cupoMaximo: cap.cupoMaximo,
+        asistentesEsperados: cap.asistentesEsperados,
+        asistentesConfirmados: cap.asistentesConfirmados,
+        estado: cap.estado,
+        perfilesObjetivo: cap.perfilesObjetivo,
+      },
+      create: {
+        id: cap.id,
+        tema: cap.tema,
+        fecha: new Date(cap.fecha),
+        hora: cap.hora,
+        duracionHoras: cap.duracionHoras,
+        modalidad: cap.modalidad,
+        facilitador: cap.facilitador,
+        lugar: cap.lugar ?? null,
+        cupoMaximo: cap.cupoMaximo,
+        asistentesEsperados: cap.asistentesEsperados,
+        asistentesConfirmados: cap.asistentesConfirmados,
+        estado: cap.estado,
+        perfilesObjetivo: cap.perfilesObjetivo,
+      },
+    });
+  }
+  console.log("✓ Capacitaciones sembradas.");
+
+  // 11. Roles del Sistema
+  for (const r of SEED_ROLES) {
+    await (prisma as any).rolSistema.upsert({
+      where: { nombre: r.nombre },
+      update: {
+        descripcion: r.descripcion,
+        permisos: ["Personas", "Contratistas", "Flota", "Operación", "HSEQ"],
+        esConfigurable: r.esConfigurable,
+      },
+      create: {
+        id: r.id,
+        nombre: r.nombre,
+        descripcion: r.descripcion,
+        permisos: ["Personas", "Contratistas", "Flota", "Operación", "HSEQ"],
+        esConfigurable: r.esConfigurable,
+      },
+    });
+  }
+  console.log("✓ Roles sembrados.");
+
+  console.log("¡Seed completo de TRANSSERVICES finalizado con éxito!");
 }
 
 main()
