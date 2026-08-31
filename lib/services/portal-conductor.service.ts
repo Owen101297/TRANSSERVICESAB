@@ -162,9 +162,31 @@ export async function createPreoperacionalAction(
     }
 
     localPreoperacionalesState.unshift(newPreopObj);
+
+    // ----------------------------------------------------
+    // PUENTE AUTOMÁTICO: Preoperacional ➔ HSEQ
+    // ----------------------------------------------------
+    if (hallazgoDetectado || estadoConcepto !== "apto") {
+      try {
+        const hallazgoFormData = new FormData();
+        hallazgoFormData.append("origen", "preoperacional");
+        hallazgoFormData.append("titulo", `Falla en Preoperacional Diario · ${placa}`);
+        hallazgoFormData.append("descripcion", descripcionHallazgo || "Ítem no conforme detectado en la inspección diaria de 10 puntos.");
+        hallazgoFormData.append("severidad", "alta");
+        hallazgoFormData.append("responsable", "Líder HSEQ / Mantenimiento");
+        hallazgoFormData.append("placa", placa);
+
+        const { createHallazgoAction } = await import("@/lib/services/hseq.service");
+        await createHallazgoAction(hallazgoFormData);
+      } catch (hseqErr) {
+        console.warn("No se pudo auto-generar hallazgo HSEQ desde preoperacional:", hseqErr);
+      }
+    }
+
     revalidatePath("/portal-conductor");
     revalidatePath("/portal-conductor/preoperacional");
     revalidatePath("/pesv");
+    revalidatePath("/hseq");
 
     return { success: true, id: newPreopObj.id };
   } catch (error: any) {
@@ -221,12 +243,34 @@ export async function createNovedadConductorAction(
     }
 
     localNovedadesConductorState.unshift(newNovedadObj);
+
+    // ----------------------------------------------------
+    // PUENTE AUTOMÁTICO: Novedad Móvil ➔ HSEQ
+    // ----------------------------------------------------
+    try {
+      const severidad = tipo === "mecanica" ? "alta" : tipo === "seguridad" ? "critica" : "media";
+      const hallazgoFormData = new FormData();
+      hallazgoFormData.append("origen", tipo === "seguridad" ? "incidente" : "inspeccion");
+      hallazgoFormData.append("titulo", `Novedad reportada por conductor (${tipo}) · ${placa || "General"}`);
+      hallazgoFormData.append("descripcion", descripcion);
+      hallazgoFormData.append("severidad", severidad);
+      hallazgoFormData.append("responsable", "Líder Operaciones / HSEQ");
+      if (placa) hallazgoFormData.append("placa", placa);
+
+      const { createHallazgoAction } = await import("@/lib/services/hseq.service");
+      await createHallazgoAction(hallazgoFormData);
+    } catch (hseqErr) {
+      console.warn("No se pudo auto-generar hallazgo HSEQ desde novedad móvil:", hseqErr);
+    }
+
     revalidatePath("/portal-conductor");
     revalidatePath("/portal-conductor/novedad");
     revalidatePath("/operacion");
+    revalidatePath("/hseq");
 
     return { success: true, id: newNovedadObj.id };
   } catch (error: any) {
     return { success: false, error: error.message || "Error al reportar la novedad." };
   }
 }
+

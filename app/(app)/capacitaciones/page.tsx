@@ -12,6 +12,8 @@ import { Card, StatCard } from "@/components/ui/Card";
 import { DataTable, Column } from "@/components/ui/DataTable";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 
+import { TomarAsistenciaButton } from "@/components/capacitaciones/TomarAsistenciaButton";
+
 const ESTADO_TO_STATUS: Record<EstadoCapacitacion, "activo" | "pendiente" | "cerrado"> = {
   programada: "pendiente",
   realizada: "activo",
@@ -56,6 +58,11 @@ const columns: Column<Capacitacion>[] = [
         {ESTADO_CAPACITACION_LABELS[v as EstadoCapacitacion]}
       </StatusBadge>
     ),
+  },
+  {
+    header: "Acción",
+    accessor: "id",
+    render: (_v, row) => <TomarAsistenciaButton capacitacion={row} />,
   },
 ];
 

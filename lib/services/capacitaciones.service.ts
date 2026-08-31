@@ -134,6 +134,57 @@ export async function createAsistenciaAction(
 }
 
 /**
+ * Server Action para tomar asistencia de una capacitación específica y marcarla realizada
+ */
+export async function tomarAsistenciaCapacitacionAction(
+  capacitacionId: string,
+  asistentes: { personaId: string; personaNombre: string; estado: EstadoAsistencia }[]
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const cap = localCapacitacionesState.find((c) => c.id === capacitacionId);
+    const totalPresentes = asistentes.filter((a) => a.estado === "presente" || a.estado === "tardanza").length;
+
+    if (cap) {
+      cap.asistentesReales = totalPresentes;
+      cap.estado = "realizada";
+    }
+
+    const fechaIso = new Date().toISOString();
+    for (const a of asistentes) {
+      localAsistenciasState.unshift({
+        id: `as_${Date.now()}_${a.personaId}`,
+        personaId: a.personaId,
+        personaNombre: a.personaNombre,
+        evento: cap?.nombre || "Capacitación",
+        tipoEvento: "capacitacion",
+        fecha: fechaIso,
+        estado: a.estado,
+      });
+    }
+
+    if (process.env.DATABASE_URL) {
+      try {
+        await (prisma as any).capacitacion.update({
+          where: { id: capacitacionId },
+          data: {
+            asistentesReales: totalPresentes,
+            estado: "realizada",
+          },
+        });
+      } catch (dbErr) {
+        console.warn("Aviso actualizando capacitación en DB:", dbErr);
+      }
+    }
+
+    revalidatePath("/capacitaciones");
+    revalidatePath("/asistencia");
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Error al tomar lista de asistencia." };
+  }
+}
+
+/**
  * Obtiene las encuestas
  */
 export async function getEncuestasDb(): Promise<Encuesta[]> {
