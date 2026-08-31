@@ -1,13 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useTransition } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Save, AlertCircle } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { FormSection, TextField, SelectField } from "@/components/ui/FormField";
-import { SEED_PERSONAS } from "@/lib/data/personas";
-import { SEED_VEHICULOS } from "@/lib/data/vehiculos";
+import { getPersonasDb } from "@/lib/services/personas.service";
+import { getVehiculosDb } from "@/lib/services/vehiculos.service";
+import { createViajeAction } from "@/lib/services/operacion.service";
+import { Persona } from "@/lib/types/persona";
+import { Vehiculo } from "@/lib/types/vehiculo";
 
 const SERVICIO_OPTIONS = [
   { value: "especial", label: "Transporte especial" },
@@ -16,21 +20,56 @@ const SERVICIO_OPTIONS = [
 ];
 
 export default function NuevoViajePage() {
-  const [submitted, setSubmitted] = useState(false);
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [personas, setPersonas] = useState<Persona[]>([]);
+  const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
+
+  useEffect(() => {
+    getPersonasDb().then((data) => setPersonas(data || []));
+    getVehiculosDb().then((data) => setVehiculos(data || []));
+  }, []);
 
   const conductorOptions = useMemo(
-    () =>
-      SEED_PERSONAS.filter((p) => p.perfiles.includes("conductor")).map((p) => ({
-        value: p.id,
-        label: `${p.nombres} ${p.apellidos}`,
-      })),
-    []
+    () => [
+      { value: "", label: "Seleccionar conductor..." },
+      ...personas
+        .filter((p) => p.perfiles.includes("conductor"))
+        .map((p) => ({
+          value: p.id,
+          label: `${p.nombres} ${p.apellidos}`,
+        })),
+    ],
+    [personas]
   );
 
   const vehiculoOptions = useMemo(
-    () => SEED_VEHICULOS.map((v) => ({ value: v.id, label: `${v.placa} — ${v.marca} ${v.modelo}` })),
-    []
+    () => [
+      { value: "", label: "Seleccionar vehículo..." },
+      ...vehiculos.map((v) => ({
+        value: v.id,
+        label: `${v.placa} — ${v.marca} ${v.modelo} (${v.contratistaNombre})`,
+      })),
+    ],
+    [vehiculos]
   );
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+
+    startTransition(async () => {
+      const res = await createViajeAction(formData);
+      if (res.success && res.viajeId) {
+        router.push(`/operacion/${res.viajeId}`);
+      } else {
+        setErrorMsg(res.error || "Ocurrió un error al registrar el viaje.");
+      }
+    });
+  };
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -50,14 +89,15 @@ export default function NuevoViajePage() {
         </p>
       </div>
 
+      {errorMsg && (
+        <div className="flex items-center gap-2 rounded-lg border border-alert-red/30 bg-alert-red-dim/40 p-3 text-sm text-alert-red">
+          <AlertCircle size={16} />
+          {errorMsg}
+        </div>
+      )}
+
       <Card>
-        <form
-          className="space-y-6"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setSubmitted(true);
-          }}
-        >
+        <form className="space-y-6" onSubmit={handleSubmit}>
           <FormSection title="Conductor y vehículo">
             <SelectField
               label="Conductor"
@@ -74,8 +114,8 @@ export default function NuevoViajePage() {
           </FormSection>
 
           <FormSection title="Ruta">
-            <TextField label="Origen" name="origen" required placeholder="Mocoa" />
-            <TextField label="Destino" name="destino" required placeholder="Pasto" />
+            <TextField label="Origen" name="origen" required placeholder="Mocoa (Putumayo)" />
+            <TextField label="Destino" name="destino" required placeholder="Pasto (Nariño)" />
             <SelectField
               label="Tipo de servicio"
               name="servicio"
@@ -84,37 +124,47 @@ export default function NuevoViajePage() {
             />
           </FormSection>
 
-          <FormSection title="Horario">
-            <TextField label="Fecha y hora de salida" name="fechaSalida" type="datetime-local" required />
+          <FormSection title="Horario y Estimación">
+            <TextField
+              label="Fecha y hora de salida"
+              name="fechaSalida"
+              type="datetime-local"
+              required
+              defaultValue={new Date().toISOString().slice(0, 16)}
+            />
             <TextField
               label="Duración estimada (horas)"
               name="duracionEstimadaHoras"
               type="number"
               step="0.5"
-              min="2"
+              min="1"
               required
+              defaultValue="3"
+            />
+          </FormSection>
+
+          <FormSection title="Observaciones" description="Opcional.">
+            <textarea
+              name="observaciones"
+              rows={3}
+              placeholder="Notas sobre la ruta, pasajeros o condiciones especiales..."
+              className="sm:col-span-2 w-full rounded-md border border-line-600 bg-asphalt-800 px-3 py-2 text-sm text-paper-50 placeholder:text-fog-400 focus:border-radar-cyan focus:outline-none focus:ring-1 focus:ring-radar-cyan"
             />
           </FormSection>
 
           <div className="flex items-center gap-3 pt-2">
-            <Button type="submit" variant="primary">
-              Registrar viaje
+            <Button type="submit" variant="primary" disabled={isPending}>
+              <Save size={16} /> {isPending ? "Guardando viaje..." : "Registrar viaje"}
             </Button>
             <Link href="/operacion">
-              <Button type="button" variant="ghost">
+              <Button type="button" variant="ghost" disabled={isPending}>
                 Cancelar
               </Button>
             </Link>
           </div>
-
-          {submitted && (
-            <p className="text-sm text-radar-cyan">
-              Formulario validado. Falta conectar el backend para persistir el
-              registro — por ahora esto queda solo en el frontend.
-            </p>
-          )}
         </form>
       </Card>
     </div>
   );
 }
+

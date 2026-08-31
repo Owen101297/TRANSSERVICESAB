@@ -1,12 +1,16 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { SEED_VIAJES } from "@/lib/data/viajes";
+import { getViajesDb } from "@/lib/services/operacion.service";
+import { getFuecsDb, getContratosTransporteDb } from "@/lib/services/fuec.service";
+import { getVehiculosDb } from "@/lib/services/vehiculos.service";
+import { getPersonasDb } from "@/lib/services/personas.service";
 import { ESTADO_VIAJE_LABELS, EstadoViaje, Viaje } from "@/lib/types/viaje";
 import { Button } from "@/components/ui/Button";
 import { Card, StatCard } from "@/components/ui/Card";
 import { DataTable, Column } from "@/components/ui/DataTable";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PlateTag } from "@/components/ui/PlateTag";
+import { FuecTrigger } from "@/components/operacion/FuecTrigger";
 
 const ESTADO_TO_STATUS: Record<EstadoViaje, "activo" | "pendiente" | "cerrado" | "critico"> = {
   en_curso: "activo",
@@ -29,7 +33,7 @@ const columns: Column<Viaje>[] = [
     header: "Conductor",
     accessor: "conductorNombre",
     render: (v, row) => (
-      <Link href={`/personas/${row.conductorId}`} className="hover:text-radar-cyan">
+      <Link href={`/personas/${row.conductorId}`} className="hover:text-radar-cyan font-medium">
         {v as string}
       </Link>
     ),
@@ -72,7 +76,7 @@ const columns: Column<Viaje>[] = [
     render: (v) => {
       const n = (v as Viaje["novedades"]).length;
       return n > 0 ? (
-        <span className="text-signal-amber">{n}</span>
+        <span className="text-signal-amber font-bold">{n}</span>
       ) : (
         <span className="text-fog-400">—</span>
       );
@@ -99,9 +103,15 @@ export default async function OperacionPage({
   const { estado } = await searchParams;
   const tab = (estado as EstadoViaje) ?? "en_curso";
 
-  const enCurso = SEED_VIAJES.filter((v) => v.estado === "en_curso" || v.estado === "con_novedad");
-  const programados = SEED_VIAJES.filter((v) => v.estado === "programado");
-  const finalizados = SEED_VIAJES.filter((v) => v.estado === "finalizado");
+  const allViajes = await getViajesDb();
+  const fuecs = await getFuecsDb();
+  const contratos = await getContratosTransporteDb();
+  const vehiculos = await getVehiculosDb();
+  const personas = await getPersonasDb();
+
+  const enCurso = allViajes.filter((v) => v.estado === "en_curso" || v.estado === "con_novedad");
+  const programados = allViajes.filter((v) => v.estado === "programado");
+  const finalizados = allViajes.filter((v) => v.estado === "finalizado");
 
   const dataPorTab: Record<string, Viaje[]> = {
     en_curso: enCurso,
@@ -120,17 +130,25 @@ export default async function OperacionPage({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold text-paper-50">
-            Operación · Viajes
+            Operación · Viajes & FUECs
           </h1>
           <p className="mt-1 text-sm text-fog-400">
-            Solo viajes fuera del municipio o de más de 2 horas. No es despacho.
+            Gestión de rutas intermunicipales, novedades en carretera y extractos de contrato.
           </p>
         </div>
-        <Link href="/operacion/nuevo">
-          <Button variant="primary">
-            <Plus size={16} /> Registrar viaje
-          </Button>
-        </Link>
+        <div className="flex items-center gap-3">
+          <FuecTrigger
+            fuecs={fuecs}
+            contratos={contratos}
+            vehiculos={vehiculos}
+            conductores={personas}
+          />
+          <Link href="/operacion/nuevo">
+            <Button variant="primary">
+              <Plus size={16} /> Registrar viaje
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-4 max-w-lg">
@@ -164,8 +182,9 @@ export default async function OperacionPage({
       </Card>
 
       <p className="text-xs text-fog-400">
-        Datos de ejemplo (seed) — pendiente conectar a base de datos real.
+        Trazabilidad de servicios especiales, control de tiempos de viaje y soporte FUEC oficial.
       </p>
     </div>
   );
 }
+

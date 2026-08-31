@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, MapPin, Clock, AlertTriangle } from "lucide-react";
-import { getViajeById } from "@/lib/data/viajes";
+import { getViajeByIdDb } from "@/lib/services/operacion.service";
 import { ESTADO_VIAJE_LABELS, EstadoViaje } from "@/lib/types/viaje";
 import { Card } from "@/components/ui/Card";
 import { PlateTag } from "@/components/ui/PlateTag";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { Button } from "@/components/ui/Button";
+import { ViajeActions } from "@/components/operacion/ViajeActions";
 
 const ESTADO_TO_STATUS: Record<EstadoViaje, "activo" | "pendiente" | "cerrado" | "critico"> = {
   en_curso: "activo",
@@ -31,7 +31,7 @@ export default async function ViajeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const viaje = getViajeById(id);
+  const viaje = await getViajeByIdDb(id);
   if (!viaje) notFound();
 
   const activo = viaje.estado === "en_curso" || viaje.estado === "con_novedad";
@@ -63,7 +63,7 @@ export default async function ViajeDetailPage({
             <Row label="Conductor">
               <Link
                 href={`/personas/${viaje.conductorId}`}
-                className="text-radar-cyan hover:underline"
+                className="text-radar-cyan hover:underline font-medium"
               >
                 {viaje.conductorNombre}
               </Link>
@@ -89,16 +89,7 @@ export default async function ViajeDetailPage({
             )}
           </div>
 
-          {activo && (
-            <div className="mt-6 flex flex-col gap-2">
-              <Button variant="secondary" className="w-full">
-                Registrar novedad
-              </Button>
-              <Button variant="primary" className="w-full">
-                Finalizar viaje
-              </Button>
-            </div>
-          )}
+          {activo && <ViajeActions viajeId={viaje.id} />}
         </Card>
 
         <div className="flex-1 space-y-6">

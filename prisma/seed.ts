@@ -188,6 +188,130 @@ async function main() {
   }
   console.log("✓ Asignaciones sembradas.");
 
+  // 5. Contratos de Transporte
+  const { SEED_CONTRATOS, SEED_FUECS } = await import("../lib/data/fuec");
+  for (const c of SEED_CONTRATOS) {
+    await (prisma as any).contratoTransporte.upsert({
+      where: { numeroContrato: c.numeroContrato },
+      update: {
+        contratanteNombre: c.contratanteNombre,
+        contratanteNit: c.contratanteNit,
+        objetoContrato: c.objetoContrato,
+        fechaInicio: new Date(c.fechaInicio),
+        fechaFin: new Date(c.fechaFin),
+        estado: c.estado,
+      },
+      create: {
+        id: c.id,
+        numeroContrato: c.numeroContrato,
+        contratanteNombre: c.contratanteNombre,
+        contratanteNit: c.contratanteNit,
+        objetoContrato: c.objetoContrato,
+        fechaInicio: new Date(c.fechaInicio),
+        fechaFin: new Date(c.fechaFin),
+        estado: c.estado,
+      },
+    });
+  }
+  console.log("✓ Contratos de transporte sembrados.");
+
+  // 6. FUECs oficiales
+  for (const f of SEED_FUECS) {
+    await (prisma as any).fuec.upsert({
+      where: { codigoFUEC: f.codigoFUEC },
+      update: {
+        contratoId: f.contratoId,
+        contratoNumero: f.contratoNumero,
+        contratante: f.contratante,
+        objetoContrato: f.objetoContrato,
+        origen: f.origen,
+        destino: f.destino,
+        rutaDetalle: f.rutaDetalle ?? null,
+        vehiculoId: f.vehiculoId,
+        placa: f.placa,
+        marca: f.marca,
+        modelo: f.modelo,
+        tarjetaOperacionNumero: f.tarjetaOperacionNumero ?? null,
+        conductorPrincipalId: f.conductorPrincipalId,
+        conductorPrincipalNombre: f.conductorPrincipalNombre,
+        fechaInicio: new Date(f.fechaInicio),
+        fechaFin: new Date(f.fechaFin),
+        estado: f.estado,
+        qrCodeUrl: f.qrCodeUrl ?? null,
+      },
+      create: {
+        id: f.id,
+        numeroConsecutivo: f.numeroConsecutivo,
+        codigoFUEC: f.codigoFUEC,
+        contratoId: f.contratoId,
+        contratoNumero: f.contratoNumero,
+        contratante: f.contratante,
+        objetoContrato: f.objetoContrato,
+        origen: f.origen,
+        destino: f.destino,
+        rutaDetalle: f.rutaDetalle ?? null,
+        vehiculoId: f.vehiculoId,
+        placa: f.placa,
+        marca: f.marca,
+        modelo: f.modelo,
+        tarjetaOperacionNumero: f.tarjetaOperacionNumero ?? null,
+        conductorPrincipalId: f.conductorPrincipalId,
+        conductorPrincipalNombre: f.conductorPrincipalNombre,
+        fechaInicio: new Date(f.fechaInicio),
+        fechaFin: new Date(f.fechaFin),
+        estado: f.estado,
+        qrCodeUrl: f.qrCodeUrl ?? null,
+      },
+    });
+  }
+  console.log("✓ FUECs oficiales sembrados.");
+
+  // 7. Viajes Operacionales
+  const { SEED_VIAJES } = await import("../lib/data/viajes");
+  for (const v of SEED_VIAJES) {
+    await (prisma as any).viaje.upsert({
+      where: { id: v.id },
+      update: {
+        conductorId: v.conductorId,
+        conductorNombre: v.conductorNombre,
+        vehiculoId: v.vehiculoId,
+        placa: v.placa,
+        contratistaNombre: v.contratistaNombre,
+        origen: v.origen,
+        destino: v.destino,
+        servicio: v.servicio,
+        fechaSalida: new Date(v.fechaSalida),
+        duracionEstimadaHoras: v.duracionEstimadaHoras,
+        fechaLlegadaReal: v.fechaLlegadaReal ? new Date(v.fechaLlegadaReal) : null,
+        estado: v.estado,
+      },
+      create: {
+        id: v.id,
+        conductorId: v.conductorId,
+        conductorNombre: v.conductorNombre,
+        vehiculoId: v.vehiculoId,
+        placa: v.placa,
+        contratistaNombre: v.contratistaNombre,
+        origen: v.origen,
+        destino: v.destino,
+        servicio: v.servicio,
+        fechaSalida: new Date(v.fechaSalida),
+        duracionEstimadaHoras: v.duracionEstimadaHoras,
+        fechaLlegadaReal: v.fechaLlegadaReal ? new Date(v.fechaLlegadaReal) : null,
+        estado: v.estado,
+        novedades: {
+          create: v.novedades.map((n) => ({
+            id: n.id,
+            fecha: new Date(n.fecha),
+            descripcion: n.descripcion,
+          })),
+        },
+      },
+    });
+  }
+  console.log("✓ Viajes sembrados.");
+
+
   console.log("¡Seed completado con éxito!");
 }
 

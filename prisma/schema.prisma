@@ -205,3 +205,99 @@ model DocumentoAdjunto {
 
   @@index([entidadTipo, entidadId])
 }
+
+// --------------------------------------------------------
+// MÓDULO OPERACIÓN & VIAJES
+// --------------------------------------------------------
+
+model Viaje {
+  id                    String         @id @default(cuid())
+  conductorId           String
+  conductorNombre       String
+  vehiculoId            String
+  placa                 String
+  contratistaNombre     String
+  origen                String
+  destino               String
+  servicio              String         @default("especial") // especial, escolar, turismo
+  fechaSalida           DateTime
+  duracionEstimadaHoras Float          @default(2.0)
+  fechaLlegadaReal      DateTime?
+  estado                String         @default("en_curso") // programado, en_curso, finalizado, con_novedad
+  observaciones         String?
+  novedades             NovedadViaje[]
+
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  @@index([conductorId])
+  @@index([vehiculoId])
+  @@index([estado])
+}
+
+model NovedadViaje {
+  id          String   @id @default(cuid())
+  viajeId     String
+  viaje       Viaje    @relation(fields: [viajeId], references: [id], onDelete: Cascade)
+  fecha       DateTime @default(now())
+  descripcion String
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([viajeId])
+}
+
+// --------------------------------------------------------
+// CONTRATOS DE TRANSPORTE & FUEC (MINISTERIO DE TRANSPORTE)
+// --------------------------------------------------------
+
+model ContratoTransporte {
+  id                String   @id @default(cuid())
+  numeroContrato    String   @unique
+  contratanteNombre String
+  contratanteNit    String
+  objetoContrato    String   // empresarial, escolar, turismo, grupo_usuarios
+  fechaInicio       DateTime
+  fechaFin          DateTime
+  estado            String   @default("activo") // activo, finalizado, cancelado
+  fuecs             Fuec[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Fuec {
+  id                        String              @id @default(cuid())
+  numeroConsecutivo         Int                 @default(autoincrement())
+  codigoFUEC                String              @unique
+  contratoId                String
+  contrato                  ContratoTransporte  @relation(fields: [contratoId], references: [id])
+  contratoNumero            String
+  contratante               String
+  objetoContrato            String
+  origen                    String
+  destino                   String
+  rutaDetalle               String?
+  vehiculoId                String
+  placa                     String
+  marca                     String
+  modelo                    String
+  tarjetaOperacionNumero    String?
+  conductorPrincipalId      String
+  conductorPrincipalNombre  String
+  conductorSecundarioId     String?
+  conductorSecundarioNombre String?
+  fechaInicio               DateTime
+  fechaFin                  DateTime
+  estado                    String              @default("emitido") // emitido, vencido, anulado
+  qrCodeUrl                 String?
+  observaciones             String?
+
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
+
+  @@index([codigoFUEC])
+  @@index([placa])
+  @@index([estado])
+}
