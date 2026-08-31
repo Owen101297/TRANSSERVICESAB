@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { SEED_ASIGNACIONES } from "@/lib/data/asignaciones";
+import { getAsignacionesDb } from "@/lib/services/asignaciones.service";
+import { getPersonasDb } from "@/lib/services/personas.service";
 import {
   Asignacion,
   ESTADO_ASIGNACION_LABELS,
@@ -12,8 +13,6 @@ import { DataTable, Column } from "@/components/ui/DataTable";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PlateTag } from "@/components/ui/PlateTag";
 import { TurnoTag } from "@/components/ui/TurnoTag";
-
-import { getPersonaById } from "@/lib/data/personas";
 import { evaluarAptitudConductor } from "@/lib/types/persona";
 
 const ESTADO_TO_STATUS: Record<EstadoAsignacion, "activo" | "pendiente" | "cerrado"> = {
@@ -27,75 +26,6 @@ function formatFecha(iso?: string) {
   return new Date(iso).toLocaleDateString("es-CO");
 }
 
-const columns: Column<Asignacion>[] = [
-  {
-    header: "Conductor",
-    accessor: "conductorNombre",
-    render: (v, row) => (
-      <Link href={`/personas/${row.conductorId}`} className="hover:text-radar-cyan">
-        {v as string}
-      </Link>
-    ),
-  },
-  {
-    header: "Vehículo",
-    accessor: "placa",
-    render: (v, row) => (
-      <Link href={`/flota/${row.vehiculoId}`}>
-        <PlateTag plate={v as string} />
-      </Link>
-    ),
-  },
-  {
-    header: "Contratista",
-    accessor: "contratistaNombre",
-  },
-  {
-    header: "Tipo",
-    accessor: "tipoAsignacion",
-    render: (v, row) =>
-      v === "fija" ? (
-        <span className="text-mist-200">Fija</span>
-      ) : (
-        row.turno && <TurnoTag turno={row.turno} />
-      ),
-  },
-  {
-    header: "Idoneidad",
-    accessor: "conductorId",
-    render: (v) => {
-      const persona = getPersonaById(v as string);
-      if (!persona) return <span className="text-fog-400">—</span>;
-      const aptitud = evaluarAptitudConductor(persona);
-      if (aptitud.nivel === "optimo") {
-        return <StatusBadge status="activo">Al día</StatusBadge>;
-      }
-      if (aptitud.nivel === "advertencia") {
-        return <StatusBadge status="pendiente">Novedad</StatusBadge>;
-      }
-      return <StatusBadge status="critico">Revisar</StatusBadge>;
-    },
-  },
-  {
-    header: "Vigencia",
-    accessor: "fechaInicio",
-    render: (v, row) => (
-      <span className="font-[family-name:var(--font-mono)] text-xs">
-        {formatFecha(v as string)} → {formatFecha(row.fechaFin)}
-      </span>
-    ),
-  },
-  {
-    header: "Estado",
-    accessor: "estado",
-    render: (v) => (
-      <StatusBadge status={ESTADO_TO_STATUS[v as EstadoAsignacion]}>
-        {ESTADO_ASIGNACION_LABELS[v as EstadoAsignacion]}
-      </StatusBadge>
-    ),
-  },
-];
-
 export default async function AsignacionesPage({
   searchParams,
 }: {
@@ -104,9 +34,12 @@ export default async function AsignacionesPage({
   const { estado } = await searchParams;
   const tab = (estado as EstadoAsignacion) ?? "activa";
 
-  const activas = SEED_ASIGNACIONES.filter((a) => a.estado === "activa");
-  const programadas = SEED_ASIGNACIONES.filter((a) => a.estado === "programada");
-  const finalizadas = SEED_ASIGNACIONES.filter((a) => a.estado === "finalizada");
+  const allAsignaciones = await getAsignacionesDb();
+  const allPersonas = await getPersonasDb();
+
+  const activas = allAsignaciones.filter((a) => a.estado === "activa");
+  const programadas = allAsignaciones.filter((a) => a.estado === "programada");
+  const finalizadas = allAsignaciones.filter((a) => a.estado === "finalizada");
 
   const dataPorTab: Record<EstadoAsignacion, Asignacion[]> = {
     activa: activas,
@@ -118,6 +51,75 @@ export default async function AsignacionesPage({
     { key: "activa", label: "Activas", count: activas.length },
     { key: "programada", label: "Programadas", count: programadas.length },
     { key: "finalizada", label: "Historial", count: finalizadas.length },
+  ];
+
+  const columns: Column<Asignacion>[] = [
+    {
+      header: "Conductor",
+      accessor: "conductorNombre",
+      render: (v, row) => (
+        <Link href={`/personas/${row.conductorId}`} className="hover:text-radar-cyan font-medium">
+          {v as string}
+        </Link>
+      ),
+    },
+    {
+      header: "Vehículo",
+      accessor: "placa",
+      render: (v, row) => (
+        <Link href={`/flota/${row.vehiculoId}`}>
+          <PlateTag plate={v as string} />
+        </Link>
+      ),
+    },
+    {
+      header: "Contratista",
+      accessor: "contratistaNombre",
+    },
+    {
+      header: "Tipo",
+      accessor: "tipoAsignacion",
+      render: (v, row) =>
+        v === "fija" ? (
+          <span className="text-mist-200">Fija</span>
+        ) : (
+          row.turno && <TurnoTag turno={row.turno} />
+        ),
+    },
+    {
+      header: "Idoneidad",
+      accessor: "conductorId",
+      render: (v) => {
+        const persona = allPersonas.find((p) => p.id === v);
+        if (!persona) return <span className="text-fog-400">—</span>;
+        const aptitud = evaluarAptitudConductor(persona);
+        if (aptitud.nivel === "optimo") {
+          return <StatusBadge status="activo">Al día</StatusBadge>;
+        }
+        if (aptitud.nivel === "advertencia") {
+          return <StatusBadge status="pendiente">Novedad</StatusBadge>;
+        }
+        return <StatusBadge status="critico">Revisar</StatusBadge>;
+      },
+    },
+    {
+      header: "Vigencia",
+      accessor: "fechaInicio",
+      render: (v, row) => (
+        <span className="font-[family-name:var(--font-mono)] text-xs">
+          {formatFecha(v as string)} → {formatFecha(row.fechaFin)}
+        </span>
+      ),
+    },
+    {
+      header: "Estado",
+      accessor: "estado",
+      render: (v) => (
+        <StatusBadge status={ESTADO_TO_STATUS[v as EstadoAsignacion]}>
+          {ESTADO_ASIGNACION_LABELS[v as EstadoAsignacion]}
+        </StatusBadge>
+      ),
+    },
   ];
 
   return (

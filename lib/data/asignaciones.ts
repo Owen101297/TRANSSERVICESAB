@@ -130,3 +130,9 @@ export function getHistorialPorVehiculo(vehiculoId: string): Asignacion[] {
     (a, b) => new Date(b.fechaInicio).getTime() - new Date(a.fechaInicio).getTime()
   );
 }
+
+export function getAsignacionById(id: string): Asignacion | undefined {
+  return SEED_ASIGNACIONES.find((a) => a.id === id);
+}
+
+

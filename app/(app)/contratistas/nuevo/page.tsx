@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Save, AlertCircle } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { FormSection, TextField, SelectField } from "@/components/ui/FormField";
+import { createContratistaAction } from "@/lib/services/contratistas.service";
 
 const TIPO_OPERACION_OPTIONS = [
   { value: "fija", label: "Asignación fija (conductor no cambia de vehículo)" },
@@ -13,7 +15,25 @@ const TIPO_OPERACION_OPTIONS = [
 ];
 
 export default function NuevoContratistaPage() {
-  const [submitted, setSubmitted] = useState(false);
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+
+    startTransition(async () => {
+      const res = await createContratistaAction(formData);
+      if (res.success && res.contratistaId) {
+        router.push(`/contratistas/${res.contratistaId}`);
+      } else {
+        setErrorMsg(res.error || "Ocurrió un error al registrar el contratista.");
+      }
+    });
+  };
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -34,14 +54,15 @@ export default function NuevoContratistaPage() {
         </p>
       </div>
 
+      {errorMsg && (
+        <div className="flex items-center gap-2 rounded-lg border border-alert-red/30 bg-alert-red-dim/40 p-3 text-sm text-alert-red">
+          <AlertCircle size={16} />
+          {errorMsg}
+        </div>
+      )}
+
       <Card>
-        <form
-          className="space-y-6"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setSubmitted(true);
-          }}
-        >
+        <form className="space-y-6" onSubmit={handleSubmit}>
           <FormSection title="Identificación">
             <TextField
               label="Razón social"
@@ -87,6 +108,7 @@ export default function NuevoContratistaPage() {
               name="fechaVinculacion"
               type="date"
               required
+              defaultValue={new Date().toISOString().split("T")[0]}
             />
             <TextField
               label="Fin de contrato (si aplica)"
@@ -105,24 +127,18 @@ export default function NuevoContratistaPage() {
           </FormSection>
 
           <div className="flex items-center gap-3 pt-2">
-            <Button type="submit" variant="primary">
-              Guardar contratista
+            <Button type="submit" variant="primary" disabled={isPending}>
+              <Save size={16} /> {isPending ? "Guardando..." : "Guardar contratista"}
             </Button>
             <Link href="/contratistas">
-              <Button type="button" variant="ghost">
+              <Button type="button" variant="ghost" disabled={isPending}>
                 Cancelar
               </Button>
             </Link>
           </div>
-
-          {submitted && (
-            <p className="text-sm text-radar-cyan">
-              Formulario validado. Falta conectar el backend para persistir el
-              registro — por ahora esto queda solo en el frontend.
-            </p>
-          )}
         </form>
       </Card>
     </div>
   );
 }
+

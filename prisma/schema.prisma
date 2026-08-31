@@ -106,11 +106,15 @@ model Contratista {
   id                String       @id @default(cuid())
   razonSocial       String
   nit               String       @unique
+  tipoOperacion     String       @default("fija") // fija, rotativa
+  contactoNombre    String?
   telefono          String
   email             String
   direccion         String?
   estado            String       @default("activo") // activo, inactivo
   fechaVinculacion  DateTime     @default(now())
+  fechaFinContrato  DateTime?
+  notas             String?
   vehiculos         Vehiculo[]
   asignaciones      Asignacion[]
 

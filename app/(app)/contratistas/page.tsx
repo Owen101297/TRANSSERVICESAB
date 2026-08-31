@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { SEED_CONTRATISTAS } from "@/lib/data/contratistas";
-import { SEED_VEHICULOS } from "@/lib/data/vehiculos";
-import { SEED_PERSONAS } from "@/lib/data/personas";
+import { getContratistasDb } from "@/lib/services/contratistas.service";
+import { getVehiculosDb } from "@/lib/services/vehiculos.service";
+import { getPersonasDb } from "@/lib/services/personas.service";
 import {
   Contratista,
   ESTADO_CONTRATISTA_LABELS,
@@ -19,18 +19,22 @@ const ESTADO_TO_STATUS: Record<EstadoContratista, "activo" | "cerrado"> = {
   inactivo: "cerrado",
 };
 
-function contarVehiculos(contratistaId: string) {
-  return SEED_VEHICULOS.filter((v) => v.contratistaId === contratistaId).length;
-}
+export default async function ContratistasPage() {
+  const contratistas = await getContratistasDb();
+  const vehiculos = await getVehiculosDb();
+  const personas = await getPersonasDb();
 
-function contarConductores(contratistaId: string) {
-  return SEED_PERSONAS.filter((p) => p.contratistaId === contratistaId).length;
-}
+  const total = contratistas.length;
+  const activos = contratistas.filter((c) => c.estado === "activo").length;
+  const rotativos = contratistas.filter((c) => c.tipoOperacion === "rotativa").length;
 
-export default function ContratistasPage() {
-  const total = SEED_CONTRATISTAS.length;
-  const activos = SEED_CONTRATISTAS.filter((c) => c.estado === "activo").length;
-  const rotativos = SEED_CONTRATISTAS.filter((c) => c.tipoOperacion === "rotativa").length;
+  const contarVehiculos = (contratistaId: string) => {
+    return vehiculos.filter((v) => v.contratistaId === contratistaId).length;
+  };
+
+  const contarConductores = (contratistaId: string) => {
+    return personas.filter((p) => p.contratistaId === contratistaId).length;
+  };
 
   const columns: Column<Contratista>[] = [
     {
@@ -101,13 +105,13 @@ export default function ContratistasPage() {
       </div>
 
       <Card className="p-0 overflow-hidden">
-        <DataTable columns={columns} data={SEED_CONTRATISTAS} />
+        <DataTable columns={columns} data={contratistas} />
       </Card>
 
       <p className="text-xs text-fog-400">
-        Datos de ejemplo (seed) — reemplaza cada contratista con su información
-        real desde su ficha, o agrégalos de nuevo con &quot;Nuevo contratista&quot;.
+        Gestión de aliados estratégicos y monitoreo de contratos de operación.
       </p>
     </div>
   );
 }
+

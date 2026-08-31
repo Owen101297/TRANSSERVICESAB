@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Phone, Mail, Calendar, Truck, Users2 } from "lucide-react";
-import { getContratistaById } from "@/lib/data/contratistas";
-import { SEED_VEHICULOS } from "@/lib/data/vehiculos";
-import { SEED_PERSONAS } from "@/lib/data/personas";
+import { getContratistaByIdDb } from "@/lib/services/contratistas.service";
+import { getVehiculosDb } from "@/lib/services/vehiculos.service";
+import { getPersonasDb } from "@/lib/services/personas.service";
 import {
   ESTADO_CONTRATISTA_LABELS,
   EstadoContratista,
@@ -13,7 +13,7 @@ import { Card } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PlateTag } from "@/components/ui/PlateTag";
 import { Avatar } from "@/components/ui/Avatar";
-import { Button } from "@/components/ui/Button";
+import { EditContratistaTrigger } from "@/components/contratistas/EditContratistaTrigger";
 
 const ESTADO_TO_STATUS: Record<EstadoContratista, "activo" | "cerrado"> = {
   activo: "activo",
@@ -26,11 +26,14 @@ export default async function ContratistaDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const contratista = getContratistaById(id);
+  const contratista = await getContratistaByIdDb(id);
   if (!contratista) notFound();
 
-  const vehiculos = SEED_VEHICULOS.filter((v) => v.contratistaId === id);
-  const conductores = SEED_PERSONAS.filter((p) => p.contratistaId === id);
+  const allVehiculos = await getVehiculosDb();
+  const allPersonas = await getPersonasDb();
+
+  const vehiculos = allVehiculos.filter((v) => v.contratistaId === id);
+  const conductores = allPersonas.filter((p) => p.contratistaId === id);
 
   return (
     <div className="space-y-6">
@@ -76,9 +79,7 @@ export default async function ContratistaDetailPage({
             </p>
           )}
 
-          <Button variant="secondary" className="mt-6 w-full">
-            Editar información
-          </Button>
+          <EditContratistaTrigger contratista={contratista} />
         </Card>
 
         {/* Columna derecha: vehículos y conductores vinculados */}

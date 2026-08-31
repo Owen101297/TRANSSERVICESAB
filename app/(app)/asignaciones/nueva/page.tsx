@@ -1,15 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useTransition } from "react";
 import Link from "next/link";
-import { ArrowLeft, AlertTriangle, ShieldCheck, Info } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, AlertTriangle, ShieldCheck, Save, AlertCircle } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { FormSection, TextField, SelectField } from "@/components/ui/FormField";
-import { SEED_PERSONAS } from "@/lib/data/personas";
-import { SEED_VEHICULOS } from "@/lib/data/vehiculos";
+import { getPersonasDb } from "@/lib/services/personas.service";
+import { getVehiculosDb } from "@/lib/services/vehiculos.service";
+import { createAsignacionAction } from "@/lib/services/asignaciones.service";
 import { TipoAsignacion } from "@/lib/types/asignacion";
-import { evaluarAptitudConductor } from "@/lib/types/persona";
+import { Persona, evaluarAptitudConductor } from "@/lib/types/persona";
+import { Vehiculo } from "@/lib/types/vehiculo";
 
 const TIPO_OPTIONS = [
   { value: "fija", label: "Fija — no cambia de vehículo" },
@@ -23,42 +26,70 @@ const TURNO_OPTIONS = [
 ];
 
 export default function NuevaAsignacionPage() {
-  const [submitted, setSubmitted] = useState(false);
-  const [tipo, setTipo] = useState<TipoAsignacion | "">("");
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [personas, setPersonas] = useState<Persona[]>([]);
+  const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
+  const [tipo, setTipo] = useState<TipoAsignacion | "">("fija");
   const [selectedConductorId, setSelectedConductorId] = useState<string>("");
   const [autorizacionOperativa, setAutorizacionOperativa] = useState<boolean>(false);
+
+  useEffect(() => {
+    getPersonasDb().then((data) => setPersonas(data || []));
+    getVehiculosDb().then((data) => setVehiculos(data || []));
+  }, []);
 
   const conductorOptions = useMemo(
     () => [
       { value: "", label: "Seleccionar conductor..." },
-      ...SEED_PERSONAS.filter((p) => p.perfiles.includes("conductor")).map((p) => ({
-        value: p.id,
-        label: `${p.nombres} ${p.apellidos} (${p.contratistaNombre || "Propio"})`,
-      })),
+      ...personas
+        .filter((p) => p.perfiles.includes("conductor"))
+        .map((p) => ({
+          value: p.id,
+          label: `${p.nombres} ${p.apellidos} (${p.contratistaNombre || "Propio"})`,
+        })),
     ],
-    []
+    [personas]
   );
 
   const vehiculoOptions = useMemo(
     () => [
       { value: "", label: "Seleccionar vehículo..." },
-      ...SEED_VEHICULOS.map((v) => ({
+      ...vehiculos.map((v) => ({
         value: v.id,
         label: `${v.placa} — ${v.marca} ${v.modelo} (${v.contratistaNombre})`,
       })),
     ],
-    []
+    [vehiculos]
   );
 
   const selectedConductor = useMemo(
-    () => SEED_PERSONAS.find((p) => p.id === selectedConductorId),
-    [selectedConductorId]
+    () => personas.find((p) => p.id === selectedConductorId),
+    [personas, selectedConductorId]
   );
 
   const evaluacion = useMemo(() => {
     if (!selectedConductor) return null;
     return evaluarAptitudConductor(selectedConductor);
   }, [selectedConductor]);
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    formData.append("autorizacionOperativa", String(autorizacionOperativa));
+
+    startTransition(async () => {
+      const res = await createAsignacionAction(formData);
+      if (res.success) {
+        router.push("/asignaciones");
+      } else {
+        setErrorMsg(res.error || "Ocurrió un error al guardar la asignación.");
+      }
+    });
+  };
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -80,14 +111,15 @@ export default function NuevaAsignacionPage() {
         </p>
       </div>
 
+      {errorMsg && (
+        <div className="flex items-center gap-2 rounded-lg border border-alert-red/30 bg-alert-red-dim/40 p-3 text-sm text-alert-red">
+          <AlertCircle size={16} />
+          {errorMsg}
+        </div>
+      )}
+
       <Card>
-        <form
-          className="space-y-6"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setSubmitted(true);
-          }}
-        >
+        <form className="space-y-6" onSubmit={handleSubmit}>
           <FormSection title="Conductor y vehículo">
             <SelectField
               label="Conductor"
@@ -182,7 +214,13 @@ export default function NuevaAsignacionPage() {
           </FormSection>
 
           <FormSection title="Vigencia">
-            <TextField label="Fecha de inicio" name="fechaInicio" type="date" required />
+            <TextField
+              label="Fecha de inicio"
+              name="fechaInicio"
+              type="date"
+              required
+              defaultValue={new Date().toISOString().split("T")[0]}
+            />
             <TextField
               label="Fecha de fin"
               name="fechaFin"
@@ -204,21 +242,16 @@ export default function NuevaAsignacionPage() {
             <Button
               type="submit"
               variant="primary"
+              disabled={isPending}
             >
-              Guardar asignación
+              <Save size={16} /> {isPending ? "Guardando en base de datos..." : "Guardar asignación"}
             </Button>
             <Link href="/asignaciones">
-              <Button type="button" variant="ghost">
+              <Button type="button" variant="ghost" disabled={isPending}>
                 Cancelar
               </Button>
             </Link>
           </div>
-
-          {submitted && (
-            <p className="text-sm text-radar-cyan">
-              Asignación validada exitosamente{autorizacionOperativa ? " (con confirmación de autorización operativa registrada)" : ""}. Pendiente conectar backend para persistencia en base de datos.
-            </p>
-          )}
         </form>
       </Card>
     </div>

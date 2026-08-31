@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Users2 } from "lucide-react";
-import { getVehiculoById } from "@/lib/data/vehiculos";
-import { getHistorialPorVehiculo } from "@/lib/data/asignaciones";
+import { getVehiculoByIdDb } from "@/lib/services/vehiculos.service";
+import { getAsignacionesDb } from "@/lib/services/asignaciones.service";
 import {
   ESTADO_VEHICULO_LABELS,
   EstadoVehiculo,
@@ -15,7 +15,7 @@ import { PlateTag } from "@/components/ui/PlateTag";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { DocExpiryBadge } from "@/components/ui/DocExpiryBadge";
 import { TurnoTag } from "@/components/ui/TurnoTag";
-import { Button } from "@/components/ui/Button";
+import { EditVehiculoTrigger } from "@/components/flota/EditVehiculoTrigger";
 
 const ESTADO_TO_STATUS: Record<EstadoVehiculo, "activo" | "pendiente" | "cerrado"> = {
   activo: "activo",
@@ -35,10 +35,11 @@ export default async function VehiculoDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const vehiculo = getVehiculoById(id);
+  const vehiculo = await getVehiculoByIdDb(id);
   if (!vehiculo) notFound();
 
-  const historial = getHistorialPorVehiculo(id);
+  const allAsignaciones = await getAsignacionesDb();
+  const historial = allAsignaciones.filter((a) => a.vehiculoId === id);
   const activa = historial.find((a) => a.estado === "activa");
 
   return (
@@ -74,9 +75,7 @@ export default async function VehiculoDetailPage({
             <Row label="Contratista" value={vehiculo.contratistaNombre} />
           </div>
 
-          <Button variant="secondary" className="mt-6 w-full">
-            Editar información
-          </Button>
+          <EditVehiculoTrigger vehiculo={vehiculo} />
         </Card>
 
         {/* Columna derecha */}

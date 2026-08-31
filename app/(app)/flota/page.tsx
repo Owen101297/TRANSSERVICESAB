@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { SEED_VEHICULOS } from "@/lib/data/vehiculos";
-import { getHistorialPorVehiculo } from "@/lib/data/asignaciones";
+import { getVehiculosDb } from "@/lib/services/vehiculos.service";
+import { getAsignacionesDb } from "@/lib/services/asignaciones.service";
 import {
   ESTADO_VEHICULO_LABELS,
   EstadoVehiculo,
@@ -22,11 +22,14 @@ const ESTADO_TO_STATUS: Record<EstadoVehiculo, "activo" | "pendiente" | "cerrado
   inactivo: "cerrado",
 };
 
-export default function FlotaPage() {
-  const total = SEED_VEHICULOS.length;
-  const activos = SEED_VEHICULOS.filter((v) => v.estado === "activo").length;
-  const contratistas = new Set(SEED_VEHICULOS.map((v) => v.contratistaId)).size;
-  const documentosCriticos = SEED_VEHICULOS.filter((v) => {
+export default async function FlotaPage() {
+  const vehiculos = await getVehiculosDb();
+  const asignaciones = await getAsignacionesDb();
+
+  const total = vehiculos.length;
+  const activos = vehiculos.filter((v) => v.estado === "activo").length;
+  const contratistas = new Set(vehiculos.map((v) => v.contratistaId)).size;
+  const documentosCriticos = vehiculos.filter((v) => {
     const estados = Object.values(v.documentos).map(getEstadoDocumento);
     return estados.includes("vencido") || estados.includes("proximo");
   }).length;
@@ -68,7 +71,7 @@ export default function FlotaPage() {
       header: "Conductor",
       accessor: "id",
       render: (v) => {
-        const activa = getHistorialPorVehiculo(v as string).find((a) => a.estado === "activa");
+        const activa = asignaciones.filter((a) => a.vehiculoId === v).find((a) => a.estado === "activa");
         return <span>{activa ? activa.conductorNombre : "Sin asignar"}</span>;
       },
     },
@@ -121,12 +124,13 @@ export default function FlotaPage() {
       </div>
 
       <Card className="p-0 overflow-hidden">
-        <DataTable columns={columns} data={SEED_VEHICULOS} />
+        <DataTable columns={columns} data={vehiculos} />
       </Card>
 
       <p className="text-xs text-fog-400">
-        Datos de ejemplo (seed) — pendiente conectar a base de datos real.
+        Parque automotor vinculado y semaforización de vencimientos legales.
       </p>
     </div>
   );
 }
+
