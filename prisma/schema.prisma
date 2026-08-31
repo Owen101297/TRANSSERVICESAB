@@ -477,3 +477,19 @@ model EncuestaRiesgoVial {
 
   @@index([personaId])
 }
+
+// --------------------------------------------------------
+// ADMINISTRACIÓN & CONTROL DE ACCESO (RBAC)
+// --------------------------------------------------------
+
+model RolSistema {
+  id                  String   @id @default(cuid())
+  nombre              String   @unique
+  descripcion         String
+  permisos            Json     @default("[]") // Lista de módulos accesibles
+  esConfigurable      Boolean  @default(true)
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+

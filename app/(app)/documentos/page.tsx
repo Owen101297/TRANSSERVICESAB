@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SEED_DOCUMENTOS } from "@/lib/data/documentos";
+import { getDocumentosDb } from "@/lib/services/documentos.service";
 import { CATEGORIA_LABELS, Documento } from "@/lib/types/documento";
 import { getEstadoDocumento } from "@/lib/types/vehiculo";
 import { Card, StatCard } from "@/components/ui/Card";
@@ -29,7 +29,7 @@ const columns: Column<Documento>[] = [
   {
     header: "Documento",
     accessor: "nombre",
-    render: (v) => <span className="text-paper-50">{v as string}</span>,
+    render: (v) => <span className="text-paper-50 font-medium">{v as string}</span>,
   },
   {
     header: "Categoría",
@@ -40,7 +40,7 @@ const columns: Column<Documento>[] = [
     header: "Relacionado con",
     accessor: "entidadNombre",
     render: (v, row) => (
-      <Link href={row.entidadHref} className="hover:text-radar-cyan">
+      <Link href={row.entidadHref} className="hover:text-radar-cyan text-radar-cyan/90 font-mono text-xs">
         {v as string}
       </Link>
     ),
@@ -64,36 +64,35 @@ const columns: Column<Documento>[] = [
   },
 ];
 
-export default function DocumentosPage() {
-  const total = SEED_DOCUMENTOS.length;
-  const vencidos = SEED_DOCUMENTOS.filter((d) => estadoDeDocumento(d) === "vencido").length;
-  const proximos = SEED_DOCUMENTOS.filter((d) => estadoDeDocumento(d) === "proximo").length;
+export default async function DocumentosPage() {
+  const documentos = await getDocumentosDb();
+  const total = documentos.length;
+  const vencidos = documentos.filter((d) => estadoDeDocumento(d) === "vencido").length;
+  const proximos = documentos.filter((d) => estadoDeDocumento(d) === "proximo").length;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold text-paper-50">
-          Documentos
+          Repositorio Documental Centralizado
         </h1>
         <p className="mt-1 text-sm text-fog-400">
-          Vista transversal — personas, vehículos, contratistas y documentos
-          empresariales, todos en un solo lugar.
+          Visibilidad transversal de expedientes de personas, vehículos, contratistas y permisos empresariales.
         </p>
       </div>
 
       <div className="grid grid-cols-3 gap-4 max-w-lg">
-        <StatCard label="Total" value={total} accent="cyan" />
-        <StatCard label="Por vencer" value={proximos} accent="amber" />
+        <StatCard label="Total documentos" value={total} accent="cyan" />
+        <StatCard label="Por vencer (30 días)" value={proximos} accent="amber" />
         <StatCard label="Vencidos" value={vencidos} accent="amber" />
       </div>
 
       <Card className="p-0 overflow-hidden">
-        <DataTable columns={columns} data={SEED_DOCUMENTOS} />
+        <DataTable columns={columns} data={documentos} emptyMessage="No hay documentos registrados." />
       </Card>
 
       <p className="text-xs text-fog-400">
-        Los documentos de vehículos vienen directamente del módulo Flota — no
-        están duplicados. Los de personas y contratistas son de ejemplo.
+        Información consolidada en vivo a partir de los expedientes de Flota, Personas y Contratistas.
       </p>
     </div>
   );

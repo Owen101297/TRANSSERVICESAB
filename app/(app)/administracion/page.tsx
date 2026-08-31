@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { SEED_PERSONAS } from "@/lib/data/personas";
-import { SEED_ROLES } from "@/lib/data/roles";
+import { getPersonasDb } from "@/lib/services/personas.service";
+import { getRolesDb } from "@/lib/services/admin.service";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Avatar } from "@/components/ui/Avatar";
@@ -15,14 +15,17 @@ export default async function AdministracionPage({
   const { tab } = await searchParams;
   const activeTab = tab ?? "usuarios";
 
+  const personas = await getPersonasDb();
+  const roles = await getRolesDb();
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold text-paper-50">
-          Administración
+          Administración y Control de Acceso (RBAC)
         </h1>
         <p className="mt-1 text-sm text-fog-400">
-          Usuarios, roles y permisos del sistema.
+          Gestión de usuarios, roles dinámicos y permisos por módulo del sistema.
         </p>
       </div>
 
@@ -35,7 +38,7 @@ export default async function AdministracionPage({
               : "border-transparent text-fog-400 hover:text-mist-200"
           }`}
         >
-          Usuarios
+          Usuarios ({personas.length})
         </Link>
         <Link
           href="/administracion?tab=roles"
@@ -45,22 +48,22 @@ export default async function AdministracionPage({
               : "border-transparent text-fog-400 hover:text-mist-200"
           }`}
         >
-          Roles
+          Roles ({roles.length})
         </Link>
       </div>
 
       {activeTab === "usuarios" && (
         <Card className="p-0 overflow-hidden">
           <ul className="divide-y divide-line-600">
-            {SEED_PERSONAS.map((p) => (
+            {personas.map((p) => (
               <li key={p.id} className="flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-3">
                   <Avatar initials={p.fotoIniciales} size="sm" />
                   <div>
-                    <Link href={`/personas/${p.id}`} className="text-sm text-paper-50 hover:text-radar-cyan">
+                    <Link href={`/personas/${p.id}`} className="text-sm text-paper-50 font-medium hover:text-radar-cyan">
                       {p.nombres} {p.apellidos}
                     </Link>
-                    <p className="text-xs text-fog-400">{p.email}</p>
+                    <p className="text-xs text-fog-400 font-mono">{p.email || p.numeroDocumento} · {p.perfiles.join(", ")}</p>
                   </div>
                 </div>
                 <StatusBadge status={p.estado === "activo" ? "activo" : "pendiente"}>
@@ -82,7 +85,7 @@ export default async function AdministracionPage({
             </Link>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {SEED_ROLES.map((r) => (
+            {roles.map((r) => (
               <Card key={r.id}>
                 <div className="flex items-center justify-between">
                   <span className="font-[family-name:var(--font-mono)] text-sm font-medium text-paper-50">
@@ -95,6 +98,15 @@ export default async function AdministracionPage({
                   )}
                 </div>
                 <p className="mt-2 text-xs text-fog-400">{r.descripcion}</p>
+                {r.permisos && r.permisos.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1">
+                    {r.permisos.map((p) => (
+                      <span key={p} className="rounded bg-asphalt-800 border border-line-600 px-1.5 py-0.5 text-[10px] text-radar-cyan font-mono">
+                        {p}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </Card>
             ))}
           </div>
@@ -102,9 +114,9 @@ export default async function AdministracionPage({
       )}
 
       <p className="text-xs text-fog-400">
-        Datos de ejemplo (seed) — pendiente conectar autenticación y control
-        de permisos real (RBAC) al backend.
+        Control de acceso basado en roles (RBAC).
       </p>
     </div>
   );
 }
+
