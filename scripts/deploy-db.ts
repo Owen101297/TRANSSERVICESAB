@@ -11,9 +11,9 @@ async function runDeployDb() {
     execSync("npx prisma db push --accept-data-loss", { stdio: "inherit" });
     console.log("✓ Esquema de base de datos sincronizado con éxito.");
 
-    console.log("Ejecutando seed de datos iniciales...");
-    execSync("npx tsx prisma/seed.ts", { stdio: "inherit" });
-    console.log("✓ Base de datos sembrada e inicializada correctamente.");
+    console.log("Asegurando base de datos limpia con catálogos normativos...");
+    execSync("npx tsx scripts/clean-db.ts", { stdio: "inherit" });
+    console.log("✓ Base de datos limpia y lista para operación real.");
   } catch (err) {
     console.error("Error durante deploy de base de datos:", err);
   }
