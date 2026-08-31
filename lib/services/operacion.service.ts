@@ -7,7 +7,7 @@ import { getPersonaById } from "@/lib/data/personas";
 import { getVehiculoById } from "@/lib/data/vehiculos";
 import { Viaje, EstadoViaje, ServicioViaje, Novedad } from "@/lib/types/viaje";
 
-let localViajesState: Viaje[] = [...SEED_VIAJES];
+let localViajesState: Viaje[] = [];
 
 /**
  * Obtiene todos los viajes operacionales desde DB (o fallback local)

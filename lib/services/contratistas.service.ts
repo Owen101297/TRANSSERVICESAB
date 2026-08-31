@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { SEED_CONTRATISTAS, getContratistaById as getSeedContratistaById } from "@/lib/data/contratistas";
 import { Contratista, TipoOperacion, EstadoContratista } from "@/lib/types/contratista";
 
-let localContratistasState: Contratista[] = [...SEED_CONTRATISTAS];
+let localContratistasState: Contratista[] = [];
 
 /**
  * Obtiene todos los contratistas desde DB (o fallback local)

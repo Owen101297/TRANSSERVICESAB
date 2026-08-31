@@ -9,7 +9,7 @@ import { Capacitacion, TipoCapacitacion, EstadoCapacitacion } from "@/lib/types/
 import { RegistroAsistencia, EstadoAsistencia } from "@/lib/types/asistencia";
 import { Encuesta } from "@/lib/types/encuesta";
 
-let localCapacitacionesState: Capacitacion[] = [...SEED_CAPACITACIONES];
+let localCapacitacionesState: Capacitacion[] = [];
 let localAsistenciasState: RegistroAsistencia[] = [...SEED_ASISTENCIA];
 let localEncuestasState: Encuesta[] = [...SEED_ENCUESTAS];
 

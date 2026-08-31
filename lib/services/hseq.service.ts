@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { SEED_HALLAZGOS, getHallazgoById as getSeedHallazgoById } from "@/lib/data/hallazgos";
 import { Hallazgo, OrigenHallazgo, SeveridadHallazgo, EstadoHallazgo } from "@/lib/types/hseq";
 
-let localHallazgosState: Hallazgo[] = [...SEED_HALLAZGOS];
+let localHallazgosState: Hallazgo[] = [];
 
 /**
  * Obtiene todos los hallazgos de HSEQ desde DB (o fallback local)

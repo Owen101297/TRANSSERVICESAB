@@ -13,7 +13,7 @@ import {
   EstadoAsignacion,
 } from "@/lib/types/asignacion";
 
-let localAsignacionesState: Asignacion[] = [...SEED_ASIGNACIONES];
+let localAsignacionesState: Asignacion[] = [];
 
 /**
  * Obtiene todas las asignaciones operativas desde DB (o fallback local)

@@ -11,7 +11,7 @@ import {
   EstadoVehiculo,
 } from "@/lib/types/vehiculo";
 
-let localVehiculosState: Vehiculo[] = [...SEED_VEHICULOS];
+let localVehiculosState: Vehiculo[] = [];
 
 /**
  * Obtiene todos los vehículos desde PostgreSQL (o fallback local)

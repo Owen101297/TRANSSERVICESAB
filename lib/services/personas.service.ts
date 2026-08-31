@@ -13,7 +13,7 @@ import {
 } from "@/lib/types/persona";
 
 // Memoria volátil de respaldo para cuando se trabaje en modo local sin base de datos activa
-let localPersonsState: Persona[] = [...SEED_PERSONAS];
+let localPersonsState: Persona[] = [];
 
 function computeInitials(nombres: string, apellidos: string): string {
   const first = nombres.trim().charAt(0) || "U";
