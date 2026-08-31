@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Save, AlertCircle } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { FormSection, TextField, SelectField } from "@/components/ui/FormField";
+import { createPersonaAction } from "@/lib/services/personas.service";
 
 const PERFIL_OPTIONS = [
   { value: "conductor", label: "Conductor" },
@@ -48,10 +50,28 @@ const CONCEPTO_MEDICO_OPTIONS = [
 ];
 
 export default function NuevaPersonaPage() {
-  const [submitted, setSubmitted] = useState(false);
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [perfil, setPerfil] = useState("conductor");
 
   const esConductor = perfil === "conductor";
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+
+    startTransition(async () => {
+      const res = await createPersonaAction(formData);
+      if (res.success && res.personaId) {
+        router.push(`/personas/${res.personaId}`);
+      } else {
+        setErrorMsg(res.error || "Ocurrió un error al guardar el registro.");
+      }
+    });
+  };
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -72,14 +92,15 @@ export default function NuevaPersonaPage() {
         </p>
       </div>
 
+      {errorMsg && (
+        <div className="flex items-center gap-2 rounded-lg border border-alert-red/30 bg-alert-red-dim/40 p-3 text-sm text-alert-red">
+          <AlertCircle size={16} />
+          {errorMsg}
+        </div>
+      )}
+
       <Card>
-        <form
-          className="space-y-6"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setSubmitted(true);
-          }}
-        >
+        <form className="space-y-6" onSubmit={handleSubmit}>
           <FormSection
             title="Información básica"
             description="Datos personales de identificación."
@@ -225,26 +246,19 @@ export default function NuevaPersonaPage() {
           )}
 
           <div className="flex items-center gap-3 pt-2">
-            <Button type="submit" variant="primary">
-              Guardar persona
+            <Button type="submit" variant="primary" disabled={isPending}>
+              <Save size={16} /> {isPending ? "Guardando en base de datos..." : "Guardar persona"}
             </Button>
             <Link href="/personas">
-              <Button type="button" variant="ghost">
+              <Button type="button" variant="ghost" disabled={isPending}>
                 Cancelar
               </Button>
             </Link>
           </div>
-
-          {submitted && (
-            <p className="text-sm text-radar-cyan">
-              Formulario validado. Falta conectar el backend (Supabase/API)
-              para persistir el registro — por ahora esto queda solo en el
-              frontend.
-            </p>
-          )}
         </form>
       </Card>
     </div>
   );
 }
+
 

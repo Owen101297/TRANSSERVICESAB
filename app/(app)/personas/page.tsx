@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Plus, UploadCloud } from "lucide-react";
 import { SEED_PERSONAS } from "@/lib/data/personas";
+import { getPersonasDb } from "@/lib/services/personas.service";
 import { getAsignacionActiva } from "@/lib/data/asignaciones";
 import { ESTADO_LABELS, EstadoPersona, Persona } from "@/lib/types/persona";
 import { Button } from "@/components/ui/Button";
@@ -25,6 +26,14 @@ const ESTADO_TO_STATUS: Record<EstadoPersona, "activo" | "pendiente" | "cerrado"
 export default function PersonasPage() {
   const [personas, setPersonas] = useState<Persona[]>(SEED_PERSONAS);
   const [isBulkOpen, setIsBulkOpen] = useState(false);
+
+  useEffect(() => {
+    getPersonasDb().then((data) => {
+      if (data && data.length > 0) {
+        setPersonas(data);
+      }
+    });
+  }, []);
 
   const total = personas.length;
   const activos = personas.filter((p) => p.estado === "activo").length;

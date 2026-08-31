@@ -1,0 +1,203 @@
+// Prisma Schema para A&B OS (ERP-TRANSSERVICES)
+// Configurado para PostgreSQL en Railway
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --------------------------------------------------------
+// MÓDULO PERSONAS Y EXPEDIENTE LABORAL / CONDUCTOR
+// --------------------------------------------------------
+
+model Persona {
+  id                String             @id @default(cuid())
+  nombres           String
+  apellidos         String
+  tipoDocumento     String             @default("CC") // CC, CE, PA, TI
+  numeroDocumento   String             @unique
+  telefono          String
+  email             String
+  perfiles          String[]           // conductor, empleado, supervisor, hseq, administrativo
+  estado            String             @default("activo") // activo, inactivo, descanso, vacaciones
+  fechaIngreso      DateTime           @default(now())
+  contratistaId     String?
+  contratistaNombre String?
+  fotoIniciales     String
+
+  // Relaciones
+  licenciaConduccion LicenciaConduccion?
+  examenMedico       ExamenMedico?
+  datosSalud         DatosSalud?
+  contactoEmergencia ContactoEmergencia?
+  asignaciones       Asignacion[]
+
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@index([numeroDocumento])
+  @@index([estado])
+}
+
+model LicenciaConduccion {
+  id                String   @id @default(cuid())
+  personaId         String   @unique
+  persona           Persona  @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  numero            String
+  categorias        String[] // C1, C2, C3, B1, B2, etc.
+  fechaVencimiento  DateTime
+  organismoTransito String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model ExamenMedico {
+  id                String   @id @default(cuid())
+  personaId         String   @unique
+  persona           Persona  @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  tipo              String   @default("periodico") // ingreso, periodico, egreso, post_incapacidad
+  fechaRealizacion  DateTime
+  fechaVigencia     DateTime
+  enfasis           String[] // Visiometría, Audiometría, Psicosensométrico, Osteomuscular
+  concepto          String   @default("apto") // apto, apto_con_restricciones, no_apto, pendiente
+  restricciones     String?
+  centroMedico      String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model DatosSalud {
+  id                String   @id @default(cuid())
+  personaId         String   @unique
+  persona           Persona  @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  grupoSanguineoRH  String   // O+, O-, A+, A-, B+, B-, AB+, AB-
+  eps               String
+  arl               String
+  fondoPensiones    String?
+  alergias          String?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model ContactoEmergencia {
+  id                String   @id @default(cuid())
+  personaId         String   @unique
+  persona           Persona  @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  nombreCompleto    String
+  parentesco        String
+  telefono          String
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// --------------------------------------------------------
+// MÓDULO CONTRATISTAS
+// --------------------------------------------------------
+
+model Contratista {
+  id                String       @id @default(cuid())
+  razonSocial       String
+  nit               String       @unique
+  telefono          String
+  email             String
+  direccion         String?
+  estado            String       @default("activo") // activo, inactivo
+  fechaVinculacion  DateTime     @default(now())
+  vehiculos         Vehiculo[]
+  asignaciones      Asignacion[]
+
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+}
+
+// --------------------------------------------------------
+// MÓDULO FLOTA (VEHÍCULOS)
+// --------------------------------------------------------
+
+model Vehiculo {
+  id                String       @id @default(cuid())
+  placa             String       @unique
+  marca             String
+  modelo            String
+  anio              Int
+  capacidad         Int
+  tipo              String       // van, microbus, buseta, bus, camioneta, automovil
+  servicio          String       @default("especial") // especial, particular, publico
+  contratistaId     String
+  contratista       Contratista  @relation(fields: [contratistaId], references: [id])
+  contratistaNombre String
+  estado            String       @default("activo") // activo, mantenimiento, inactivo
+
+  // Vencimientos documentales
+  soatVencimiento   DateTime
+  rtmVencimiento    DateTime
+  polizaVencimiento DateTime
+
+  asignaciones      Asignacion[]
+
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([placa])
+  @@index([estado])
+}
+
+// --------------------------------------------------------
+// MÓDULO ASIGNACIONES
+// --------------------------------------------------------
+
+model Asignacion {
+  id                String       @id @default(cuid())
+  conductorId       String
+  conductor         Persona      @relation(fields: [conductorId], references: [id])
+  conductorNombre   String
+  vehiculoId        String
+  vehiculo          Vehiculo     @relation(fields: [vehiculoId], references: [id])
+  placa             String
+  contratistaId     String
+  contratista       Contratista  @relation(fields: [contratistaId], references: [id])
+  contratistaNombre String
+  tipoAsignacion    String       // fija, rotativa
+  turno             String?      // 12h-diurno, 12h-nocturno, 24h
+  fechaInicio       DateTime
+  fechaFin          DateTime?
+  estado            String       @default("activa") // activa, programada, finalizada
+  observaciones     String?
+  autorizacionOperativa Boolean  @default(false)
+
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([conductorId])
+  @@index([vehiculoId])
+  @@index([estado])
+}
+
+// --------------------------------------------------------
+// DOCUMENTOS Y ARCHIVOS ADJUNTOS
+// --------------------------------------------------------
+
+model DocumentoAdjunto {
+  id                String   @id @default(cuid())
+  entidadTipo       String   // persona, vehiculo, contratista, sgsst, pesv, hseq
+  entidadId         String
+  tipoDocumento     String   // cedula, licencia, emo, pila, soat, rtm, poliza, contrato, evidencia
+  nombre            String
+  archivoUrl        String
+  tamano            String?
+  mimeType          String?
+  fechaVencimiento  DateTime?
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([entidadTipo, entidadId])
+}

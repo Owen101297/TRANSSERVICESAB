@@ -13,7 +13,7 @@ import {
   Stethoscope,
   FileCheck,
 } from "lucide-react";
-import { getPersonaById } from "@/lib/data/personas";
+import { getPersonaByIdDb } from "@/lib/services/personas.service";
 import { getAsignacionActiva, getHistorialPorConductor } from "@/lib/data/asignaciones";
 import {
   ESTADO_LABELS,
@@ -30,7 +30,7 @@ import { PlateTag } from "@/components/ui/PlateTag";
 import { TurnoTag } from "@/components/ui/TurnoTag";
 import { DocExpiryBadge } from "@/components/ui/DocExpiryBadge";
 import { DocUploadSlot } from "@/components/ui/DocUploadSlot";
-import { Button } from "@/components/ui/Button";
+import { EditPersonaTrigger } from "@/components/personas/EditPersonaTrigger";
 
 const ESTADO_TO_STATUS: Record<EstadoPersona, "activo" | "pendiente" | "cerrado"> = {
   activo: "activo",
@@ -58,7 +58,7 @@ export default async function PersonaDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const persona = getPersonaById(id);
+  const persona = await getPersonaByIdDb(id);
   if (!persona) notFound();
 
   const asignacionActiva = getAsignacionActiva(id);
@@ -110,9 +110,7 @@ export default async function PersonaDetailPage({
               )}
             </div>
 
-            <Button variant="secondary" className="mt-6 w-full">
-              Editar información
-            </Button>
+            <EditPersonaTrigger persona={persona} />
           </Card>
 
           {/* Salud y Seguridad Social */}
