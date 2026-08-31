@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
-import { SEED_ITEMS_SGSST } from "../lib/data/sgsst-items";
-import { SEED_PASOS_PESV } from "../lib/data/pesv-pasos";
+import { ITEMS_SGSST } from "../lib/data/sgsst-items";
+import { PASOS_PESV } from "../lib/data/pesv-pasos";
 import { SEED_ROLES } from "../lib/data/roles";
 
 const prisma = new PrismaClient();
@@ -33,52 +33,48 @@ async function cleanDatabase() {
   console.log("Restableciendo catálogo normativo base...");
 
   // SG-SST: 60 ítems con estado inicial
-  for (const i of SEED_ITEMS_SGSST) {
+  for (const i of ITEMS_SGSST) {
     await (prisma as any).itemSgsst.upsert({
       where: { id: i.id },
       update: {
-        estandarId: i.estandarId,
         numeral: i.numeral,
-        descripcion: i.descripcion,
-        pesoPorcentual: i.pesoPorcentual,
-        estado: "no_cumple",
-        evidenciaDescripcion: null,
+        estandarId: i.estandarId,
+        nombre: i.nombre,
+        estado: "pendiente",
+        documentoNombre: null,
       },
       create: {
         id: i.id,
-        estandarId: i.estandarId,
         numeral: i.numeral,
-        descripcion: i.descripcion,
-        pesoPorcentual: i.pesoPorcentual,
-        estado: "no_cumple",
-        evidenciaDescripcion: null,
+        estandarId: i.estandarId,
+        nombre: i.nombre,
+        estado: "pendiente",
+        documentoNombre: null,
       },
     });
   }
   console.log("✓ Matriz SG-SST (60 estándares) restablecida.");
 
   // PESV: 24 pasos con estado inicial
-  for (const p of SEED_PASOS_PESV) {
+  for (const p of PASOS_PESV) {
     await (prisma as any).pasoPesv.upsert({
       where: { id: p.id },
       update: {
         numero: p.numero,
         fase: p.fase,
         nombre: p.nombre,
-        descripcion: p.descripcion,
-        nivelVigencia: p.nivelVigencia,
-        estado: "no_cumple",
-        aplica: true,
+        estado: "pendiente",
+        documentoNombre: null,
+        observaciones: p.observaciones ?? null,
       },
       create: {
         id: p.id,
         numero: p.numero,
         fase: p.fase,
         nombre: p.nombre,
-        descripcion: p.descripcion,
-        nivelVigencia: p.nivelVigencia,
-        estado: "no_cumple",
-        aplica: true,
+        estado: "pendiente",
+        documentoNombre: null,
+        observaciones: p.observaciones ?? null,
       },
     });
   }

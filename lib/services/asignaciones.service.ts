@@ -28,10 +28,6 @@ export async function getAsignacionesDb(): Promise<Asignacion[]> {
       orderBy: { fechaInicio: "desc" },
     });
 
-    if (!dbAsigs || dbAsigs.length === 0) {
-      return localAsignacionesState;
-    }
-
     return dbAsigs.map((a) => ({
       id: a.id,
       conductorId: a.conductorId,

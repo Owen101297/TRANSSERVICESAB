@@ -20,10 +20,6 @@ export async function getHallazgosDb(): Promise<Hallazgo[]> {
       orderBy: { fechaReporte: "desc" },
     });
 
-    if (!dbHallazgos || dbHallazgos.length === 0) {
-      return localHallazgosState;
-    }
-
     return dbHallazgos.map((h: any) => ({
       id: h.id,
       origen: h.origen as OrigenHallazgo,

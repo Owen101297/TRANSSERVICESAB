@@ -26,10 +26,6 @@ export async function getVehiculosDb(): Promise<Vehiculo[]> {
       orderBy: { placa: "asc" },
     });
 
-    if (!dbVehicles || dbVehicles.length === 0) {
-      return localVehiculosState;
-    }
-
     return dbVehicles.map((v) => ({
       id: v.id,
       placa: v.placa,

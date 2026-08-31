@@ -20,10 +20,6 @@ export async function getContratistasDb(): Promise<Contratista[]> {
       orderBy: { razonSocial: "asc" },
     });
 
-    if (!dbContratistas || dbContratistas.length === 0) {
-      return localContratistasState;
-    }
-
     return dbContratistas.map((c) => ({
       id: c.id,
       nombre: c.razonSocial,

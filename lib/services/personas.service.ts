@@ -40,10 +40,6 @@ export async function getPersonasDb(): Promise<Persona[]> {
       orderBy: { fechaIngreso: "desc" },
     });
 
-    if (!dbPersons || dbPersons.length === 0) {
-      return localPersonsState;
-    }
-
     return dbPersons.map((p) => ({
       id: p.id,
       nombres: p.nombres,

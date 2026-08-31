@@ -2,15 +2,26 @@ import { StatCard } from "@/components/ui/Card";
 import { Card } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PlateTag } from "@/components/ui/PlateTag";
-import { SEED_VEHICULOS } from "@/lib/data/vehiculos";
-import { SEED_PERSONAS } from "@/lib/data/personas";
+import { getVehiculosDb } from "@/lib/services/vehiculos.service";
+import { getPersonasDb } from "@/lib/services/personas.service";
+import { getContratistasDb } from "@/lib/services/contratistas.service";
+import { getViajesDb } from "@/lib/services/operacion.service";
 import { getEstadoDocumento } from "@/lib/types/vehiculo";
 
-export default function DashboardPage() {
-  const totalVehiculos = SEED_VEHICULOS.length;
-  const totalContratistas = new Set(SEED_VEHICULOS.map((v) => v.contratistaId)).size;
-  const totalPersonas = SEED_PERSONAS.length;
-  const documentosCriticos = SEED_VEHICULOS.filter((v) => {
+export default async function DashboardPage() {
+  const [vehiculos, personas, contratistas, viajes] = await Promise.all([
+    getVehiculosDb(),
+    getPersonasDb(),
+    getContratistasDb(),
+    getViajesDb(),
+  ]);
+
+  const totalVehiculos = vehiculos.length;
+  const totalContratistas = contratistas.length;
+  const totalPersonas = personas.length;
+  const viajesActivos = viajes.filter((v) => v.estado === "en_curso" || v.estado === "con_novedad").length;
+
+  const documentosCriticos = vehiculos.filter((v) => {
     const estados = Object.values(v.documentos).map(getEstadoDocumento);
     return estados.includes("vencido") || estados.includes("proximo");
   });
@@ -26,13 +37,11 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* Vehículos, contratistas y personas ya vienen del seed real de cada módulo.
-          Viajes activos sigue pendiente hasta construir Operación. */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard label="Vehículos" value={totalVehiculos} accent="cyan" trend={`${totalContratistas} contratistas`} />
         <StatCard label="Contratistas" value={totalContratistas} accent="cyan" />
-        <StatCard label="Personas" value={totalPersonas} accent="cyan" trend="Datos de ejemplo" />
-        <StatCard label="Viajes activos" value="—" accent="amber" trend="Pendiente conectar módulo" />
+        <StatCard label="Personas" value={totalPersonas} accent="cyan" trend="Expedientes activos" />
+        <StatCard label="Viajes activos" value={viajesActivos} accent="amber" trend={`${viajes.length} registrados`} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

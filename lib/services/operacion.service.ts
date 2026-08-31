@@ -27,10 +27,6 @@ export async function getViajesDb(): Promise<Viaje[]> {
       orderBy: { fechaSalida: "desc" },
     });
 
-    if (!dbViajes || dbViajes.length === 0) {
-      return localViajesState;
-    }
-
     return dbViajes.map((v: any) => ({
       id: v.id,
       conductorId: v.conductorId,

@@ -26,10 +26,6 @@ export async function getCapacitacionesDb(): Promise<Capacitacion[]> {
       orderBy: { fecha: "desc" },
     });
 
-    if (!dbCaps || dbCaps.length === 0) {
-      return localCapacitacionesState;
-    }
-
     return dbCaps.map((c: any) => ({
       id: c.id,
       nombre: c.nombre,
