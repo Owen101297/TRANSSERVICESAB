@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { INDICADORES_PESV } from "@/lib/data/pesv-indicadores";
-import { SEED_VEHICULOS } from "@/lib/data/vehiculos";
+import { getIndicadoresPesvDb } from "@/lib/services/pesv.service";
+import { getVehiculosDb } from "@/lib/services/vehiculos.service";
 import { getEstadoDocumento } from "@/lib/types/vehiculo";
 import { PeriodicidadIndicador } from "@/lib/types/pesv";
 import { Card } from "@/components/ui/Card";
@@ -14,19 +14,16 @@ const PERIODICIDAD_LABELS: Record<PeriodicidadIndicador, string> = {
   anual: "Anuales",
 };
 
-// Único indicador que ya podemos calcular con datos reales del sistema:
-// documentación vehicular al día, a partir de SOAT/RTM/póliza en Flota.
-function calcularDocumentacionAlDia(): number {
-  const total = SEED_VEHICULOS.length;
-  const alDia = SEED_VEHICULOS.filter((v) => {
+export default async function IndicadoresPESVPage() {
+  const vehiculos = await getVehiculosDb();
+  const indicadores = await getIndicadoresPesvDb();
+
+  const total = vehiculos.length;
+  const alDia = vehiculos.filter((v) => {
     const estados = Object.values(v.documentos).map(getEstadoDocumento);
     return estados.every((e) => e === "vigente");
   }).length;
-  return Math.round((alDia / total) * 100);
-}
-
-export default function IndicadoresPESVPage() {
-  const documentacionAlDia = calcularDocumentacionAlDia();
+  const documentacionAlDia = total > 0 ? Math.round((alDia / total) * 100) : 100;
 
   return (
     <div className="space-y-6">
@@ -48,14 +45,14 @@ export default function IndicadoresPESVPage() {
       </div>
 
       {PERIODICIDADES.map((periodo) => {
-        const indicadores = INDICADORES_PESV.filter((i) => i.periodicidad === periodo);
+        const indicadoresPeriodo = indicadores.filter((i) => i.periodicidad === periodo);
         return (
           <div key={periodo}>
             <h2 className="mb-3 font-mono text-xs uppercase tracking-wider text-fog-400">
               {PERIODICIDAD_LABELS[periodo]}
             </h2>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {indicadores.map((ind) => {
+              {indicadoresPeriodo.map((ind) => {
                 const esDocumentacion = ind.id === "ind7";
                 const valor = esDocumentacion ? documentacionAlDia : ind.valorActual;
                 return (
@@ -75,12 +72,12 @@ export default function IndicadoresPESVPage() {
                     <p className="mt-2 text-xs text-fog-400">{ind.descripcion}</p>
                     {esDocumentacion && (
                       <p className="mt-2 text-xs text-radar-cyan">
-                        Calculado en vivo desde el módulo Flota.
+                        Calculado en vivo desde el módulo Flota ({alDia} de {total} vehículos con documentos al día).
                       </p>
                     )}
                     {!esDocumentacion && (
                       <p className="mt-2 text-xs text-fog-400">
-                        Unidad: {ind.unidad} — pendiente de fuente de datos.
+                        Unidad: {ind.unidad} — Autogestión VIGIA2.
                       </p>
                     )}
                   </Card>
@@ -93,3 +90,4 @@ export default function IndicadoresPESVPage() {
     </div>
   );
 }
+

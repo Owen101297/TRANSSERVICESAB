@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { SEED_CAPACITACIONES } from "@/lib/data/capacitaciones";
+import { getCapacitacionesDb } from "@/lib/services/capacitaciones.service";
 import {
   Capacitacion,
   ESTADO_CAPACITACION_LABELS,
@@ -59,19 +59,20 @@ const columns: Column<Capacitacion>[] = [
   },
 ];
 
-export default function CapacitacionesPage() {
-  const programadas = SEED_CAPACITACIONES.filter((c) => c.estado === "programada").length;
-  const realizadas = SEED_CAPACITACIONES.filter((c) => c.estado === "realizada").length;
+export default async function CapacitacionesPage() {
+  const capacitaciones = await getCapacitacionesDb();
+  const programadas = capacitaciones.filter((c) => c.estado === "programada").length;
+  const realizadas = capacitaciones.filter((c) => c.estado === "realizada").length;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold text-paper-50">
-            Capacitaciones
+            Capacitaciones · Plan Anual de Formación
           </h1>
           <p className="mt-1 text-sm text-fog-400">
-            Formación en SG-SST, PESV, HSEQ y temas operativos.
+            Formación obligatoria en SG-SST, PESV (Paso 9/18), HSEQ y protocolos de operación.
           </p>
         </div>
         <Link href="/capacitaciones/nueva">
@@ -87,12 +88,9 @@ export default function CapacitacionesPage() {
       </div>
 
       <Card className="p-0 overflow-hidden">
-        <DataTable columns={columns} data={SEED_CAPACITACIONES} />
+        <DataTable columns={columns} data={capacitaciones} emptyMessage="No hay capacitaciones registradas." />
       </Card>
-
-      <p className="text-xs text-fog-400">
-        Datos de ejemplo (seed) — pendiente conectar a base de datos real.
-      </p>
     </div>
   );
 }
+

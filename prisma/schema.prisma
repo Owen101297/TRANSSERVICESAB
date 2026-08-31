@@ -294,9 +294,36 @@ model Fuec {
   qrCodeUrl                 String?
   observaciones             String?
 
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
+
+  @@index([codigoFUEC])
+  @@index([placa])
+  @@index([fechaInicio, fechaFin])
+}
+
 // --------------------------------------------------------
 // PORTAL CONDUCTOR & PREOPERACIONAL DIARIO (PESV PASO 14)
 // --------------------------------------------------------
+
+model NovedadConductor {
+  id                    String   @id @default(cuid())
+  conductorId           String
+  conductorNombre       String
+  vehiculoId            String?
+  placa                 String?
+  tipo                  String   // mecanica, vial, seguridad, otro
+  descripcion           String
+  fotoUrl               String?
+  fecha                 DateTime @default(now())
+  atendida              Boolean  @default(false)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([conductorId])
+  @@index([fecha])
+}
 
 model InspeccionPreoperacional {
   id                    String   @id @default(cuid())
@@ -320,21 +347,133 @@ model InspeccionPreoperacional {
   @@index([fecha])
 }
 
-model NovedadConductor {
-  id                    String   @id @default(cuid())
-  conductorId           String
-  conductorNombre       String
-  vehiculoId            String?
-  placa                 String?
-  tipo                  String   // mecanica, vial, seguridad, otro
-  descripcion           String
-  fotoUrl               String?
-  fecha                 DateTime @default(now())
-  atendida              Boolean  @default(false)
+// --------------------------------------------------------
+// MÓDULO HSEQ & HALLAZGOS
+// --------------------------------------------------------
 
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+model HallazgoHseq {
+  id                  String   @id @default(cuid())
+  origen              String   // preoperacional, inspeccion, incidente, accidente
+  titulo              String
+  descripcion         String
+  severidad           String   @default("media") // baja, media, alta, critica
+  estado              String   @default("abierto") // abierto, en_proceso, cerrado
+  vehiculoId          String?
+  placa               String?
+  conductorId         String?
+  conductorNombre     String?
+  responsable         String
+  fechaReporte        DateTime @default(now())
+  fechaCierre         DateTime?
+  accionCorrectiva    String?
 
-  @@index([conductorId])
-  @@index([fecha])
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([estado])
+  @@index([severidad])
+  @@index([fechaReporte])
+}
+
+// --------------------------------------------------------
+// SG-SST (DECRETO 1072 & RESOLUCIÓN 0312 DE 2019)
+// --------------------------------------------------------
+
+model ItemSgsst {
+  id                  String   @id @default(cuid())
+  numeral             String   // ej. "1.1.1"
+  estandarId          String
+  nombre              String
+  estado              String   @default("pendiente") // cumple, cumple_parcial, no_cumple, no_aplica, pendiente
+  responsable         String?
+  documentoNombre     String?
+  fechaActualizacion  DateTime?
+  observaciones       String?
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([estandarId])
+  @@index([estado])
+}
+
+// --------------------------------------------------------
+// PESV (RESOLUCIÓN 40595 DE 2022 - 24 PASOS)
+// --------------------------------------------------------
+
+model PasoPesv {
+  id                  String   @id @default(cuid())
+  numero              Int      @unique
+  fase                String   // planificacion, implementacion, seguimiento, mejora
+  nombre              String
+  estado              String   @default("pendiente") // cumple, cumple_parcial, no_cumple, no_aplica, pendiente
+  documentoNombre     String?
+  observaciones       String?
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([fase])
+  @@index([estado])
+}
+
+model IndicadorPesv {
+  id                  String   @id @default(cuid())
+  nombre              String
+  periodicidad        String   // mensual, trimestral, anual
+  unidad              String
+  descripcion         String
+  valorActual         Float?
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// --------------------------------------------------------
+// CAPACITACIONES, ASISTENCIA Y ENCUESTAS
+// --------------------------------------------------------
+
+model Capacitacion {
+  id                  String   @id @default(cuid())
+  nombre              String
+  tipo                String   @default("sg-sst") // sg-sst, pesv, hseq, operativa
+  fecha               DateTime
+  duracionHoras       Float    @default(1.0)
+  asistentesEsperados Int      @default(0)
+  asistentesReales    Int?
+  estado              String   @default("programada") // programada, realizada, cancelada
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([tipo])
+  @@index([estado])
+}
+
+model AsistenciaRegistro {
+  id                  String   @id @default(cuid())
+  capacitacionId      String
+  personaId           String
+  personaNombre       String
+  asistio             Boolean  @default(true)
+  fecha               DateTime @default(now())
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([capacitacionId])
+}
+
+model EncuestaRiesgoVial {
+  id                  String   @id @default(cuid())
+  personaId           String
+  personaNombre       String
+  fecha               DateTime @default(now())
+  respuestas          Json
+  nivelRiesgo         String   @default("medio") // bajo, medio, alto
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([personaId])
 }

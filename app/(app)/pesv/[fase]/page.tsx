@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState, useEffect, useTransition, use } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { getPasosPorFase } from "@/lib/data/pesv-pasos";
+import { getPasosPorFaseDb, updatePasoPesvAction } from "@/lib/services/pesv.service";
 import {
   ESTADO_PASO_LABELS,
   EstadoPasoPESV,
@@ -41,14 +41,22 @@ export default function FaseDetailPage({
   params: Promise<{ fase: string }>;
 }) {
   const { fase } = use(params);
+  const [isPending, startTransition] = useTransition();
 
   if (!FASES_VALIDAS.includes(fase as FasePESV)) notFound();
   const faseTyped = fase as FasePESV;
 
-  const [pasos, setPasos] = useState<PasoPESV[]>(getPasosPorFase(faseTyped));
+  const [pasos, setPasos] = useState<PasoPESV[]>([]);
 
-  const updateEstado = (id: string, estado: EstadoPasoPESV) => {
-    setPasos((prev) => prev.map((p) => (p.id === id ? { ...p, estado } : p)));
+  useEffect(() => {
+    getPasosPorFaseDb(faseTyped).then((data) => setPasos(data || []));
+  }, [faseTyped]);
+
+  const handleUpdateEstado = (numero: number, nuevoEstado: EstadoPasoPESV) => {
+    setPasos((prev) => prev.map((p) => (p.numero === numero ? { ...p, estado: nuevoEstado } : p)));
+    startTransition(async () => {
+      await updatePasoPesvAction(numero, nuevoEstado);
+    });
   };
 
   return (
@@ -74,7 +82,7 @@ export default function FaseDetailPage({
         <div className="divide-y divide-line-600">
           {pasos.map((paso) => (
             <div
-              key={paso.id}
+              key={paso.id || paso.numero}
               className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-[auto_1fr_auto_auto] sm:items-center sm:gap-4"
             >
               <span className="font-[family-name:var(--font-mono)] text-xs text-fog-400">
@@ -105,7 +113,8 @@ export default function FaseDetailPage({
                 </StatusBadge>
                 <select
                   value={paso.estado}
-                  onChange={(e) => updateEstado(paso.id, e.target.value as EstadoPasoPESV)}
+                  disabled={isPending}
+                  onChange={(e) => handleUpdateEstado(paso.numero, e.target.value as EstadoPasoPESV)}
                   className="rounded-md border border-line-600 bg-asphalt-800 px-2 py-1.5 text-xs text-paper-50 focus:border-radar-cyan focus:outline-none"
                 >
                   {ESTADO_OPTIONS.map((opt) => (
@@ -121,11 +130,9 @@ export default function FaseDetailPage({
       </Card>
 
       <p className="text-xs text-fog-400">
-        Los cambios de esta pantalla no se guardan todavía — falta conectar el
-        backend para persistir estado y documentos. Verifica siempre la
-        redacción y numeración oficial contra el texto de la Resolución 40595
-        de 2022 antes de reportar en VIGIA2.
+        Cumplimiento normativo Resolución 40595 de 2022 para reporte oficial en SINST-VIGIA 2.
       </p>
     </div>
   );
 }
+

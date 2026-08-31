@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { BarChart3 } from "lucide-react";
-import { PASOS_PESV, getPasosPorFase } from "@/lib/data/pesv-pasos";
+import { getPasosPesvDb } from "@/lib/services/pesv.service";
 import { FASE_LABELS, FasePESV } from "@/lib/types/pesv";
 import { Card, StatCard } from "@/components/ui/Card";
 
@@ -13,46 +13,40 @@ const FASE_DESC: Record<FasePESV, string> = {
   mejora: "Acciones correctivas, preventivas y comunicación.",
 };
 
-function porcentajeCumplimiento(fase: string) {
-  const pasos = getPasosPorFase(fase);
-  if (pasos.length === 0) return 0;
-  const cumplidos = pasos.filter((p) => p.estado === "cumple").length;
-  return Math.round((cumplidos / pasos.length) * 100);
-}
+export default async function PESVPage() {
+  const allPasos = await getPasosPesvDb();
+  const total = allPasos.length;
+  const cumplidos = allPasos.filter((p) => p.estado === "cumple").length;
+  const avanceGlobal = total > 0 ? Math.round((cumplidos / total) * 100) : 0;
 
-export default function PESVPage() {
-  const total = PASOS_PESV.length;
-  const cumplidos = PASOS_PESV.filter((p) => p.estado === "cumple").length;
-  const avanceGlobal = Math.round((cumplidos / total) * 100);
+  function porcentajeCumplimiento(fase: string) {
+    const pasos = allPasos.filter((p) => p.fase === fase);
+    if (pasos.length === 0) return 0;
+    const pasosCumplidos = pasos.filter((p) => p.estado === "cumple").length;
+    return Math.round((pasosCumplidos / pasos.length) * 100);
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold text-paper-50">
-            PESV
+            PESV · Plan Estratégico de Seguridad Vial
           </h1>
           <p className="mt-1 text-sm text-fog-400">
-            Plan Estratégico de Seguridad Vial — Resolución 40595 de 2022, 4
-            fases y 24 pasos bajo ciclo PHVA.
+            Resolución 40595 de 2022 (Ministerio de Transporte) — 4 fases y 24 pasos articulados con SG-SST.
           </p>
         </div>
         <Link
           href="/pesv/indicadores"
-          className="inline-flex items-center gap-2 rounded-md border border-line-600 bg-asphalt-800 px-4 py-2 text-sm text-mist-200 hover:bg-asphalt-700"
+          className="inline-flex items-center gap-2 rounded-md border border-line-600 bg-asphalt-800 px-4 py-2 text-sm text-mist-200 hover:bg-asphalt-700 transition-colors"
         >
           <BarChart3 size={16} /> Indicadores (VIGIA2 · Formulario 2)
         </Link>
       </div>
 
       <div className="rounded-lg border border-signal-amber/30 bg-signal-amber-dim p-4 text-sm text-mist-200">
-        Este módulo trae la estructura general de los 24 pasos, todos en{" "}
-        <span className="text-signal-amber">pendiente</span>. Entra a cada fase
-        para subir tus documentos reales y actualizar el estado. Cada paso y
-        cada indicador está pensado para mapear directamente a los dos
-        formularios de <span className="text-paper-50">SINST-VIGIA 2</span>:
-        diseño/implementación (anual, hasta el décimo día hábil de agosto) e
-        indicadores periódicos (mensual/trimestral/anual).
+        Estructura oficial de los 24 pasos. Entra a cada fase para registrar evidencias y avances. Mapea directamente a los reportes anuales y periódicos de <span className="text-paper-50">SINST-VIGIA 2</span> (Supertransporte).
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 max-w-2xl">
@@ -63,11 +57,11 @@ export default function PESVPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {FASES.map((fase) => {
-          const pasos = getPasosPorFase(fase);
+          const pasos = allPasos.filter((p) => p.fase === fase);
           const pct = porcentajeCumplimiento(fase);
           return (
             <Link key={fase} href={`/pesv/${fase}`}>
-              <Card className="h-full hover:bg-asphalt-800/50">
+              <Card className="h-full hover:bg-asphalt-800/50 transition-colors">
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-xs text-fog-400">
                     Pasos {pasos[0]?.numero}–{pasos[pasos.length - 1]?.numero}
@@ -96,3 +90,4 @@ export default function PESVPage() {
     </div>
   );
 }
+

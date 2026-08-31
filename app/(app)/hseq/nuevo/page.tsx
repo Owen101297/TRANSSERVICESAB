@@ -1,16 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useTransition } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Save, AlertCircle } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { FormSection, TextField, SelectField } from "@/components/ui/FormField";
-import { SEED_VEHICULOS } from "@/lib/data/vehiculos";
+import { getVehiculosDb } from "@/lib/services/vehiculos.service";
+import { createHallazgoAction } from "@/lib/services/hseq.service";
+import { Vehiculo } from "@/lib/types/vehiculo";
 
 const ORIGEN_OPTIONS = [
   { value: "preoperacional", label: "Preoperacional" },
-  { value: "inspeccion", label: "Inspección" },
+  { value: "inspeccion", label: "Inspección de seguridad" },
   { value: "incidente", label: "Incidente" },
   { value: "accidente", label: "Accidente" },
 ];
@@ -23,12 +26,41 @@ const SEVERIDAD_OPTIONS = [
 ];
 
 export default function NuevoHallazgoPage() {
-  const [submitted, setSubmitted] = useState(false);
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
+
+  useEffect(() => {
+    getVehiculosDb().then((data) => setVehiculos(data || []));
+  }, []);
 
   const vehiculoOptions = useMemo(
-    () => SEED_VEHICULOS.map((v) => ({ value: v.id, label: `${v.placa} — ${v.marca} ${v.modelo}` })),
-    []
+    () => [
+      { value: "", label: "Sin vehículo asociado / General" },
+      ...vehiculos.map((v) => ({
+        value: v.placa,
+        label: `${v.placa} — ${v.marca} ${v.modelo} (${v.contratistaNombre})`,
+      })),
+    ],
+    [vehiculos]
   );
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+
+    startTransition(async () => {
+      const res = await createHallazgoAction(formData);
+      if (res.success && res.id) {
+        router.push(`/hseq/${res.id}`);
+      } else {
+        setErrorMsg(res.error || "Ocurrió un error al registrar el hallazgo.");
+      }
+    });
+  };
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -44,24 +76,25 @@ export default function NuevoHallazgoPage() {
           Reportar hallazgo
         </h1>
         <p className="mt-1 text-sm text-fog-400">
-          Al guardar, se notifica al responsable y se crea una tarea de seguimiento.
+          Al guardar, se notifica al responsable y se crea la acción preventiva/correctiva.
         </p>
       </div>
 
+      {errorMsg && (
+        <div className="flex items-center gap-2 rounded-lg border border-alert-red/30 bg-alert-red-dim/40 p-3 text-sm text-alert-red">
+          <AlertCircle size={16} />
+          {errorMsg}
+        </div>
+      )}
+
       <Card>
-        <form
-          className="space-y-6"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setSubmitted(true);
-          }}
-        >
+        <form className="space-y-6" onSubmit={handleSubmit}>
           <FormSection title="Descripción">
             <TextField
               label="Título"
               name="titulo"
               required
-              placeholder="Ej. Fuga de aceite en motor"
+              placeholder="Ej. Fuga de aceite en motor o extintor descargado"
               wrapperClassName="sm:col-span-2"
             />
             <textarea
@@ -80,8 +113,8 @@ export default function NuevoHallazgoPage() {
 
           <FormSection title="Vehículo relacionado" description="Opcional.">
             <SelectField
-              label="Vehículo"
-              name="vehiculoId"
+              label="Placa / Vehículo"
+              name="placa"
               options={vehiculoOptions}
               wrapperClassName="sm:col-span-2"
             />
@@ -92,31 +125,24 @@ export default function NuevoHallazgoPage() {
               label="Responsable de seguimiento"
               name="responsable"
               required
-              placeholder="Nombre del responsable HSEQ"
+              placeholder="Nombre del responsable HSEQ / Mantenimiento"
               wrapperClassName="sm:col-span-2"
             />
           </FormSection>
 
           <div className="flex items-center gap-3 pt-2">
-            <Button type="submit" variant="primary">
-              Guardar hallazgo
+            <Button type="submit" variant="primary" disabled={isPending}>
+              <Save size={16} /> {isPending ? "Guardando hallazgo..." : "Guardar hallazgo"}
             </Button>
             <Link href="/hseq">
-              <Button type="button" variant="ghost">
+              <Button type="button" variant="ghost" disabled={isPending}>
                 Cancelar
               </Button>
             </Link>
           </div>
-
-          {submitted && (
-            <p className="text-sm text-radar-cyan">
-              Formulario validado. Falta conectar el backend para persistir el
-              registro y disparar la notificación real — por ahora esto queda
-              solo en el frontend.
-            </p>
-          )}
         </form>
       </Card>
     </div>
   );
 }
+

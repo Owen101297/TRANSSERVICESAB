@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, AlertTriangle } from "lucide-react";
-import { getHallazgoById } from "@/lib/data/hallazgos";
+import { getHallazgoByIdDb } from "@/lib/services/hseq.service";
 import {
   ESTADO_HALLAZGO_LABELS,
   EstadoHallazgo,
@@ -12,8 +12,8 @@ import {
 import { Card } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PlateTag } from "@/components/ui/PlateTag";
-import { Button } from "@/components/ui/Button";
 import { DocUploadSlot } from "@/components/ui/DocUploadSlot";
+import { AccionCorrectivaButton } from "@/components/hseq/AccionCorrectivaButton";
 
 const ESTADO_TO_STATUS: Record<EstadoHallazgo, "activo" | "pendiente" | "cerrado"> = {
   abierto: "pendiente",
@@ -39,7 +39,7 @@ export default async function HallazgoDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const hallazgo = getHallazgoById(id);
+  const hallazgo = await getHallazgoByIdDb(id);
   if (!hallazgo) notFound();
 
   return (
@@ -76,7 +76,7 @@ export default async function HallazgoDetailPage({
           <div className="mt-5 space-y-3 border-t border-line-600 pt-4 text-sm">
             {hallazgo.placa && (
               <Row label="Vehículo">
-                <Link href={`/flota/${hallazgo.vehiculoId}`}>
+                <Link href={`/flota/${hallazgo.vehiculoId || hallazgo.placa}`}>
                   <PlateTag plate={hallazgo.placa} />
                 </Link>
               </Row>
@@ -106,15 +106,13 @@ export default async function HallazgoDetailPage({
 
           <div className="mt-5 border-t border-line-600 pt-4">
             <p className="mb-2 font-mono text-[10px] uppercase tracking-wider text-fog-400">
-              Evidencia
+              Evidencia / Archivo
             </p>
             <DocUploadSlot />
           </div>
 
           {hallazgo.estado !== "cerrado" && (
-            <Button variant="primary" className="mt-5 w-full">
-              Registrar acción correctiva y cerrar
-            </Button>
+            <AccionCorrectivaButton hallazgoId={hallazgo.id} />
           )}
         </Card>
 

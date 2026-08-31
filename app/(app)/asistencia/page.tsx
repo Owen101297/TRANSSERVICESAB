@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { SEED_ASISTENCIA } from "@/lib/data/asistencia";
+import { getAsistenciasDb } from "@/lib/services/capacitaciones.service";
 import { ESTADO_ASISTENCIA_LABELS, EstadoAsistencia, RegistroAsistencia, TIPO_EVENTO_LABELS } from "@/lib/types/asistencia";
 import { Card, StatCard } from "@/components/ui/Card";
 import { DataTable, Column } from "@/components/ui/DataTable";
@@ -16,12 +16,12 @@ const columns: Column<RegistroAsistencia>[] = [
     header: "Persona",
     accessor: "personaNombre",
     render: (v, row) => (
-      <Link href={`/personas/${row.personaId}`} className="hover:text-radar-cyan">
+      <Link href={`/personas/${row.personaId}`} className="hover:text-radar-cyan font-medium text-paper-50">
         {v as string}
       </Link>
     ),
   },
-  { header: "Evento", accessor: "evento" },
+  { header: "Evento / Capacitación", accessor: "evento" },
   {
     header: "Tipo",
     accessor: "tipoEvento",
@@ -47,32 +47,30 @@ const columns: Column<RegistroAsistencia>[] = [
   },
 ];
 
-export default function AsistenciaPage() {
-  const presentes = SEED_ASISTENCIA.filter((a) => a.estado === "presente").length;
-  const total = SEED_ASISTENCIA.length;
+export default async function AsistenciaPage() {
+  const asistencias = await getAsistenciasDb();
+  const presentes = asistencias.filter((a) => a.estado === "presente").length;
+  const total = asistencias.length;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold text-paper-50">
-          Asistencia
+          Control de Asistencia
         </h1>
         <p className="mt-1 text-sm text-fog-400">
-          Registro de asistencia a capacitaciones, reuniones y turnos.
+          Registro de asistencia y firmas a capacitaciones, inducciones y comités del SG-SST / PESV.
         </p>
       </div>
 
       <div className="max-w-[200px]">
-        <StatCard label="Asistencia" value={`${presentes}/${total}`} accent="green" />
+        <StatCard label="Asistencia general" value={`${presentes}/${total}`} accent="green" />
       </div>
 
       <Card className="p-0 overflow-hidden">
-        <DataTable columns={columns} data={SEED_ASISTENCIA} />
+        <DataTable columns={columns} data={asistencias} emptyMessage="No hay registros de asistencia." />
       </Card>
-
-      <p className="text-xs text-fog-400">
-        Datos de ejemplo (seed) — pendiente conectar a base de datos real.
-      </p>
     </div>
   );
 }
+

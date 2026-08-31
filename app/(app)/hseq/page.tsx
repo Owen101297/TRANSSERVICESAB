@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { SEED_HALLAZGOS } from "@/lib/data/hallazgos";
+import { getHallazgosDb } from "@/lib/services/hseq.service";
 import {
   ESTADO_HALLAZGO_LABELS,
   EstadoHallazgo,
@@ -80,9 +80,10 @@ export default async function HSEQPage({
   const { estado } = await searchParams;
   const tab = estado ?? "abiertos";
 
-  const abiertos = SEED_HALLAZGOS.filter((h) => h.estado !== "cerrado");
-  const cerrados = SEED_HALLAZGOS.filter((h) => h.estado === "cerrado");
-  const criticos = SEED_HALLAZGOS.filter((h) => h.severidad === "critica" && h.estado !== "cerrado");
+  const allHallazgos = await getHallazgosDb();
+  const abiertos = allHallazgos.filter((h) => h.estado !== "cerrado");
+  const cerrados = allHallazgos.filter((h) => h.estado === "cerrado");
+  const criticos = allHallazgos.filter((h) => h.severidad === "critica" && h.estado !== "cerrado");
 
   const dataPorTab: Record<string, Hallazgo[]> = {
     abiertos,
@@ -94,10 +95,10 @@ export default async function HSEQPage({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold text-paper-50">
-            HSEQ
+            HSEQ · Calidad y Seguridad
           </h1>
           <p className="mt-1 text-sm text-fog-400">
-            Hallazgos, inspecciones, incidentes y acciones correctivas.
+            Gestión de hallazgos, inspecciones, incidentes y acciones correctivas con trazabilidad.
           </p>
         </div>
         <Link href="/hseq/nuevo">
@@ -137,12 +138,13 @@ export default async function HSEQPage({
       </div>
 
       <Card className="p-0 overflow-hidden">
-        <DataTable columns={columns} data={dataPorTab[tab] ?? abiertos} />
+        <DataTable columns={columns} data={dataPorTab[tab] ?? abiertos} emptyMessage="No hay hallazgos en esta vista." />
       </Card>
 
       <p className="text-xs text-fog-400">
-        Datos de ejemplo (seed) — pendiente conectar a base de datos real.
+        Control de acciones preventivas, correctivas y de mejora (SG-SST / PESV).
       </p>
     </div>
   );
 }
+

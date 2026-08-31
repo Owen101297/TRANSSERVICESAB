@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, use } from "react";
+import { useState, useEffect, useTransition, use } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getEstandarById } from "@/lib/data/sgsst-estandares";
-import { getItemsPorEstandar } from "@/lib/data/sgsst-items";
+import { getItemsPorEstandarDb, updateItemSgsstAction } from "@/lib/services/sgsst.service";
 import { CICLO_LABELS, ESTADO_ITEM_LABELS, EstadoItemSGSST, ItemSGSST } from "@/lib/types/sgsst";
 import { Card } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -34,14 +34,20 @@ export default function EstandarDetailPage({
 }) {
   const { estandarId } = use(params);
   const estandar = getEstandarById(estandarId);
-  const itemsIniciales = getItemsPorEstandar(estandarId);
+  const [items, setItems] = useState<ItemSGSST[]>([]);
+  const [isPending, startTransition] = useTransition();
 
-  const [items, setItems] = useState<ItemSGSST[]>(itemsIniciales);
+  useEffect(() => {
+    getItemsPorEstandarDb(estandarId).then((data) => setItems(data || []));
+  }, [estandarId]);
 
   if (!estandar) notFound();
 
-  const updateEstado = (id: string, estado: EstadoItemSGSST) => {
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, estado } : i)));
+  const handleUpdateEstado = (id: string, nuevoEstado: EstadoItemSGSST) => {
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, estado: nuevoEstado } : i)));
+    startTransition(async () => {
+      await updateItemSgsstAction(id, nuevoEstado);
+    });
   };
 
   return (
@@ -82,7 +88,8 @@ export default function EstandarDetailPage({
                 </StatusBadge>
                 <select
                   value={item.estado}
-                  onChange={(e) => updateEstado(item.id, e.target.value as EstadoItemSGSST)}
+                  disabled={isPending}
+                  onChange={(e) => handleUpdateEstado(item.id, e.target.value as EstadoItemSGSST)}
                   className="rounded-md border border-line-600 bg-asphalt-800 px-2 py-1.5 text-xs text-paper-50 focus:border-radar-cyan focus:outline-none"
                 >
                   {ESTADO_OPTIONS.map((opt) => (
@@ -98,11 +105,9 @@ export default function EstandarDetailPage({
       </Card>
 
       <p className="text-xs text-fog-400">
-        Los cambios de esta pantalla no se guardan todavía — falta conectar el
-        backend para persistir estado y documentos. Verifica siempre la
-        redacción oficial de cada ítem contra el texto de la Resolución 0312
-        de 2019 antes de usar esto en una autoevaluación formal.
+        Cumplimiento normativo Resolución 0312 de 2019 / Decreto 1072 de 2015.
       </p>
     </div>
   );
 }
+
