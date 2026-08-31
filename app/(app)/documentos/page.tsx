@@ -64,6 +64,8 @@ const columns: Column<Documento>[] = [
   },
 ];
 
+export const dynamic = "force-dynamic";
+
 export default async function DocumentosPage() {
   const documentos = await getDocumentosDb();
   const total = documentos.length;

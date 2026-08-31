@@ -24,14 +24,12 @@ const ESTADO_TO_STATUS: Record<EstadoPersona, "activo" | "pendiente" | "cerrado"
 };
 
 export default function PersonasPage() {
-  const [personas, setPersonas] = useState<Persona[]>(SEED_PERSONAS);
+  const [personas, setPersonas] = useState<Persona[]>([]);
   const [isBulkOpen, setIsBulkOpen] = useState(false);
 
   useEffect(() => {
     getPersonasDb().then((data) => {
-      if (data && data.length > 0) {
-        setPersonas(data);
-      }
+      setPersonas(data || []);
     });
   }, []);
 

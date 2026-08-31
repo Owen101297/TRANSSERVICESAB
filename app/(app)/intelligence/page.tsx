@@ -5,6 +5,8 @@ import { getHallazgosDb } from "@/lib/services/hseq.service";
 import { getEstadoDocumento } from "@/lib/types/vehiculo";
 import { Card } from "@/components/ui/Card";
 
+export const dynamic = "force-dynamic";
+
 export default async function IntelligencePage() {
   const [vehiculos, asignaciones, hallazgos] = await Promise.all([
     getVehiculosDb(),

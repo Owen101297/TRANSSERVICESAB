@@ -8,6 +8,8 @@ import { getContratistasDb } from "@/lib/services/contratistas.service";
 import { getViajesDb } from "@/lib/services/operacion.service";
 import { getEstadoDocumento } from "@/lib/types/vehiculo";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const [vehiculos, personas, contratistas, viajes] = await Promise.all([
     getVehiculosDb(),

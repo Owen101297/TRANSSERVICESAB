@@ -19,6 +19,8 @@ const ESTADO_TO_STATUS: Record<EstadoContratista, "activo" | "cerrado"> = {
   inactivo: "cerrado",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function ContratistasPage() {
   const contratistas = await getContratistasDb();
   const vehiculos = await getVehiculosDb();

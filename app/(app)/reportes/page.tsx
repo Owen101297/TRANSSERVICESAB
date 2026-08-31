@@ -10,6 +10,8 @@ import { getEstadoDocumento } from "@/lib/types/vehiculo";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
+export const dynamic = "force-dynamic";
+
 export default async function ReportesPage() {
   const [vehiculos, personas, viajes, hallazgos, itemsSgsst, pasosPesv] = await Promise.all([
     getVehiculosDb(),

@@ -22,6 +22,8 @@ const ESTADO_TO_STATUS: Record<EstadoVehiculo, "activo" | "pendiente" | "cerrado
   inactivo: "cerrado",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function FlotaPage() {
   const vehiculos = await getVehiculosDb();
   const asignaciones = await getAsignacionesDb();
