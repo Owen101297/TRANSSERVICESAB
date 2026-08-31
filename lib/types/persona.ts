@@ -56,8 +56,10 @@ export interface ContactoEmergencia {
   telefono: string;
 }
 
+export type GrupoSanguineo = "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-";
+
 export interface DatosSalud {
-  grupoSanguineoRH: "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-";
+  grupoSanguineoRH: GrupoSanguineo;
   eps: string;
   arl: string;
   fondoPensiones?: string;

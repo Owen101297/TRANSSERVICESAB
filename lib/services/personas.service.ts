@@ -438,3 +438,242 @@ export async function updatePersonaAction(
     return { success: false, error: error.message || "Error al actualizar información." };
   }
 }
+
+/**
+ * Importa o actualiza un lote de personas y sus expedientes en PostgreSQL
+ */
+export async function batchUpsertPersonasDb(items: any[]) {
+  try {
+    let createdCount = 0;
+    let updatedCount = 0;
+
+    for (const item of items) {
+      if (item.action === "error") continue;
+
+      const numDoc = (item.numeroDocumento || "").replace(/\D/g, "");
+      if (!numDoc) continue;
+
+      let contratistaId: string | null = null;
+      if (item.contratistaNombre && process.env.DATABASE_URL) {
+        const c = await prisma.contratista.findFirst({
+          where: { razonSocial: { contains: item.contratistaNombre, mode: "insensitive" } },
+        });
+        if (c) contratistaId = c.id;
+      }
+
+      if (process.env.DATABASE_URL) {
+        const existing = await prisma.persona.findUnique({
+          where: { numeroDocumento: numDoc },
+          include: { licenciaConduccion: true, datosSalud: true, contactoEmergencia: true },
+        });
+
+        const fotoInitials = computeInitials(item.nombres, item.apellidos);
+
+        if (existing) {
+          await prisma.persona.update({
+            where: { id: existing.id },
+            data: {
+              nombres: item.nombres,
+              apellidos: item.apellidos,
+              tipoDocumento: item.tipoDocumento,
+              telefono: item.telefono || existing.telefono,
+              email: item.email || existing.email,
+              perfiles: item.perfiles,
+              estado: item.estado,
+              contratistaId: contratistaId || existing.contratistaId,
+              contratistaNombre: item.contratistaNombre || existing.contratistaNombre,
+              fotoIniciales: fotoInitials,
+            },
+          });
+
+          // Licencia de Conducción
+          if (item.numeroLicencia || item.vencimientoLicencia) {
+            if (existing.licenciaConduccion) {
+              await prisma.licenciaConduccion.update({
+                where: { personaId: existing.id },
+                data: {
+                  numero: item.numeroLicencia || existing.licenciaConduccion.numero,
+                  categorias: item.categoriasLicencia && item.categoriasLicencia.length > 0
+                    ? item.categoriasLicencia
+                    : existing.licenciaConduccion.categorias,
+                  fechaVencimiento: item.vencimientoLicencia
+                    ? new Date(item.vencimientoLicencia)
+                    : existing.licenciaConduccion.fechaVencimiento,
+                },
+              });
+            } else if (item.numeroLicencia && item.vencimientoLicencia) {
+              await prisma.licenciaConduccion.create({
+                data: {
+                  personaId: existing.id,
+                  numero: item.numeroLicencia,
+                  categorias: item.categoriasLicencia && item.categoriasLicencia.length > 0
+                    ? item.categoriasLicencia
+                    : ["C2"],
+                  fechaVencimiento: new Date(item.vencimientoLicencia),
+                },
+              });
+            }
+          }
+
+          // Seguridad Social
+          if (item.eps || item.arl || item.fondoPension || item.grupoSanguineo) {
+            if (existing.datosSalud) {
+              await prisma.datosSalud.update({
+                where: { personaId: existing.id },
+                data: {
+                  eps: item.eps || existing.datosSalud.eps,
+                  arl: item.arl || existing.datosSalud.arl,
+                  fondoPensiones: item.fondoPension || existing.datosSalud.fondoPensiones,
+                },
+              });
+            } else {
+              await prisma.datosSalud.create({
+                data: {
+                  personaId: existing.id,
+                  eps: item.eps || "Sura",
+                  arl: item.arl || "Positiva",
+                  fondoPensiones: item.fondoPension,
+                  grupoSanguineoRH: "O_POSITIVO",
+                },
+              });
+            }
+          }
+
+          // Contacto de Emergencia
+          if (item.contactoEmergenciaNombre) {
+            if (existing.contactoEmergencia) {
+              await prisma.contactoEmergencia.update({
+                where: { personaId: existing.id },
+                data: {
+                  nombreCompleto: item.contactoEmergenciaNombre,
+                  telefono: item.contactoEmergenciaTelefono || existing.contactoEmergencia.telefono,
+                  parentesco: item.contactoEmergenciaParentesco || existing.contactoEmergencia.parentesco,
+                },
+              });
+            } else {
+              await prisma.contactoEmergencia.create({
+                data: {
+                  personaId: existing.id,
+                  nombreCompleto: item.contactoEmergenciaNombre,
+                  telefono: item.contactoEmergenciaTelefono || "3000000000",
+                  parentesco: item.contactoEmergenciaParentesco || "Familiar",
+                },
+              });
+            }
+          }
+
+          updatedCount++;
+        } else {
+          // Crear Nueva Persona
+          const newP = await prisma.persona.create({
+            data: {
+              nombres: item.nombres,
+              apellidos: item.apellidos,
+              tipoDocumento: item.tipoDocumento,
+              numeroDocumento: numDoc,
+              telefono: item.telefono || "3000000000",
+              email: item.email || `${item.nombres.toLowerCase().replace(/\s+/g, ".")}@transservices.com`,
+              perfiles: item.perfiles,
+              estado: item.estado,
+              contratistaId,
+              contratistaNombre: item.contratistaNombre,
+              fotoIniciales: fotoInitials,
+            },
+          });
+
+          // Licencia
+          if (item.numeroLicencia && item.vencimientoLicencia) {
+            await prisma.licenciaConduccion.create({
+              data: {
+                personaId: newP.id,
+                numero: item.numeroLicencia,
+                categorias: item.categoriasLicencia && item.categoriasLicencia.length > 0
+                  ? item.categoriasLicencia
+                  : ["C2"],
+                fechaVencimiento: new Date(item.vencimientoLicencia),
+              },
+            });
+          }
+
+          // Seguridad Social
+          if (item.eps || item.arl || item.fondoPension) {
+            await prisma.datosSalud.create({
+              data: {
+                personaId: newP.id,
+                eps: item.eps || "Sura",
+                arl: item.arl || "Positiva",
+                fondoPensiones: item.fondoPension,
+                grupoSanguineoRH: "O_POSITIVO",
+              },
+            });
+          }
+
+          // Contacto Emergencia
+          if (item.contactoEmergenciaNombre) {
+            await prisma.contactoEmergencia.create({
+              data: {
+                personaId: newP.id,
+                nombreCompleto: item.contactoEmergenciaNombre,
+                telefono: item.contactoEmergenciaTelefono || "3000000000",
+                parentesco: item.contactoEmergenciaParentesco || "Familiar",
+              },
+            });
+          }
+
+          createdCount++;
+        }
+      } else {
+        const idx = localPersonsState.findIndex((p) => p.numeroDocumento === numDoc);
+        if (idx >= 0) {
+          localPersonsState[idx] = {
+            ...localPersonsState[idx],
+            nombres: item.nombres,
+            apellidos: item.apellidos,
+            telefono: item.telefono,
+            email: item.email,
+            perfiles: item.perfiles,
+            estado: item.estado,
+            contratistaNombre: item.contratistaNombre,
+          };
+          updatedCount++;
+        } else {
+          localPersonsState.unshift({
+            id: item.id,
+            nombres: item.nombres,
+            apellidos: item.apellidos,
+            tipoDocumento: item.tipoDocumento,
+            numeroDocumento: numDoc,
+            telefono: item.telefono,
+            email: item.email,
+            perfiles: item.perfiles,
+            estado: item.estado,
+            fechaIngreso: new Date().toISOString().split("T")[0],
+            contratistaNombre: item.contratistaNombre,
+            fotoIniciales: item.fotoIniciales,
+          });
+          createdCount++;
+        }
+      }
+    }
+
+    revalidatePath("/personas");
+    revalidatePath("/dashboard");
+    revalidatePath("/flota");
+    revalidatePath("/asignaciones");
+
+    const refreshedList = await getPersonasDb();
+    return {
+      success: true,
+      createdCount,
+      updatedCount,
+      refreshedList,
+    };
+  } catch (error: any) {
+    console.error("Error en batchUpsertPersonasDb:", error);
+    return {
+      success: false,
+      error: error.message || "Error al procesar la importación masiva.",
+    };
+  }
+}
+
