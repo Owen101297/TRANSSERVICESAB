@@ -17,12 +17,31 @@ export default async function PortalConductorHome({
   const { conductorId: queryConductorId } = await searchParams;
   const personas = await getPersonasDb();
   const conductores = personas.filter((p) => p.perfiles.includes("conductor"));
-  const currentConductorId = queryConductorId || (conductores[0]?.id ?? "p1");
+  const currentConductorId = queryConductorId || (conductores[0]?.id ?? "");
+
+  if (!currentConductorId) {
+    return (
+      <div className="space-y-4 max-w-md mx-auto py-12 text-center">
+        <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold text-paper-50">
+          Portal del Conductor
+        </h1>
+        <p className="text-sm text-fog-400">
+          No hay conductores registrados en el sistema. Agrega personal con perfil &quot;Conductor&quot; desde el módulo de Personas para acceder a las inspecciones móviles.
+        </p>
+      </div>
+    );
+  }
 
   const { persona, asignacionActiva, viajeActivo, preoperacionalHoy } =
     await getPortalConductorInfo(currentConductorId);
 
-  if (!persona) return null;
+  if (!persona) {
+    return (
+      <div className="space-y-4 max-w-md mx-auto py-12 text-center">
+        <p className="text-sm text-fog-400">Conductor no encontrado.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 max-w-md mx-auto">

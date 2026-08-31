@@ -39,6 +39,8 @@ const columns: Column<Encuesta>[] = [
   },
 ];
 
+export const dynamic = "force-dynamic";
+
 export default async function EncuestasPage() {
   const encuestas = await getEncuestasDb();
   const activas = encuestas.filter((e) => e.estado === "activa").length;

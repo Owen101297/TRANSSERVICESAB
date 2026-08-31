@@ -73,10 +73,6 @@ export default async function DashboardPage() {
               );
             })}
           </ul>
-          <p className="mt-4 text-xs text-fog-400">
-            Basado en datos de ejemplo del módulo Flota. SG-SST, PESV y HSEQ se
-            sumarán aquí cuando se construyan.
-          </p>
         </Card>
 
         {/* Actividad reciente */}
@@ -84,17 +80,8 @@ export default async function DashboardPage() {
           <h2 className="mb-4 font-[family-name:var(--font-display)] text-lg font-bold text-paper-50">
             Actividad reciente
           </h2>
-          <ul className="space-y-4">
-            <ActivityRow
-              actor="Carlos"
-              action="Preoperacional"
-              plate="JOU466"
-            />
-            <ActivityRow actor="HSEQ" action="Hallazgo cerrado" />
-            <ActivityRow actor="Andrea" action="Encuesta completada" />
-          </ul>
-          <p className="mt-4 text-xs text-fog-400">
-            Datos de ejemplo — se conectará al módulo Auditoría.
+          <p className="text-sm text-fog-400">
+            Sin actividades operacionales recientes registradas.
           </p>
         </Card>
       </div>

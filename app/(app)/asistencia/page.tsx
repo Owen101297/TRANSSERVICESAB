@@ -47,6 +47,8 @@ const columns: Column<RegistroAsistencia>[] = [
   },
 ];
 
+export const dynamic = "force-dynamic";
+
 export default async function AsistenciaPage() {
   const asistencias = await getAsistenciasDb();
   const presentes = asistencias.filter((a) => a.estado === "presente").length;

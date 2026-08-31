@@ -95,6 +95,8 @@ const columns: Column<Viaje>[] = [
   },
 ];
 
+export const dynamic = "force-dynamic";
+
 export default async function OperacionPage({
   searchParams,
 }: {

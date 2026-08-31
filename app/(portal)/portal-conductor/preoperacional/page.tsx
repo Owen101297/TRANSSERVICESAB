@@ -51,8 +51,8 @@ function PreoperacionalForm() {
     const formData = new FormData();
     formData.append("conductorId", conductorId);
     formData.append("conductorNombre", conductorInfo?.persona ? `${conductorInfo.persona.nombres} ${conductorInfo.persona.apellidos}` : "Conductor");
-    formData.append("vehiculoId", conductorInfo?.asignacionActiva?.vehiculoId || "v1");
-    formData.append("placa", conductorInfo?.asignacionActiva?.placa || "JOU466");
+    formData.append("vehiculoId", conductorInfo?.asignacionActiva?.vehiculoId || "");
+    formData.append("placa", conductorInfo?.asignacionActiva?.placa || "");
     formData.append("kilometraje", kilometraje);
     formData.append("checklist", JSON.stringify(checked));
     formData.append("hallazgoDetectado", hallazgoDetectado ? "true" : "false");

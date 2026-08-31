@@ -7,32 +7,7 @@ import { getAsignacionesDb } from "@/lib/services/asignaciones.service";
 import { getViajesDb } from "@/lib/services/operacion.service";
 import { InspeccionPreoperacional, NovedadConductor, TipoNovedadConductor, EstadoConceptoPreoperacional } from "@/lib/types/preoperacional";
 
-let localPreoperacionalesState: InspeccionPreoperacional[] = [
-  {
-    id: "preop_seed_1",
-    conductorId: "p1",
-    conductorNombre: "Carlos Andrés Ramírez Ortiz",
-    vehiculoId: "v1",
-    placa: "JOU466",
-    fecha: new Date().toISOString(),
-    kilometraje: 145200,
-    checklist: {
-      "Llantas y presión de aire": true,
-      "Frenos y freno de emergencia": true,
-      "Luces delanteras, direccionales y freno": true,
-      "Espejos retrovisores y panorámico": true,
-      "Cinturones de seguridad operativos": true,
-      "Extintor con carga vigente": true,
-      "Botiquín de primeros auxilios completo": true,
-      "Niveles de aceite, refrigerante y frenos": true,
-      "Documentos del vehículo (SOAT, RTM, TO)": true,
-      "Kit de carretera y herramientas": true,
-    },
-    hallazgoDetectado: false,
-    estadoConcepto: "apto",
-  },
-];
-
+let localPreoperacionalesState: InspeccionPreoperacional[] = [];
 let localNovedadesConductorState: NovedadConductor[] = [];
 
 /**

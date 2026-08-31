@@ -66,6 +66,8 @@ const columns: Column<Capacitacion>[] = [
   },
 ];
 
+export const dynamic = "force-dynamic";
+
 export default async function CapacitacionesPage() {
   const capacitaciones = await getCapacitacionesDb();
   const programadas = capacitaciones.filter((c) => c.estado === "programada").length;

@@ -26,6 +26,8 @@ function formatFecha(iso?: string) {
   return new Date(iso).toLocaleDateString("es-CO");
 }
 
+export const dynamic = "force-dynamic";
+
 export default async function AsignacionesPage({
   searchParams,
 }: {
