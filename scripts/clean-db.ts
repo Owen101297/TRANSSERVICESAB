@@ -24,8 +24,8 @@ async function cleanDatabase() {
   try { await (prisma as any).examenMedico.deleteMany(); } catch (e) { console.log("ExamenMedico:", e); }
   try { await (prisma as any).persona.deleteMany(); } catch (e) { console.log("Persona:", e); }
   try { await (prisma as any).vehiculo.deleteMany(); } catch (e) { console.log("Vehiculo:", e); }
-  try { await (prisma as any).contrato.deleteMany(); } catch (e) { console.log("Contrato:", e); }
-  try { await (prisma as any).contratista.deleteMany(); } catch (e) { console.log("Contratista:", e); }
+  try { if ((prisma as any).contratoTransporte) await (prisma as any).contratoTransporte.deleteMany(); } catch (e) {}
+  try { if ((prisma as any).contratista) await (prisma as any).contratista.deleteMany(); } catch (e) {}
 
   console.log("✓ Tablas operativas vaciadas al 100%.");
 
