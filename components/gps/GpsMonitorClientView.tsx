@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Radio,
@@ -19,6 +19,7 @@ import {
   MapPin,
   Building2,
   Calendar,
+  Sparkles,
 } from "lucide-react";
 import {
   EventoGPS,
@@ -31,7 +32,6 @@ import {
 import { Card, StatCard } from "@/components/ui/Card";
 import { DataTable, Column } from "@/components/ui/DataTable";
 import { PlateTag } from "@/components/ui/PlateTag";
-import { IconButton } from "@/components/ui/IconButton";
 import { RetroalimentacionModal } from "@/components/gps/RetroalimentacionModal";
 import { DriverScoreRanking } from "@/components/gps/DriverScoreRanking";
 import { N8nConnectionGuide } from "@/components/gps/N8nConnectionGuide";
@@ -55,8 +55,37 @@ export function GpsMonitorClientView({
   const [filtroTipo, setFiltroTipo] = useState<string>("todos");
   const [searchTerm, setSearchTerm] = useState("");
   const [mesRanking, setMesRanking] = useState(new Date().toISOString().slice(0, 7));
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<string>(new Date().toLocaleTimeString("es-CO"));
 
-  // Métricas
+  // Función para refrescar datos reales desde el Gateway
+  const refrescarDatosReales = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      const res = await fetch("/api/gps/eventos");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.eventos) {
+          setEventos(json.eventos);
+          setLastUpdated(new Date().toLocaleTimeString("es-CO"));
+        }
+      }
+    } catch (err) {
+      console.warn("Error al refrescar eventos GPS:", err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  // Polling periódico cada 20 segundos para reflejar las ejecuciones de n8n
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refrescarDatosReales();
+    }, 20000);
+    return () => clearInterval(interval);
+  }, [refrescarDatosReales]);
+
+  // Métricas en tiempo real
   const totalEventos = eventos.length;
   const criticos = eventos.filter((e) => e.prioridad === "alta").length;
   const pendientes = eventos.filter(
@@ -83,7 +112,7 @@ export function GpsMonitorClientView({
       const q = searchTerm.toLowerCase();
       const matchPlaca = e.placa.toLowerCase().includes(q);
       const matchConductor = e.conductorNombre?.toLowerCase().includes(q);
-      const matchDesc = e.descripcion.toLowerCase().includes(q);
+      const matchDesc = e.descripcion?.toLowerCase().includes(q);
       const matchUbicacion = e.ubicacion?.toLowerCase().includes(q);
       return matchPlaca || matchConductor || matchDesc || matchUbicacion;
     }
@@ -130,7 +159,10 @@ export function GpsMonitorClientView({
       header: "Severidad",
       accessor: "prioridad",
       render: (v) => {
-        const conf = PRIORIDAD_EVENTO_LABELS[v as PrioridadEventoGPS];
+        const conf = PRIORIDAD_EVENTO_LABELS[v as PrioridadEventoGPS] || {
+          label: v as string,
+          badgeClass: "bg-asphalt-800 text-mist-200 border-line-600",
+        };
         return (
           <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-mono border ${conf.badgeClass}`}>
             {conf.label}
@@ -199,25 +231,41 @@ export function GpsMonitorClientView({
 
   return (
     <div className="space-y-6">
-      {/* Cabecera Principal */}
+      {/* Cabecera Principal con Indicador de Sincronización en Vivo */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs font-mono text-signal-amber font-semibold uppercase tracking-wider mb-1">
             <Radio size={16} className="animate-pulse text-signal-amber" />
-            <span>Monitoreo Satelital &amp; Seguridad Vial PESV</span>
+            <span>Monitoreo Satelital &amp; Seguridad Vial PESV (Satelcopro / n8n)</span>
           </div>
           <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold text-paper-50">
-            Telemetría GPS (Satelcopro)
+            Telemetría GPS en Vivo
           </h1>
           <p className="mt-1 text-sm text-fog-400">
-            Recepción en tiempo real vía n8n, alertas por reincidencia, retroalimentación 1-clic por WhatsApp y calificación mensual de conductores.
+            Eventos reales capturados automáticamente desde el workflow de n8n cada 5 minutos.
           </p>
+        </div>
+
+        {/* Botón de Refresco Manual */}
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-mono text-fog-400 hidden sm:inline">
+            Última sync: {lastUpdated}
+          </span>
+          <button
+            type="button"
+            onClick={refrescarDatosReales}
+            disabled={isRefreshing}
+            className="inline-flex items-center gap-2 rounded-lg border border-line-500 bg-asphalt-900 px-3.5 py-2 text-xs font-semibold text-paper-50 hover:bg-asphalt-800 transition-colors active:scale-95 disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={isRefreshing ? "animate-spin text-signal-amber" : "text-radar-cyan"} />
+            <span>{isRefreshing ? "Consultando..." : "Actualizar"}</span>
+          </button>
         </div>
       </div>
 
-      {/* Métricas Principales */}
+      {/* Métricas Principales Reales */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl">
-        <StatCard label="Total Novedades" value={totalEventos} accent="cyan" trend="Satelcopro" />
+        <StatCard label="Total Novedades" value={totalEventos} accent="cyan" trend="Eventos Satelcopro" />
         <StatCard label="Eventos Críticos" value={criticos} accent="amber" trend="Velocidad / Pánico" />
         <StatCard label="Vehículos Reincidentes" value={placasReincidentes.length} accent="amber" trend="≥ 2 novedades" />
         <StatCard label="Pendientes Retroalimentación" value={pendientes} accent="green" trend="Por notificar" />
@@ -310,10 +358,15 @@ export function GpsMonitorClientView({
                   className="rounded-lg border border-line-600 bg-asphalt-900 px-3 py-1.5 text-xs text-paper-50 font-mono focus:border-signal-amber focus:outline-none"
                 >
                   <option value="todos">Todos los eventos</option>
-                  <option value="exceso_velocidad">Exceso de Velocidad</option>
+                  <option value="exceso_velocidad">Exceso de Velocidad (Overspeed)</option>
                   <option value="frenada_brusca">Frenada Brusca</option>
                   <option value="acelerada_brusca">Acelerada Brusca</option>
+                  <option value="giro_brusco">Giro Brusco</option>
+                  <option value="panico">Botón de Pánico / SOS</option>
+                  <option value="desconexion">Desconexión Batería</option>
                   <option value="ralenti">Ralentí Prolongado</option>
+                  <option value="salida_geocerca">Salida de Geocerca</option>
+                  <option value="otro">Otros eventos</option>
                 </select>
               </div>
 
@@ -328,9 +381,24 @@ export function GpsMonitorClientView({
               </div>
             </div>
 
-            <Card className="p-0 overflow-hidden">
-              <DataTable columns={columns} data={filteredEventos} />
-            </Card>
+            {/* Banner Informativo si no hay eventos aún */}
+            {eventos.length === 0 ? (
+              <div className="rounded-xl border border-radar-cyan/30 bg-radar-cyan/10 p-8 text-center space-y-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-radar-cyan/20 text-radar-cyan mx-auto">
+                  <Radio size={24} className="animate-pulse" />
+                </div>
+                <h3 className="font-[family-name:var(--font-display)] text-xl font-bold text-paper-50">
+                  Gateway Satelcopro Conectado &amp; Esperando Eventos
+                </h3>
+                <p className="text-xs text-fog-400 max-w-md mx-auto">
+                  El webhook <code className="text-radar-cyan font-mono font-bold">/api/gps/eventos</code> está activo. Los eventos registrados por tu flujo de n8n cada 5 minutos aparecerán aquí en tiempo real.
+                </p>
+              </div>
+            ) : (
+              <Card className="p-0 overflow-hidden">
+                <DataTable columns={columns} data={filteredEventos} />
+              </Card>
+            )}
           </div>
         )}
 
@@ -346,56 +414,66 @@ export function GpsMonitorClientView({
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {placasReincidentes.map(([placa, evts]) => {
-                const primerEvento = evts[0];
-                return (
-                  <Card key={placa} className="space-y-3">
-                    <div className="flex items-center justify-between border-b border-line-600/70 pb-3">
-                      <div className="flex items-center gap-3">
-                        <PlateTag plate={placa} />
-                        <div>
-                          <p className="text-sm font-semibold text-paper-50">
-                            {primerEvento.conductorNombre || "Sin conductor"}
-                          </p>
-                          <p className="text-xs font-mono text-fog-400">
-                            {primerEvento.conductorTelefono || "Sin teléfono"}
-                          </p>
-                        </div>
-                      </div>
-
-                      <span className="rounded-full bg-alert-red-dim px-2.5 py-1 text-xs font-mono font-bold text-alert-red border border-alert-red/30">
-                        {evts.length} Novedades
-                      </span>
-                    </div>
-
-                    <div className="space-y-2">
-                      {evts.map((e) => (
-                        <div
-                          key={e.id}
-                          className="flex items-center justify-between rounded-lg border border-line-600 bg-asphalt-950 p-2.5 text-xs"
-                        >
+            {placasReincidentes.length === 0 ? (
+              <div className="rounded-xl border border-ok-green/30 bg-ok-green/10 p-8 text-center space-y-2">
+                <CheckCircle2 size={24} className="text-ok-green mx-auto" />
+                <h4 className="font-semibold text-paper-50 text-sm">Sin Reincidencias Críticas</h4>
+                <p className="text-xs text-fog-400">
+                  Actualmente ningún vehículo ha acumulado 2 o más novedades de severidad media/alta.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {placasReincidentes.map(([placa, evts]) => {
+                  const primerEvento = evts[0];
+                  return (
+                    <Card key={placa} className="space-y-3">
+                      <div className="flex items-center justify-between border-b border-line-600/70 pb-3">
+                        <div className="flex items-center gap-3">
+                          <PlateTag plate={placa} />
                           <div>
-                            <p className="font-semibold text-paper-50">{e.descripcion}</p>
-                            <p className="text-[10px] font-mono text-fog-400">
-                              {new Date(e.fechaHora).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })}
+                            <p className="text-sm font-semibold text-paper-50">
+                              {primerEvento.conductorNombre || "Sin conductor"}
+                            </p>
+                            <p className="text-xs font-mono text-fog-400">
+                              {primerEvento.conductorTelefono || "Sin teléfono"}
                             </p>
                           </div>
-
-                          <button
-                            type="button"
-                            onClick={() => setSelectedEventoFeedback(e)}
-                            className="inline-flex items-center gap-1 rounded bg-ok-green-dim px-2 py-1 text-[11px] font-mono font-semibold text-ok-green hover:bg-ok-green hover:text-asphalt-950 transition-colors border border-ok-green/30"
-                          >
-                            <Smartphone size={12} /> WhatsApp
-                          </button>
                         </div>
-                      ))}
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
+
+                        <span className="rounded-full bg-alert-red-dim px-2.5 py-1 text-xs font-mono font-bold text-alert-red border border-alert-red/30">
+                          {evts.length} Novedades
+                        </span>
+                      </div>
+
+                      <div className="space-y-2">
+                        {evts.map((e) => (
+                          <div
+                            key={e.id}
+                            className="flex items-center justify-between rounded-lg border border-line-600 bg-asphalt-950 p-2.5 text-xs"
+                          >
+                            <div>
+                              <p className="font-semibold text-paper-50">{e.descripcion}</p>
+                              <p className="text-[10px] font-mono text-fog-400">
+                                {new Date(e.fechaHora).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })}
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => setSelectedEventoFeedback(e)}
+                              className="inline-flex items-center gap-1 rounded bg-ok-green-dim px-2 py-1 text-[11px] font-mono font-semibold text-ok-green hover:bg-ok-green hover:text-asphalt-950 transition-colors border border-ok-green/30"
+                            >
+                              <Smartphone size={12} /> WhatsApp
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 

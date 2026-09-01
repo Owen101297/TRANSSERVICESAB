@@ -4,9 +4,12 @@ export type TipoEventoGPS =
   | "exceso_velocidad"
   | "frenada_brusca"
   | "acelerada_brusca"
+  | "giro_brusco"
   | "ralenti"
   | "panico"
   | "desconexion"
+  | "apagado"
+  | "encendido"
   | "salida_geocerca"
   | "otro";
 
@@ -69,9 +72,12 @@ export const TIPO_EVENTO_LABELS: Record<TipoEventoGPS, { label: string; icon: st
   exceso_velocidad: { label: "Exceso de Velocidad", icon: "Gauge", defaultPrioridad: "alta" },
   frenada_brusca: { label: "Frenada Brusca", icon: "OctagonAlert", defaultPrioridad: "media" },
   acelerada_brusca: { label: "Acelerada Brusca", icon: "Zap", defaultPrioridad: "media" },
+  giro_brusco: { label: "Giro Brusco", icon: "CornerUpRight", defaultPrioridad: "media" },
   ralenti: { label: "Ralentí Prolongado", icon: "Timer", defaultPrioridad: "baja" },
   panico: { label: "Botón de Pánico / SOS", icon: "AlertOctagon", defaultPrioridad: "alta" },
   desconexion: { label: "Desconexión de Batería/GPS", icon: "Unplug", defaultPrioridad: "alta" },
+  apagado: { label: "Motor Apagado", icon: "PowerOff", defaultPrioridad: "baja" },
+  encendido: { label: "Motor Encendido", icon: "Power", defaultPrioridad: "baja" },
   salida_geocerca: { label: "Salida de Geocerca", icon: "MapPinOff", defaultPrioridad: "media" },
   otro: { label: "Novedad Operativa", icon: "Info", defaultPrioridad: "baja" },
 };

@@ -249,6 +249,40 @@ model NovedadViaje {
 }
 
 // --------------------------------------------------------
+// MÓDULO TELEMETRÍA GPS & MONITOREO PESV (Satelcopro / n8n)
+// --------------------------------------------------------
+
+model EventoGPS {
+  id                      String    @id @default(cuid())
+  placa                   String
+  fechaHora               DateTime  @default(now())
+  tipoEvento              String    // overspeed, frenada_brusca, acelerada_brusca, panico, etc.
+  prioridad               String    @default("media") // alta, media, baja / informativa
+  descripcion             String
+  velocidad               Float?
+  limiteVelocidad         Float?
+  odometro                Float?
+  latitud                 Float?
+  longitud                Float?
+  ubicacion               String?
+  conductorId             String?
+  conductorNombre         String?
+  conductorTelefono       String?
+  conductorEmail          String?
+  estadoRetroalimentacion String    @default("pendiente") // pendiente, enviada_whatsapp, enviada_correo, resuelta
+  fechaRetroalimentacion  DateTime?
+  observacionesGestion    String?
+
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@index([placa])
+  @@index([fechaHora])
+  @@index([prioridad])
+  @@index([conductorId])
+}
+
+// --------------------------------------------------------
 // CONTRATOS DE TRANSPORTE & FUEC (MINISTERIO DE TRANSPORTE)
 // --------------------------------------------------------
 
