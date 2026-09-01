@@ -13,6 +13,8 @@ const FASE_DESC: Record<FasePESV, string> = {
   mejora: "Acciones correctivas, preventivas y comunicación.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function PESVPage() {
   const allPasos = await getPasosPesvDb();
   const total = allPasos.length;

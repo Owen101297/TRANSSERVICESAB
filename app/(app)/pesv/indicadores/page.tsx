@@ -14,6 +14,8 @@ const PERIODICIDAD_LABELS: Record<PeriodicidadIndicador, string> = {
   anual: "Anuales",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function IndicadoresPESVPage() {
   const vehiculos = await getVehiculosDb();
   const indicadores = await getIndicadoresPesvDb();

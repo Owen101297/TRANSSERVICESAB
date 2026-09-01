@@ -13,6 +13,8 @@ const CICLO_COLOR: Record<CicloPHVA, string> = {
   actuar: "border-alert-red/40",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function SGSSTPage() {
   const allItems = await getItemsSgsstDb();
   const totalItems = allItems.length;
