@@ -11,7 +11,11 @@ import {
 } from "@/lib/types/gps";
 import { getPersonasDb } from "@/lib/services/personas.service";
 import { getAsignacionesDb } from "@/lib/services/asignaciones.service";
-import { calcularScoreConductor } from "@/lib/utils/gps-scoring";
+import {
+  calcularScoreConductor,
+  normalizarTipoEventoSatelcopro,
+  normalizarPrioridadSatelcopro,
+} from "@/lib/utils/gps-scoring";
 
 // Almacén en memoria como fallback si la base de datos no estuviera disponible
 let inMemoryEventosGPS: EventoGPS[] = [];
@@ -83,39 +87,6 @@ export async function getEventosGPSDb(filtros?: {
   }
 
   return list.sort((a, b) => new Date(b.fechaHora).getTime() - new Date(a.fechaHora).getTime());
-}
-
-/**
- * Normaliza el tipo de evento de Satelcopro
- */
-export function normalizarTipoEventoSatelcopro(rawTipo: string): TipoEventoGPS {
-  const t = (rawTipo || "").toLowerCase().trim();
-  if (t.includes("overspeed") || t.includes("velocid") || t.includes("speed")) return "exceso_velocidad";
-  if (t.includes("frenad") || t.includes("brak")) return "frenada_brusca";
-  if (t.includes("aceler") || t.includes("accel")) return "acelerada_brusca";
-  if (t.includes("giro") || t.includes("turn") || t.includes("corner")) return "giro_brusco";
-  if (t.includes("panic") || t.includes("sos") || t.includes("alarma")) return "panico";
-  if (t.includes("desconex") || t.includes("bater") || t.includes("power")) return "desconexion";
-  if (t.includes("apagad") || t.includes("off")) return "apagado";
-  if (t.includes("encendid") || t.includes("on")) return "encendido";
-  if (t.includes("ralenti") || t.includes("idle") || t.includes("parada")) return "ralenti";
-  if (t.includes("geocerca") || t.includes("fence")) return "salida_geocerca";
-  return "otro";
-}
-
-/**
- * Normaliza la prioridad de Satelcopro
- */
-export function normalizarPrioridadSatelcopro(rawPrioridad?: string, tipo?: TipoEventoGPS): PrioridadEventoGPS {
-  const p = (rawPrioridad || "").toLowerCase().trim();
-  if (p === "alta" || p === "critica" || p === "high" || p === "critical") return "alta";
-  if (p === "media" || p === "medium") return "media";
-  if (p === "baja" || p === "informativa" || p === "low" || p === "info") return "baja";
-
-  // Si no viene prioridad explícita, deducir por tipo de evento
-  if (tipo === "exceso_velocidad" || tipo === "panico" || tipo === "desconexion") return "alta";
-  if (tipo === "frenada_brusca" || tipo === "acelerada_brusca" || tipo === "giro_brusco" || tipo === "salida_geocerca") return "media";
-  return "baja";
 }
 
 /**
