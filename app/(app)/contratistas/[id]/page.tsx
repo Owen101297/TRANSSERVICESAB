@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Phone, Mail, Calendar, Truck, Users2 } from "lucide-react";
-import { getContratistaByIdDb } from "@/lib/services/contratistas.service";
+import { ArrowLeft, Phone, Mail, Calendar, Building2, Clock, AlertTriangle } from "lucide-react";
+import {
+  getContratistaByIdDb,
+  getDocumentosContratistaDb,
+} from "@/lib/services/contratistas.service";
 import { getVehiculosDb } from "@/lib/services/vehiculos.service";
 import { getPersonasDb } from "@/lib/services/personas.service";
 import {
@@ -11,9 +14,9 @@ import {
 } from "@/lib/types/contratista";
 import { Card } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { PlateTag } from "@/components/ui/PlateTag";
-import { Avatar } from "@/components/ui/Avatar";
 import { EditContratistaTrigger } from "@/components/contratistas/EditContratistaTrigger";
+import { ContratistaDetailTabs } from "@/components/contratistas/ContratistaDetailTabs";
+import { evaluarAlertaContrato } from "@/lib/utils/alertas-contratos";
 
 const ESTADO_TO_STATUS: Record<EstadoContratista, "activo" | "cerrado"> = {
   activo: "activo",
@@ -31,27 +34,35 @@ export default async function ContratistaDetailPage({
 
   const allVehiculos = await getVehiculosDb();
   const allPersonas = await getPersonasDb();
+  const documentos = await getDocumentosContratistaDb(id);
 
   const vehiculos = allVehiculos.filter((v) => v.contratistaId === id);
   const conductores = allPersonas.filter((p) => p.contratistaId === id);
+  const diagContrato = evaluarAlertaContrato(contratista);
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/contratistas"
-        className="inline-flex items-center gap-1.5 text-sm text-fog-400 hover:text-paper-50"
-      >
-        <ArrowLeft size={15} /> Volver a Contratistas
-      </Link>
+      {/* Botón Volver y Breadcrumb */}
+      <div className="flex items-center justify-between">
+        <Link
+          href="/contratistas"
+          className="inline-flex items-center gap-1.5 text-sm text-fog-400 hover:text-paper-50 transition-colors"
+        >
+          <ArrowLeft size={16} /> Volver al listado de Contratistas
+        </Link>
+      </div>
 
       <div className="flex flex-col gap-6 lg:flex-row">
-        {/* Columna izquierda: identidad */}
-        <Card className="lg:w-80 shrink-0">
+        {/* Columna Izquierda: Identidad y Ficha Institucional */}
+        <Card className="lg:w-80 shrink-0 h-fit space-y-5">
           <div>
-            <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold text-paper-50">
+            <div className="flex items-center gap-2 text-xs font-mono text-signal-amber font-semibold uppercase tracking-wider mb-1">
+              <Building2 size={15} /> Empresa Vinculada
+            </div>
+            <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold text-paper-50 leading-tight">
               {contratista.nombre}
             </h1>
-            <p className="mt-1 font-[family-name:var(--font-mono)] text-xs text-fog-400">
+            <p className="mt-1 font-mono text-xs text-fog-400">
               NIT {contratista.nit}
             </p>
             <div className="mt-3 flex flex-wrap gap-1.5">
@@ -64,9 +75,31 @@ export default async function ContratistaDetailPage({
             </div>
           </div>
 
-          <div className="mt-6 space-y-3 border-t border-line-600 pt-4 text-sm">
-            <InfoRow icon={<Phone size={15} />} label={contratista.contactoTelefono} />
-            <InfoRow icon={<Mail size={15} />} label={contratista.contactoEmail} />
+          {/* Semáforo de Vigencia de Contrato */}
+          <div className="rounded-lg border border-line-600 bg-asphalt-950/70 p-3 space-y-1.5">
+            <p className="text-[10px] font-mono uppercase tracking-wider text-fog-400">
+              Vigencia del Contrato
+            </p>
+            <div className="flex items-center gap-2">
+              <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-mono border ${diagContrato.badgeClass}`}>
+                <Clock size={12} /> {diagContrato.label}
+              </span>
+            </div>
+            <p className="text-[11px] font-mono text-fog-400">
+              {contratista.fechaFinContrato
+                ? `Vence: ${contratista.fechaFinContrato}`
+                : "Contrato abierto / indefinido"}
+            </p>
+          </div>
+
+          {/* Datos de Contacto y Representación */}
+          <div className="space-y-3 border-t border-line-600 pt-4 text-sm">
+            <div className="text-xs text-fog-400 font-mono">CONTACTO PRINCIPAL</div>
+            <div className="text-sm font-semibold text-paper-50">
+              {contratista.contactoNombre || "Pendiente asignar"}
+            </div>
+            <InfoRow icon={<Phone size={15} />} label={contratista.contactoTelefono || "Sin teléfono"} />
+            <InfoRow icon={<Mail size={15} />} label={contratista.contactoEmail || "Sin correo"} />
             <InfoRow
               icon={<Calendar size={15} />}
               label={`Vinculado: ${new Date(contratista.fechaVinculacion).toLocaleDateString("es-CO")}`}
@@ -74,73 +107,23 @@ export default async function ContratistaDetailPage({
           </div>
 
           {contratista.notas && (
-            <p className="mt-4 rounded-md border border-line-600 bg-asphalt-800/50 p-3 text-xs text-fog-400">
-              {contratista.notas}
-            </p>
+            <div className="rounded-lg border border-line-600 bg-asphalt-950/50 p-3 text-xs text-fog-400 space-y-1">
+              <span className="font-semibold text-mist-200 block">Notas &amp; Acuerdos:</span>
+              <p className="leading-relaxed">{contratista.notas}</p>
+            </div>
           )}
 
           <EditContratistaTrigger contratista={contratista} />
         </Card>
 
-        {/* Columna derecha: vehículos y conductores vinculados */}
-        <div className="flex-1 space-y-6">
-          <Card>
-            <div className="mb-3 flex items-center gap-2">
-              <Truck size={17} className="text-fog-400" />
-              <h2 className="font-[family-name:var(--font-display)] text-lg font-bold text-paper-50">
-                Vehículos ({vehiculos.length})
-              </h2>
-            </div>
-            {vehiculos.length === 0 ? (
-              <p className="text-sm text-fog-400">Sin vehículos vinculados.</p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {vehiculos.map((v) => (
-                  <Link key={v.id} href={`/flota/${v.id}`}>
-                    <PlateTag plate={v.placa} />
-                  </Link>
-                ))}
-              </div>
-            )}
-          </Card>
-
-          <Card>
-            <div className="mb-3 flex items-center gap-2">
-              <Users2 size={17} className="text-fog-400" />
-              <h2 className="font-[family-name:var(--font-display)] text-lg font-bold text-paper-50">
-                Conductores ({conductores.length})
-              </h2>
-            </div>
-            {conductores.length === 0 ? (
-              <p className="text-sm text-fog-400">Sin conductores vinculados.</p>
-            ) : (
-              <ul className="space-y-2">
-                {conductores.map((p) => (
-                  <li key={p.id}>
-                    <Link
-                      href={`/personas/${p.id}`}
-                      className="flex items-center gap-3 rounded-md border border-line-600 bg-asphalt-800/50 px-3 py-2 hover:bg-asphalt-800"
-                    >
-                      <Avatar initials={p.fotoIniciales} size="sm" />
-                      <span className="text-sm text-mist-200">
-                        {p.nombres} {p.apellidos}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-
-          <Card>
-            <h2 className="font-[family-name:var(--font-display)] text-lg font-bold text-paper-50">
-              Contratos y cumplimiento
-            </h2>
-            <p className="mt-3 text-sm text-fog-400">
-              Pendiente conectar al módulo Documentos — contratos, pólizas del
-              contratista, historial de cumplimiento.
-            </p>
-          </Card>
+        {/* Columna Derecha: Matriz 360° con Pestañas Interactivas */}
+        <div className="flex-1 min-w-0">
+          <ContratistaDetailTabs
+            contratista={contratista}
+            vehiculos={vehiculos}
+            conductores={conductores}
+            documentos={documentos}
+          />
         </div>
       </div>
     </div>
@@ -149,9 +132,9 @@ export default async function ContratistaDetailPage({
 
 function InfoRow({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
-    <div className="flex items-center gap-2.5 text-mist-200">
-      <span className="text-fog-400">{icon}</span>
-      {label}
+    <div className="flex items-center gap-2.5 text-mist-200 text-xs truncate">
+      <span className="text-fog-400 shrink-0">{icon}</span>
+      <span className="truncate">{label}</span>
     </div>
   );
 }
