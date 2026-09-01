@@ -28,6 +28,8 @@ import { getAsignacionActiva } from "@/lib/data/asignaciones";
 import { ESTADO_LABELS, EstadoPersona, Persona } from "@/lib/types/persona";
 import { exportPersonasToExcel } from "@/lib/data/personas-excel-export";
 import { Button } from "@/components/ui/Button";
+import { IconButton } from "@/components/ui/IconButton";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { Card, StatCard } from "@/components/ui/Card";
 import { DataTable, Column } from "@/components/ui/DataTable";
 import { Avatar } from "@/components/ui/Avatar";
@@ -374,22 +376,26 @@ export default function PersonasPage() {
             Expediente único con trazabilidad de desvinculaciones y archivo histórico para auditorías HSEQ / PESV.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
+        <div className="flex items-center gap-2.5">
+          <IconButton
+            icon={<Download size={18} />}
+            tooltip={`Exportar matriz Excel (${filteredPersonas.length} registros)`}
             variant="secondary"
             onClick={() => exportPersonasToExcel(filteredPersonas)}
             disabled={filteredPersonas.length === 0}
-            title={filteredPersonas.length === 0 ? "No hay registros para exportar" : "Descargar matriz oficial en Excel (TH-FOR-01)"}
-          >
-            <Download size={16} /> Exportar Excel ({filteredPersonas.length})
-          </Button>
-          <Button variant="secondary" onClick={() => setIsBulkOpen(true)}>
-            <UploadCloud size={16} /> Carga masiva (Excel/CSV)
-          </Button>
+          />
+          <IconButton
+            icon={<UploadCloud size={18} />}
+            tooltip="Carga masiva desde archivo Excel / CSV"
+            variant="secondary"
+            onClick={() => setIsBulkOpen(true)}
+          />
           <Link href="/personas/nueva">
-            <Button variant="primary">
-              <Plus size={16} /> Nueva persona
-            </Button>
+            <IconButton
+              icon={<Plus size={20} />}
+              tooltip="Registrar nueva persona / conductor"
+              variant="primary"
+            />
           </Link>
         </div>
       </div>

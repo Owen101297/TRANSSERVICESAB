@@ -11,6 +11,7 @@ import {
   getEstadoDocumento,
 } from "@/lib/types/vehiculo";
 import { Button } from "@/components/ui/Button";
+import { IconButton } from "@/components/ui/IconButton";
 import { Card, StatCard } from "@/components/ui/Card";
 import { DataTable, Column } from "@/components/ui/DataTable";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -112,9 +113,11 @@ export default async function FlotaPage() {
           </p>
         </div>
         <Link href="/flota/nuevo">
-          <Button variant="primary">
-            <Plus size={16} /> Nuevo vehículo
-          </Button>
+          <IconButton
+            icon={<Plus size={20} />}
+            tooltip="Registrar nuevo vehículo en la flota"
+            variant="primary"
+          />
         </Link>
       </div>
 
