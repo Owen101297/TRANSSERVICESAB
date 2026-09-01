@@ -26,6 +26,7 @@ export const NAV_GROUPS: ModuleGroup[] = [
       { id: "personas", label: "Personas", href: "/personas", icon: "users" },
       { id: "contratistas", label: "Contratistas", href: "/contratistas", icon: "building" },
       { id: "flota", label: "Flota", href: "/flota", icon: "truck" },
+      { id: "gps", label: "Telemetría GPS", href: "/gps", icon: "radio" },
       { id: "asignaciones", label: "Asignaciones", href: "/asignaciones", icon: "link" },
       { id: "operacion", label: "Viajes", href: "/operacion", icon: "route" },
     ],
