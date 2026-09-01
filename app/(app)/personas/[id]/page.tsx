@@ -38,6 +38,7 @@ const ESTADO_TO_STATUS: Record<EstadoPersona, "activo" | "pendiente" | "cerrado"
   descanso: "pendiente",
   vacaciones: "pendiente",
   inactivo: "cerrado",
+  retirado: "cerrado",
 };
 
 const ESTADO_ASIG_TO_STATUS: Record<EstadoAsignacion, "activo" | "pendiente" | "cerrado"> = {
