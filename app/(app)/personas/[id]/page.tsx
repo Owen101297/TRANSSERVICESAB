@@ -29,7 +29,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PlateTag } from "@/components/ui/PlateTag";
 import { TurnoTag } from "@/components/ui/TurnoTag";
 import { DocExpiryBadge } from "@/components/ui/DocExpiryBadge";
-import { DocUploadSlot } from "@/components/ui/DocUploadSlot";
+import { ExpedienteDigital } from "@/components/personas/ExpedienteDigital";
 import { EditPersonaTrigger } from "@/components/personas/EditPersonaTrigger";
 import { DeletePersonaTrigger } from "@/components/personas/DeletePersonaTrigger";
 
@@ -287,9 +287,9 @@ export default async function PersonaDetailPage({
                         )}
                       </div>
                       <div className="text-right">
-                        <p className="text-[10px] uppercase font-mono text-fog-400">Vigencia</p>
+                        <p className="text-[10px] uppercase font-mono text-fog-400">Vigencia RUNT</p>
                         <DocExpiryBadge
-                          label="Vencimiento RUNT"
+                          label="Licencia de Conducción"
                           vencimientoISO={persona.licenciaConduccion.fechaVencimiento}
                         />
                       </div>
@@ -302,7 +302,7 @@ export default async function PersonaDetailPage({
                 )}
               </Card>
 
-              {/* Examen Médico Ocupacional (EMO) */}
+              {/* Expediente Médico Ocupacional */}
               <Card>
                 <div className="mb-3 flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -312,55 +312,59 @@ export default async function PersonaDetailPage({
                     </h2>
                   </div>
                   {persona.examenMedico && (
-                    <StatusBadge status={CONCEPTO_TO_STATUS[persona.examenMedico.concepto]}>
-                      {CONCEPTO_MEDICO_LABELS[persona.examenMedico.concepto]}
-                    </StatusBadge>
+                    <span className="font-mono text-xs text-fog-400">
+                      {persona.examenMedico.centroMedico || "IPS Autorizada"}
+                    </span>
                   )}
                 </div>
 
                 {persona.examenMedico ? (
                   <div className="space-y-3">
                     <div className="rounded-md border border-line-600 bg-asphalt-800/60 p-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line-600/50 pb-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line-600 pb-2">
                         <div>
-                          <p className="text-xs text-fog-400">
-                            Tipo de examen:{" "}
-                            <span className="capitalize text-paper-50">
-                              {persona.examenMedico.tipo.replace("_", " ")}
-                            </span>
-                          </p>
-                          {persona.examenMedico.centroMedico && (
-                            <p className="text-xs text-mist-200">
-                              {persona.examenMedico.centroMedico}
-                            </p>
-                          )}
+                          <p className="text-xs text-fog-400">Concepto de aptitud:</p>
+                          <span
+                            className={`font-semibold text-sm ${
+                              persona.examenMedico.concepto === "apto"
+                                ? "text-ok-green"
+                                : persona.examenMedico.concepto === "apto_con_restricciones"
+                                ? "text-signal-amber"
+                                : "text-alert-red"
+                            }`}
+                          >
+                            {CONCEPTO_MEDICO_LABELS[persona.examenMedico.concepto as ConceptoMedico]}
+                          </span>
                         </div>
-                        <DocExpiryBadge
-                          label="Vigencia anual"
-                          vencimientoISO={persona.examenMedico.fechaVigencia}
-                        />
+                        <div className="text-right">
+                          <p className="text-[10px] uppercase font-mono text-fog-400">Vencimiento Periódico</p>
+                          <DocExpiryBadge
+                            label="Examen Médico"
+                            vencimientoISO={persona.examenMedico.fechaVigencia}
+                          />
+                        </div>
                       </div>
 
-                      <div className="mt-3">
-                        <p className="text-[11px] font-mono uppercase text-fog-400 mb-1.5">
-                          Énfasis clínicos evaluados:
-                        </p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {persona.examenMedico.enfasis.map((enf) => (
-                            <span
-                              key={enf}
-                              className="rounded border border-line-600 bg-asphalt-700 px-2 py-0.5 text-xs text-mist-200"
-                            >
-                              {enf}
-                            </span>
-                          ))}
+                      {persona.examenMedico.enfasis && persona.examenMedico.enfasis.length > 0 && (
+                        <div className="mt-2.5">
+                          <p className="text-xs text-fog-400 mb-1">Énfasis evaluados:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {persona.examenMedico.enfasis.map((enf) => (
+                              <span
+                                key={enf}
+                                className="rounded border border-line-600 bg-asphalt-700 px-2 py-0.5 text-xs text-mist-200"
+                              >
+                                {enf}
+                              </span>
+                            ))}
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       {persona.examenMedico.restricciones && (
                         <div className="mt-3 rounded border border-signal-amber/30 bg-signal-amber-dim/30 p-2.5 text-xs text-mist-200">
                           <p className="font-semibold text-signal-amber">
-                            Restricciones / Recomendaciones:
+                            Restricciones / Recomendaciones HSEQ:
                           </p>
                           <p className="mt-0.5">{persona.examenMedico.restricciones}</p>
                         </div>
@@ -376,81 +380,21 @@ export default async function PersonaDetailPage({
             </>
           )}
 
-          {/* Expediente Digital / Documentos Adjuntos */}
+          {/* Expediente Digital con Carga y Visor Integrado de Documentos */}
           <Card>
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <FileCheck size={17} className="text-fog-400" />
+                <FileCheck size={18} className="text-radar-cyan" />
                 <h2 className="font-[family-name:var(--font-display)] text-lg font-bold text-paper-50">
-                  Documentos del Expediente
+                  Expediente Digital HSEQ
                 </h2>
               </div>
               <Link href="/documentos" className="text-xs text-radar-cyan hover:underline">
-                Ver repositorio general
+                Repositorio general
               </Link>
             </div>
 
-            <div className="space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-md border border-line-600 bg-asphalt-800/40 p-3">
-                <div>
-                  <p className="text-xs font-medium text-paper-50">Cédula de Ciudadanía / Documento de Identidad</p>
-                  <p className="text-[11px] text-fog-400">PDF legible de ambas caras</p>
-                </div>
-                <div className="w-full sm:w-56">
-                  <DocUploadSlot existingFileName={`${persona.numeroDocumento}_cedula.pdf`} />
-                </div>
-              </div>
-
-              {esConductor && (
-                <>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-md border border-line-600 bg-asphalt-800/40 p-3">
-                    <div>
-                      <p className="text-xs font-medium text-paper-50">Licencia de Conducción (Ambas caras)</p>
-                      <p className="text-[11px] text-fog-400">
-                        {persona.licenciaConduccion ? `Categorías ${persona.licenciaConduccion.categorias.join("/")}` : "Pendiente adjuntar"}
-                      </p>
-                    </div>
-                    <div className="w-full sm:w-56">
-                      <DocUploadSlot
-                        existingFileName={
-                          persona.licenciaConduccion
-                            ? `LIC_${persona.licenciaConduccion.numero}.pdf`
-                            : undefined
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-md border border-line-600 bg-asphalt-800/40 p-3">
-                    <div>
-                      <p className="text-xs font-medium text-paper-50">Certificado Médico Ocupacional (Aptitud Conductor)</p>
-                      <p className="text-[11px] text-fog-400">
-                        {persona.examenMedico ? `EMO emitido por ${persona.examenMedico.centroMedico || "IPS"}` : "Pendiente adjuntar"}
-                      </p>
-                    </div>
-                    <div className="w-full sm:w-56">
-                      <DocUploadSlot
-                        existingFileName={
-                          persona.examenMedico
-                            ? `EMO_${persona.numeroDocumento}_2025.pdf`
-                            : undefined
-                        }
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-md border border-line-600 bg-asphalt-800/40 p-3">
-                <div>
-                  <p className="text-xs font-medium text-paper-50">Planilla de Pago Seguridad Social (PILA reciente)</p>
-                  <p className="text-[11px] text-fog-400">Soporte mensual ARL + EPS + Pensión</p>
-                </div>
-                <div className="w-full sm:w-56">
-                  <DocUploadSlot existingFileName={`PILA_${persona.numeroDocumento}_agosto.pdf`} />
-                </div>
-              </div>
-            </div>
+            <ExpedienteDigital personaId={persona.id} />
           </Card>
         </div>
       </div>

@@ -36,6 +36,8 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PlateTag } from "@/components/ui/PlateTag";
 import { BulkUploadModal } from "@/components/personas/BulkUploadModal";
 import { RetirarPersonaModal } from "@/components/personas/RetirarPersonaModal";
+import { AlertasVencimientoPanel } from "@/components/personas/AlertasVencimientoPanel";
+import { evaluarAlertasPersona } from "@/lib/utils/alertas-vencimiento";
 
 const ESTADO_TO_STATUS: Record<EstadoPersona, "activo" | "pendiente" | "cerrado"> = {
   activo: "activo",
@@ -52,6 +54,7 @@ export default function PersonasPage() {
   const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [currentTab, setCurrentTab] = useState<FilterTab>("activos");
+  const [onlyWithAlerts, setOnlyWithAlerts] = useState(false);
   
   // Modales
   const [personaToRetire, setPersonaToRetire] = useState<Persona | null>(null);
@@ -81,8 +84,12 @@ export default function PersonasPage() {
   const retirados = personas.filter((p) => p.estado === "retirado" || p.estado === "inactivo").length;
   const conductores = personas.filter((p) => p.estado === "activo" && p.perfiles.includes("conductor")).length;
 
-  // Filtrado según pestaña seleccionada
+  // Filtrado según pestaña seleccionada y filtro de alertas
   const filteredPersonas = personas.filter((p) => {
+    if (onlyWithAlerts) {
+      const diag = evaluarAlertasPersona(p);
+      if (!diag.tieneAlertas) return false;
+    }
     if (currentTab === "activos") return p.estado === "activo";
     if (currentTab === "descanso") return p.estado === "descanso" || p.estado === "vacaciones";
     if (currentTab === "retirados") return p.estado === "retirado" || p.estado === "inactivo";
@@ -218,22 +225,45 @@ export default function PersonasPage() {
     {
       header: "Nombre / Expediente",
       accessor: "nombres",
-      render: (_v, row) => (
-        <div className="flex items-center gap-3">
-          <Avatar initials={row.fotoIniciales} size="sm" />
-          <div>
-            <Link
-              href={`/personas/${row.id}`}
-              className="font-medium text-paper-50 hover:text-radar-cyan transition-colors"
-            >
-              {row.nombres} {row.apellidos}
-            </Link>
-            <p className="font-[family-name:var(--font-mono)] text-xs text-fog-400">
-              {row.tipoDocumento} {row.numeroDocumento}
-            </p>
+      render: (_v, row) => {
+        const diag = evaluarAlertasPersona(row);
+        return (
+          <div className="flex items-center gap-3">
+            <Avatar initials={row.fotoIniciales} size="sm" />
+            <div>
+              <div className="flex items-center gap-2">
+                <Link
+                  href={`/personas/${row.id}`}
+                  className="font-medium text-paper-50 hover:text-radar-cyan transition-colors"
+                >
+                  {row.nombres} {row.apellidos}
+                </Link>
+                {row.estado === "activo" && diag.tieneAlertas && (
+                  <span
+                    className={`rounded px-1.5 py-0.2 text-[10px] font-mono font-bold border ${
+                      diag.nivelMaximo === "critico"
+                        ? "bg-alert-red-dim border-alert-red/40 text-alert-red"
+                        : diag.nivelMaximo === "urgente"
+                        ? "bg-signal-amber/10 border-signal-amber/40 text-signal-amber"
+                        : "bg-radar-cyan/10 border-radar-cyan/40 text-radar-cyan"
+                    }`}
+                    title={diag.alertas.map((a) => a.mensaje).join(" | ")}
+                  >
+                    {diag.nivelMaximo === "critico"
+                      ? "Vencido"
+                      : diag.nivelMaximo === "urgente"
+                      ? "Urgente"
+                      : "Alerta"}
+                  </span>
+                )}
+              </div>
+              <p className="font-[family-name:var(--font-mono)] text-xs text-fog-400">
+                {row.tipoDocumento} {row.numeroDocumento}
+              </p>
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       header: "Perfiles",
@@ -371,6 +401,13 @@ export default function PersonasPage() {
         <StatCard label="En Descanso / Vacaciones" value={enDescanso} accent="cyan" trend="Fuera de turno" />
         <StatCard label="Histórico / Retirados" value={retirados} accent="amber" trend="Archivo de auditoría" />
       </div>
+
+      {/* Centro de Alertas Preventivas de Vencimiento */}
+      <AlertasVencimientoPanel
+        personas={personas}
+        onlyWithAlerts={onlyWithAlerts}
+        onToggleOnlyWithAlerts={() => setOnlyWithAlerts(!onlyWithAlerts)}
+      />
 
       {/* Barra de Pestañas de Filtrado de Historial */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-600 pb-3">

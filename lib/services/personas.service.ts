@@ -930,3 +930,123 @@ export async function retirarMultiplePersonasDb(ids: string[], motivo: string = 
   }
 }
 
+export interface DocumentoExpediente {
+  id: string;
+  entidadId: string;
+  tipoDocumento: string;
+  nombre: string;
+  archivoUrl: string;
+  tamano?: string;
+  mimeType?: string;
+  createdAt: string;
+}
+
+let localDocumentosState: DocumentoExpediente[] = [];
+
+/**
+ * Obtiene los documentos del expediente de una persona
+ */
+export async function getDocumentosPersonaDb(personaId: string): Promise<DocumentoExpediente[]> {
+  try {
+    if (process.env.DATABASE_URL) {
+      const docs = await prisma.documentoAdjunto.findMany({
+        where: { entidadId: personaId, entidadTipo: "persona" },
+        orderBy: { createdAt: "desc" },
+      });
+      return docs.map((d) => ({
+        id: d.id,
+        entidadId: d.entidadId,
+        tipoDocumento: d.tipoDocumento,
+        nombre: d.nombre,
+        archivoUrl: d.archivoUrl,
+        tamano: d.tamano ?? undefined,
+        mimeType: d.mimeType ?? undefined,
+        createdAt: d.createdAt.toISOString(),
+      }));
+    }
+    return localDocumentosState.filter((d) => d.entidadId === personaId);
+  } catch (error) {
+    console.warn("Aviso: usando almacén local de documentos:", error);
+    return localDocumentosState.filter((d) => d.entidadId === personaId);
+  }
+}
+
+/**
+ * Guarda o actualiza un documento en el expediente de una persona
+ */
+export async function guardarDocumentoPersonaDb(
+  personaId: string,
+  tipoDocumento: string,
+  nombre: string,
+  archivoUrl: string,
+  tamano?: string,
+  mimeType?: string
+) {
+  try {
+    if (process.env.DATABASE_URL) {
+      // Eliminar versión anterior del mismo tipo de documento si existe
+      await prisma.documentoAdjunto.deleteMany({
+        where: { entidadId: personaId, entidadTipo: "persona", tipoDocumento },
+      });
+
+      const nuevoDoc = await prisma.documentoAdjunto.create({
+        data: {
+          entidadId: personaId,
+          entidadTipo: "persona",
+          tipoDocumento,
+          nombre,
+          archivoUrl,
+          tamano,
+          mimeType,
+        },
+      });
+
+      revalidatePath(`/personas/${personaId}`);
+      return { success: true, documento: nuevoDoc };
+    }
+
+    localDocumentosState = localDocumentosState.filter(
+      (d) => !(d.entidadId === personaId && d.tipoDocumento === tipoDocumento)
+    );
+
+    const docLocal: DocumentoExpediente = {
+      id: `doc_${Date.now()}`,
+      entidadId: personaId,
+      tipoDocumento,
+      nombre,
+      archivoUrl,
+      tamano,
+      mimeType,
+      createdAt: new Date().toISOString(),
+    };
+    localDocumentosState.push(docLocal);
+
+    revalidatePath(`/personas/${personaId}`);
+    return { success: true, documento: docLocal };
+  } catch (error: any) {
+    console.error("Error al guardar documento:", error);
+    return { success: false, error: error.message || "Error al guardar documento." };
+  }
+}
+
+/**
+ * Elimina un documento específico del expediente
+ */
+export async function eliminarDocumentoPersonaDb(documentoId: string, personaId: string) {
+  try {
+    if (process.env.DATABASE_URL) {
+      await prisma.documentoAdjunto.delete({
+        where: { id: documentoId },
+      });
+    } else {
+      localDocumentosState = localDocumentosState.filter((d) => d.id !== documentoId);
+    }
+
+    revalidatePath(`/personas/${personaId}`);
+    return { success: true };
+  } catch (error: any) {
+    console.error("Error al eliminar documento:", error);
+    return { success: false, error: error.message || "Error al eliminar documento." };
+  }
+}
+
