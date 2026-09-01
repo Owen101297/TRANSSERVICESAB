@@ -211,3 +211,29 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+/**
+ * DELETE /api/gps/eventos
+ * Eliminación de eventos de prueba o depuración
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const { prisma } = await import("@/lib/prisma");
+    const id = request.nextUrl.searchParams.get("id");
+    const placa = request.nextUrl.searchParams.get("placa");
+
+    if (id) {
+      await (prisma as any).eventoGPS.delete({ where: { id } });
+      return NextResponse.json({ success: true, message: `Evento ${id} eliminado.` });
+    }
+
+    if (placa) {
+      const res = await (prisma as any).eventoGPS.deleteMany({ where: { placa: { equals: placa, mode: "insensitive" } } });
+      return NextResponse.json({ success: true, count: res.count });
+    }
+
+    return NextResponse.json({ error: "Debes especificar ?id= o ?placa=" }, { status: 400 });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
