@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   FileText,
   Upload,
@@ -9,9 +9,9 @@ import {
   CheckCircle2,
   AlertTriangle,
   Clock,
-  ExternalLink,
   ShieldCheck,
-  Plus,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { Vehiculo } from "@/lib/types/vehiculo";
 import { DocumentViewerModal } from "@/components/ui/DocumentViewerModal";
@@ -90,6 +90,10 @@ export function ExpedienteVehiculoDigital({
     mimeType?: string;
   } | null>(null);
   const [uploadingTipo, setUploadingTipo] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const activeCasilleroRef = useRef<DocumentoCasillero | null>(null);
 
   // Mapear vencimientos desde el objeto vehiculo
   const getVencimientoCasillero = (tipo: string): string | undefined => {
@@ -104,28 +108,65 @@ export function ExpedienteVehiculoDigital({
   const cargados = obligatorios.filter((c) => adjuntos.some((a) => a.tipoDocumento === c.tipo));
   const porcentaje = Math.round((cargados.length / obligatorios.length) * 100);
 
-  const handleSimularSubida = async (casillero: DocumentoCasillero) => {
-    setUploadingTipo(casillero.tipo);
-    const mockUrl = `https://transservices-docs.s3.amazonaws.com/flota/${vehiculo.placa}/${casillero.tipo}_${vehiculo.placa}.pdf`;
-    const docNombre = `${casillero.nombre} - ${vehiculo.placa}.pdf`;
-
-    try {
-      const res = await crearAdjuntoVehiculoDb(
-        vehiculo.id,
-        casillero.tipo,
-        docNombre,
-        mockUrl,
-        getVencimientoCasillero(casillero.tipo)
-      );
-
-      if (res.success && res.adjunto) {
-        setAdjuntos((prev) => [res.adjunto, ...prev.filter((x) => x.tipoDocumento !== casillero.tipo)]);
-      }
-    } catch (err) {
-      console.error("Error al subir documento:", err);
-    } finally {
-      setUploadingTipo(null);
+  const handleOpenFileDialog = (casillero: DocumentoCasillero) => {
+    setErrorMessage(null);
+    activeCasilleroRef.current = casillero;
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+      fileInputRef.current.click();
     }
+  };
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const casillero = activeCasilleroRef.current;
+    if (!file || !casillero) return;
+
+    // Límite de tamaño: 15MB
+    if (file.size > 15 * 1024 * 1024) {
+      setErrorMessage(`El archivo ${file.name} supera el límite de 15MB.`);
+      return;
+    }
+
+    setUploadingTipo(casillero.tipo);
+    setErrorMessage(null);
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64Url = event.target?.result as string;
+
+      try {
+        const res = await crearAdjuntoVehiculoDb(
+          vehiculo.id,
+          casillero.tipo,
+          file.name,
+          base64Url,
+          getVencimientoCasillero(casillero.tipo)
+        );
+
+        if (res.success && res.adjunto) {
+          setAdjuntos((prev) => [
+            res.adjunto,
+            ...prev.filter((x) => x.tipoDocumento !== casillero.tipo),
+          ]);
+        } else {
+          setErrorMessage(res.error || "No se pudo guardar el documento en el servidor.");
+        }
+      } catch (err: any) {
+        setErrorMessage(err.message || "Error al subir el archivo.");
+      } finally {
+        setUploadingTipo(null);
+        activeCasilleroRef.current = null;
+      }
+    };
+
+    reader.onerror = () => {
+      setErrorMessage("Error al leer el archivo seleccionado.");
+      setUploadingTipo(null);
+      activeCasilleroRef.current = null;
+    };
+
+    reader.readAsDataURL(file);
   };
 
   const handleEliminarAdjunto = async (adjuntoId: string) => {
@@ -142,6 +183,23 @@ export function ExpedienteVehiculoDigital({
 
   return (
     <div className="space-y-6">
+      {/* Input de archivo real oculto */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileSelected}
+        accept=".pdf,image/png,image/jpeg,image/webp"
+        className="hidden"
+      />
+
+      {/* Notificación de Error */}
+      {errorMessage && (
+        <div className="flex items-center gap-2 rounded-lg border border-alert-red/30 bg-alert-red-dim/40 p-3 text-xs text-alert-red">
+          <AlertCircle size={15} />
+          {errorMessage}
+        </div>
+      )}
+
       {/* Barra de Completitud HSEQ */}
       <div className="rounded-xl border border-line-600 bg-asphalt-900 p-5 shadow-lg space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -160,43 +218,47 @@ export function ExpedienteVehiculoDigital({
           <span className="font-mono text-xl font-bold text-ok-green">{porcentaje}%</span>
         </div>
 
-        <div className="h-2 w-full overflow-hidden rounded-full bg-asphalt-950 border border-line-600">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-asphalt-950">
           <div
-            className={`h-full rounded-full transition-all duration-500 ${
+            className={`h-full transition-all duration-500 ${
               porcentaje === 100
                 ? "bg-ok-green"
-                : porcentaje >= 60
-                ? "bg-radar-cyan"
-                : "bg-signal-amber"
+                : porcentaje >= 50
+                ? "bg-signal-amber"
+                : "bg-alert-red"
             }`}
             style={{ width: `${porcentaje}%` }}
           />
         </div>
       </div>
 
-      {/* Casilleros de Documentos */}
+      {/* Grid de Casilleros Documentales */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {CASILLEROS_VEHICULO.map((casillero) => {
           const adjunto = adjuntos.find((a) => a.tipoDocumento === casillero.tipo);
           const vencimiento = getVencimientoCasillero(casillero.tipo);
-          const alerta = calcularAlertaFecha(vencimiento, casillero.nombre);
+          const alerta = calcularAlertaFecha(vencimiento);
           const isUploading = uploadingTipo === casillero.tipo;
 
           return (
             <div
               key={casillero.tipo}
-              className={`relative rounded-xl border p-4 transition-all ${
+              className={`rounded-xl border p-4 transition-all ${
                 adjunto
-                  ? "border-ok-green/40 bg-asphalt-900/95 shadow-md"
-                  : "border-line-600 bg-asphalt-900/70 hover:border-line-500"
+                  ? "border-line-600 bg-asphalt-900/90 shadow-sm"
+                  : casillero.obligatorio
+                  ? "border-signal-amber/30 bg-asphalt-900/50"
+                  : "border-line-600/60 bg-asphalt-900/30"
               }`}
             >
-              <div className="flex items-start justify-between gap-2">
+              <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
                   <div
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${
+                    className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${
                       adjunto
                         ? "border-ok-green/40 bg-ok-green-dim/30 text-ok-green"
+                        : casillero.obligatorio
+                        ? "border-signal-amber/40 bg-signal-amber-dim/30 text-signal-amber"
                         : "border-line-500 bg-asphalt-950 text-fog-400"
                     }`}
                   >
@@ -254,6 +316,15 @@ export function ExpedienteVehiculoDigital({
 
                       <button
                         type="button"
+                        onClick={() => handleOpenFileDialog(casillero)}
+                        className="text-fog-400 hover:text-paper-50 transition-colors p-1"
+                        title="Reemplazar archivo"
+                      >
+                        <Upload size={12} />
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => handleEliminarAdjunto(adjunto.id)}
                         className="text-fog-400 hover:text-alert-red transition-colors p-1"
                         title="Eliminar documento"
@@ -267,12 +338,21 @@ export function ExpedienteVehiculoDigital({
                     <span className="text-fog-400 font-mono text-[11px]">Pendiente de carga</span>
                     <button
                       type="button"
-                      onClick={() => handleSimularSubida(casillero)}
+                      onClick={() => handleOpenFileDialog(casillero)}
                       disabled={isUploading}
-                      className="inline-flex items-center gap-1 rounded bg-asphalt-950 px-2.5 py-1 text-[11px] font-semibold text-signal-amber border border-signal-amber/40 hover:bg-signal-amber hover:text-asphalt-950 transition-all active:scale-95 disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 rounded bg-asphalt-950 px-3 py-1.5 text-[11px] font-semibold text-signal-amber border border-signal-amber/40 hover:bg-signal-amber hover:text-asphalt-950 transition-all active:scale-95 disabled:opacity-50 cursor-pointer shadow-sm"
                     >
-                      <Upload size={12} />
-                      <span>{isUploading ? "Cargando..." : "Cargar PDF"}</span>
+                      {isUploading ? (
+                        <>
+                          <Loader2 size={12} className="animate-spin" />
+                          <span>Cargando...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload size={12} />
+                          <span>Cargar PDF</span>
+                        </>
+                      )}
                     </button>
                   </>
                 )}

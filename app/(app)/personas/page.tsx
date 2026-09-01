@@ -24,7 +24,8 @@ import {
   reactivarPersonaDb,
   retirarMultiplePersonasDb,
 } from "@/lib/services/personas.service";
-import { getAsignacionActiva } from "@/lib/data/asignaciones";
+import { getAsignacionesDb } from "@/lib/services/asignaciones.service";
+import { Asignacion } from "@/lib/types/asignacion";
 import { ESTADO_LABELS, EstadoPersona, Persona } from "@/lib/types/persona";
 import { exportPersonasToExcel } from "@/lib/data/personas-excel-export";
 import { Button } from "@/components/ui/Button";
@@ -54,6 +55,7 @@ type FilterTab = "activos" | "descanso" | "retirados" | "todos";
 
 export default function PersonasPage() {
   const [personas, setPersonas] = useState<Persona[]>([]);
+  const [asignaciones, setAsignaciones] = useState<Asignacion[]>([]);
   const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [currentTab, setCurrentTab] = useState<FilterTab>("activos");
@@ -73,6 +75,9 @@ export default function PersonasPage() {
     getPersonasDb().then((data) => {
       setPersonas(data || []);
       setSelectedIds([]);
+    });
+    getAsignacionesDb().then((asigs) => {
+      setAsignaciones(asigs || []);
     });
   };
 
@@ -291,7 +296,7 @@ export default function PersonasPage() {
         if (row.estado === "retirado" || row.estado === "inactivo") {
           return <span className="text-fog-400 text-xs">—</span>;
         }
-        const asignacion = getAsignacionActiva(v as string);
+        const asignacion = asignaciones.find((a) => a.conductorId === (v as string) && a.estado === "activa");
         return asignacion ? (
           <PlateTag plate={asignacion.placa} />
         ) : (

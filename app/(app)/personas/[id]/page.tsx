@@ -14,7 +14,7 @@ import {
   FileCheck,
 } from "lucide-react";
 import { getPersonaByIdDb } from "@/lib/services/personas.service";
-import { getAsignacionActiva, getHistorialPorConductor } from "@/lib/data/asignaciones";
+import { getAsignacionesDb } from "@/lib/services/asignaciones.service";
 import {
   ESTADO_LABELS,
   EstadoPersona,
@@ -63,8 +63,9 @@ export default async function PersonaDetailPage({
   const persona = await getPersonaByIdDb(id);
   if (!persona) notFound();
 
-  const asignacionActiva = getAsignacionActiva(id);
-  const historial = getHistorialPorConductor(id);
+  const asignaciones = await getAsignacionesDb();
+  const asignacionActiva = asignaciones.find((a) => a.conductorId === id && a.estado === "activa");
+  const historial = asignaciones.filter((a) => a.conductorId === id);
   const esConductor = persona.perfiles.includes("conductor");
 
   return (
