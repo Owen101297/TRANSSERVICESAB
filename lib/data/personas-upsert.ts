@@ -34,6 +34,7 @@ export interface RawPersonaImportRow {
 
 export interface UpsertPreviewItem {
   id: string;
+  rowNumber?: number;
   numeroDocumento: string;
   tipoDocumento: TipoDocumento;
   nombres: string;
@@ -69,6 +70,7 @@ export interface UpsertBatchResult {
     toUpdate: number;
     errors: number;
   };
+  diagnostico: string[];
 }
 
 /**
@@ -257,11 +259,15 @@ export function analyzePersonaUpsertBatch(
   currentPersons: Persona[] = []
 ): UpsertBatchResult {
   const previewItems: UpsertPreviewItem[] = [];
+  const diagnostico: string[] = [];
   let toCreate = 0;
   let toUpdate = 0;
   let errors = 0;
 
+  const seenCedulasInBatch = new Map<string, { rowNum: number; nombres: string }>();
+
   rows.forEach((row, index) => {
+    const excelRowNum = index + 2; // Fila 1 es el encabezado en Excel
     const rawCedula = (row.numeroDocumento || "").replace(/\D/g, "");
     
     let nombres = (row.nombres || "").trim();
@@ -278,11 +284,15 @@ export function analyzePersonaUpsertBatch(
       }
     }
 
-    if (!rawCedula || (!nombres && !apellidos)) {
+    // 1. Fila sin Cédula
+    if (!rawCedula) {
       errors++;
+      const msg = `Fila ${excelRowNum}: Omitida porque no contiene Número de Documento (Cédula).`;
+      diagnostico.push(msg);
       previewItems.push({
         id: `err_${index}`,
-        numeroDocumento: rawCedula || "S/N",
+        rowNumber: excelRowNum,
+        numeroDocumento: "S/N",
         tipoDocumento: "CC",
         nombres: nombres || "—",
         apellidos: apellidos || "—",
@@ -292,10 +302,41 @@ export function analyzePersonaUpsertBatch(
         estado: "activo",
         fotoIniciales: "??",
         action: "error",
-        errorMessage: "Falta número de documento o nombres en esta fila.",
+        errorMessage: msg,
       });
       return;
     }
+
+    // 2. Fila sin Nombres ni Apellidos
+    if (!nombres && !apellidos) {
+      errors++;
+      const msg = `Fila ${excelRowNum} (Doc ${rawCedula}): Omitida porque no contiene Nombres ni Apellidos.`;
+      diagnostico.push(msg);
+      previewItems.push({
+        id: `err_${index}`,
+        rowNumber: excelRowNum,
+        numeroDocumento: rawCedula,
+        tipoDocumento: "CC",
+        nombres: "—",
+        apellidos: "—",
+        telefono: row.telefono || "—",
+        email: row.email || "—",
+        perfiles: ["conductor"],
+        estado: "activo",
+        fotoIniciales: "??",
+        action: "error",
+        errorMessage: msg,
+      });
+      return;
+    }
+
+    // 3. Detección de Cédula repetida en el MISMO archivo
+    const duplicateInBatch = seenCedulasInBatch.get(rawCedula);
+    if (duplicateInBatch) {
+      const msg = `Fila ${excelRowNum} (${nombres} ${apellidos}): Cédula ${rawCedula} ya figuraba en la Fila ${duplicateInBatch.rowNum} del mismo archivo. Se unificarán los datos.`;
+      diagnostico.push(msg);
+    }
+    seenCedulasInBatch.set(rawCedula, { rowNum: excelRowNum, nombres: `${nombres} ${apellidos}`.trim() });
 
     const existingPerson = currentPersons.find(
       (p) => p.numeroDocumento.replace(/\D/g, "") === rawCedula
@@ -328,19 +369,21 @@ export function analyzePersonaUpsertBatch(
     const contactoEmergenciaTelefono = row.contactoEmergenciaTelefono || existingPerson?.contactoEmergencia?.telefono;
     const contactoEmergenciaParentesco = row.contactoEmergenciaParentesco || existingPerson?.contactoEmergencia?.parentesco;
 
-    if (existingPerson) {
+    if (existingPerson || duplicateInBatch) {
       const changes: string[] = [];
-      if (telefono && telefono !== existingPerson.telefono) changes.push(`Teléfono: ${telefono}`);
-      if (email && email !== existingPerson.email) changes.push(`Email: ${email}`);
-      if (contratista && contratista !== existingPerson.contratistaNombre) changes.push(`Contratista: ${contratista}`);
-      if (estado !== existingPerson.estado) changes.push(`Estado: ${estado}`);
-      if (numeroLicencia && numeroLicencia !== existingPerson.licenciaConduccion?.numero) changes.push(`Licencia: ${numeroLicencia}`);
-      if (eps && eps !== existingPerson.datosSalud?.eps) changes.push(`EPS: ${eps}`);
-      if (arl && arl !== existingPerson.datosSalud?.arl) changes.push(`ARL: ${arl}`);
+      if (duplicateInBatch) changes.push(`Duplicado en Excel (Fila ${duplicateInBatch.rowNum} y Fila ${excelRowNum})`);
+      if (telefono && telefono !== existingPerson?.telefono) changes.push(`Teléfono: ${telefono}`);
+      if (email && email !== existingPerson?.email) changes.push(`Email: ${email}`);
+      if (contratista && contratista !== existingPerson?.contratistaNombre) changes.push(`Contratista: ${contratista}`);
+      if (estado !== existingPerson?.estado) changes.push(`Estado: ${estado}`);
+      if (numeroLicencia && numeroLicencia !== existingPerson?.licenciaConduccion?.numero) changes.push(`Licencia: ${numeroLicencia}`);
+      if (eps && eps !== existingPerson?.datosSalud?.eps) changes.push(`EPS: ${eps}`);
+      if (arl && arl !== existingPerson?.datosSalud?.arl) changes.push(`ARL: ${arl}`);
 
       toUpdate++;
       previewItems.push({
-        id: existingPerson.id,
+        id: existingPerson?.id || `p_upd_${Date.now()}_${index}`,
+        rowNumber: excelRowNum,
         numeroDocumento: rawCedula,
         tipoDocumento: tipoDoc,
         nombres: finalNombres,
@@ -369,6 +412,7 @@ export function analyzePersonaUpsertBatch(
       toCreate++;
       previewItems.push({
         id: `p_new_${Date.now()}_${index}`,
+        rowNumber: excelRowNum,
         numeroDocumento: rawCedula,
         tipoDocumento: tipoDoc,
         nombres: finalNombres,
@@ -402,6 +446,7 @@ export function analyzePersonaUpsertBatch(
       toUpdate,
       errors,
     },
+    diagnostico,
   };
 }
 

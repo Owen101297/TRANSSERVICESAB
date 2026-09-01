@@ -147,6 +147,15 @@ export function BulkUploadModal({
 
   const previewColumns: Column<UpsertPreviewItem>[] = [
     {
+      header: "Fila",
+      accessor: "rowNumber",
+      render: (_val, row) => (
+        <span className="font-mono text-xs text-fog-400 font-semibold">
+          #{row.rowNumber || "—"}
+        </span>
+      ),
+    },
+    {
       header: "Acción",
       accessor: "action",
       render: (val) => {
@@ -156,7 +165,7 @@ export function BulkUploadModal({
         if (val === "update") {
           return <StatusBadge status="info">Actualizar</StatusBadge>;
         }
-        return <StatusBadge status="critico">Error</StatusBadge>;
+        return <StatusBadge status="critico">Omitido</StatusBadge>;
       },
     },
     {
@@ -218,13 +227,13 @@ export function BulkUploadModal({
       ),
     },
     {
-      header: "Diagnóstico / Cambios",
+      header: "Diagnóstico / Observaciones",
       accessor: "changesSummary",
       render: (_val, row) => {
         if (row.action === "error") {
           return (
             <span className="text-xs text-alert-red flex items-center gap-1 font-medium">
-              <AlertTriangle size={13} /> {row.errorMessage}
+              <AlertTriangle size={13} className="shrink-0" /> {row.errorMessage}
             </span>
           );
         }
@@ -381,6 +390,21 @@ export function BulkUploadModal({
                   trend={batchResult.stats.errors > 0 ? "Requieren revisión" : "0 errores"}
                 />
               </div>
+
+              {/* Panel de Diagnóstico Detallado por Fila */}
+              {batchResult.diagnostico && batchResult.diagnostico.length > 0 && (
+                <div className="rounded-lg border border-signal-amber/40 bg-signal-amber/10 p-4 text-xs text-paper-50 space-y-2 animate-fadeIn">
+                  <div className="flex items-center gap-2 text-signal-amber font-semibold">
+                    <AlertTriangle size={16} />
+                    <span>Informe de Diagnóstico por Fila ({batchResult.diagnostico.length} observaciones encontradas)</span>
+                  </div>
+                  <ul className="list-disc list-inside space-y-1 text-mist-200 max-h-36 overflow-y-auto font-mono text-[11.5px] bg-asphalt-950/70 p-2.5 rounded border border-line-600">
+                    {batchResult.diagnostico.map((diag, i) => (
+                      <li key={i}>{diag}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {/* Barra de Filtro de Vista Previa */}
               <div className="flex items-center justify-between border-b border-line-600 pb-2">
