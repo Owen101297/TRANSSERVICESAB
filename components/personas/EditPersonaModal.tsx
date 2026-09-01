@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { X, Save, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { FormSection, TextField, SelectField } from "@/components/ui/FormField";
 import { Persona, EstadoPersona, ConceptoMedico } from "@/lib/types/persona";
+import { Contratista } from "@/lib/types/contratista";
 import { updatePersonaAction } from "@/lib/services/personas.service";
+import { getContratistasDb } from "@/lib/services/contratistas.service";
 
 const ESTADO_OPTIONS = [
   { value: "activo", label: "Activo" },
@@ -46,10 +48,25 @@ export function EditPersonaModal({
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [contratistas, setContratistas] = useState<Contratista[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      getContratistasDb().then((data) => setContratistas(data || []));
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const esConductor = persona.perfiles.includes("conductor");
+
+  const contratistaOptions = [
+    { value: "", label: "Flota Propia / Cooperativa A&B" },
+    ...contratistas.map((c) => ({
+      value: c.id,
+      label: c.nombre,
+    })),
+  ];
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -117,7 +134,12 @@ export function EditPersonaModal({
               name="estado"
               defaultValue={persona.estado}
               options={ESTADO_OPTIONS}
-              wrapperClassName="sm:col-span-2"
+            />
+            <SelectField
+              label="Contratista / Empresa Vinculada"
+              name="contratistaId"
+              defaultValue={persona.contratistaId || ""}
+              options={contratistaOptions}
             />
           </FormSection>
 

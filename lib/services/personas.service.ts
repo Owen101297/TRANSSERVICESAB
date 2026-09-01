@@ -11,6 +11,7 @@ import {
   CategoriaLicencia,
   ConceptoMedico,
 } from "@/lib/types/persona";
+import { getContratistaByIdDb } from "@/lib/services/contratistas.service";
 
 // Memoria volátil de respaldo para cuando se trabaje en modo local sin base de datos activa
 let localPersonsState: Persona[] = [];
@@ -205,6 +206,13 @@ export async function createPersonaAction(formData: FormData): Promise<CreatePer
     const contactoParentesco = formData.get("contactoEmergenciaParentesco") as string;
     const contactoTelefono = formData.get("contactoEmergenciaTelefono") as string;
 
+    const contratistaId = formData.get("contratistaId") as string;
+    let contratistaNombre: string | undefined;
+    if (contratistaId) {
+      const c = await getContratistaByIdDb(contratistaId);
+      if (c) contratistaNombre = c.nombre;
+    }
+
     // Licencia
     const licenciaNumero = formData.get("licenciaNumero") as string;
     const licenciaCategoria = formData.get("licenciaCategoria") as CategoriaLicencia;
@@ -231,6 +239,8 @@ export async function createPersonaAction(formData: FormData): Promise<CreatePer
       perfiles,
       estado: "activo",
       fechaIngreso: new Date().toISOString().split("T")[0],
+      contratistaId: contratistaId || undefined,
+      contratistaNombre: contratistaNombre || undefined,
       fotoIniciales,
       datosSalud: {
         grupoSanguineoRH,
@@ -278,6 +288,8 @@ export async function createPersonaAction(formData: FormData): Promise<CreatePer
             email: email || `${nombres.toLowerCase().replace(/\s+/g, ".")}@ejemplo.com`,
             perfiles: [perfil],
             estado: "activo",
+            contratistaId: contratistaId || null,
+            contratistaNombre: contratistaNombre || null,
             fotoIniciales,
             datosSalud: {
               create: {
@@ -329,8 +341,7 @@ export async function createPersonaAction(formData: FormData): Promise<CreatePer
 
     localPersonsState.unshift(newPersonaObj);
     revalidatePath("/personas");
-    revalidatePath("/asignaciones/nueva");
-    revalidatePath("/documentos");
+    revalidatePath("/dashboard");
 
     return {
       success: true,
@@ -339,7 +350,7 @@ export async function createPersonaAction(formData: FormData): Promise<CreatePer
   } catch (error: any) {
     return {
       success: false,
-      error: error.message || "Error al procesar el registro.",
+      error: error.message || "Error al crear la persona.",
     };
   }
 }
@@ -357,6 +368,13 @@ export async function updatePersonaAction(
     const telefono = formData.get("telefono") as string;
     const email = formData.get("email") as string;
     const estado = formData.get("estado") as EstadoPersona;
+
+    const contratistaId = formData.get("contratistaId") as string;
+    let contratistaNombre: string | undefined;
+    if (contratistaId) {
+      const c = await getContratistaByIdDb(contratistaId);
+      if (c) contratistaNombre = c.nombre;
+    }
 
     const eps = formData.get("eps") as string;
     const arl = formData.get("arl") as string;
@@ -380,6 +398,8 @@ export async function updatePersonaAction(
         telefono: telefono || prev.telefono,
         email: email || prev.email,
         estado: estado || prev.estado,
+        contratistaId: contratistaId !== undefined ? (contratistaId || undefined) : prev.contratistaId,
+        contratistaNombre: contratistaNombre !== undefined ? (contratistaNombre || undefined) : prev.contratistaNombre,
         fotoIniciales: computeInitials(nombres || prev.nombres, apellidos || prev.apellidos),
         datosSalud: prev.datosSalud
           ? {
@@ -423,6 +443,8 @@ export async function updatePersonaAction(
             telefono: telefono || undefined,
             email: email || undefined,
             estado: estado || undefined,
+            contratistaId: contratistaId !== undefined ? (contratistaId || null) : undefined,
+            contratistaNombre: contratistaNombre !== undefined ? (contratistaNombre || null) : undefined,
             fotoIniciales: nombres && apellidos ? computeInitials(nombres, apellidos) : undefined,
           },
         });

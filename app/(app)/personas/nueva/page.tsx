@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, AlertCircle } from "lucide-react";
@@ -8,6 +8,8 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { FormSection, TextField, SelectField } from "@/components/ui/FormField";
 import { createPersonaAction } from "@/lib/services/personas.service";
+import { getContratistasDb } from "@/lib/services/contratistas.service";
+import { Contratista } from "@/lib/types/contratista";
 
 const PERFIL_OPTIONS = [
   { value: "conductor", label: "Conductor" },
@@ -54,8 +56,21 @@ export default function NuevaPersonaPage() {
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [perfil, setPerfil] = useState("conductor");
+  const [contratistas, setContratistas] = useState<Contratista[]>([]);
+
+  useEffect(() => {
+    getContratistasDb().then((data) => setContratistas(data || []));
+  }, []);
 
   const esConductor = perfil === "conductor";
+
+  const contratistaOptions = [
+    { value: "", label: "Flota Propia / Cooperativa A&B" },
+    ...contratistas.map((c) => ({
+      value: c.id,
+      label: c.nombre,
+    })),
+  ];
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -138,7 +153,7 @@ export default function NuevaPersonaPage() {
 
           <FormSection
             title="Perfil y Rol"
-            description="Selecciona el rol principal del colaborador."
+            description="Selecciona el rol principal del colaborador y la empresa contratista vinculada."
           >
             <SelectField
               label="Perfil principal"
@@ -147,7 +162,11 @@ export default function NuevaPersonaPage() {
               value={perfil}
               onChange={(e) => setPerfil(e.target.value)}
               options={PERFIL_OPTIONS}
-              wrapperClassName="sm:col-span-2"
+            />
+            <SelectField
+              label="Contratista / Empresa Vinculada"
+              name="contratistaId"
+              options={contratistaOptions}
             />
           </FormSection>
 
@@ -178,87 +197,73 @@ export default function NuevaPersonaPage() {
             <TextField
               label="Parentesco"
               name="contactoEmergenciaParentesco"
-              placeholder="Esposa, Madre, Hermano..."
+              placeholder="Cónyuge, Madre, Hermano..."
             />
             <TextField
               label="Teléfono de emergencia"
               name="contactoEmergenciaTelefono"
-              placeholder="310 000 0000"
+              placeholder="310 987 6543"
               wrapperClassName="sm:col-span-2"
             />
           </FormSection>
 
           {esConductor && (
-            <>
-              <FormSection
-                title="Expediente de Conducción"
-                description="Requerimiento del Plan Estratégico de Seguridad Vial (PESV - Paso 8)."
-              >
-                <TextField
-                  label="Número de Licencia"
-                  name="licenciaNumero"
-                  required
-                  placeholder="Número de cédula o folio RUNT"
-                />
-                <SelectField
-                  label="Categoría principal"
-                  name="licenciaCategoria"
-                  required
-                  options={CATEGORIA_LIC_OPTIONS}
-                />
-                <TextField
-                  label="Fecha de Vencimiento de Licencia"
-                  name="licenciaVencimiento"
-                  type="date"
-                  required
-                />
-                <TextField
-                  label="Organismo de Tránsito"
-                  name="licenciaOrganismo"
-                  placeholder="Ej. Secretaría de Movilidad de Medellín"
-                />
-              </FormSection>
-
-              <FormSection
-                title="Examen Médico Ocupacional (EMO)"
-                description="Evaluación de aptitud médica para conductores de servicio especial."
-              >
-                <SelectField
-                  label="Concepto Médico"
-                  name="conceptoMedico"
-                  required
-                  options={CONCEPTO_MEDICO_OPTIONS}
-                />
-                <TextField
-                  label="Fecha de Vigencia del Examen"
-                  name="emoVigencia"
-                  type="date"
-                  required
-                />
-                <TextField
-                  label="Restricciones médicas"
-                  name="emoRestricciones"
-                  placeholder="Ej. Uso obligatorio de lentes formulados (Opcional)"
-                  wrapperClassName="sm:col-span-2"
-                />
-              </FormSection>
-            </>
+            <FormSection
+              title="Expediente de Conducción"
+              description="Campos requeridos exclusivamente para el perfil conductor (PESV / RUNT)."
+            >
+              <TextField
+                label="Número de Licencia"
+                name="licenciaNumero"
+                placeholder="1084567123"
+              />
+              <SelectField
+                label="Categoría principal"
+                name="licenciaCategoria"
+                options={CATEGORIA_LIC_OPTIONS}
+              />
+              <TextField
+                label="Vencimiento de Licencia"
+                name="licenciaVencimiento"
+                type="date"
+              />
+              <TextField
+                label="Organismo de Tránsito"
+                name="licenciaOrganismo"
+                placeholder="Stria. Tránsito Cartagena"
+              />
+              <TextField
+                label="Vigencia Examen Médico (EMO)"
+                name="emoVigencia"
+                type="date"
+              />
+              <SelectField
+                label="Concepto Médico"
+                name="conceptoMedico"
+                options={CONCEPTO_MEDICO_OPTIONS}
+              />
+              <TextField
+                label="Restricciones médicas"
+                name="emoRestricciones"
+                placeholder="Uso de lentes formulados, etc. (Opcional)"
+                wrapperClassName="sm:col-span-2"
+              />
+            </FormSection>
           )}
 
-          <div className="flex items-center gap-3 pt-2">
-            <Button type="submit" variant="primary" disabled={isPending}>
-              <Save size={16} /> {isPending ? "Guardando en base de datos..." : "Guardar persona"}
-            </Button>
+          <div className="flex items-center justify-end gap-3 pt-4">
             <Link href="/personas">
               <Button type="button" variant="ghost" disabled={isPending}>
                 Cancelar
               </Button>
             </Link>
+            <Button type="submit" variant="primary" disabled={isPending}>
+              <Save size={15} />
+              {isPending ? "Guardando..." : "Guardar persona"}
+            </Button>
           </div>
         </form>
       </Card>
     </div>
   );
 }
-
-

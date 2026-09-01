@@ -465,3 +465,132 @@ export async function eliminarDocumentoContratistaDb(docId: string, contratistaI
     return { success: false, error: error.message || "Error al eliminar documento." };
   }
 }
+
+/**
+ * Asegura que una empresa contratista exista en PostgreSQL, creándola si es nueva
+ */
+export async function ensureContratistaExistsDb(
+  nombre?: string
+): Promise<{ id: string; razonSocial: string }> {
+  const cleanNombre = (nombre || "").trim();
+  if (!cleanNombre || cleanNombre.toLowerCase().includes("propio") || cleanNombre.toLowerCase().includes("cooperativa")) {
+    // Verificar si existe el contratista general / propio
+    try {
+      if (process.env.DATABASE_URL) {
+        const propio = await prisma.contratista.findFirst({
+          where: { razonSocial: { contains: "Cooperativa", mode: "insensitive" } },
+        });
+        if (propio) return { id: propio.id, razonSocial: propio.razonSocial };
+
+        const created = await prisma.contratista.create({
+          data: {
+            razonSocial: "Trans Services Cooperativa A&B (Flota Propia)",
+            nit: "901.234.567-8",
+            tipoOperacion: "fija",
+            contactoNombre: "Operaciones A&B",
+            telefono: "3000000000",
+            email: "operaciones@transservices.com",
+            estado: "activo",
+          },
+        });
+        return { id: created.id, razonSocial: created.razonSocial };
+      }
+    } catch (e) {
+      // ignore
+    }
+    return { id: "c_propio", razonSocial: "Trans Services Cooperativa A&B (Flota Propia)" };
+  }
+
+  try {
+    if (process.env.DATABASE_URL) {
+      const existing = await prisma.contratista.findFirst({
+        where: { razonSocial: { equals: cleanNombre, mode: "insensitive" } },
+      });
+
+      if (existing) {
+        return { id: existing.id, razonSocial: existing.razonSocial };
+      }
+
+      // Generar NIT de muestra si no se proporcionó
+      const randomNit = `${Math.floor(100000000 + Math.random() * 900000000)}-${Math.floor(Math.random() * 9)}`;
+      const cleanDomain = cleanNombre.toLowerCase().replace(/[^a-z0-9]/g, "") || "empresa";
+
+      const created = await prisma.contratista.create({
+        data: {
+          razonSocial: cleanNombre,
+          nit: randomNit,
+          tipoOperacion: "fija",
+          contactoNombre: "Representante Legal",
+          telefono: "3000000000",
+          email: `contacto@${cleanDomain}.com`,
+          estado: "activo",
+        },
+      });
+
+      revalidatePath("/contratistas");
+      revalidatePath("/flota");
+      revalidatePath("/personas");
+      return { id: created.id, razonSocial: created.razonSocial };
+    }
+  } catch (err) {
+    console.warn("Error consultando/creando contratista en DB:", err);
+  }
+
+  // Fallback local
+  const localExisting = localContratistasState.find(
+    (c) => c.nombre.toLowerCase() === cleanNombre.toLowerCase()
+  );
+  if (localExisting) return { id: localExisting.id, razonSocial: localExisting.nombre };
+
+  const newLocalId = `c_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+  const newLocalObj: Contratista = {
+    id: newLocalId,
+    nombre: cleanNombre,
+    nit: `NIT-${Date.now().toString().slice(-8)}`,
+    tipoOperacion: "fija",
+    contactoNombre: "Representante",
+    contactoTelefono: "3000000000",
+    contactoEmail: "contacto@empresa.com",
+    fechaVinculacion: new Date().toISOString().split("T")[0],
+    estado: "activo",
+  };
+  localContratistasState.push(newLocalObj);
+  return { id: newLocalId, razonSocial: cleanNombre };
+}
+
+/**
+ * Sincroniza retroactivamente todos los contratistas desde los vehículos existentes
+ */
+export async function sincronizarContratistasDesdeVehiculosDb(): Promise<{ success: boolean; count: number }> {
+  try {
+    if (!process.env.DATABASE_URL) return { success: true, count: 0 };
+
+    const vehiculos = await prisma.vehiculo.findMany();
+    let count = 0;
+
+    for (const v of vehiculos) {
+      if (v.contratistaNombre) {
+        const contratista = await ensureContratistaExistsDb(v.contratistaNombre);
+        if (v.contratistaId !== contratista.id) {
+          await prisma.vehiculo.update({
+            where: { id: v.id },
+            data: {
+              contratistaId: contratista.id,
+              contratistaNombre: contratista.razonSocial,
+            },
+          });
+          count++;
+        }
+      }
+    }
+
+    revalidatePath("/contratistas");
+    revalidatePath("/flota");
+    revalidatePath("/personas");
+    return { success: true, count };
+  } catch (err: any) {
+    console.error("Error al sincronizar contratistas desde vehículos:", err);
+    return { success: false, count: 0 };
+  }
+}
+

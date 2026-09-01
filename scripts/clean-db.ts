@@ -6,7 +6,7 @@ import { SEED_ROLES } from "../lib/data/roles";
 const prisma = new PrismaClient();
 
 async function initBaseCatalogs() {
-  console.log("Verificando catálogos normativos base en PostgreSQL...");
+  console.log("Verificando catálogos normativos y sincronizando contratistas en PostgreSQL...");
 
   try {
     // SG-SST: 60 ítems base
@@ -57,7 +57,47 @@ async function initBaseCatalogs() {
       });
     }
 
-    console.log("✓ Catálogos normativos verificados con éxito.");
+    // Sincronizar automáticamente contratistas desde los vehículos existentes
+    try {
+      const vehiculos = await prisma.vehiculo.findMany();
+      for (const v of vehiculos) {
+        if (v.contratistaNombre && v.contratistaNombre.trim().length > 0) {
+          const cleanNombre = v.contratistaNombre.trim();
+          const existing = await prisma.contratista.findFirst({
+            where: { razonSocial: { equals: cleanNombre, mode: "insensitive" } },
+          });
+
+          let cId = existing?.id;
+          if (!existing) {
+            const randomNit = `${Math.floor(100000000 + Math.random() * 900000000)}-${Math.floor(Math.random() * 9)}`;
+            const cleanDomain = cleanNombre.toLowerCase().replace(/[^a-z0-9]/g, "") || "empresa";
+            const created = await prisma.contratista.create({
+              data: {
+                razonSocial: cleanNombre,
+                nit: randomNit,
+                tipoOperacion: "fija",
+                contactoNombre: "Representante Legal",
+                telefono: "3000000000",
+                email: `contacto@${cleanDomain}.com`,
+                estado: "activo",
+              },
+            });
+            cId = created.id;
+          }
+
+          if (cId && v.contratistaId !== cId) {
+            await prisma.vehiculo.update({
+              where: { id: v.id },
+              data: { contratistaId: cId },
+            });
+          }
+        }
+      }
+    } catch (vErr) {
+      console.warn("Aviso en sincronización de contratistas desde vehículos:", vErr);
+    }
+
+    console.log("✓ Catálogos normativos y contratistas verificados con éxito.");
   } catch (err) {
     console.warn("Aviso al inicializar catálogos (no bloqueante):", err);
   }

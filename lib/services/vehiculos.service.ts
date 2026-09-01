@@ -11,6 +11,7 @@ import {
   EstadoVehiculo,
 } from "@/lib/types/vehiculo";
 import { DiagnosticoFilaVehiculo } from "@/lib/data/flota-upsert";
+import { ensureContratistaExistsDb } from "@/lib/services/contratistas.service";
 
 let localVehiculosState: Vehiculo[] = [];
 
@@ -242,6 +243,14 @@ export async function bulkUpsertVehiculosDb(
       const rtmDate = f.rtmVencimiento ? new Date(f.rtmVencimiento) : new Date(Date.now() + 1000 * 60 * 60 * 24 * 180);
       const polizaDate = f.polizaVencimiento ? new Date(f.polizaVencimiento) : new Date(Date.now() + 1000 * 60 * 60 * 24 * 180);
 
+      // Auto-asegurar que el contratista exista en el módulo Contratistas
+      let contratistaObj = { id: "c_propio", razonSocial: "Propio / Cooperativa" };
+      try {
+        contratistaObj = await ensureContratistaExistsDb(f.contratistaNombre);
+      } catch (cErr) {
+        // ignore
+      }
+
       try {
         await prisma.vehiculo.upsert({
           where: { placa: f.placa },
@@ -252,7 +261,8 @@ export async function bulkUpsertVehiculosDb(
             tipo: f.tipo,
             servicio: f.servicio,
             capacidad: f.capacidad,
-            contratistaNombre: f.contratistaNombre || "Propio / Cooperativa",
+            contratistaId: contratistaObj.id,
+            contratistaNombre: contratistaObj.razonSocial,
             soatVencimiento: soatDate,
             rtmVencimiento: rtmDate,
             polizaVencimiento: polizaDate,
@@ -266,8 +276,8 @@ export async function bulkUpsertVehiculosDb(
             tipo: f.tipo,
             servicio: f.servicio,
             capacidad: f.capacidad,
-            contratistaId: "c_general",
-            contratistaNombre: f.contratistaNombre || "Propio / Cooperativa",
+            contratistaId: contratistaObj.id,
+            contratistaNombre: contratistaObj.razonSocial,
             soatVencimiento: soatDate,
             rtmVencimiento: rtmDate,
             polizaVencimiento: polizaDate,
@@ -286,8 +296,8 @@ export async function bulkUpsertVehiculosDb(
           modelo: f.modelo,
           anio: f.anio,
           capacidad: f.capacidad,
-          contratistaId: "c_general",
-          contratistaNombre: f.contratistaNombre || "Propio / Cooperativa",
+          contratistaId: contratistaObj.id,
+          contratistaNombre: contratistaObj.razonSocial,
           servicio: f.servicio,
           estado: f.estado || "activo",
           documentos: {
