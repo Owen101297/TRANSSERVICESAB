@@ -799,3 +799,134 @@ export async function deleteMultiplePersonasDb(ids: string[]) {
   }
 }
 
+/**
+ * Inactiva / Retira lógicamente a una persona preservando todo su expediente histórico
+ */
+export async function retirarPersonaDb(id: string, motivo: string = "Retiro voluntario") {
+  try {
+    if (process.env.DATABASE_URL) {
+      // 1. Finalizar asignaciones activas del conductor
+      await prisma.asignacion.updateMany({
+        where: { conductorId: id, estado: "activa" },
+        data: {
+          estado: "finalizada",
+          fechaFin: new Date(),
+          observaciones: `Finalizada por retiro de conductor: ${motivo}`,
+        },
+      });
+
+      // 2. Marcar a la persona como retirada
+      await prisma.persona.update({
+        where: { id },
+        data: {
+          estado: "retirado",
+        },
+      });
+    } else {
+      const idx = localPersonsState.findIndex((p) => p.id === id);
+      if (idx >= 0) {
+        localPersonsState[idx] = {
+          ...localPersonsState[idx],
+          estado: "retirado",
+          motivoRetiro: motivo,
+          fechaRetiro: new Date().toISOString().split("T")[0],
+        };
+      }
+    }
+
+    revalidatePath("/personas");
+    revalidatePath(`/personas/${id}`);
+    revalidatePath("/dashboard");
+    revalidatePath("/flota");
+    revalidatePath("/asignaciones");
+
+    const refreshedList = await getPersonasDb();
+    return { success: true, refreshedList };
+  } catch (error: any) {
+    console.error("Error al retirar persona:", error);
+    return { success: false, error: error.message || "Error al retirar registro." };
+  }
+}
+
+/**
+ * Reactiva a una persona previamente retirada o inactiva
+ */
+export async function reactivarPersonaDb(id: string) {
+  try {
+    if (process.env.DATABASE_URL) {
+      await prisma.persona.update({
+        where: { id },
+        data: {
+          estado: "activo",
+        },
+      });
+    } else {
+      const idx = localPersonsState.findIndex((p) => p.id === id);
+      if (idx >= 0) {
+        localPersonsState[idx] = {
+          ...localPersonsState[idx],
+          estado: "activo",
+          motivoRetiro: undefined,
+          fechaRetiro: undefined,
+        };
+      }
+    }
+
+    revalidatePath("/personas");
+    revalidatePath(`/personas/${id}`);
+    revalidatePath("/dashboard");
+    revalidatePath("/flota");
+    revalidatePath("/asignaciones");
+
+    const refreshedList = await getPersonasDb();
+    return { success: true, refreshedList };
+  } catch (error: any) {
+    console.error("Error al reactivar persona:", error);
+    return { success: false, error: error.message || "Error al reactivar registro." };
+  }
+}
+
+/**
+ * Retira múltiples personas seleccionadas en un solo lote
+ */
+export async function retirarMultiplePersonasDb(ids: string[], motivo: string = "Retiro masivo operativo") {
+  try {
+    if (!ids || ids.length === 0) return { success: true, count: 0 };
+
+    if (process.env.DATABASE_URL) {
+      await prisma.asignacion.updateMany({
+        where: { conductorId: { in: ids }, estado: "activa" },
+        data: {
+          estado: "finalizada",
+          fechaFin: new Date(),
+          observaciones: `Finalizada por retiro masivo: ${motivo}`,
+        },
+      });
+
+      await prisma.persona.updateMany({
+        where: { id: { in: ids } },
+        data: {
+          estado: "retirado",
+        },
+      });
+    } else {
+      localPersonsState = localPersonsState.map((p) =>
+        ids.includes(p.id)
+          ? { ...p, estado: "retirado", motivoRetiro: motivo, fechaRetiro: new Date().toISOString().split("T")[0] }
+          : p
+      );
+    }
+
+    revalidatePath("/personas");
+    revalidatePath("/dashboard");
+    revalidatePath("/flota");
+    revalidatePath("/asignaciones");
+
+    const refreshedList = await getPersonasDb();
+    return { success: true, count: ids.length, refreshedList };
+  } catch (error: any) {
+    console.error("Error al retirar personas seleccionadas:", error);
+    return { success: false, error: error.message || "Error al procesar retiro masivo." };
+  }
+}
+

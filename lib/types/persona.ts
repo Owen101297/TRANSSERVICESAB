@@ -14,7 +14,7 @@ export type PerfilPersona =
   | "hseq"
   | "administrativo";
 
-export type EstadoPersona = "activo" | "inactivo" | "descanso" | "vacaciones";
+export type EstadoPersona = "activo" | "inactivo" | "descanso" | "vacaciones" | "retirado";
 
 export type TipoDocumento = "CC" | "CE" | "PA" | "TI";
 
@@ -80,6 +80,8 @@ export interface Persona {
   contratistaId?: string;
   contratistaNombre?: string;
   fotoIniciales: string;
+  fechaRetiro?: string;
+  motivoRetiro?: string;
   // Fase A: Expediente Conductor & Salud
   licenciaConduccion?: LicenciaConduccion;
   examenMedico?: ExamenMedicoOcupacional;
@@ -100,6 +102,7 @@ export const ESTADO_LABELS: Record<EstadoPersona, string> = {
   inactivo: "Inactivo",
   descanso: "En descanso",
   vacaciones: "Vacaciones",
+  retirado: "Retirado / Histórico",
 };
 
 /**
