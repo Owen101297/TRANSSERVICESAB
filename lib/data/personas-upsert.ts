@@ -431,105 +431,42 @@ export function generateExcelTemplateBlob(): Blob {
     "Contacto_Emergencia_Parentesco",
   ];
 
-  const sampleRows = [
-    {
-      Tipo_Documento: "CC",
-      Numero_Documento: "1084567123",
-      Nombres: "Carlos Andrés",
-      Apellidos: "Ramírez Ortiz",
-      Telefono: "3001234567",
-      Email: "carlos.ramirez@transservices.com",
-      Perfiles: "conductor",
-      Estado: "activo",
-      Contratista: "Transservices A&B",
-      Numero_Licencia: "1084567123",
-      Categoria_Licencia: "C2, C3",
-      Vencimiento_Licencia: "2027-08-15",
-      EPS: "Sura",
-      ARL: "Positiva",
-      Fondo_Pension: "Porvenir",
-      Grupo_Sanguineo: "O+",
-      Contacto_Emergencia_Nombre: "María Ortiz",
-      Contacto_Emergencia_Telefono: "3109876543",
-      Contacto_Emergencia_Parentesco: "Madre",
-    },
-    {
-      Tipo_Documento: "CC",
-      Numero_Documento: "1098765432",
-      Nombres: "Andrea Milena",
-      Apellidos: "Suárez Peña",
-      Telefono: "3124567890",
-      Email: "andrea.suarez@transservices.com",
-      Perfiles: "conductor",
-      Estado: "activo",
-      Contratista: "Transservices A&B",
-      Numero_Licencia: "1098765432",
-      Categoria_Licencia: "C2",
-      Vencimiento_Licencia: "2028-02-20",
-      EPS: "Sanitas",
-      ARL: "Sura",
-      Fondo_Pension: "Protección",
-      Grupo_Sanguineo: "A+",
-      Contacto_Emergencia_Nombre: "Pedro Suárez",
-      Contacto_Emergencia_Telefono: "3151239876",
-      Contacto_Emergencia_Parentesco: "Esposo",
-    },
-    {
-      Tipo_Documento: "CC",
-      Numero_Documento: "1077665544",
-      Nombres: "Mauricio",
-      Apellidos: "Gómez Valencia",
-      Telefono: "3189998877",
-      Email: "mauricio.gomez@transservices.com",
-      Perfiles: "administrativo, hseq",
-      Estado: "activo",
-      Contratista: "Transservices A&B",
-      Numero_Licencia: "",
-      Categoria_Licencia: "",
-      Vencimiento_Licencia: "",
-      EPS: "Compensar",
-      ARL: "Positiva",
-      Fondo_Pension: "Colfondos",
-      Grupo_Sanguineo: "O+",
-      Contacto_Emergencia_Nombre: "Laura Gómez",
-      Contacto_Emergencia_Telefono: "3014445566",
-      Contacto_Emergencia_Parentesco: "Hermana",
-    },
-  ];
-
   const guideRows = [
     { Campo: "Tipo_Documento", Obligatorio: "Sí", ValoresPermitidos: "CC, CE, PA, TI", Descripcion: "Tipo de documento de identidad" },
-    { Campo: "Numero_Documento", Obligatorio: "Sí", ValoresPermitidos: "Números sin puntos ni comas", Descripcion: "Cédula o documento identificador" },
+    { Campo: "Numero_Documento", Obligatorio: "Sí", ValoresPermitidos: "Números sin puntos ni comas", Descripcion: "Cédula o documento identificador (ej: 1084567123)" },
     { Campo: "Nombres", Obligatorio: "Sí", ValoresPermitidos: "Texto", Descripcion: "Nombres de la persona" },
     { Campo: "Apellidos", Obligatorio: "Sí", ValoresPermitidos: "Texto", Descripcion: "Apellidos de la persona" },
     { Campo: "Telefono", Obligatorio: "Recomendado", ValoresPermitidos: "10 dígitos", Descripcion: "Celular de contacto principal" },
     { Campo: "Email", Obligatorio: "Recomendado", ValoresPermitidos: "correo@ejemplo.com", Descripcion: "Correo electrónico corporativo o personal" },
     { Campo: "Perfiles", Obligatorio: "Sí", ValoresPermitidos: "conductor, administrativo, mecanico, hseq, supervisor, empleado", Descripcion: "Puede incluir varios separados por coma" },
     { Campo: "Estado", Obligatorio: "Sí", ValoresPermitidos: "activo, descanso, vacaciones, inactivo", Descripcion: "Estado laboral operativo actual" },
-    { Campo: "Contratista", Obligatorio: "Opcional", ValoresPermitidos: "Nombre del contratista", Descripcion: "Razón social del tercero o Transservices" },
+    { Campo: "Contratista", Obligatorio: "Opcional", ValoresPermitidos: "Nombre del contratista", Descripcion: "Razón social del tercero o Transservices A&B" },
     { Campo: "Numero_Licencia", Obligatorio: "Solo conductores", ValoresPermitidos: "Texto/Números", Descripcion: "Nro de pase de conducción" },
-    { Campo: "Categoria_Licencia", Obligatorio: "Solo conductores", ValoresPermitidos: "A1, A2, B1, B2, B3, C1, C2, C3", Descripcion: "Categorías separadas por coma" },
-    { Campo: "Vencimiento_Licencia", Obligatorio: "Solo conductores", ValoresPermitidos: "AAAA-MM-DD", Descripcion: "Fecha de vencimiento oficial" },
+    { Campo: "Categoria_Licencia", Obligatorio: "Solo conductores", ValoresPermitidos: "A1, A2, B1, B2, B3, C1, C2, C3", Descripcion: "Categorías separadas por coma (ej: C2, C3)" },
+    { Campo: "Vencimiento_Licencia", Obligatorio: "Solo conductores", ValoresPermitidos: "AAAA-MM-DD", Descripcion: "Fecha de vencimiento oficial (ej: 2027-08-15)" },
     { Campo: "EPS", Obligatorio: "Opcional", ValoresPermitidos: "Sura, Sanitas, Nueva EPS, etc.", Descripcion: "Entidad Promotora de Salud" },
     { Campo: "ARL", Obligatorio: "Opcional", ValoresPermitidos: "Positiva, Sura, Colmena, Bolívar", Descripcion: "Aseguradora de Riesgos Laborales" },
     { Campo: "Fondo_Pension", Obligatorio: "Opcional", ValoresPermitidos: "Porvenir, Protección, Colfondos, Colpensiones", Descripcion: "Fondo de pensiones" },
     { Campo: "Grupo_Sanguineo", Obligatorio: "Opcional", ValoresPermitidos: "O+, O-, A+, A-, B+, B-, AB+, AB-", Descripcion: "Grupo sanguíneo y factor RH" },
+    { Campo: "Contacto_Emergencia_Nombre", Obligatorio: "Opcional", ValoresPermitidos: "Nombre completo", Descripcion: "Nombre del familiar o contacto" },
+    { Campo: "Contacto_Emergencia_Telefono", Obligatorio: "Opcional", ValoresPermitidos: "10 dígitos", Descripcion: "Teléfono de emergencia" },
+    { Campo: "Contacto_Emergencia_Parentesco", Obligatorio: "Opcional", ValoresPermitidos: "Esposa, Madre, Padre, Hermano...", Descripcion: "Parentesco del contacto" },
   ];
 
   const wb = XLSX.utils.book_new();
 
-  // Hoja 1: Datos
-  const wsData = XLSX.utils.json_to_sheet(sampleRows, { header: headers });
+  // Hoja 1: Plantilla vacía lista para llenar (solo encabezados)
+  const wsData = XLSX.utils.json_to_sheet([], { header: headers });
   wsData["!cols"] = [
     { wch: 16 }, // Tipo_Documento
     { wch: 18 }, // Numero_Documento
-    { wch: 20 }, // Nombres
-    { wch: 20 }, // Apellidos
+    { wch: 22 }, // Nombres
+    { wch: 22 }, // Apellidos
     { wch: 15 }, // Telefono
     { wch: 30 }, // Email
     { wch: 24 }, // Perfiles
     { wch: 12 }, // Estado
-    { wch: 22 }, // Contratista
+    { wch: 24 }, // Contratista
     { wch: 18 }, // Numero_Licencia
     { wch: 18 }, // Categoria_Licencia
     { wch: 20 }, // Vencimiento_Licencia
@@ -543,21 +480,19 @@ export function generateExcelTemplateBlob(): Blob {
   ];
   XLSX.utils.book_append_sheet(wb, wsData, "Plantilla_Personal");
 
-  // Hoja 2: Guía de llenado
+  // Hoja 2: Guía de llenado y ejemplos
   const wsGuide = XLSX.utils.json_to_sheet(guideRows);
-  wsGuide["!cols"] = [{ wch: 26 }, { wch: 16 }, { wch: 45 }, { wch: 40 }];
-  XLSX.utils.book_append_sheet(wb, wsGuide, "Guia_Valores");
+  wsGuide["!cols"] = [{ wch: 28 }, { wch: 18 }, { wch: 45 }, { wch: 45 }];
+  XLSX.utils.book_append_sheet(wb, wsGuide, "Guia_y_Valores");
 
   const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
   return new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
 }
 
 /**
- * Genera el archivo CSV listo para descargar
+ * Genera el archivo CSV listo para descargar (solo encabezados limpios)
  */
 export function generateCSVTemplate(): string {
   const headers = "Tipo_Documento,Numero_Documento,Nombres,Apellidos,Telefono,Email,Perfiles,Estado,Contratista,Numero_Licencia,Categoria_Licencia,Vencimiento_Licencia,EPS,ARL,Fondo_Pension,Grupo_Sanguineo,Contacto_Emergencia_Nombre,Contacto_Emergencia_Telefono,Contacto_Emergencia_Parentesco";
-  const rowExample1 = "CC,1084567123,Carlos Andrés,Ramírez Ortiz,3001234567,carlos.ramirez@transservices.com,conductor,activo,Transservices A&B,1084567123,\"C2, C3\",2027-08-15,Sura,Positiva,Porvenir,O+,María Ortiz,3109876543,Madre";
-  const rowExample2 = "CC,1098765432,Andrea Milena,Suárez Peña,3124567890,andrea.suarez@transservices.com,conductor,activo,Transservices A&B,1098765432,C2,2028-02-20,Sanitas,Sura,Protección,A+,Pedro Suárez,3151239876,Esposo";
-  return `\uFEFF${headers}\n${rowExample1}\n${rowExample2}`;
+  return `\uFEFF${headers}\n`;
 }

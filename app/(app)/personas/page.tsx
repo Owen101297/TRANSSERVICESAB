@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, UploadCloud } from "lucide-react";
+import { Plus, UploadCloud, Download } from "lucide-react";
 import { SEED_PERSONAS } from "@/lib/data/personas";
 import { getPersonasDb } from "@/lib/services/personas.service";
 import { getAsignacionActiva } from "@/lib/data/asignaciones";
 import { ESTADO_LABELS, EstadoPersona, Persona } from "@/lib/types/persona";
+import { exportPersonasToExcel } from "@/lib/data/personas-excel-export";
 import { Button } from "@/components/ui/Button";
 import { Card, StatCard } from "@/components/ui/Card";
 import { DataTable, Column } from "@/components/ui/DataTable";
@@ -109,8 +110,16 @@ export default function PersonasPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Button
+            variant="secondary"
+            onClick={() => exportPersonasToExcel(personas)}
+            disabled={personas.length === 0}
+            title={personas.length === 0 ? "No hay registros cargados para exportar" : "Descargar matriz oficial en Excel (TH-FOR-01)"}
+          >
+            <Download size={16} /> Exportar Excel
+          </Button>
           <Button variant="secondary" onClick={() => setIsBulkOpen(true)}>
-            <UploadCloud size={16} /> Carga masiva (CSV)
+            <UploadCloud size={16} /> Carga masiva (Excel/CSV)
           </Button>
           <Link href="/personas/nueva">
             <Button variant="primary">
