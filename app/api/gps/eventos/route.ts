@@ -9,6 +9,35 @@ import { TipoEventoGPS, PrioridadEventoGPS } from "@/lib/types/gps";
 const VALID_API_KEY = process.env.GPS_WEBHOOK_API_KEY || "ts_gps_live_secret_key_ab2026";
 
 /**
+ * Función auxiliar para desempaquetar payloads provenientes de n8n / webhooks
+ */
+function extraerEventosPayload(body: any): any[] {
+  if (!body) return [];
+  if (Array.isArray(body)) return body;
+
+  if (Array.isArray(body.data)) return body.data;
+  if (Array.isArray(body.json)) return body.json;
+  if (Array.isArray(body.items)) return body.items;
+  if (Array.isArray(body.events)) return body.events;
+  if (Array.isArray(body.eventos)) return body.eventos;
+  if (Array.isArray(body.body)) return body.body;
+
+  if (body.json && typeof body.json === "object") return [body.json];
+  if (body.data && typeof body.data === "object") return [body.data];
+
+  return [body];
+}
+
+/**
+ * Función auxiliar para parsear números con seguridad
+ */
+function parsearNumeroSeguro(val: any): number | undefined {
+  if (val === null || val === undefined || val === "") return undefined;
+  const num = typeof val === "number" ? val : parseFloat(String(val).replace(/,/g, "."));
+  return isNaN(num) ? undefined : num;
+}
+
+/**
  * GET /api/gps/eventos
  * Consulta de eventos reales y métricas de telemetría
  */
@@ -48,7 +77,7 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/gps/eventos
- * Endpoint Webhook receptor para n8n y Satelcopro
+ * Endpoint Webhook receptor universal para n8n y Satelcopro
  */
 export async function POST(request: NextRequest) {
   try {
@@ -56,64 +85,82 @@ export async function POST(request: NextRequest) {
 
     if (apiKey !== VALID_API_KEY) {
       return NextResponse.json(
-        { error: "Acceso no autorizado. Cabecera 'x-api-key' no válida." },
+        { error: "Acceso no autorizado. Cabecera 'x-api-key' o parámetro 'api_key' no válido." },
         { status: 401 }
       );
     }
 
-    const body = await request.json();
-    if (!body) {
+    const rawBody = await request.json();
+    if (!rawBody) {
       return NextResponse.json({ error: "Cuerpo JSON vacío o inválido." }, { status: 400 });
     }
 
-    // Normalizar si es un array de eventos o un único evento
-    const rawEvents = Array.isArray(body) ? body : [body];
+    const rawEvents = extraerEventosPayload(rawBody);
 
     let processedCount = 0;
     const errors: string[] = [];
+    const insertedIds: string[] = [];
 
-    for (const item of rawEvents) {
-      if (!item.placa) {
-        errors.push("Evento omitido: Falta el campo obligatorio 'placa'.");
+    for (const rawItem of rawEvents) {
+      // Tolerar nombres de propiedades anidadas si n8n envía { json: {...} }
+      const item = rawItem.json ? rawItem.json : rawItem;
+
+      const rawPlaca = item.placa || item.license_plate || item.plate || item.vehiculo || item.vehicle || item.matricula;
+
+      if (!rawPlaca) {
+        errors.push("Evento omitido: Falta el campo de placa del vehículo.");
         continue;
       }
 
+      const rawFecha = item.fechaHora || item.fecha || item.timestamp || item.datetime || item.event_time || item.date || item.hora;
+      const rawTipo = item.tipoEvento || item.tipo || item.event_type || item.event || item.novedad || item.evento || "otro";
+      const rawPrioridad = item.prioridad || item.priority || item.severity || item.severidad;
+      const rawDescripcion = item.descripcion || item.description || item.mensaje || item.detail;
+      const rawUbicacion = item.ubicacion || item.location || item.address || item.direccion || item.lugar;
+      const rawConductor = item.conductor || item.driver || item.driver_name || item.chofer || null;
+
+      const velocidad = parsearNumeroSeguro(item.velocidad ?? item.speed ?? item.vel);
+      const limiteVelocidad = parsearNumeroSeguro(item.limiteVelocidad ?? item.speed_limit ?? item.limite);
+      const odometro = parsearNumeroSeguro(item.odometro ?? item.odometer ?? item.km);
+      const latitud = parsearNumeroSeguro(item.latitud ?? item.lat ?? item.latitude);
+      const longitud = parsearNumeroSeguro(item.longitud ?? item.lng ?? item.lon ?? item.longitude);
+
       const res = await registrarEventoGPSDb({
-        placa: item.placa,
-        fechaHora: item.fechaHora || item.timestamp || item.datetime || new Date().toISOString(),
-        tipoEvento: item.tipoEvento || item.tipo || item.event_type || "otro",
-        prioridad: item.prioridad,
-        descripcion: item.descripcion || item.mensaje,
-        velocidad: typeof item.velocidad === "number" ? item.velocidad : Number(item.speed) || undefined,
-        limiteVelocidad: typeof item.limiteVelocidad === "number" ? item.limiteVelocidad : Number(item.speed_limit) || undefined,
-        odometro: typeof item.odometro === "number" ? item.odometro : Number(item.odometer) || undefined,
-        latitud: typeof item.latitud === "number" ? item.latitud : Number(item.lat) || undefined,
-        longitud: typeof item.longitud === "number" ? item.longitud : Number(item.lng || item.lon) || undefined,
-        ubicacion: item.ubicacion || item.address,
-        conductor: item.conductor || item.driver || null,
+        placa: String(rawPlaca),
+        fechaHora: rawFecha ? String(rawFecha) : new Date().toISOString(),
+        tipoEvento: String(rawTipo),
+        prioridad: rawPrioridad ? String(rawPrioridad) : undefined,
+        descripcion: rawDescripcion ? String(rawDescripcion) : undefined,
+        velocidad,
+        limiteVelocidad,
+        odometro,
+        latitud,
+        longitud,
+        ubicacion: rawUbicacion ? String(rawUbicacion) : undefined,
+        conductor: rawConductor ? String(rawConductor) : null,
       });
 
       if (res.success) {
         processedCount++;
+        if (res.eventoId) insertedIds.push(res.eventoId);
       } else if (res.error) {
-        errors.push(`Error en placa ${item.placa}: ${res.error}`);
+        errors.push(`Error en placa ${rawPlaca}: ${res.error}`);
       }
     }
 
-    const resumen = await getResumenAlertasGPSDb();
-
     return NextResponse.json({
       success: true,
-      mensaje: `Se procesaron y registraron ${processedCount} eventos de telemetría exitosamente.`,
-      processedCount,
-      totalActual: resumen.totalEventos,
-      errors: errors.length > 0 ? errors : undefined,
+      mensaje: `Se procesaron exitosamente ${processedCount} de ${rawEvents.length} eventos de telemetría.`,
+      procesados: processedCount,
+      totalRecibidos: rawEvents.length,
+      insertedIds,
+      errores: errors.length > 0 ? errors : undefined,
       timestamp: new Date().toISOString(),
     });
-  } catch (err: any) {
-    console.error("Error en Webhook GPS:", err);
+  } catch (error: any) {
+    console.error("Error en POST /api/gps/eventos:", error);
     return NextResponse.json(
-      { error: err.message || "Error interno del servidor en endpoint de telemetría." },
+      { error: error.message || "Error al procesar lote de eventos de telemetría." },
       { status: 500 }
     );
   }

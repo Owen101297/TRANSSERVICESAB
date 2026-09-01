@@ -20,6 +20,7 @@ import {
   Building2,
   Calendar,
   Sparkles,
+  MessageSquare,
 } from "lucide-react";
 import {
   EventoGPS,
@@ -35,6 +36,8 @@ import { PlateTag } from "@/components/ui/PlateTag";
 import { RetroalimentacionModal } from "@/components/gps/RetroalimentacionModal";
 import { DriverScoreRanking } from "@/components/gps/DriverScoreRanking";
 import { N8nConnectionGuide } from "@/components/gps/N8nConnectionGuide";
+import { generarMensajeWhatsApp } from "@/lib/utils/gps-scoring";
+import { marcarRetroalimentacionDb } from "@/lib/services/gps.service";
 
 interface GpsMonitorClientViewProps {
   initialEventos: EventoGPS[];
@@ -213,19 +216,58 @@ export function GpsMonitorClientView({
     {
       header: "Acción",
       accessor: "id",
-      render: (_v, row) => (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setSelectedEventoFeedback(row);
-          }}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-ok-green/40 bg-ok-green/10 px-2.5 py-1 text-xs font-semibold text-ok-green hover:bg-ok-green hover:text-asphalt-950 transition-all shadow-xs"
-        >
-          <Smartphone size={13} />
-          <span>Retroalimentar</span>
-        </button>
-      ),
+      render: (_v, row) => {
+        // Formatear número de teléfono
+        const rawPhone = row.conductorTelefono?.replace(/[^0-9]/g, "") || "";
+        let phoneFormatted = "";
+        if (rawPhone.length === 10) phoneFormatted = `57${rawPhone}`;
+        else if (rawPhone.length === 12 && rawPhone.startsWith("57")) phoneFormatted = rawPhone;
+
+        const msg = encodeURIComponent(generarMensajeWhatsApp(row));
+        const directWaUrl = phoneFormatted
+          ? `https://api.whatsapp.com/send?phone=${phoneFormatted}&text=${msg}`
+          : `https://api.whatsapp.com/send?text=${msg}`;
+
+        return (
+          <div className="flex items-center gap-1.5">
+            {/* Botón 1-Clic Directo a WhatsApp */}
+            <a
+              href={directWaUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={async (e) => {
+                e.stopPropagation();
+                try {
+                  const res = await marcarRetroalimentacionDb(row.id, "whatsapp");
+                  if (res.success && res.refreshedEventos) {
+                    setEventos(res.refreshedEventos);
+                  }
+                } catch (err) {
+                  console.error(err);
+                }
+              }}
+              className="flex h-7 w-7 items-center justify-center rounded-lg border border-ok-green/40 bg-ok-green/10 text-ok-green hover:bg-ok-green hover:text-asphalt-950 transition-all shadow-xs"
+              title="Abrir WhatsApp con plantilla directa"
+            >
+              <Smartphone size={14} />
+            </a>
+
+            {/* Botón para Abrir Modal y Personalizar */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedEventoFeedback(row);
+              }}
+              className="inline-flex items-center gap-1 rounded-lg border border-line-500 bg-asphalt-800 px-2 py-1 text-xs font-medium text-paper-50 hover:bg-asphalt-700 transition-colors shadow-xs"
+              title="Ver plantilla completa o enviar correo"
+            >
+              <MessageSquare size={12} className="text-signal-amber" />
+              <span>Ver</span>
+            </button>
+          </div>
+        );
+      },
     },
   ];
 

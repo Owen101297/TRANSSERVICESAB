@@ -17,7 +17,7 @@ import {
   normalizarPrioridadSatelcopro,
 } from "@/lib/utils/gps-scoring";
 
-// Almacén en memoria como fallback si la base de datos no estuviera disponible
+// Almacén en memoria como fallback en caso de indisponibilidad temporal
 let inMemoryEventosGPS: EventoGPS[] = [];
 
 /**
@@ -43,27 +43,27 @@ export async function getEventosGPSDb(filtros?: {
       take: filtros?.limite || 100,
     });
 
-    if (dbRecords && dbRecords.length > 0) {
+    if (Array.isArray(dbRecords)) {
       return dbRecords.map((r: any) => ({
         id: r.id,
         placa: r.placa,
         fechaHora: r.fechaHora ? new Date(r.fechaHora).toISOString() : new Date().toISOString(),
         tipoEvento: r.tipoEvento as TipoEventoGPS,
         prioridad: r.prioridad as PrioridadEventoGPS,
-        descripcion: r.descripcion,
-        velocidad: r.velocidad ?? undefined,
-        limiteVelocidad: r.limiteVelocidad ?? undefined,
-        odometro: r.odometro ?? undefined,
-        latitud: r.latitud ?? undefined,
-        longitud: r.longitud ?? undefined,
-        ubicacion: r.ubicacion ?? undefined,
-        conductorId: r.conductorId ?? undefined,
-        conductorNombre: r.conductorNombre ?? undefined,
-        conductorTelefono: r.conductorTelefono ?? undefined,
-        conductorEmail: r.conductorEmail ?? undefined,
+        descripcion: r.descripcion || `Evento ${r.tipoEvento} en ${r.placa}`,
+        velocidad: r.velocidad !== null && r.velocidad !== undefined ? Number(r.velocidad) : undefined,
+        limiteVelocidad: r.limiteVelocidad !== null && r.limiteVelocidad !== undefined ? Number(r.limiteVelocidad) : undefined,
+        odometro: r.odometro !== null && r.odometro !== undefined ? Number(r.odometro) : undefined,
+        latitud: r.latitud !== null && r.latitud !== undefined ? Number(r.latitud) : undefined,
+        longitud: r.longitud !== null && r.longitud !== undefined ? Number(r.longitud) : undefined,
+        ubicacion: r.ubicacion || undefined,
+        conductorId: r.conductorId || undefined,
+        conductorNombre: r.conductorNombre || undefined,
+        conductorTelefono: r.conductorTelefono || undefined,
+        conductorEmail: r.conductorEmail || undefined,
         estadoRetroalimentacion: (r.estadoRetroalimentacion || "pendiente") as EstadoRetroalimentacion,
         fechaRetroalimentacion: r.fechaRetroalimentacion ? new Date(r.fechaRetroalimentacion).toISOString() : undefined,
-        observacionesGestion: r.observacionesGestion ?? undefined,
+        observacionesGestion: r.observacionesGestion || undefined,
         createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : new Date().toISOString(),
       }));
     }
@@ -162,23 +162,24 @@ export async function registrarEventoGPSDb(rawEvent: {
     }
 
     const fechaHoraDate = rawEvent.fechaHora ? new Date(rawEvent.fechaHora) : new Date();
+    const validDate = isNaN(fechaHoraDate.getTime()) ? new Date() : fechaHoraDate;
 
     const eventoData = {
       placa: cleanPlaca,
-      fechaHora: fechaHoraDate,
+      fechaHora: validDate,
       tipoEvento,
       prioridad,
       descripcion: rawEvent.descripcion || `Evento ${tipoEvento} registrado en vehículo ${cleanPlaca}`,
-      velocidad: typeof rawEvent.velocidad === "number" ? rawEvent.velocidad : undefined,
-      limiteVelocidad: typeof rawEvent.limiteVelocidad === "number" ? rawEvent.limiteVelocidad : undefined,
-      odometro: typeof rawEvent.odometro === "number" ? rawEvent.odometro : undefined,
-      latitud: typeof rawEvent.latitud === "number" ? rawEvent.latitud : undefined,
-      longitud: typeof rawEvent.longitud === "number" ? rawEvent.longitud : undefined,
+      velocidad: rawEvent.velocidad !== undefined ? Number(rawEvent.velocidad) : null,
+      limiteVelocidad: rawEvent.limiteVelocidad !== undefined ? Number(rawEvent.limiteVelocidad) : null,
+      odometro: rawEvent.odometro !== undefined ? Number(rawEvent.odometro) : null,
+      latitud: rawEvent.latitud !== undefined ? Number(rawEvent.latitud) : null,
+      longitud: rawEvent.longitud !== undefined ? Number(rawEvent.longitud) : null,
       ubicacion: rawEvent.ubicacion || (rawEvent.latitud ? `${rawEvent.latitud.toFixed(4)}, ${rawEvent.longitud?.toFixed(4)}` : "En ruta"),
-      conductorId: conductorId || undefined,
+      conductorId: conductorId || null,
       conductorNombre: conductorNombre || "Sin conductor asignado",
-      conductorTelefono: conductorTelefono || undefined,
-      conductorEmail: conductorEmail || undefined,
+      conductorTelefono: conductorTelefono || null,
+      conductorEmail: conductorEmail || null,
       estadoRetroalimentacion: "pendiente",
     };
 
@@ -193,10 +194,21 @@ export async function registrarEventoGPSDb(rawEvent: {
       console.warn("Guardando en memoria fallback por error de DB:", dbErr);
       inMemoryEventosGPS.unshift({
         id: createdId,
-        ...eventoData,
-        fechaHora: fechaHoraDate.toISOString(),
+        placa: eventoData.placa,
+        fechaHora: validDate.toISOString(),
         tipoEvento: tipoEvento as TipoEventoGPS,
         prioridad: prioridad as PrioridadEventoGPS,
+        descripcion: eventoData.descripcion,
+        velocidad: eventoData.velocidad ?? undefined,
+        limiteVelocidad: eventoData.limiteVelocidad ?? undefined,
+        odometro: eventoData.odometro ?? undefined,
+        latitud: eventoData.latitud ?? undefined,
+        longitud: eventoData.longitud ?? undefined,
+        ubicacion: eventoData.ubicacion,
+        conductorId: conductorId,
+        conductorNombre: eventoData.conductorNombre,
+        conductorTelefono: conductorTelefono,
+        conductorEmail: conductorEmail,
         estadoRetroalimentacion: "pendiente",
         createdAt: new Date().toISOString(),
       });
@@ -235,56 +247,27 @@ export async function marcarRetroalimentacionDb(
           observacionesGestion: obs,
         },
       });
-    } catch (e) {
-      const idx = inMemoryEventosGPS.findIndex((x) => x.id === eventoId);
+    } catch (err) {
+      const idx = inMemoryEventosGPS.findIndex((e) => e.id === eventoId);
       if (idx >= 0) {
-        inMemoryEventosGPS[idx] = {
-          ...inMemoryEventosGPS[idx],
-          estadoRetroalimentacion,
-          fechaRetroalimentacion: fechaRetroalimentacion.toISOString(),
-          observacionesGestion: obs,
-        };
+        inMemoryEventosGPS[idx].estadoRetroalimentacion = estadoRetroalimentacion as EstadoRetroalimentacion;
+        inMemoryEventosGPS[idx].fechaRetroalimentacion = fechaRetroalimentacion.toISOString();
+        inMemoryEventosGPS[idx].observacionesGestion = obs;
       }
     }
 
     revalidatePath("/gps");
-    const refreshed = await getEventosGPSDb();
-    return { success: true, refreshedEventos: refreshed };
+    revalidatePath("/dashboard");
+
+    const refreshedEventos = await getEventosGPSDb();
+    return { success: true, refreshedEventos };
   } catch (error: any) {
     return { success: false, error: error.message || "Error al actualizar estado de retroalimentación." };
   }
 }
 
 /**
- * Obtiene la calificación mensual (Driver Safety Score) de todos los conductores reales
- */
-export async function getCalificacionesMensualesDb(
-  mes: string = new Date().toISOString().slice(0, 7)
-): Promise<CalificacionConductorMensual[]> {
-  const personas = await getPersonasDb();
-  const conductores = personas.filter((p) => p.perfiles.includes("conductor"));
-  const eventos = await getEventosGPSDb();
-
-  // Filtrar eventos del mes solicitado
-  const eventosMes = eventos.filter((e) => e.fechaHora.startsWith(mes));
-
-  const scores: CalificacionConductorMensual[] = conductores.map((c) => {
-    return calcularScoreConductor(c, eventosMes, mes);
-  });
-
-  // Ordenar por puntaje más alto (Ranking de Honor)
-  scores.sort((a, b) => b.puntajeTotal - a.puntajeTotal);
-
-  // Asignar posición de ranking
-  scores.forEach((s, idx) => {
-    s.posicionRanking = idx + 1;
-  });
-
-  return scores;
-}
-
-/**
- * Obtiene resumen estadístico del centro de alertas de telemetría en tiempo real
+ * Resumen de métricas de telemetría
  */
 export async function getResumenAlertasGPSDb() {
   const eventos = await getEventosGPSDb();
@@ -295,23 +278,39 @@ export async function getResumenAlertasGPSDb() {
     (e) => e.estadoRetroalimentacion === "pendiente" && e.prioridad !== "baja"
   ).length;
 
-  // Agrupar reincidencias por placa (≥ 2 eventos no informativos)
-  const reincidenciasPorPlaca: Record<string, number> = {};
-  for (const e of eventos) {
-    if (e.prioridad !== "baja") {
-      reincidenciasPorPlaca[e.placa] = (reincidenciasPorPlaca[e.placa] || 0) + 1;
-    }
-  }
+  const vehiculosConEventos: Record<string, number> = {};
+  eventos.forEach((e) => {
+    vehiculosConEventos[e.placa] = (vehiculosConEventos[e.placa] || 0) + 1;
+  });
 
-  const placasReincidentes = Object.entries(reincidenciasPorPlaca)
-    .filter(([_, count]) => count >= 2)
-    .map(([placa, count]) => ({ placa, count }));
+  const reincidentes = Object.entries(vehiculosConEventos).filter(([_, count]) => count >= 2);
 
   return {
     totalEventos,
     criticos,
     pendientesRetroalimentacion,
-    vehiculosReincidentes: placasReincidentes.length,
-    placasReincidentes,
+    vehiculosReincidentes: reincidentes.length,
+    placasReincidentes: reincidentes.map(([placa, count]) => ({ placa, count })),
   };
 }
+
+/**
+ * Obtiene el ranking mensual de calificaciones de conductores
+ */
+export async function getCalificacionesConductoresDb(
+  mes: string = new Date().toISOString().slice(0, 7)
+): Promise<CalificacionConductorMensual[]> {
+  const personas = await getPersonasDb();
+  const conductores = personas.filter((p) => p.perfiles?.includes("conductor"));
+  const eventos = await getEventosGPSDb();
+
+  const mesEventos = eventos.filter((e) => e.fechaHora.startsWith(mes));
+
+  return conductores
+    .map((c) => calcularScoreConductor(c, mesEventos, mes))
+    .sort((a, b) => b.puntajeTotal - a.puntajeTotal);
+}
+
+// Alias de exportación para compatibilidad
+export const getCalificacionesMensualesDb = getCalificacionesConductoresDb;
+
