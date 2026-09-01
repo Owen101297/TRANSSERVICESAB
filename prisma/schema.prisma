@@ -135,8 +135,8 @@ model Vehiculo {
   capacidad         Int
   tipo              String       // van, microbus, buseta, bus, camioneta, automovil
   servicio          String       @default("especial") // especial, particular, publico
-  contratistaId     String
-  contratista       Contratista  @relation(fields: [contratistaId], references: [id])
+  contratistaId     String?
+  contratista       Contratista? @relation(fields: [contratistaId], references: [id], onDelete: SetNull)
   contratistaNombre String
   estado            String       @default("activo") // activo, mantenimiento, inactivo
 
@@ -161,13 +161,13 @@ model Vehiculo {
 model Asignacion {
   id                String       @id @default(cuid())
   conductorId       String
-  conductor         Persona      @relation(fields: [conductorId], references: [id])
+  conductor         Persona      @relation(fields: [conductorId], references: [id], onDelete: Cascade)
   conductorNombre   String
   vehiculoId        String
-  vehiculo          Vehiculo     @relation(fields: [vehiculoId], references: [id])
+  vehiculo          Vehiculo     @relation(fields: [vehiculoId], references: [id], onDelete: Cascade)
   placa             String
-  contratistaId     String
-  contratista       Contratista  @relation(fields: [contratistaId], references: [id])
+  contratistaId     String?
+  contratista       Contratista? @relation(fields: [contratistaId], references: [id], onDelete: SetNull)
   contratistaNombre String
   tipoAsignacion    String       // fija, rotativa
   turno             String?      // 12h-diurno, 12h-nocturno, 24h
