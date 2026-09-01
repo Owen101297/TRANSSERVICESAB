@@ -800,6 +800,42 @@ export async function deleteMultiplePersonasDb(ids: string[]) {
 }
 
 /**
+ * Cambia el estado operativo rápido de una persona (activo, descanso, vacaciones, inactivo)
+ */
+export async function cambiarEstadoPersonaDb(id: string, nuevoEstado: EstadoPersona) {
+  try {
+    if (process.env.DATABASE_URL) {
+      await prisma.persona.update({
+        where: { id },
+        data: {
+          estado: nuevoEstado,
+        },
+      });
+    } else {
+      const idx = localPersonsState.findIndex((p) => p.id === id);
+      if (idx >= 0) {
+        localPersonsState[idx] = {
+          ...localPersonsState[idx],
+          estado: nuevoEstado,
+        };
+      }
+    }
+
+    revalidatePath("/personas");
+    revalidatePath(`/personas/${id}`);
+    revalidatePath("/dashboard");
+    revalidatePath("/flota");
+    revalidatePath("/asignaciones");
+
+    const refreshedList = await getPersonasDb();
+    return { success: true, refreshedList };
+  } catch (error: any) {
+    console.error("Error al cambiar estado de persona:", error);
+    return { success: false, error: error.message || "Error al actualizar estado." };
+  }
+}
+
+/**
  * Inactiva / Retira lógicamente a una persona preservando todo su expediente histórico
  */
 export async function retirarPersonaDb(id: string, motivo: string = "Retiro voluntario") {

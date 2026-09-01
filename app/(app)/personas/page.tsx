@@ -38,6 +38,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PlateTag } from "@/components/ui/PlateTag";
 import { BulkUploadModal } from "@/components/personas/BulkUploadModal";
 import { RetirarPersonaModal } from "@/components/personas/RetirarPersonaModal";
+import { StatusDropdownMenu } from "@/components/personas/StatusDropdownMenu";
 import { AlertasVencimientoPanel } from "@/components/personas/AlertasVencimientoPanel";
 import { evaluarAlertasPersona } from "@/lib/utils/alertas-vencimiento";
 
@@ -317,50 +318,28 @@ export default function PersonasPage() {
     {
       header: "Acciones",
       accessor: "id",
-      render: (_v, row) => {
-        const isRetirado = row.estado === "retirado" || row.estado === "inactivo";
-        return (
-          <div className="flex items-center gap-1.5">
-            {isRetirado ? (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleReactivar(row);
-                }}
-                disabled={isActionLoading}
-                className="p-1.5 rounded text-ok-green hover:bg-ok-green-dim transition-colors"
-                title="Reactivar en planta activa"
-              >
-                <RotateCcw size={15} />
-              </button>
-            ) : (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setPersonaToRetire(row);
-                }}
-                disabled={isActionLoading}
-                className="p-1.5 rounded text-fog-400 hover:text-signal-amber hover:bg-signal-amber/10 transition-colors"
-                title="Retirar a Historial de Auditoría (Soft Delete)"
-              >
-                <Archive size={15} />
-              </button>
-            )}
+      render: (_v, row) => (
+        <div className="flex items-center gap-1.5">
+          <StatusDropdownMenu
+            persona={row}
+            onOpenRetirarModal={setPersonaToRetire}
+            onStatusChanged={setPersonas}
+          />
 
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setPersonToDeletePermanent(row);
-              }}
-              disabled={isActionLoading}
-              className="p-1.5 rounded text-fog-400 hover:text-alert-red hover:bg-alert-red-dim transition-colors opacity-70 hover:opacity-100"
-              title="Eliminar permanentemente de la base de datos"
-            >
-              <Trash2 size={15} />
-            </button>
-          </div>
-        );
-      },
+          <IconButton
+            size="sm"
+            variant="ghost"
+            icon={<Trash2 size={15} />}
+            tooltip="Eliminar permanentemente de la base de datos"
+            className="text-fog-400 hover:text-alert-red hover:bg-alert-red-dim"
+            onClick={(e) => {
+              e.stopPropagation();
+              setPersonToDeletePermanent(row);
+            }}
+            disabled={isActionLoading}
+          />
+        </div>
+      ),
     },
   ];
 
