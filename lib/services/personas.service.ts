@@ -439,220 +439,269 @@ export async function updatePersonaAction(
   }
 }
 
+function cleanStr(val: any): string {
+  if (val === null || val === undefined) return "";
+  return String(val)
+    .replace(/\\/g, "")
+    .replace(/[\x00-\x1F\x7F]/g, " ")
+    .trim();
+}
+
+function parseSafeDate(val: any): Date | null {
+  if (!val) return null;
+  const d = new Date(val);
+  if (isNaN(d.getTime()) || d.getFullYear() < 1970 || d.getFullYear() > 2100) return null;
+  return d;
+}
+
 /**
  * Importa o actualiza un lote de personas y sus expedientes en PostgreSQL
+ * con sanitización robusta y aislamiento de errores por fila.
  */
 export async function batchUpsertPersonasDb(items: any[]) {
   try {
     let createdCount = 0;
     let updatedCount = 0;
+    let failedCount = 0;
+    const errorsList: string[] = [];
 
     for (const item of items) {
-      if (item.action === "error") continue;
-
-      const numDoc = (item.numeroDocumento || "").replace(/\D/g, "");
-      if (!numDoc) continue;
-
-      let contratistaId: string | null = null;
-      if (item.contratistaNombre && process.env.DATABASE_URL) {
-        const c = await prisma.contratista.findFirst({
-          where: { razonSocial: { contains: item.contratistaNombre, mode: "insensitive" } },
-        });
-        if (c) contratistaId = c.id;
+      if (item.action === "error") {
+        failedCount++;
+        continue;
       }
 
-      if (process.env.DATABASE_URL) {
-        const existing = await prisma.persona.findUnique({
-          where: { numeroDocumento: numDoc },
-          include: { licenciaConduccion: true, datosSalud: true, contactoEmergencia: true },
-        });
+      const numDoc = cleanStr(item.numeroDocumento).replace(/\D/g, "");
+      if (!numDoc) {
+        failedCount++;
+        continue;
+      }
 
-        const fotoInitials = computeInitials(item.nombres, item.apellidos);
+      const nombres = cleanStr(item.nombres);
+      const apellidos = cleanStr(item.apellidos);
+      const tipoDoc = cleanStr(item.tipoDocumento) || "CC";
+      const telefono = cleanStr(item.telefono) || "3000000000";
+      const email = cleanStr(item.email) || `${nombres.toLowerCase().replace(/[^a-z0-9]/g, ".") || "usuario"}@transservices.com`;
+      const contratistaNombre = cleanStr(item.contratistaNombre);
+      const estado = cleanStr(item.estado) || "activo";
+      const perfiles = Array.isArray(item.perfiles) && item.perfiles.length > 0 ? item.perfiles : ["conductor"];
+      const fotoInitials = computeInitials(nombres, apellidos);
 
-        if (existing) {
-          await prisma.persona.update({
-            where: { id: existing.id },
-            data: {
-              nombres: item.nombres,
-              apellidos: item.apellidos,
-              tipoDocumento: item.tipoDocumento,
-              telefono: item.telefono || existing.telefono,
-              email: item.email || existing.email,
-              perfiles: item.perfiles,
-              estado: item.estado,
-              contratistaId: contratistaId || existing.contratistaId,
-              contratistaNombre: item.contratistaNombre || existing.contratistaNombre,
-              fotoIniciales: fotoInitials,
-            },
+      try {
+        let contratistaId: string | null = null;
+        if (contratistaNombre && process.env.DATABASE_URL) {
+          const c = await prisma.contratista.findFirst({
+            where: { razonSocial: { contains: contratistaNombre, mode: "insensitive" } },
+          });
+          if (c) contratistaId = c.id;
+        }
+
+        if (process.env.DATABASE_URL) {
+          const existing = await prisma.persona.findUnique({
+            where: { numeroDocumento: numDoc },
+            include: { licenciaConduccion: true, datosSalud: true, contactoEmergencia: true },
           });
 
-          // Licencia de Conducción
-          if (item.numeroLicencia || item.vencimientoLicencia) {
-            if (existing.licenciaConduccion) {
-              await prisma.licenciaConduccion.update({
-                where: { personaId: existing.id },
-                data: {
-                  numero: item.numeroLicencia || existing.licenciaConduccion.numero,
-                  categorias: item.categoriasLicencia && item.categoriasLicencia.length > 0
-                    ? item.categoriasLicencia
-                    : existing.licenciaConduccion.categorias,
-                  fechaVencimiento: item.vencimientoLicencia
-                    ? new Date(item.vencimientoLicencia)
-                    : existing.licenciaConduccion.fechaVencimiento,
-                },
-              });
-            } else if (item.numeroLicencia && item.vencimientoLicencia) {
+          if (existing) {
+            await prisma.persona.update({
+              where: { id: existing.id },
+              data: {
+                nombres,
+                apellidos,
+                tipoDocumento: tipoDoc,
+                telefono: telefono || existing.telefono,
+                email: email || existing.email,
+                perfiles,
+                estado,
+                contratistaId: contratistaId || existing.contratistaId,
+                contratistaNombre: contratistaNombre || existing.contratistaNombre,
+                fotoIniciales: fotoInitials,
+              },
+            });
+
+            // Licencia
+            const safeLicVenc = parseSafeDate(item.vencimientoLicencia);
+            if (item.numeroLicencia || safeLicVenc) {
+              const licNum = cleanStr(item.numeroLicencia) || numDoc;
+              if (existing.licenciaConduccion) {
+                await prisma.licenciaConduccion.update({
+                  where: { personaId: existing.id },
+                  data: {
+                    numero: licNum || existing.licenciaConduccion.numero,
+                    categorias: item.categoriasLicencia && item.categoriasLicencia.length > 0
+                      ? item.categoriasLicencia
+                      : existing.licenciaConduccion.categorias,
+                    fechaVencimiento: safeLicVenc || existing.licenciaConduccion.fechaVencimiento,
+                  },
+                });
+              } else if (safeLicVenc) {
+                await prisma.licenciaConduccion.create({
+                  data: {
+                    personaId: existing.id,
+                    numero: licNum,
+                    categorias: item.categoriasLicencia && item.categoriasLicencia.length > 0
+                      ? item.categoriasLicencia
+                      : ["C2"],
+                    fechaVencimiento: safeLicVenc,
+                  },
+                });
+              }
+            }
+
+            // Salud
+            if (item.eps || item.arl || item.fondoPension || item.grupoSanguineo) {
+              const eps = cleanStr(item.eps) || "Sura";
+              const arl = cleanStr(item.arl) || "Positiva";
+              const fondo = cleanStr(item.fondoPension) || undefined;
+              const rh = cleanStr(item.grupoSanguineo) || "O_POSITIVO";
+
+              if (existing.datosSalud) {
+                await prisma.datosSalud.update({
+                  where: { personaId: existing.id },
+                  data: {
+                    eps: item.eps ? eps : existing.datosSalud.eps,
+                    arl: item.arl ? arl : existing.datosSalud.arl,
+                    fondoPensiones: fondo || existing.datosSalud.fondoPensiones,
+                  },
+                });
+              } else {
+                await prisma.datosSalud.create({
+                  data: {
+                    personaId: existing.id,
+                    eps,
+                    arl,
+                    fondoPensiones: fondo,
+                    grupoSanguineoRH: rh,
+                  },
+                });
+              }
+            }
+
+            // Contacto Emergencia
+            if (item.contactoEmergenciaNombre) {
+              const nomEm = cleanStr(item.contactoEmergenciaNombre);
+              const telEm = cleanStr(item.contactoEmergenciaTelefono) || "3000000000";
+              const parEm = cleanStr(item.contactoEmergenciaParentesco) || "Familiar";
+
+              if (existing.contactoEmergencia) {
+                await prisma.contactoEmergencia.update({
+                  where: { personaId: existing.id },
+                  data: {
+                    nombreCompleto: nomEm,
+                    telefono: telEm || existing.contactoEmergencia.telefono,
+                    parentesco: parEm || existing.contactoEmergencia.parentesco,
+                  },
+                });
+              } else {
+                await prisma.contactoEmergencia.create({
+                  data: {
+                    personaId: existing.id,
+                    nombreCompleto: nomEm,
+                    telefono: telEm,
+                    parentesco: parEm,
+                  },
+                });
+              }
+            }
+
+            updatedCount++;
+          } else {
+            // Crear Nueva Persona
+            const newP = await prisma.persona.create({
+              data: {
+                nombres,
+                apellidos,
+                tipoDocumento: tipoDoc,
+                numeroDocumento: numDoc,
+                telefono,
+                email,
+                perfiles,
+                estado,
+                contratistaId,
+                contratistaNombre: contratistaNombre || undefined,
+                fotoIniciales: fotoInitials,
+              },
+            });
+
+            // Licencia
+            const safeLicVenc = parseSafeDate(item.vencimientoLicencia);
+            if (safeLicVenc) {
               await prisma.licenciaConduccion.create({
                 data: {
-                  personaId: existing.id,
-                  numero: item.numeroLicencia,
+                  personaId: newP.id,
+                  numero: cleanStr(item.numeroLicencia) || numDoc,
                   categorias: item.categoriasLicencia && item.categoriasLicencia.length > 0
                     ? item.categoriasLicencia
                     : ["C2"],
-                  fechaVencimiento: new Date(item.vencimientoLicencia),
+                  fechaVencimiento: safeLicVenc,
                 },
               });
             }
-          }
 
-          // Seguridad Social
-          if (item.eps || item.arl || item.fondoPension || item.grupoSanguineo) {
-            if (existing.datosSalud) {
-              await prisma.datosSalud.update({
-                where: { personaId: existing.id },
-                data: {
-                  eps: item.eps || existing.datosSalud.eps,
-                  arl: item.arl || existing.datosSalud.arl,
-                  fondoPensiones: item.fondoPension || existing.datosSalud.fondoPensiones,
-                },
-              });
-            } else {
+            // Salud
+            if (item.eps || item.arl || item.fondoPension) {
               await prisma.datosSalud.create({
                 data: {
-                  personaId: existing.id,
-                  eps: item.eps || "Sura",
-                  arl: item.arl || "Positiva",
-                  fondoPensiones: item.fondoPension,
-                  grupoSanguineoRH: "O_POSITIVO",
+                  personaId: newP.id,
+                  eps: cleanStr(item.eps) || "Sura",
+                  arl: cleanStr(item.arl) || "Positiva",
+                  fondoPensiones: cleanStr(item.fondoPension) || undefined,
+                  grupoSanguineoRH: cleanStr(item.grupoSanguineo) || "O_POSITIVO",
                 },
               });
             }
-          }
 
-          // Contacto de Emergencia
-          if (item.contactoEmergenciaNombre) {
-            if (existing.contactoEmergencia) {
-              await prisma.contactoEmergencia.update({
-                where: { personaId: existing.id },
-                data: {
-                  nombreCompleto: item.contactoEmergenciaNombre,
-                  telefono: item.contactoEmergenciaTelefono || existing.contactoEmergencia.telefono,
-                  parentesco: item.contactoEmergenciaParentesco || existing.contactoEmergencia.parentesco,
-                },
-              });
-            } else {
+            // Contacto Emergencia
+            if (item.contactoEmergenciaNombre) {
               await prisma.contactoEmergencia.create({
                 data: {
-                  personaId: existing.id,
-                  nombreCompleto: item.contactoEmergenciaNombre,
-                  telefono: item.contactoEmergenciaTelefono || "3000000000",
-                  parentesco: item.contactoEmergenciaParentesco || "Familiar",
+                  personaId: newP.id,
+                  nombreCompleto: cleanStr(item.contactoEmergenciaNombre),
+                  telefono: cleanStr(item.contactoEmergenciaTelefono) || "3000000000",
+                  parentesco: cleanStr(item.contactoEmergenciaParentesco) || "Familiar",
                 },
               });
             }
-          }
 
-          updatedCount++;
+            createdCount++;
+          }
         } else {
-          // Crear Nueva Persona
-          const newP = await prisma.persona.create({
-            data: {
-              nombres: item.nombres,
-              apellidos: item.apellidos,
-              tipoDocumento: item.tipoDocumento,
+          // Local State fallback
+          const idx = localPersonsState.findIndex((p) => p.numeroDocumento === numDoc);
+          if (idx >= 0) {
+            localPersonsState[idx] = {
+              ...localPersonsState[idx],
+              nombres,
+              apellidos,
+              telefono,
+              email,
+              perfiles,
+              estado: estado as any,
+              contratistaNombre,
+            };
+            updatedCount++;
+          } else {
+            localPersonsState.unshift({
+              id: item.id || `p_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+              nombres,
+              apellidos,
+              tipoDocumento: tipoDoc as any,
               numeroDocumento: numDoc,
-              telefono: item.telefono || "3000000000",
-              email: item.email || `${item.nombres.toLowerCase().replace(/\s+/g, ".")}@transservices.com`,
-              perfiles: item.perfiles,
-              estado: item.estado,
-              contratistaId,
-              contratistaNombre: item.contratistaNombre,
+              telefono,
+              email,
+              perfiles,
+              estado: estado as any,
+              fechaIngreso: new Date().toISOString().split("T")[0],
+              contratistaNombre,
               fotoIniciales: fotoInitials,
-            },
-          });
-
-          // Licencia
-          if (item.numeroLicencia && item.vencimientoLicencia) {
-            await prisma.licenciaConduccion.create({
-              data: {
-                personaId: newP.id,
-                numero: item.numeroLicencia,
-                categorias: item.categoriasLicencia && item.categoriasLicencia.length > 0
-                  ? item.categoriasLicencia
-                  : ["C2"],
-                fechaVencimiento: new Date(item.vencimientoLicencia),
-              },
             });
+            createdCount++;
           }
-
-          // Seguridad Social
-          if (item.eps || item.arl || item.fondoPension) {
-            await prisma.datosSalud.create({
-              data: {
-                personaId: newP.id,
-                eps: item.eps || "Sura",
-                arl: item.arl || "Positiva",
-                fondoPensiones: item.fondoPension,
-                grupoSanguineoRH: "O_POSITIVO",
-              },
-            });
-          }
-
-          // Contacto Emergencia
-          if (item.contactoEmergenciaNombre) {
-            await prisma.contactoEmergencia.create({
-              data: {
-                personaId: newP.id,
-                nombreCompleto: item.contactoEmergenciaNombre,
-                telefono: item.contactoEmergenciaTelefono || "3000000000",
-                parentesco: item.contactoEmergenciaParentesco || "Familiar",
-              },
-            });
-          }
-
-          createdCount++;
         }
-      } else {
-        const idx = localPersonsState.findIndex((p) => p.numeroDocumento === numDoc);
-        if (idx >= 0) {
-          localPersonsState[idx] = {
-            ...localPersonsState[idx],
-            nombres: item.nombres,
-            apellidos: item.apellidos,
-            telefono: item.telefono,
-            email: item.email,
-            perfiles: item.perfiles,
-            estado: item.estado,
-            contratistaNombre: item.contratistaNombre,
-          };
-          updatedCount++;
-        } else {
-          localPersonsState.unshift({
-            id: item.id,
-            nombres: item.nombres,
-            apellidos: item.apellidos,
-            tipoDocumento: item.tipoDocumento,
-            numeroDocumento: numDoc,
-            telefono: item.telefono,
-            email: item.email,
-            perfiles: item.perfiles,
-            estado: item.estado,
-            fechaIngreso: new Date().toISOString().split("T")[0],
-            contratistaNombre: item.contratistaNombre,
-            fotoIniciales: item.fotoIniciales,
-          });
-          createdCount++;
-        }
+      } catch (rowErr: any) {
+        console.warn(`Error al procesar persona con cédula ${numDoc}:`, rowErr.message);
+        errorsList.push(`Doc ${numDoc}: ${rowErr.message}`);
+        failedCount++;
       }
     }
 
@@ -666,14 +715,87 @@ export async function batchUpsertPersonasDb(items: any[]) {
       success: true,
       createdCount,
       updatedCount,
+      failedCount,
+      errorsList,
       refreshedList,
     };
   } catch (error: any) {
-    console.error("Error en batchUpsertPersonasDb:", error);
+    console.error("Error global en batchUpsertPersonasDb:", error);
     return {
       success: false,
       error: error.message || "Error al procesar la importación masiva.",
     };
+  }
+}
+
+/**
+ * Elimina una persona y sus expedientes asociados de la base de datos
+ */
+export async function deletePersonaDb(id: string) {
+  try {
+    if (process.env.DATABASE_URL) {
+      // Eliminar asignaciones asociadas
+      await prisma.asignacion.deleteMany({
+        where: { conductorId: id },
+      });
+      // Eliminar documentos adjuntos asociados
+      await prisma.documentoAdjunto.deleteMany({
+        where: { entidadId: id, entidadTipo: "persona" },
+      });
+      // Eliminar persona en PostgreSQL (cascadea a licencia, examenMedico, datosSalud, contactoEmergencia)
+      await prisma.persona.delete({
+        where: { id },
+      });
+    } else {
+      localPersonsState = localPersonsState.filter((p) => p.id !== id);
+    }
+
+    revalidatePath("/personas");
+    revalidatePath("/dashboard");
+    revalidatePath("/flota");
+    revalidatePath("/asignaciones");
+
+    const refreshedList = await getPersonasDb();
+    return { success: true, refreshedList };
+  } catch (error: any) {
+    console.error("Error al eliminar persona:", error);
+    return { success: false, error: error.message || "Error al eliminar registro." };
+  }
+}
+
+/**
+ * Elimina múltiples personas seleccionadas en un solo lote
+ */
+export async function deleteMultiplePersonasDb(ids: string[]) {
+  try {
+    if (!ids || ids.length === 0) {
+      return { success: true, count: 0 };
+    }
+
+    if (process.env.DATABASE_URL) {
+      await prisma.asignacion.deleteMany({
+        where: { conductorId: { in: ids } },
+      });
+      await prisma.documentoAdjunto.deleteMany({
+        where: { entidadId: { in: ids }, entidadTipo: "persona" },
+      });
+      await prisma.persona.deleteMany({
+        where: { id: { in: ids } },
+      });
+    } else {
+      localPersonsState = localPersonsState.filter((p) => !ids.includes(p.id));
+    }
+
+    revalidatePath("/personas");
+    revalidatePath("/dashboard");
+    revalidatePath("/flota");
+    revalidatePath("/asignaciones");
+
+    const refreshedList = await getPersonasDb();
+    return { success: true, count: ids.length, refreshedList };
+  } catch (error: any) {
+    console.error("Error al eliminar personas seleccionadas:", error);
+    return { success: false, error: error.message || "Error al eliminar registros." };
   }
 }
 

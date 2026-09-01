@@ -31,6 +31,7 @@ import { TurnoTag } from "@/components/ui/TurnoTag";
 import { DocExpiryBadge } from "@/components/ui/DocExpiryBadge";
 import { DocUploadSlot } from "@/components/ui/DocUploadSlot";
 import { EditPersonaTrigger } from "@/components/personas/EditPersonaTrigger";
+import { DeletePersonaTrigger } from "@/components/personas/DeletePersonaTrigger";
 
 const ESTADO_TO_STATUS: Record<EstadoPersona, "activo" | "pendiente" | "cerrado"> = {
   activo: "activo",
@@ -111,6 +112,7 @@ export default async function PersonaDetailPage({
             </div>
 
             <EditPersonaTrigger persona={persona} />
+            <DeletePersonaTrigger persona={persona} />
           </Card>
 
           {/* Salud y Seguridad Social */}
