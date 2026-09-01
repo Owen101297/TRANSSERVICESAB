@@ -49,11 +49,20 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col border-r border-line-600 bg-asphalt-900">
-      <div className="flex h-16 items-center gap-2 border-b border-line-600 px-5">
-        <div className="h-2 w-2 rounded-full bg-signal-amber" />
-        <span className="font-[family-name:var(--font-display)] text-xl font-bold tracking-wide text-paper-50">
-          A&amp;B OS
-        </span>
+      <div className="flex h-16 items-center gap-3 border-b border-line-600 px-4">
+        <img
+          src="/logo.png"
+          alt="Trans Services A&B"
+          className="h-10 w-10 rounded-full object-contain bg-asphalt-950 p-1 border border-line-600 shrink-0"
+        />
+        <div className="flex flex-col min-w-0">
+          <span className="font-[family-name:var(--font-display)] text-lg font-bold tracking-wide text-paper-50 leading-none truncate">
+            TRANS SERVICES
+          </span>
+          <span className="text-[10px] font-mono text-signal-amber font-semibold tracking-wider truncate">
+            COOPERATIVA A&amp;B
+          </span>
+        </div>
       </div>
 
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">

@@ -10,8 +10,8 @@ export function exportPersonasToExcel(personas: Persona[]): void {
 
   // Matriz de datos con membrete corporativo y codificación oficial
   const sheetData: any[][] = [
-    ["TRANSSERVICES A&B S.A.S.", "", "", "SISTEMA INTEGRADO DE GESTIÓN HSEQ", "", "", "", "CÓDIGO:", "TH-FOR-01"],
-    ["NIT: 901.452.123-1", "", "", "MATRIZ DE EXPEDIENTE Y CONTROL DE PERSONAL", "", "", "", "VERSIÓN:", "01"],
+    ["TRANS SERVICES A & B", "", "", "SISTEMA INTEGRADO DE GESTIÓN HSEQ", "", "", "", "CÓDIGO:", "TH-FOR-01"],
+    ["COOPERATIVA DE TRANSPORTES Y SERVICIOS A & B", "", "", "MATRIZ DE EXPEDIENTE Y CONTROL DE PERSONAL", "", "", "", "VERSIÓN:", "01"],
     ["TRANSPORTE ESPECIAL TERRESTRE", "", "", `TOTAL REGISTROS: ${personas.length}`, "", "", "", "FECHA:", currentDate],
     [], // Separador
     [

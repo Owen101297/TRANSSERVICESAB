@@ -11,11 +11,15 @@ const NAV = [
 export function MobileShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen w-full flex-col bg-asphalt-950">
-      <header className="flex h-14 shrink-0 items-center justify-center border-b border-line-600 bg-asphalt-900">
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-signal-amber" />
-          <span className="font-[family-name:var(--font-display)] text-lg font-bold text-paper-50">
-            A&amp;B OS · Conductor
+      <header className="flex h-14 shrink-0 items-center justify-center border-b border-line-600 bg-asphalt-900 px-4">
+        <div className="flex items-center gap-2.5">
+          <img
+            src="/logo.png"
+            alt="Trans Services A&B"
+            className="h-7 w-7 rounded-full object-contain bg-asphalt-950 p-0.5 border border-line-600"
+          />
+          <span className="font-[family-name:var(--font-display)] text-lg font-bold text-paper-50 tracking-wide">
+            TRANS SERVICES A&amp;B
           </span>
         </div>
       </header>
