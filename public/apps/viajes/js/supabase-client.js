@@ -530,6 +530,36 @@ export async function getEstadisticasViajes() {
 }
 
 export async function createViaje(viaje) {
+    try {
+        const res = await fetch('/api/apps/viajes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                conductorId: viaje.conductor_id,
+                conductorNombre: viaje.conductor_nombre,
+                conductorDocumento: viaje.conductor_documento,
+                placa: viaje.vehiculo_placa,
+                origen: viaje.origen,
+                destino: viaje.destino,
+                fechaSalida: viaje.fecha_salida || viaje.fecha,
+                horaSalida: viaje.hora_salida,
+                distanciaKm: viaje.distancia_km,
+                duracionEstimadaHoras: viaje.duracion_estimada_horas,
+                riskScore: viaje.risk_score,
+                riskLevel: viaje.risk_level,
+                riskInputs: viaje.risk_inputs,
+                signatures: viaje.signatures,
+                observaciones: viaje.observaciones
+            })
+        });
+        if (res.ok) {
+            const result = await res.json();
+            return result.viaje;
+        }
+    } catch (e) {
+        console.warn('Aviso en createViaje local:', e);
+    }
+
     const { data, error } = await supabase
         .from('operacion.viajes')
         .insert(viaje)

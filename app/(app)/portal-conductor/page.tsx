@@ -112,11 +112,27 @@ export default function PortalConductorPage() {
     );
   }, []);
 
+  const persistDriverSession = (p: Persona, placa: string | null) => {
+    try {
+      const sessionData = {
+        id: p.id,
+        documento: p.numeroDocumento,
+        nombre: `${p.nombres} ${p.apellidos}`.trim(),
+        placa: placa || "SIN ASIGNAR",
+      };
+      localStorage.setItem("transservices_conductor", JSON.stringify(sessionData));
+    } catch (e) {
+      console.warn("No se pudo guardar la sesión local:", e);
+    }
+  };
+
   const handleSelectDriver = (p: Persona) => {
     setSelectedConductor(p);
     getAsignacionesDb().then((aList) => {
       const asig = (aList || []).find((a) => a.conductorId === p.id && a.estado === "activa");
-      setAssignedPlate(asig ? asig.placa : (vehiculos[0]?.placa || null));
+      const placa = asig ? asig.placa : (vehiculos[0]?.placa || null);
+      setAssignedPlate(placa);
+      persistDriverSession(p, placa);
     });
   };
 
@@ -126,6 +142,42 @@ export default function PortalConductorPage() {
     if (found) {
       handleSelectDriver(found);
     }
+  };
+
+  useEffect(() => {
+    Promise.all([getPersonasDb(), getVehiculosDb(), getAsignacionesDb()]).then(
+      ([pList, vList, aList]) => {
+        const drivers = (pList || []).filter((p) => p.perfiles.includes("conductor"));
+        setPersonas(drivers);
+        setVehiculos(vList || []);
+
+        if (drivers.length > 0) {
+          // Intentar restaurar sesión previa de localStorage o primer conductor
+          let current = drivers[0];
+          try {
+            const raw = localStorage.getItem("transservices_conductor");
+            if (raw) {
+              const saved = JSON.parse(raw);
+              const matched = drivers.find((d) => d.numeroDocumento === saved.documento);
+              if (matched) current = matched;
+            }
+          } catch {}
+
+          setSelectedConductor(current);
+          const asig = (aList || []).find((a) => a.conductorId === current.id && a.estado === "activa");
+          const placa = asig ? asig.placa : (vList[0]?.placa || null);
+          setAssignedPlate(placa);
+          persistDriverSession(current, placa);
+        }
+      }
+    );
+  }, []);
+
+  const openApp = (appPath: string) => {
+    if (selectedConductor) {
+      persistDriverSession(selectedConductor, assignedPlate);
+    }
+    window.location.href = appPath;
   };
 
   return (
@@ -201,100 +253,92 @@ export default function PortalConductorPage() {
         </div>
       </Card>
 
-      {/* Grid de las 8 Aplicaciones Digitalizadas */}
+      {/* Grid de las 8 Aplicaciones Digitalizadas con Enlace Directo */}
       <div>
         <h2 className="mb-4 font-[family-name:var(--font-display)] text-xl font-bold tracking-wide text-paper-50">
           Biblioteca de Formatos y Aplicaciones
         </h2>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Link href="/operacion/nuevo">
-            <ModuleCard
-              title="Plan de Viaje & Riesgo"
-              subtitle="Despacho de viaje con matriz de riesgo vial, control de fatiga y firma digital."
-              icon={Truck}
-              accent="cyan"
-              href="/operacion/nuevo"
-              badgeText="Operación"
-            />
-          </Link>
+          <ModuleCard
+            title="Plan de Viaje & Riesgo"
+            subtitle="Despacho de viaje con matriz de riesgo vial, control de fatiga y firma digital."
+            icon={Truck}
+            accent="cyan"
+            href="/apps/viajes/index.html"
+            onClick={() => openApp("/apps/viajes/index.html")}
+            badgeText="Operación"
+          />
 
-          <Link href="/pesv">
-            <ModuleCard
-              title="Preoperacional Diario"
-              subtitle="Inspección técnico-mecánica obligatoria y reporte de novedades del vehículo."
-              icon={ClipboardCheck}
-              accent="green"
-              href="/pesv"
-              badgeText="PESV Paso 14"
-            />
-          </Link>
+          <ModuleCard
+            title="Preoperacional Diario"
+            subtitle="Inspección técnico-mecánica obligatoria y reporte de novedades del vehículo."
+            icon={ClipboardCheck}
+            accent="green"
+            href="/apps/preoperacional/index.html"
+            onClick={() => openApp("/apps/preoperacional/index.html")}
+            badgeText="PESV Paso 14"
+          />
 
-          <Link href="/flota">
-            <ModuleCard
-              title="Control de Lavado"
-              subtitle="Registro fotográfico y control de lavado exterior y chasis de la flota."
-              icon={Droplets}
-              accent="cyan"
-              href="/flota"
-              badgeText="Flota"
-            />
-          </Link>
+          <ModuleCard
+            title="Control de Lavado"
+            subtitle="Registro fotográfico y control de lavado exterior y chasis de la flota."
+            icon={Droplets}
+            accent="cyan"
+            href="/apps/lavado/index.html"
+            onClick={() => openApp("/apps/lavado/index.html")}
+            badgeText="Flota"
+          />
 
-          <Link href="/sgsst">
-            <ModuleCard
-              title="Aseo y Desinfección"
-              subtitle="Control higiénico y planilla de desinfección de cabina de pasajeros."
-              icon={Sparkles}
-              accent="amber"
-              href="/sgsst"
-              badgeText="SG-SST"
-            />
-          </Link>
+          <ModuleCard
+            title="Aseo y Desinfección"
+            subtitle="Control higiénico y planilla de desinfección de cabina de pasajeros."
+            icon={Sparkles}
+            accent="amber"
+            href="/apps/aseo/index.html"
+            onClick={() => openApp("/apps/aseo/index.html")}
+            badgeText="SG-SST"
+          />
 
-          <Link href="/hseq">
-            <ModuleCard
-              title="Inspección de Extintores"
-              subtitle="Control de presión, fecha de vencimiento y precintos de seguridad del extintor."
-              icon={ShieldAlert}
-              accent="red"
-              href="/hseq"
-              badgeText="HSEQ"
-            />
-          </Link>
+          <ModuleCard
+            title="Inspección de Extintores"
+            subtitle="Control de presión, fecha de vencimiento y precintos de seguridad del extintor."
+            icon={ShieldAlert}
+            accent="red"
+            href="/apps/extintor/index.html"
+            onClick={() => openApp("/apps/extintor/index.html")}
+            badgeText="HSEQ"
+          />
 
-          <Link href="/hseq">
-            <ModuleCard
-              title="Inspección de Botiquín"
-              subtitle="Inventario de insumos de primeros auxilios y elementos de bioseguridad."
-              icon={HeartPulse}
-              accent="red"
-              href="/hseq"
-              badgeText="HSEQ"
-            />
-          </Link>
+          <ModuleCard
+            title="Inspección de Botiquín"
+            subtitle="Inventario de insumos de primeros auxilios y elementos de bioseguridad."
+            icon={HeartPulse}
+            accent="red"
+            href="/apps/botiquin/index.html"
+            onClick={() => openApp("/apps/botiquin/index.html")}
+            badgeText="HSEQ"
+          />
 
-          <Link href="/asistencia">
-            <ModuleCard
-              title="Asistencia y Firmas"
-              subtitle="Registro y confirmación digital de asistencia a jornadas de capacitación."
-              icon={UserCheck}
-              accent="green"
-              href="/asistencia"
-              badgeText="Capacitación"
-            />
-          </Link>
+          <ModuleCard
+            title="Asistencia y Firmas"
+            subtitle="Registro y confirmación digital de asistencia a jornadas de capacitación."
+            icon={UserCheck}
+            accent="green"
+            href="/apps/asistencia/index.html"
+            onClick={() => openApp("/apps/asistencia/index.html")}
+            badgeText="Capacitación"
+          />
 
-          <Link href="/encuestas">
-            <ModuleCard
-              title="Encuesta de Riesgo Vial"
-              subtitle="Diagnóstico de hábitos de conducción, perfil sociodemográfico y SG-SST."
-              icon={FileQuestion}
-              accent="amber"
-              href="/encuestas"
-              badgeText="SG-SST / PESV"
-            />
-          </Link>
+          <ModuleCard
+            title="Encuesta de Riesgo Vial"
+            subtitle="Diagnóstico de hábitos de conducción, perfil sociodemográfico y SG-SST."
+            icon={FileQuestion}
+            accent="amber"
+            href="/apps/encuesta/index.html"
+            onClick={() => openApp("/apps/encuesta/index.html")}
+            badgeText="SG-SST / PESV"
+          />
         </div>
       </div>
 

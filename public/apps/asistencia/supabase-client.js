@@ -80,6 +80,28 @@ export async function getAsistenciaHoy() {
 }
 
 export async function createAsistencia(registro) {
+  try {
+    const res = await fetch('/api/apps/asistencia', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        conductorNombre: registro.conductor_nombre || registro.personaNombre,
+        conductorDocumento: registro.conductor_documento || registro.numero_documento,
+        evento: registro.evento || registro.tipo_evento,
+        tipoEvento: registro.tipo_evento,
+        estado: registro.estado || 'presente',
+        observaciones: registro.observaciones,
+        signature: registro.firma_url || registro.firma_base64
+      })
+    });
+    if (res.ok) {
+      const json = await res.json();
+      return json.asistencia;
+    }
+  } catch (e) {
+    console.warn('Aviso en createAsistencia local:', e);
+  }
+
   const table = await asistenciaTable()
   const { data, error } = await table
     .insert(registro)
