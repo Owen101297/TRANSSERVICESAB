@@ -236,3 +236,108 @@ export async function deleteAsignacionDb(id: string): Promise<{ success: boolean
     return { success: false, error: error.message || "Error al eliminar asignación." };
   }
 }
+
+/**
+ * Server Action para Asignación Rápida 1-Click
+ * Asigna un conductor a un vehículo de forma inmediata cerrando asignaciones activas previas
+ */
+export async function quickAsignarConductorVehiculoAction(payload: {
+  conductorId: string;
+  vehiculoIdOrPlaca: string;
+  observaciones?: string;
+}): Promise<{ success: boolean; asignacionId?: string; error?: string; conductorNombre?: string; placa?: string }> {
+  try {
+    const { conductorId, vehiculoIdOrPlaca, observaciones } = payload;
+    if (!conductorId || !vehiculoIdOrPlaca) {
+      return { success: false, error: "Debes especificar tanto el conductor como el vehículo." };
+    }
+
+    // 1. Obtener datos del conductor
+    const persona = await getPersonaByIdDb(conductorId);
+    if (!persona) {
+      return { success: false, error: "El conductor seleccionado no existe en la base de datos." };
+    }
+    const conductorNombre = `${persona.nombres} ${persona.apellidos}`.trim();
+
+    // 2. Obtener datos del vehículo (por ID o por Placa normalizada)
+    const vehiculos = await prisma.vehiculo.findMany();
+    const cleanSearch = vehiculoIdOrPlaca.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const vehiculo = vehiculos.find(
+      (v) =>
+        v.id === vehiculoIdOrPlaca ||
+        v.placa.toUpperCase().replace(/[^A-Z0-9]/g, "") === cleanSearch
+    );
+
+    if (!vehiculo) {
+      return { success: false, error: `No se encontró el vehículo con placa/id ${vehiculoIdOrPlaca}.` };
+    }
+
+    const vehiculoId = vehiculo.id;
+    const placa = vehiculo.placa;
+    const contratistaId = vehiculo.contratistaId || persona.contratistaId || "c_propio";
+    const contratistaNombre = vehiculo.contratistaNombre || persona.contratistaNombre || "Propio / Cooperativa";
+    const now = new Date();
+
+    // 3. Cerrar asignaciones activas previas tanto para el vehículo como para el conductor
+    if (process.env.DATABASE_URL) {
+      try {
+        await prisma.asignacion.updateMany({
+          where: {
+            OR: [
+              { vehiculoId: vehiculoId, estado: "activa" },
+              { placa: placa, estado: "activa" },
+              { conductorId: conductorId, estado: "activa" },
+            ],
+          },
+          data: {
+            estado: "finalizada",
+            fechaFin: now,
+          },
+        });
+      } catch (closeErr) {
+        console.warn("Aviso cerrando asignaciones anteriores:", closeErr);
+      }
+    }
+
+    // 4. Crear la nueva asignación activa
+    let newId = `asig_${Date.now()}`;
+    if (process.env.DATABASE_URL) {
+      const created = await prisma.asignacion.create({
+        data: {
+          conductorId,
+          conductorNombre,
+          vehiculoId,
+          placa,
+          contratistaId,
+          contratistaNombre,
+          tipoAsignacion: "fija",
+          fechaInicio: now,
+          fechaFin: null,
+          estado: "activa",
+          observaciones: observaciones || "Asignación rápida directa del sistema",
+          autorizacionOperativa: true,
+        },
+      });
+      newId = created.id;
+    }
+
+    // 5. Revalidar todas las páginas
+    revalidatePath("/asignaciones");
+    revalidatePath("/personas");
+    revalidatePath(`/personas/${conductorId}`);
+    revalidatePath("/flota");
+    revalidatePath(`/flota/${vehiculoId}`);
+    revalidatePath("/gps");
+    revalidatePath("/portal-conductor");
+    revalidatePath("/dashboard");
+
+    return {
+      success: true,
+      asignacionId: newId,
+      conductorNombre,
+      placa,
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Error al realizar la asignación rápida." };
+  }
+}

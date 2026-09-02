@@ -107,7 +107,9 @@ export async function registrarEventoGPSDb(rawEvent: {
   conductor?: string | null;
 }): Promise<{ success: boolean; eventoId?: string; error?: string }> {
   try {
-    const cleanPlaca = rawEvent.placa.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const rawPlacaClean = rawEvent.placa.trim().toUpperCase();
+    const cleanPlaca = rawPlacaClean.replace(/[^A-Z0-9]/g, "");
+    const hyphenPlaca = cleanPlaca.length === 6 ? `${cleanPlaca.slice(0, 3)}-${cleanPlaca.slice(3)}` : cleanPlaca;
     const tipoEvento = normalizarTipoEventoSatelcopro(rawEvent.tipoEvento);
     const prioridad = normalizarPrioridadSatelcopro(rawEvent.prioridad, tipoEvento);
 
@@ -122,15 +124,17 @@ export async function registrarEventoGPSDb(rawEvent: {
     let conductorEmail: string | null = null;
 
     // Buscar en la base de datos de Asignaciones si el vehículo tenía un conductor oficial en eventTime
+    // Buscando con y sin guion (ej. "NSY352", "NSY-352")
     try {
       const asignacion = await (prisma as any).asignacion.findFirst({
         where: {
-          placa: { equals: cleanPlaca, mode: "insensitive" },
-          fechaInicio: { lte: eventTime },
           OR: [
-            { fechaFin: null },
-            { fechaFin: { gte: eventTime } },
+            { placa: { equals: cleanPlaca, mode: "insensitive" } },
+            { placa: { equals: hyphenPlaca, mode: "insensitive" } },
+            { placa: { equals: rawPlacaClean, mode: "insensitive" } },
+            { placa: { contains: cleanPlaca, mode: "insensitive" } },
           ],
+          fechaInicio: { lte: eventTime },
           estado: { in: ["activa", "finalizada"] },
         },
         orderBy: { fechaInicio: "desc" },
@@ -139,7 +143,7 @@ export async function registrarEventoGPSDb(rawEvent: {
         },
       });
 
-      if (asignacion) {
+      if (asignacion && (!asignacion.fechaFin || new Date(asignacion.fechaFin) >= eventTime)) {
         conductorId = asignacion.conductorId;
         conductorNombre = asignacion.conductorNombre;
         if (asignacion.conductor) {
@@ -151,7 +155,8 @@ export async function registrarEventoGPSDb(rawEvent: {
       // Fallback a asignaciones en memoria si DB directa falla
       const asignaciones = await getAsignacionesDb();
       const match = asignaciones.find((a) => {
-        if (a.placa.toUpperCase().replace(/[^A-Z0-9]/g, "") !== cleanPlaca) return false;
+        const normA = (a.placa || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+        if (normA !== cleanPlaca) return false;
         const inicio = new Date(a.fechaInicio).getTime();
         const fin = a.fechaFin ? new Date(a.fechaFin).getTime() : Infinity;
         const t = eventTime.getTime();
@@ -171,7 +176,7 @@ export async function registrarEventoGPSDb(rawEvent: {
     }
 
     const eventoData = {
-      placa: cleanPlaca,
+      placa: hyphenPlaca,
       fechaHora: eventTime,
       tipoEvento,
       prioridad,

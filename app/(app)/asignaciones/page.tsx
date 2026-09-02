@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { getAsignacionesDb } from "@/lib/services/asignaciones.service";
 import { getPersonasDb } from "@/lib/services/personas.service";
+import { getVehiculosDb } from "@/lib/services/vehiculos.service";
+import { AsignacionesActions } from "@/components/asignaciones/AsignacionesActions";
 import {
   Asignacion,
   ESTADO_ASIGNACION_LABELS,
@@ -38,6 +40,7 @@ export default async function AsignacionesPage({
 
   const allAsignaciones = await getAsignacionesDb();
   const allPersonas = await getPersonasDb();
+  const allVehiculos = await getVehiculosDb();
 
   const activas = allAsignaciones.filter((a) => a.estado === "activa");
   const programadas = allAsignaciones.filter((a) => a.estado === "programada");
@@ -124,22 +127,39 @@ export default async function AsignacionesPage({
     },
   ];
 
+  const conductoresList = allPersonas
+    .filter((p) => p.perfiles?.includes("conductor"))
+    .map((p) => ({
+      id: p.id,
+      nombres: p.nombres,
+      apellidos: p.apellidos,
+      numeroDocumento: p.numeroDocumento,
+      contratistaNombre: p.contratistaNombre,
+    }));
+
+  const vehiculosList = allVehiculos.map((v) => ({
+    id: v.id,
+    placa: v.placa,
+    marca: v.marca,
+    modelo: v.modelo,
+    contratistaNombre: v.contratistaNombre,
+  }));
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold text-paper-50">
             Asignaciones
           </h1>
           <p className="mt-1 text-sm text-fog-400">
-            Conductor ↔ Vehículo ↔ Contratista. Nunca una relación permanente.
+            Conductor ↔ Vehículo ↔ Contratista. Asignación inmediata y control de flota.
           </p>
         </div>
-        <Link href="/asignaciones/nueva">
-          <Button variant="primary">
-            <Plus size={16} /> Nueva asignación
-          </Button>
-        </Link>
+        <AsignacionesActions
+          conductores={conductoresList}
+          vehiculos={vehiculosList}
+        />
       </div>
 
       <div className="grid grid-cols-3 gap-4 max-w-lg">

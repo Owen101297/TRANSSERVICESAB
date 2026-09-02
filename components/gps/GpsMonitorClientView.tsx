@@ -38,10 +38,13 @@ import { DriverScoreRanking } from "@/components/gps/DriverScoreRanking";
 import { N8nConnectionGuide } from "@/components/gps/N8nConnectionGuide";
 import { generarMensajeWhatsApp } from "@/lib/utils/gps-scoring";
 import { marcarRetroalimentacionDb } from "@/lib/services/gps.service";
+import { QuickAsignacionModal } from "@/components/asignaciones/QuickAsignacionModal";
 
 interface GpsMonitorClientViewProps {
   initialEventos: EventoGPS[];
   initialScores: CalificacionConductorMensual[];
+  conductores?: { id: string; nombres: string; apellidos: string; numeroDocumento?: string; contratistaNombre?: string }[];
+  vehiculos?: { id: string; placa: string; marca?: string; modelo?: string; contratistaNombre?: string }[];
 }
 
 type TabType = "eventos" | "reincidencias" | "ranking" | "conexion";
@@ -49,11 +52,15 @@ type TabType = "eventos" | "reincidencias" | "ranking" | "conexion";
 export function GpsMonitorClientView({
   initialEventos,
   initialScores,
+  conductores = [],
+  vehiculos = [],
 }: GpsMonitorClientViewProps) {
   const [eventos, setEventos] = useState<EventoGPS[]>(initialEventos);
   const [scores, setScores] = useState<CalificacionConductorMensual[]>(initialScores);
   const [activeTab, setActiveTab] = useState<TabType>("eventos");
   const [selectedEventoFeedback, setSelectedEventoFeedback] = useState<EventoGPS | null>(null);
+  const [quickAssignModalOpen, setQuickAssignModalOpen] = useState(false);
+  const [quickAssignPlaca, setQuickAssignPlaca] = useState("");
   const [filtroPrioridad, setFiltroPrioridad] = useState<string>("todas");
   const [filtroTipo, setFiltroTipo] = useState<string>("todos");
   const [searchTerm, setSearchTerm] = useState("");
@@ -136,9 +143,23 @@ export function GpsMonitorClientView({
         const hasConductor = row.conductorId && row.conductorNombre !== "Sin conductor asignado";
         if (!hasConductor) {
           return (
-            <span className="inline-flex items-center px-2.5 py-1 rounded text-[11px] font-mono bg-asphalt-800 text-fog-400 border border-line-600">
-              Sin conductor asignado
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono bg-asphalt-800 text-fog-400 border border-line-600">
+                Sin conductor
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setQuickAssignPlaca(row.placa);
+                  setQuickAssignModalOpen(true);
+                }}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-signal-amber/15 hover:bg-signal-amber text-signal-amber hover:text-asphalt-950 border border-signal-amber/30 transition-all active:scale-95"
+                title="Asignar conductor a este vehículo"
+              >
+                <Zap size={11} />
+                <span>Asignar</span>
+              </button>
+            </div>
           );
         }
         return (
@@ -546,6 +567,22 @@ export function GpsMonitorClientView({
         isOpen={!!selectedEventoFeedback}
         onClose={() => setSelectedEventoFeedback(null)}
         onFeedbackSent={(refreshed) => setEventos(refreshed)}
+      />
+
+      {/* Modal de Asignación Rápida 1-Click */}
+      <QuickAsignacionModal
+        isOpen={quickAssignModalOpen}
+        initialPlaca={quickAssignPlaca}
+        conductores={conductores}
+        vehiculos={vehiculos}
+        onClose={() => {
+          setQuickAssignModalOpen(false);
+          setQuickAssignPlaca("");
+        }}
+        onSuccess={() => {
+          // Refrescar página para sincronizar asignación
+          window.location.reload();
+        }}
       />
     </div>
   );

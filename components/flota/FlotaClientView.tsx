@@ -14,6 +14,7 @@ import {
   Square,
   Search,
   Filter,
+  Zap,
 } from "lucide-react";
 import {
   Vehiculo,
@@ -29,6 +30,7 @@ import { PlateTag } from "@/components/ui/PlateTag";
 import { IconButton } from "@/components/ui/IconButton";
 import { AlertasFlotaPanel } from "@/components/flota/AlertasFlotaPanel";
 import { BulkUploadFlotaModal } from "@/components/flota/BulkUploadFlotaModal";
+import { QuickAsignacionModal } from "@/components/asignaciones/QuickAsignacionModal";
 import { VehiculoStatusDropdown } from "@/components/flota/VehiculoStatusDropdown";
 import { exportarFlotaAExcel } from "@/lib/data/flota-excel-export";
 import { calcularAlertaFecha, analizarAlertasVehiculo } from "@/lib/utils/alertas-flota";
@@ -37,11 +39,13 @@ import { deleteMultipleVehiculosDb } from "@/lib/services/vehiculos.service";
 interface FlotaClientViewProps {
   initialVehiculos: Vehiculo[];
   asignacionesMap: Record<string, string>;
+  conductores?: { id: string; nombres: string; apellidos: string; numeroDocumento?: string; contratistaNombre?: string }[];
 }
 
 export function FlotaClientView({
   initialVehiculos,
   asignacionesMap,
+  conductores = [],
 }: FlotaClientViewProps) {
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>(initialVehiculos);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -51,6 +55,8 @@ export function FlotaClientView({
   const [filtroSoloAlertas, setFiltroSoloAlertas] = useState(false);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [isDeletingMultiple, setIsDeletingMultiple] = useState(false);
+  const [quickAssignModalOpen, setQuickAssignModalOpen] = useState(false);
+  const [quickAssignPlaca, setQuickAssignPlaca] = useState("");
 
   // Filtrado de Vehículos
   const filteredVehiculos = vehiculos.filter((v) => {
@@ -190,11 +196,30 @@ export function FlotaClientView({
     {
       header: "Conductor Titular",
       accessor: "placa",
-      render: (v) => {
-        const conductor = asignacionesMap[v as string];
+      render: (v, row) => {
+        const conductor = asignacionesMap[v as string] || asignacionesMap[(v as string).replace(/[^A-Z0-9]/g, "")];
+        if (!conductor) {
+          return (
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-fog-400 font-mono">Sin asignar</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setQuickAssignPlaca(row.placa);
+                  setQuickAssignModalOpen(true);
+                }}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-signal-amber/15 hover:bg-signal-amber text-signal-amber hover:text-asphalt-950 border border-signal-amber/30 transition-all active:scale-95"
+                title="Asignar conductor a este vehículo"
+              >
+                <Zap size={11} />
+                <span>Asignar</span>
+              </button>
+            </div>
+          );
+        }
         return (
-          <span className={`text-xs ${conductor ? "font-semibold text-paper-50" : "text-fog-400 font-mono"}`}>
-            {conductor || "Sin asignar"}
+          <span className="text-xs font-semibold text-paper-50">
+            {conductor}
           </span>
         );
       },
@@ -380,6 +405,27 @@ export function FlotaClientView({
         onClose={() => setIsBulkModalOpen(false)}
         onSuccess={() => {
           // Recargar datos
+          window.location.reload();
+        }}
+      />
+
+      {/* Modal de Asignación Rápida 1-Click */}
+      <QuickAsignacionModal
+        isOpen={quickAssignModalOpen}
+        initialPlaca={quickAssignPlaca}
+        conductores={conductores}
+        vehiculos={vehiculos.map((v) => ({
+          id: v.id,
+          placa: v.placa,
+          marca: v.marca,
+          modelo: v.modelo,
+          contratistaNombre: v.contratistaNombre,
+        }))}
+        onClose={() => {
+          setQuickAssignModalOpen(false);
+          setQuickAssignPlaca("");
+        }}
+        onSuccess={() => {
           window.location.reload();
         }}
       />
