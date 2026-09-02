@@ -132,16 +132,26 @@ export function GpsMonitorClientView({
     {
       header: "Conductor Asignado",
       accessor: "conductorNombre",
-      render: (_v, row) => (
-        <div>
-          <p className="font-semibold text-paper-50 text-xs">
-            {row.conductorNombre || "Sin conductor asignado"}
-          </p>
-          <p className="text-[10px] font-mono text-fog-400">
-            {row.conductorTelefono ? `Tel: ${row.conductorTelefono}` : "Sin teléfono"}
-          </p>
-        </div>
-      ),
+      render: (_v, row) => {
+        const hasConductor = row.conductorId && row.conductorNombre !== "Sin conductor asignado";
+        if (!hasConductor) {
+          return (
+            <span className="inline-flex items-center px-2.5 py-1 rounded text-[11px] font-mono bg-asphalt-800 text-fog-400 border border-line-600">
+              Sin conductor asignado
+            </span>
+          );
+        }
+        return (
+          <div>
+            <p className="font-semibold text-paper-50 text-xs">
+              {row.conductorNombre}
+            </p>
+            <p className="text-[10px] font-mono text-fog-400">
+              {row.conductorTelefono ? `Tel: ${row.conductorTelefono}` : "Sin teléfono"}
+            </p>
+          </div>
+        );
+      },
     },
     {
       header: "Tipo de Novedad (Satelcopro)",

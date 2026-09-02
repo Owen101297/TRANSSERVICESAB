@@ -107,66 +107,72 @@ export async function registrarEventoGPSDb(rawEvent: {
   conductor?: string | null;
 }): Promise<{ success: boolean; eventoId?: string; error?: string }> {
   try {
-    const cleanPlaca = rawEvent.placa.trim().toUpperCase();
+    const cleanPlaca = rawEvent.placa.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
     const tipoEvento = normalizarTipoEventoSatelcopro(rawEvent.tipoEvento);
     const prioridad = normalizarPrioridadSatelcopro(rawEvent.prioridad, tipoEvento);
 
-    // 1. Resolución de Conductor:
-    let conductorId: string | undefined;
-    let conductorNombre: string | undefined;
-    let conductorTelefono: string | undefined;
-    let conductorEmail: string | undefined;
+    // 1. Trazabilidad Temporal Estricta:
+    // Determinar la fecha/hora exacta del evento para imputación justa
+    const fechaHoraDate = rawEvent.fechaHora ? new Date(rawEvent.fechaHora) : new Date();
+    const eventTime = isNaN(fechaHoraDate.getTime()) ? new Date() : fechaHoraDate;
 
-    const personas = await getPersonasDb();
+    let conductorId: string | null = null;
+    let conductorNombre: string = "Sin conductor asignado";
+    let conductorTelefono: string | null = null;
+    let conductorEmail: string | null = null;
 
-    // Caso A: n8n envía el nombre del conductor (ej. "JORGE VARGAS" o "GUR610 - JORGE VARGAS")
-    if (rawEvent.conductor && rawEvent.conductor.trim().length > 0) {
-      let rawName = rawEvent.conductor.trim();
-      if (rawName.includes("-")) {
-        const parts = rawName.split("-");
-        rawName = parts[parts.length - 1].trim();
-      }
-      conductorNombre = rawName;
-
-      // Buscar si existe en la base de datos de Personas
-      const q = rawName.toLowerCase();
-      const matchPersona = personas.find((p) => {
-        const full = `${p.nombres} ${p.apellidos}`.toLowerCase();
-        return full.includes(q) || q.includes(p.nombres.toLowerCase()) || q.includes(p.apellidos.toLowerCase());
+    // Buscar en la base de datos de Asignaciones si el vehículo tenía un conductor oficial en eventTime
+    try {
+      const asignacion = await (prisma as any).asignacion.findFirst({
+        where: {
+          placa: { equals: cleanPlaca, mode: "insensitive" },
+          fechaInicio: { lte: eventTime },
+          OR: [
+            { fechaFin: null },
+            { fechaFin: { gte: eventTime } },
+          ],
+          estado: { in: ["activa", "finalizada"] },
+        },
+        orderBy: { fechaInicio: "desc" },
+        include: {
+          conductor: true,
+        },
       });
 
-      if (matchPersona) {
-        conductorId = matchPersona.id;
-        conductorNombre = `${matchPersona.nombres} ${matchPersona.apellidos}`;
-        conductorTelefono = matchPersona.telefono;
-        conductorEmail = matchPersona.email;
+      if (asignacion) {
+        conductorId = asignacion.conductorId;
+        conductorNombre = asignacion.conductorNombre;
+        if (asignacion.conductor) {
+          conductorTelefono = asignacion.conductor.telefono || null;
+          conductorEmail = asignacion.conductor.email || null;
+        }
       }
-    }
-
-    // Caso B: Si no vino conductor o no se halló, resolver por Asignación activa de esa placa
-    if (!conductorId) {
+    } catch (dbErr) {
+      // Fallback a asignaciones en memoria si DB directa falla
       const asignaciones = await getAsignacionesDb();
-      const asignacionActiva = asignaciones.find(
-        (a) => a.placa.toUpperCase() === cleanPlaca && a.estado === "activa"
-      );
+      const match = asignaciones.find((a) => {
+        if (a.placa.toUpperCase().replace(/[^A-Z0-9]/g, "") !== cleanPlaca) return false;
+        const inicio = new Date(a.fechaInicio).getTime();
+        const fin = a.fechaFin ? new Date(a.fechaFin).getTime() : Infinity;
+        const t = eventTime.getTime();
+        return t >= inicio && t <= fin && (a.estado === "activa" || a.estado === "finalizada");
+      });
 
-      if (asignacionActiva) {
-        conductorId = asignacionActiva.conductorId;
-        conductorNombre = asignacionActiva.conductorNombre;
-        const matchConductor = personas.find((p) => p.id === conductorId);
-        if (matchConductor) {
-          conductorTelefono = matchConductor.telefono;
-          conductorEmail = matchConductor.email;
+      if (match) {
+        conductorId = match.conductorId;
+        conductorNombre = match.conductorNombre;
+        const personas = await getPersonasDb();
+        const p = personas.find((x) => x.id === conductorId);
+        if (p) {
+          conductorTelefono = p.telefono || null;
+          conductorEmail = p.email || null;
         }
       }
     }
 
-    const fechaHoraDate = rawEvent.fechaHora ? new Date(rawEvent.fechaHora) : new Date();
-    const validDate = isNaN(fechaHoraDate.getTime()) ? new Date() : fechaHoraDate;
-
     const eventoData = {
       placa: cleanPlaca,
-      fechaHora: validDate,
+      fechaHora: eventTime,
       tipoEvento,
       prioridad,
       descripcion: rawEvent.descripcion || `Evento ${tipoEvento} registrado en vehículo ${cleanPlaca}`,
@@ -177,7 +183,7 @@ export async function registrarEventoGPSDb(rawEvent: {
       longitud: rawEvent.longitud !== undefined ? Number(rawEvent.longitud) : null,
       ubicacion: rawEvent.ubicacion || (rawEvent.latitud ? `${rawEvent.latitud.toFixed(4)}, ${rawEvent.longitud?.toFixed(4)}` : "En ruta"),
       conductorId: conductorId || null,
-      conductorNombre: conductorNombre || "Sin conductor asignado",
+      conductorNombre: conductorNombre,
       conductorTelefono: conductorTelefono || null,
       conductorEmail: conductorEmail || null,
       estadoRetroalimentacion: "pendiente",
@@ -195,7 +201,7 @@ export async function registrarEventoGPSDb(rawEvent: {
       inMemoryEventosGPS.unshift({
         id: createdId,
         placa: eventoData.placa,
-        fechaHora: validDate.toISOString(),
+        fechaHora: eventTime.toISOString(),
         tipoEvento: tipoEvento as TipoEventoGPS,
         prioridad: prioridad as PrioridadEventoGPS,
         descripcion: eventoData.descripcion,
@@ -205,10 +211,10 @@ export async function registrarEventoGPSDb(rawEvent: {
         latitud: eventoData.latitud ?? undefined,
         longitud: eventoData.longitud ?? undefined,
         ubicacion: eventoData.ubicacion,
-        conductorId: conductorId,
+        conductorId: conductorId ?? undefined,
         conductorNombre: eventoData.conductorNombre,
-        conductorTelefono: conductorTelefono,
-        conductorEmail: conductorEmail,
+        conductorTelefono: conductorTelefono ?? undefined,
+        conductorEmail: conductorEmail ?? undefined,
         estadoRetroalimentacion: "pendiente",
         createdAt: new Date().toISOString(),
       });
