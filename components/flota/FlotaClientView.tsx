@@ -273,13 +273,15 @@ export function FlotaClientView({
           vehiculoId={v as string}
           placa={row.placa}
           estadoActual={row.estado}
-          onStatusChanged={() => {
-            // Refrescar estado local
+          onStatusChanged={(nuevoEstado) => {
             setVehiculos((prev) =>
               prev.map((item) =>
-                item.id === v ? { ...item, estado: item.estado === "activo" ? "mantenimiento" : "activo" } : item
+                item.id === v ? { ...item, estado: nuevoEstado } : item
               )
             );
+          }}
+          onDeleted={() => {
+            setVehiculos((prev) => prev.filter((item) => item.id !== v));
           }}
         />
       ),

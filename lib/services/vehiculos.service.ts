@@ -218,6 +218,20 @@ export async function deleteVehiculoDb(id: string): Promise<{ success: boolean; 
   try {
     if (process.env.DATABASE_URL) {
       try {
+        const v = await prisma.vehiculo.findUnique({ where: { id } });
+        if (v) {
+          // Finalizar cualquier asignación activa para que el historial quede cerrado formalmente
+          await prisma.asignacion.updateMany({
+            where: {
+              OR: [{ vehiculoId: id }, { placa: v.placa }],
+              estado: "activa",
+            },
+            data: {
+              estado: "finalizada",
+              fechaFin: new Date(),
+            },
+          });
+        }
         await prisma.vehiculo.delete({
           where: { id },
         });
@@ -230,6 +244,7 @@ export async function deleteVehiculoDb(id: string): Promise<{ success: boolean; 
 
     revalidatePath("/flota");
     revalidatePath("/dashboard");
+    revalidatePath("/asignaciones");
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || "Error al eliminar vehículo." };
@@ -244,6 +259,21 @@ export async function deleteMultipleVehiculosDb(ids: string[]): Promise<{ succes
     let count = 0;
     if (process.env.DATABASE_URL) {
       try {
+        const vehs = await prisma.vehiculo.findMany({ where: { id: { in: ids } } });
+        const placas = vehs.map((v) => v.placa);
+
+        // Finalizar asignaciones activas de los vehículos a eliminar
+        await prisma.asignacion.updateMany({
+          where: {
+            OR: [{ vehiculoId: { in: ids } }, { placa: { in: placas } }],
+            estado: "activa",
+          },
+          data: {
+            estado: "finalizada",
+            fechaFin: new Date(),
+          },
+        });
+
         const res = await prisma.vehiculo.deleteMany({
           where: { id: { in: ids } },
         });
@@ -257,6 +287,7 @@ export async function deleteMultipleVehiculosDb(ids: string[]): Promise<{ succes
 
     revalidatePath("/flota");
     revalidatePath("/dashboard");
+    revalidatePath("/asignaciones");
     return { success: true, count: count || ids.length };
   } catch (error) {
     return { success: false, count: 0 };

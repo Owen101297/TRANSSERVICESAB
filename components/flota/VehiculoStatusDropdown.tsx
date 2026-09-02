@@ -19,7 +19,8 @@ interface VehiculoStatusDropdownProps {
   vehiculoId: string;
   placa: string;
   estadoActual: EstadoVehiculo;
-  onStatusChanged?: () => void;
+  onStatusChanged?: (nuevoEstado: EstadoVehiculo) => void;
+  onDeleted?: () => void;
 }
 
 export function VehiculoStatusDropdown({
@@ -27,6 +28,7 @@ export function VehiculoStatusDropdown({
   placa,
   estadoActual,
   onStatusChanged,
+  onDeleted,
 }: VehiculoStatusDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -92,7 +94,7 @@ export function VehiculoStatusDropdown({
     setIsOpen(false);
     try {
       await cambiarEstadoVehiculoDb(vehiculoId, nuevoEstado);
-      if (onStatusChanged) onStatusChanged();
+      if (onStatusChanged) onStatusChanged(nuevoEstado);
     } catch (err) {
       console.error("Error al cambiar estado de vehículo:", err);
     } finally {
@@ -107,7 +109,8 @@ export function VehiculoStatusDropdown({
       setIsOpen(false);
       try {
         await deleteVehiculoDb(vehiculoId);
-        if (onStatusChanged) onStatusChanged();
+        if (onDeleted) onDeleted();
+        else if (onStatusChanged) onStatusChanged("inactivo");
       } catch (err) {
         console.error("Error al eliminar vehículo:", err);
       } finally {
