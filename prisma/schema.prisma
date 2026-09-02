@@ -223,7 +223,14 @@ model Viaje {
   fechaSalida           DateTime
   duracionEstimadaHoras Float          @default(2.0)
   fechaLlegadaReal      DateTime?
-  estado                String         @default("en_curso") // programado, en_curso, finalizado, con_novedad
+  horaSalida            String?
+  horaLlegada           String?
+  distanciaKm           Float?
+  riskScore             Int?
+  riskLevel             String?
+  riskInputs            Json?
+  signatures            Json?
+  estado                String         @default("en_curso") // programado, en_curso, finalizado, con_novedad, Pendiente, Pendiente HSE, Autorizado
   observaciones         String?
   novedades             NovedadViaje[]
 
@@ -233,6 +240,7 @@ model Viaje {
   @@index([conductorId])
   @@index([vehiculoId])
   @@index([estado])
+  @@index([placa])
 }
 
 model NovedadViaje {
@@ -486,16 +494,23 @@ model Capacitacion {
 
 model AsistenciaRegistro {
   id                  String   @id @default(cuid())
-  capacitacionId      String
-  personaId           String
+  capacitacionId      String?
+  personaId           String?
   personaNombre       String
   asistio             Boolean  @default(true)
+  estado              String   @default("presente") // presente, tardanza, ausente
+  horaLlegada         String?
+  evento              String?  @default("Jornada Operativa / Capacitación")
+  tipoEvento          String   @default("capacitacion") // capacitacion, reunion, turno
+  observaciones       String?
   fecha               DateTime @default(now())
 
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
   @@index([capacitacionId])
+  @@index([personaId])
+  @@index([fecha])
 }
 
 model EncuestaRiesgoVial {

@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { SEED_CONTRATOS, SEED_FUECS } from "@/lib/data/fuec";
-import { getVehiculoById } from "@/lib/data/vehiculos";
-import { getPersonaById } from "@/lib/data/personas";
+import { getVehiculoByIdDb } from "@/lib/services/vehiculos.service";
+import { getPersonaByIdDb } from "@/lib/services/personas.service";
 import { ContratoTransporte, Fuec, ObjetoContratoTransporte, EstadoFuec } from "@/lib/types/fuec";
 
 let localContratosState: ContratoTransporte[] = [...SEED_CONTRATOS];
@@ -160,9 +160,9 @@ export async function createFuecAction(
     const observaciones = (formData.get("observaciones") as string) || undefined;
 
     const contrato = localContratosState.find((c) => c.id === contratoId) || localContratosState[0];
-    const vehiculo = getVehiculoById(vehiculoId);
-    const conductorPrinc = getPersonaById(conductorPrincipalId);
-    const conductorSec = conductorSecundarioId ? getPersonaById(conductorSecundarioId) : undefined;
+    const vehiculo = await getVehiculoByIdDb(vehiculoId);
+    const conductorPrinc = await getPersonaByIdDb(conductorPrincipalId);
+    const conductorSec = conductorSecundarioId ? await getPersonaByIdDb(conductorSecundarioId) : undefined;
 
     const consecutive = 1000 + localFuecsState.length + 1;
     const year = new Date().getFullYear();
@@ -181,7 +181,7 @@ export async function createFuecAction(
       destino,
       rutaDetalle,
       vehiculoId,
-      placa: vehiculo ? vehiculo.placa : "PLACA",
+      placa: vehiculo ? vehiculo.placa : (formData.get("placa") as string) || "PLACA",
       marca: vehiculo ? vehiculo.marca : "Marca",
       modelo: vehiculo ? vehiculo.modelo : "Modelo",
       tarjetaOperacionNumero: "TO-452900",

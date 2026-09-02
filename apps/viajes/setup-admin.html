@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <script type="importmap">
+    {
+      "imports": {
+        "@supabase/supabase-js": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/+esm"
+      }
+    }
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuracion Admin - Trans Services</title>
+    <link rel="icon" type="image/png" href="./assets/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./assets/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="TRANS SERVICES A&B" />
+    <meta name="theme-color" content="#1E40AF">
+    <link rel="manifest" href="./assets/site.webmanifest" />
+    <link rel="stylesheet" href="./css/style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="../../assets/js/trans-services-ui.js"></script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../../assets/js/trans-services-tailwind-config.js"></script>
+</head>
+<body class="bg-surface-2 min-h-screen flex flex-col items-center justify-center p-6">
+    
+    <a href="#adminForm" class="skip-link">Saltar al contenido principal</a>
+<div class="w-full max-w-md">
+        <div class="text-center mb-8">
+            <img src="./assets/logo.png" alt="Logo" class="h-14 mx-auto mb-4">
+            <h1 class="text-[28px] font-semibold text-slate-900">Configuracion Admin</h1>
+            <p class="text-[15px] text-slate-400 mt-1">Crear usuario administrador</p>
+        </div>
+
+        <div class="apple-card p-6">
+            <div id="stepForm">
+                <form id="adminForm" class="space-y-4" tabindex="-1">
+                    <div class="p-4 bg-blue-50 rounded-xl border border-blue-100">
+                        <p class="text-[13px] text-blue-800">
+                            <strong>Metodo recomendado:</strong> Ve a Supabase Dashboard > Authentication > Users > Add User. Luego ejecuta el SQL de <code>sql/crear-admin.sql</code>.
+                        </p>
+                    </div>
+                    
+                    <div class="border-t border-slate-200 pt-4">
+                        <p class="text-[14px] text-slate-600 mb-4 font-medium">Alternativa: Registro desde aqui</p>
+                        
+                        <div>
+                            <label class="label">Correo Electrónico</label>
+                            <input type="email" id="email" required 
+                                class="apple-input" 
+                                value="transserviceshseq.ab@gmail.com"
+                                readonly>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <label class="label">Contraseña</label>
+                            <input type="text" id="password" required 
+                                class="apple-input" 
+                                value="1012OWen"
+                                readonly>
+                            <p class="text-[12px] text-slate-400 mt-1">Estos datos son fijos para evitar errores.</p>
+                        </div>
+
+                        <div class="mt-3">
+                            <label class="label">Nombre Completo</label>
+                            <input type="text" id="nombre" required 
+                                class="apple-input" 
+                                value="Administrador HSEQ">
+                        </div>
+                    </div>
+
+                    <div id="errorMessage" class="text-danger text-[14px] text-center hidden p-3 bg-danger/10 rounded-xl"></div>
+                    <div id="successMessage" class="text-success text-[14px] text-center hidden p-3 bg-success/10 rounded-xl"></div>
+
+                    <button type="submit" id="submitBtn"
+                        class="btn btn-primary w-full mt-2">
+                        <span id="btnText">Crear Usuario Admin</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Resultado SQL -->
+            <div id="sqlResult" class="hidden mt-6 space-y-4">
+                <div class="p-4 bg-amber-50 rounded-xl border border-amber-200">
+                    <p class="text-[13px] text-amber-800 font-semibold mb-2">Paso Final Requerido</p>
+                    <p class="text-[13px] text-amber-700">
+                        El usuario fue creado en autenticacion, pero <strong>debes ejecutar este SQL</strong> en Supabase para asignarle rol de admin:
+                    </p>
+                </div>
+                
+                <div class="relative">
+                    <pre id="sqlCode" class="bg-slate-900 text-green-400 p-4 rounded-xl text-[12px] overflow-x-auto whitespace-pre-wrap break-all"></pre>
+                    <button onclick="copySQL()" class="absolute top-2 right-2 px-3 py-1 bg-white/10 text-white text-[12px] rounded-lg hover:bg-white/20 transition-colors">
+                        Copiar
+                    </button>
+                </div>
+                
+                <p class="text-[13px] text-slate-400 text-center">
+                    Ve a Supabase Dashboard > SQL Editor > New Query<br>
+                    Pega el codigo y haz click en Run.
+                </p>
+                
+                <a href="login.html" class="btn btn-primary w-full block text-center">
+                    Ir al Login
+                </a>
+            </div>
+        </div>
+
+        <div class="mt-6 text-center">
+            <a href="login.html" class="text-[14px] text-primary hover:underline">Volver al login</a>
+        </div>
+    </div>
+
+    <script type="module">
+        import { supabase, createProfile } from './js/supabase-client.js';
+
+        lucide.createIcons();
+
+        const form = document.getElementById('adminForm');
+        const errorEl = document.getElementById('errorMessage');
+        const successEl = document.getElementById('successMessage');
+        const sqlResult = document.getElementById('sqlResult');
+        const sqlCode = document.getElementById('sqlCode');
+        const btn = document.getElementById('submitBtn');
+        const btnText = document.getElementById('btnText');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const nombre = document.getElementById('nombre').value.trim();
+
+            errorEl.classList.add('hidden');
+            successEl.classList.add('hidden');
+            
+            btn.disabled = true;
+            btn.classList.add('opacity-70');
+            btnText.innerHTML = '<i class="animate-spin w-5 h-5" data-lucide="loader-2"></i> Creando...';
+            lucide.createIcons();
+
+            try {
+                // 1. Crear usuario en Auth
+                const { data: authData, error: authError } = await supabase.auth.signUp({
+                    email,
+                    password,
+                    options: {
+                        data: { nombre_completo: nombre }
+                    }
+                });
+
+                if (authError) {
+                    // Si el usuario ya existe, intentar signIn para obtener el ID
+                    if (authError.message?.includes('already registered') || authError.message?.includes('User already registered')) {
+                        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                            email,
+                            password
+                        });
+                        
+                        if (signInError) throw new Error('El usuario ya existe pero la contraseña no coincide.');
+                        
+                        const userId = signInData.user.id;
+                        
+                        // Mostrar SQL para actualizar rol
+                        showSQLResult(userId, true);
+                        return;
+                    }
+                    throw authError;
+                }
+
+                if (!authData.user) {
+                    throw new Error('No se pudo crear el usuario. Intenta con otro correo o verifica el rate limit.');
+                }
+
+                const userId = authData.user.id;
+
+                // 2. Crear perfil (sin rol - el rol va en user_roles)
+                try {
+                    await supabase.from('core.personas').insert({
+                        id: userId,
+                        email: email,
+                        nombre_completo: nombre
+                    });
+                } catch (profileErr) {
+                    console.log('Perfil puede que ya exista:', profileErr);
+                }
+
+                // 3. Intento de crear rol admin (probablemente falle por RLS, por eso mostramos SQL)
+                let roleCreated = false;
+                try {
+                    await supabase.from('core.user_roles').insert({
+                        user_id: userId,
+                        rol: 'admin'
+                    });
+                    roleCreated = true;
+                } catch (roleErr) {
+                    console.log('RLS bloqueo insercion de admin (esperado):', roleErr);
+                }
+
+                if (roleCreated) {
+                    successEl.textContent = 'Usuario admin creado completamente. Puedes ir al login.';
+                    successEl.classList.remove('hidden');
+                    sqlResult.classList.add('hidden');
+                    setTimeout(() => {
+                        window.location.href = 'login.html';
+                    }, 2000);
+                } else {
+                    showSQLResult(userId, false);
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                errorEl.textContent = error.message || 'Error desconocido al crear usuario';
+                errorEl.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('opacity-70');
+                btnText.innerText = 'Crear Usuario Admin';
+            }
+        });
+
+        function showSQLResult(userId, userExists) {
+            const action = userExists ? 
+                `-- El usuario ya existe. Solo actualizar rol a admin:
+INSERT INTO user_roles (user_id, rol)
+VALUES ('${userId}', 'admin')
+ON CONFLICT (user_id) DO UPDATE SET rol = 'admin';` :
+                `-- El usuario fue creado. Ahora asignar rol admin:
+INSERT INTO user_roles (user_id, rol)
+VALUES ('${userId}', 'admin')
+ON CONFLICT (user_id) DO UPDATE SET rol = 'admin';`;
+
+            sqlCode.textContent = action;
+            sqlResult.classList.remove('hidden');
+            document.getElementById('stepForm').classList.add('hidden');
+        }
+
+        window.copySQL = function() {
+                navigator.clipboard.writeText(sqlCode.textContent).then(() => {
+                    TS.toastSuccess('SQL copiado al portapapeles');
+            });
+        };
+    </script>
+</body>
+</html>

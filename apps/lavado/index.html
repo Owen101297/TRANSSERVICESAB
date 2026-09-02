@@ -1,0 +1,2092 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRANS SERVICES A&B — Control de Lavado</title>
+    <meta name="theme-color" content="#0f0f0f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Lavadero AB">
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" href="../../assets/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg" />
+    <link rel="shortcut icon" href="../../assets/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="../../assets/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="TRANS SERVICES A&B" />
+    <link rel="manifest" href="../../assets/site.webmanifest" />
+    <link rel="apple-touch-icon" href="../../assets/logo.png">
+    <link rel="manifest" id="manifest-link">
+
+    <!-- Fuentes premium -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        :root {
+            /* ── PALETA DARK LUXURY (Modernizada) ── */
+            --bg-primary: #0f1115;
+            --bg-secondary: #16181d;
+            --bg-card: #1a1c23;
+            --bg-elevated: #22252e;
+
+            --accent-gold: #e2c044;
+            --accent-gold-dim: rgba(226, 192, 68, 0.12);
+            --accent-gold-border: rgba(226, 192, 68, 0.3);
+
+            --accent-green: #34d399;
+            --accent-green-dim: rgba(52, 211, 153, 0.1);
+            --accent-amber: #fbbf24;
+            --accent-red: #f87171;
+
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+
+            --border: rgba(255, 255, 255, 0.06);
+            --border-bright: rgba(255, 255, 255, 0.12);
+
+            --font-display: 'Bebas Neue', sans-serif;
+            --font-body: 'DM Sans', sans-serif;
+            --font-mono: 'DM Mono', monospace;
+
+            --shadow-glow: 0 0 40px rgba(226, 192, 68, 0.08);
+            --shadow-card: 0 10px 40px rgba(0, 0, 0, 0.5);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+
+        /* ── PALETA LIGHT LUXURY (Modernizada) ── */
+        body.theme-light {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-card: #ffffff;
+            --bg-elevated: #f1f5f9;
+
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #94a3b8;
+
+            --border: rgba(0, 0, 0, 0.06);
+            --border-bright: rgba(0, 0, 0, 0.12);
+
+            --shadow-glow: 0 4px 20px rgba(226, 192, 68, 0.15);
+            --shadow-card: 0 8px 30px rgba(0, 0, 0, 0.04);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            transition: background 0.3s ease, color 0.3s ease;
+            position: relative;
+        }
+
+        /* Se han eliminado las decoraciones de fondo complejas (body::before y body::after) 
+           para asegurar un renderizado limpio, profesional y consistente en todos los dispositivos. */
+
+        nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(15, 17, 21, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            transition: background 0.3s ease;
+        }
+
+        body.theme-light nav {
+            background: rgba(255, 255, 255, 0.85);
+        }
+
+        body.theme-light .btn-submit {
+            color: #ffffff;
+        }
+
+        .nav-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .nav-logo {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            border: 1px solid var(--accent-gold-border);
+            object-fit: contain;
+            background: #0a0a0a;
+            padding: 2px;
+        }
+
+        .nav-title {
+            font-family: var(--font-display);
+            font-size: 1.4rem;
+            letter-spacing: 2px;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+
+        .nav-badge {
+            font-size: 0.6rem;
+            font-family: var(--font-mono);
+            color: var(--accent-gold);
+            background: var(--accent-gold-dim);
+            border: 1px solid var(--accent-gold-border);
+            padding: 2px 7px;
+            border-radius: 4px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 4px;
+            transition: background 0.3s;
+        }
+
+        .tab-btn {
+            font-family: var(--font-body);
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 7px 16px;
+            border-radius: 7px;
+            transition: all 0.2s ease;
+            letter-spacing: 0.3px;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-secondary);
+            background: var(--bg-elevated);
+        }
+
+        .tab-btn.active {
+            color: #ffffff;
+            background: var(--accent-gold);
+            font-weight: 600;
+        }
+
+        .status-bar {
+            background: rgba(0, 229, 153, 0.06);
+            border-bottom: 1px solid rgba(0, 229, 153, 0.15);
+            padding: 6px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 0.72rem;
+            font-family: var(--font-mono);
+            color: var(--accent-green);
+            letter-spacing: 0.5px;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.5;
+                transform: scale(0.8);
+            }
+        }
+
+        .status-bar.offline {
+            background: rgba(255, 77, 109, 0.06);
+            border-color: rgba(255, 77, 109, 0.2);
+            color: var(--accent-red);
+        }
+
+        .status-bar.offline .status-dot {
+            background: var(--accent-red);
+        }
+
+        main {
+            flex: 1;
+            position: relative;
+            z-index: 1;
+            overflow-y: auto;
+        }
+
+        #view-registro {
+            padding: 24px 20px 40px;
+        }
+
+        .form-container {
+            max-width: 520px;
+            margin: 0 auto;
+            animation: fadeUp 0.4s ease;
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .form-header {
+            margin-bottom: 28px;
+            text-align: center;
+        }
+
+        .form-header .eyebrow {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--accent-gold);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .form-header h2 {
+            font-family: var(--font-display);
+            font-size: 2.2rem;
+            letter-spacing: 2px;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+
+        .form-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-bright);
+            border-radius: 16px;
+            padding: 28px;
+            box-shadow: var(--shadow-card);
+            position: relative;
+            overflow: hidden;
+            transition: background 0.3s;
+        }
+
+        .form-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--accent-gold), transparent);
+            opacity: 0.8;
+        }
+
+        .form-section {
+            margin-bottom: 20px;
+        }
+
+        .form-section-title {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .form-row {
+            display: grid;
+            gap: 12px;
+        }
+
+        .form-row.cols-2 {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .field-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .field-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .field-input {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-bright);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: var(--font-body);
+            font-size: 0.9rem;
+            padding: 10px 14px;
+            outline: none;
+            transition: all 0.2s;
+            width: 100%;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .field-input:focus {
+            border-color: var(--accent-gold);
+            background: rgba(212, 175, 55, 0.04);
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.08);
+        }
+
+        .field-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .field-input.plate-input {
+            font-family: var(--font-mono);
+            font-size: 1.1rem;
+            font-weight: 500;
+            letter-spacing: 3px;
+            text-align: center;
+            color: var(--accent-gold);
+            text-transform: uppercase;
+        }
+
+        .field-input option {
+            background: var(--bg-card);
+        }
+
+        .value-input-wrap {
+            position: relative;
+        }
+
+        .value-prefix {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--accent-green);
+            font-family: var(--font-mono);
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .value-input-wrap .field-input {
+            padding-left: 30px;
+        }
+
+        .plate-alert {
+            display: none;
+            font-size: 0.72rem;
+            font-family: var(--font-mono);
+            color: var(--accent-amber);
+            background: rgba(255, 179, 71, 0.08);
+            border: 1px solid rgba(255, 179, 71, 0.25);
+            border-radius: 6px;
+            padding: 7px 10px;
+            margin-top: 6px;
+            animation: fadeUp 0.2s ease;
+        }
+
+        .plate-alert.show {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .sig-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .btn-clear-sig {
+            font-size: 0.72rem;
+            color: var(--accent-red);
+            background: rgba(255, 77, 109, 0.08);
+            border: 1px solid rgba(255, 77, 109, 0.2);
+            border-radius: 6px;
+            padding: 4px 10px;
+            cursor: pointer;
+            font-family: var(--font-body);
+            transition: all 0.2s;
+        }
+
+        .btn-clear-sig:hover {
+            background: rgba(255, 77, 109, 0.15);
+        }
+
+        .sig-canvas-wrap {
+            border: 2px dashed var(--border-bright);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            background: var(--bg-secondary);
+            transition: border-color 0.2s, background 0.3s;
+        }
+
+        .sig-canvas-wrap:hover {
+            border-color: var(--accent-gold-border);
+        }
+
+        .sig-canvas-wrap.drawing {
+            border-color: var(--accent-gold);
+            border-style: solid;
+        }
+
+        #signature-pad {
+            touch-action: none;
+            width: 100%;
+            height: 120px;
+            cursor: crosshair;
+            display: block;
+        }
+
+        .sig-hint {
+            font-size: 0.65rem;
+            font-family: var(--font-mono);
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 6px;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-submit {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent-gold) 0%, #b5952f 100%);
+            font-family: var(--font-display);
+            font-size: 1.1rem;
+            letter-spacing: 2px;
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 14px;
+            cursor: pointer;
+            transition: all 0.25s;
+            box-shadow: 0 4px 20px rgba(212, 175, 55, 0.25);
+            margin-top: 4px;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 30px rgba(212, 175, 55, 0.35);
+        }
+
+        .btn-submit:active {
+            transform: translateY(0);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* ── ADMIN VIEW ── */
+        #view-admin {
+            padding: 24px 20px 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            animation: fadeUp 0.3s ease;
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-bright);
+            border-radius: var(--radius);
+            padding: 18px 20px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s, background 0.3s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .kpi-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+        }
+
+        .kpi-card.gold::after {
+            background: linear-gradient(90deg, transparent, var(--accent-gold), transparent);
+        }
+
+        .kpi-card.green::after {
+            background: linear-gradient(90deg, transparent, var(--accent-green), transparent);
+        }
+
+        .kpi-card.amber::after {
+            background: linear-gradient(90deg, transparent, var(--accent-amber), transparent);
+        }
+
+        .kpi-label {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+
+        .kpi-card.gold .kpi-label {
+            color: var(--accent-gold);
+        }
+
+        .kpi-card.green .kpi-label {
+            color: var(--accent-green);
+        }
+
+        .kpi-card.amber .kpi-label {
+            color: var(--accent-amber);
+        }
+
+        .kpi-value {
+            font-family: var(--font-display);
+            font-size: 2rem;
+            color: var(--text-primary);
+            line-height: 1;
+            letter-spacing: 1px;
+        }
+
+        .kpi-sub {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .kpi-icon {
+            position: absolute;
+            right: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 2rem;
+            opacity: 0.07;
+        }
+
+        .admin-toolbar {
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            animation: fadeUp 0.35s ease;
+        }
+
+        .toolbar-title {
+            font-family: var(--font-display);
+            font-size: 1.4rem;
+            letter-spacing: 2px;
+            color: var(--text-primary);
+        }
+
+        .toolbar-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .month-input {
+            background: var(--bg-card);
+            border: 1px solid var(--border-bright);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            padding: 8px 12px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .month-input:focus {
+            border-color: var(--accent-gold);
+        }
+
+        .btn-theme {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-bright);
+            color: var(--accent-gold);
+            font-size: 0.9rem;
+            padding: 8px 12px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-theme:hover {
+            background: var(--bg-elevated);
+            transform: translateY(-1px);
+        }
+
+        .btn-export {
+            background: rgba(255, 77, 109, 0.1);
+            border: 1px solid rgba(255, 77, 109, 0.3);
+            color: #ff4d6d;
+            font-family: var(--font-body);
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-export:hover {
+            background: rgba(255, 77, 109, 0.18);
+            transform: translateY(-1px);
+        }
+
+        .btn-export-xlsx {
+            background: rgba(0, 229, 153, 0.08);
+            border: 1px solid rgba(0, 229, 153, 0.25);
+            color: var(--accent-green);
+        }
+
+        .btn-export-xlsx:hover {
+            background: rgba(0, 229, 153, 0.15);
+        }
+
+        .table-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px solid var(--border-bright);
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: var(--shadow-card);
+            animation: fadeUp 0.4s ease;
+            transition: background 0.3s;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        thead {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-bright);
+            transition: background 0.3s;
+        }
+
+        thead th {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            padding: 13px 16px;
+            text-align: left;
+            white-space: nowrap;
+            font-weight: 400;
+        }
+
+        thead th:last-child {
+            text-align: center;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s;
+        }
+
+        tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        tbody tr:hover {
+            background: rgba(212, 175, 55, 0.05);
+        }
+
+        tbody td {
+            padding: 13px 16px;
+            vertical-align: middle;
+            color: var(--text-secondary);
+        }
+
+        .td-plate {
+            font-family: var(--font-mono);
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--accent-gold);
+            letter-spacing: 2px;
+        }
+
+        .td-vehicle-type {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .td-date {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-primary);
+        }
+
+        .td-time {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .td-name {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .td-company {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .td-value {
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--accent-green);
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .sig-thumb {
+            height: 36px;
+            max-width: 90px;
+            object-fit: contain;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.05);
+            display: block;
+            margin: 0 auto;
+        }
+
+        body.theme-light .sig-thumb {
+            background: rgba(0, 0, 0, 0.02);
+        }
+
+        .no-sig {
+            font-size: 0.7rem;
+            color: var(--accent-red);
+            font-family: var(--font-mono);
+            text-align: center;
+        }
+
+        .status-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            align-items: center;
+            min-width: 110px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.65rem;
+            font-family: var(--font-mono);
+            letter-spacing: 0.5px;
+            padding: 4px 9px;
+            border-radius: 5px;
+            border: 1px solid;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            text-transform: uppercase;
+            font-weight: 500;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .badge-elaborado {
+            color: var(--accent-green);
+            background: rgba(0, 229, 153, 0.06);
+            border-color: rgba(0, 229, 153, 0.2);
+            cursor: default;
+        }
+
+        .badge-revisado-off {
+            color: var(--text-muted);
+            background: transparent;
+            border-color: var(--border-bright);
+        }
+
+        .badge-revisado-off:hover {
+            color: var(--accent-gold);
+            border-color: var(--accent-gold-border);
+            background: var(--accent-gold-dim);
+        }
+
+        .badge-revisado-on {
+            color: var(--accent-gold);
+            background: var(--accent-gold-dim);
+            border-color: var(--accent-gold-border);
+        }
+
+        .badge-aprobado-off {
+            color: var(--text-muted);
+            background: transparent;
+            border-color: var(--border-bright);
+        }
+
+        .badge-aprobado-off:hover {
+            color: var(--accent-amber);
+            border-color: rgba(255, 179, 71, 0.3);
+            background: rgba(255, 179, 71, 0.06);
+        }
+
+        .badge-aprobado-on {
+            color: var(--accent-amber);
+            background: rgba(255, 179, 71, 0.06);
+            border-color: rgba(255, 179, 71, 0.3);
+        }
+
+        .badge-eliminar {
+            color: var(--accent-red);
+            background: rgba(239, 68, 68, 0.05);
+            border-color: rgba(239, 68, 68, 0.2);
+            margin-top: 4px;
+        }
+
+        .badge-eliminar:hover {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: var(--accent-red);
+        }
+
+        .empty-state {
+            padding: 60px 20px;
+            text-align: center;
+        }
+
+        .empty-icon {
+            font-size: 3rem;
+            opacity: 0.15;
+            margin-bottom: 16px;
+        }
+
+        .empty-text {
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+        }
+
+        .skeleton-row td {
+            padding: 13px 16px;
+        }
+
+        .skel {
+            height: 14px;
+            border-radius: 4px;
+            background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-secondary) 50%, var(--bg-elevated) 75%);
+            background-size: 400% 100%;
+            animation: shimmer 1.5s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: -100% 50%;
+            }
+        }
+
+        /* ── MODALS (TOASTS Y CONFIRM) ── */
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .toast {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-bright);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.82rem;
+            min-width: 260px;
+            max-width: 320px;
+            box-shadow: var(--shadow-card);
+            animation: slideIn 0.3s ease;
+            pointer-events: all;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .toast.success {
+            border-left: 3px solid var(--accent-green);
+        }
+
+        .toast.error {
+            border-left: 3px solid var(--accent-red);
+        }
+
+        .toast.warning {
+            border-left: 3px solid var(--accent-amber);
+        }
+
+        .toast.info {
+            border-left: 3px solid var(--accent-gold);
+        }
+
+        .toast-icon {
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        .toast.success .toast-icon {
+            color: var(--accent-green);
+        }
+
+        .toast.error .toast-icon {
+            color: var(--accent-red);
+        }
+
+        .toast.warning .toast-icon {
+            color: var(--accent-amber);
+        }
+
+        .toast.info .toast-icon {
+            color: var(--accent-gold);
+        }
+
+        .toast-msg {
+            color: var(--text-primary);
+            line-height: 1.4;
+        }
+
+        #confirm-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .confirm-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-bright);
+            border-radius: var(--radius);
+            padding: 24px;
+            max-width: 320px;
+            text-align: center;
+            box-shadow: var(--shadow-card);
+            animation: fadeUp 0.2s ease;
+        }
+
+        .confirm-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+
+        .btn-cancel,
+        .btn-confirm {
+            padding: 10px 16px;
+            border-radius: var(--radius-sm);
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            font-family: var(--font-body);
+            font-size: 0.9rem;
+            transition: transform 0.2s;
+        }
+
+        .btn-cancel {
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+        }
+
+        .btn-cancel:hover {
+            filter: brightness(1.2);
+        }
+
+        .btn-confirm {
+            background: var(--accent-red);
+            color: white;
+        }
+
+        .btn-confirm:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        #offline-banner {
+            display: none;
+            background: rgba(255, 77, 109, 0.08);
+            border-bottom: 1px solid rgba(255, 77, 109, 0.2);
+            padding: 8px 20px;
+            text-align: center;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            color: var(--accent-red);
+            letter-spacing: 0.5px;
+            z-index: 99;
+            position: relative;
+        }
+
+        #offline-banner.show {
+            display: block;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-bright);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        @media (max-width: 480px) {
+            .form-row.cols-2 {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-title {
+                font-size: 1.1rem;
+            }
+
+            .nav-badge {
+                display: none;
+            }
+
+            .kpi-value {
+                font-size: 1.6rem;
+            }
+
+            .admin-toolbar {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .toolbar-actions {
+                width: 100%;
+                overflow-x: auto;
+                padding-bottom: 5px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <a href="#view-registro" class="skip-link">Saltar al contenido principal</a>
+
+    <!-- NAVBAR -->
+    <nav>
+        <div class="nav-inner">
+            <div class="nav-brand">
+                <img src="../../assets/logo.png" alt="AB" class="nav-logo">
+                <div>
+                    <div class="nav-title">TRANS SERVICES A&B</div>
+                </div>
+                <span class="nav-badge">SISTEMA v2.0</span>
+            </div>
+            <div class="nav-tabs">
+                <button onclick="switchTab('registro')" id="btn-tab-registro" class="tab-btn active">
+                    <i class="fa-solid fa-pen-to-square" style="margin-right:5px;font-size:0.75rem;"></i>Registro
+                </button>
+                <button onclick="switchTab('admin')" id="btn-tab-admin" class="tab-btn">
+                    <i class="fa-solid fa-chart-line" style="margin-right:5px;font-size:0.75rem;"></i>Admin
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- OFFLINE BANNER -->
+    <div id="offline-banner">
+        <i class="fa-solid fa-wifi-slash" style="margin-right:8px;"></i>
+        SIN CONEXIÓN — Los registros se sincronizarán cuando vuelva la conexión
+    </div>
+
+    <!-- STATUS BAR -->
+    <div id="status-bar" class="status-bar">
+        <span class="status-dot"></span>
+        <span id="status-text">CONECTANDO AL SERVIDOR...</span>
+    </div>
+
+    <!-- TOAST CONTAINER -->
+    <div id="toast-container"></div>
+
+    <!-- CONFIRM MODAL ELIMINAR -->
+    <div id="confirm-modal">
+        <div class="confirm-box">
+            <i class="fa-solid fa-triangle-exclamation"
+                style="font-size:2rem; color:var(--accent-red); margin-bottom:12px;"></i>
+            <h3
+                style="font-family:var(--font-display); font-size:1.4rem; letter-spacing:1px; margin-bottom:8px; color:var(--text-primary);">
+                CONFIRMAR ELIMINACIÓN</h3>
+            <p id="confirm-modal-text"
+                style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:20px; line-height:1.4;"></p>
+            <div class="confirm-actions">
+                <button class="btn-cancel" onclick="closeConfirmModal()">Cancelar</button>
+                <button class="btn-confirm" onclick="ejecutarEliminacion()">Sí, Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- VISTA REGISTRO -->
+    <!-- ═══════════════════════════════════════════ -->
+    <main id="view-registro" tabindex="-1">
+        <div class="form-container">
+            <div class="form-header">
+                <div class="eyebrow">LAVADERO / CONTROL</div>
+                <h2>NUEVO REGISTRO</h2>
+            </div>
+
+            <div class="form-card">
+                <form id="lavado-form">
+
+                    <div class="form-section">
+                        <div class="form-section-title">01 — Fecha y Hora del Servicio</div>
+                        <div class="form-row cols-2">
+                            <div class="field-group">
+                                <label class="field-label">Fecha</label>
+                                <input type="date" id="fecha" required class="field-input">
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Hora</label>
+                                <input type="time" id="hora" required class="field-input">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <div class="form-section-title">02 — Datos del Vehículo</div>
+                        <div class="form-row cols-2">
+                            <div class="field-group">
+                                <label class="field-label">Placa</label>
+                                <input type="text" id="placa" required placeholder="AAA-000" maxlength="7"
+                                    class="field-input plate-input" autocomplete="off" spellcheck="false">
+                                <div id="plate-alert" class="plate-alert">
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                    <span id="plate-alert-text"></span>
+                                </div>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Tipo de Vehículo</label>
+                                <select id="tipo" required class="field-input">
+                                    <option value="">Seleccionar...</option>
+                                    <option value="Motocicleta">🏍 Motocicleta</option>
+                                    <option value="Automóvil">🚗 Automóvil</option>
+                                    <option value="Camioneta">🚙 Camioneta</option>
+                                    <option value="Camión">🚛 Camión</option>
+                                    <option value="Maquinaria">🚧 Maquinaria</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section">
+                        <div class="form-section-title">03 — Servicio y Cliente</div>
+                        <div class="form-row" style="margin-bottom:12px;">
+                            <div class="field-group">
+                                <label class="field-label">Valor del Servicio</label>
+                                <div class="value-input-wrap">
+                                    <span class="value-prefix">$</span>
+                                    <input type="number" id="valor" required placeholder="0" min="0" step="100"
+                                        class="field-input">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-row cols-2">
+                            <div class="field-group">
+                                <label class="field-label">Empresa <span
+                                        style="color:var(--text-muted);font-weight:400;">(opcional)</span></label>
+                                <input type="text" id="empresa" placeholder="N/A" class="field-input">
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Nombre Conductor</label>
+                                <input type="text" id="conductor" required placeholder="Nombre completo"
+                                    class="field-input">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-section" style="margin-bottom:24px;">
+                        <div class="sig-header">
+                            <div class="form-section-title" style="margin-bottom:0;border:none;padding:0;">04 — Firma
+                                del Conductor <span style="color:var(--accent-red);">*</span></div>
+                            <button type="button" class="btn-clear-sig" id="btn-clear-sig">
+                                <i class="fa-solid fa-eraser" style="margin-right:4px;"></i>Limpiar
+                            </button>
+                        </div>
+                        <div style="margin-top:10px;" class="sig-canvas-wrap" id="sig-wrap">
+                            <canvas id="signature-pad"></canvas>
+                        </div>
+                        <p class="sig-hint">FIRME CON SU DEDO O LÁPIZ TÁCTIL DENTRO DEL RECUADRO</p>
+                    </div>
+
+                    <button type="submit" id="btn-submit" class="btn-submit">
+                        <i class="fa-solid fa-cloud-arrow-up" style="margin-right:8px;"></i>
+                        GUARDAR REGISTRO
+                    </button>
+
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- VISTA ADMIN -->
+    <!-- ═══════════════════════════════════════════ -->
+    <main id="view-admin" style="display:none;">
+
+        <!-- KPI CARDS -->
+        <div class="kpi-grid">
+            <div class="kpi-card gold">
+                <div class="kpi-label">Total Lavados</div>
+                <div class="kpi-value" id="stat-count">—</div>
+                <div class="kpi-sub">en el mes seleccionado</div>
+                <div class="kpi-icon"><i class="fa-solid fa-car-side"></i></div>
+            </div>
+            <div class="kpi-card green" style="grid-column: span 2;">
+                <div class="kpi-label">Valor Total Recaudado</div>
+                <div class="kpi-value" id="stat-total">$ —</div>
+                <div class="kpi-sub">ingresos brutos del período</div>
+                <div class="kpi-icon"><i class="fa-solid fa-sack-dollar"></i></div>
+            </div>
+            <div class="kpi-card amber">
+                <div class="kpi-label">Promedio por Lavado</div>
+                <div class="kpi-value" id="stat-avg">—</div>
+                <div class="kpi-sub">valor promedio</div>
+                <div class="kpi-icon"><i class="fa-solid fa-chart-simple"></i></div>
+            </div>
+        </div>
+
+        <!-- TOOLBAR -->
+        <div class="admin-toolbar">
+            <div class="toolbar-title">CONSOLIDADO MENSUAL</div>
+            <div class="toolbar-actions">
+                <input type="month" id="filtro-mes" class="month-input">
+
+                <!-- BOTÓN TEMA (LIGHT/DARK) -->
+                <button onclick="toggleTheme()" class="btn-theme" title="Cambiar Tema de Color">
+                    <i class="fa-solid fa-moon" id="theme-icon"></i>
+                </button>
+
+                <button onclick="generarPDF()" class="btn-export">
+                    <i class="fa-solid fa-file-pdf"></i> PDF
+                </button>
+                <button onclick="generarExcel()" class="btn-export btn-export-xlsx">
+                    <i class="fa-solid fa-file-excel"></i> XLSX
+                </button>
+            </div>
+        </div>
+
+        <!-- TABLE -->
+        <div class="table-container">
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha / Hora</th>
+                            <th>Placa</th>
+                            <th>Empresa / Conductor</th>
+                            <th style="text-align:right;">Valor</th>
+                            <th style="text-align:center;">Firma</th>
+                            <th style="text-align:center;">Estado / Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-registros">
+                        <!-- skeleton -->
+                        <tr class="skeleton-row">
+                            <td>
+                                <div class="skel" style="width:80px;"></div>
+                            </td>
+                            <td>
+                                <div class="skel" style="width:70px;"></div>
+                            </td>
+                            <td>
+                                <div class="skel" style="width:120px;"></div>
+                            </td>
+                            <td>
+                                <div class="skel" style="width:60px;margin-left:auto;"></div>
+                            </td>
+                            <td>
+                                <div class="skel" style="width:70px;margin:0 auto;"></div>
+                            </td>
+                            <td>
+                                <div class="skel" style="width:90px;margin:0 auto;"></div>
+                            </td>
+                        </tr>
+                        <tr class="skeleton-row">
+                            <td>
+                                <div class="skel" style="width:80px;"></div>
+                            </td>
+                            <td>
+                                <div class="skel" style="width:70px;"></div>
+                            </td>
+                            <td>
+                                <div class="skel" style="width:140px;"></div>
+                            </td>
+                            <td>
+                                <div class="skel" style="width:60px;margin-left:auto;"></div>
+                            </td>
+                            <td>
+                                <div class="skel" style="width:70px;margin:0 auto;"></div>
+                            </td>
+                            <td>
+                                <div class="skel" style="width:90px;margin:0 auto;"></div>
+                            </td>
+                        </tr>
+                        <tr class="skeleton-row">
+                            <td>
+                                <div class="skel" style="width:80px;"></div>
+                            </td>
+                            <td>
+                                <div class="skel" style="width:70px;"></div>
+                            </td>
+                            <td>
+                                <div class="skel" style="width:100px;"></div>
+                            </td>
+                            <td>
+                                <div class="skel" style="width:60px;margin-left:auto;"></div>
+                            </td>
+                            <td>
+                                <div class="skel" style="width:70px;margin:0 auto;"></div>
+                            </td>
+                            <td>
+                                <div class="skel" style="width:90px;margin:0 auto;"></div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- PWA + SCRIPTS -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <script>
+        // ── MANIFEST DINÁMICO ──
+        const manifestData = {
+            name: "TRANS SERVICES A&B - Lavadero",
+            short_name: "Lavadero AB",
+            start_url: window.location.pathname,
+            display: "standalone",
+            background_color: "#0a0a0a",
+            theme_color: "#0f0f0f",
+            icons: [
+                { src: "logo.png", sizes: "192x192", type: "image/png" },
+                { src: "logo.png", sizes: "512x512", type: "image/png", purpose: "any maskable" }
+            ]
+        };
+        const mBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
+        document.getElementById('manifest-link').setAttribute('href', URL.createObjectURL(mBlob));
+
+        // ── THEME TOGGLE ──
+        function toggleTheme() {
+            const body = document.body;
+            const icon = document.getElementById('theme-icon');
+            if (body.classList.contains('theme-light')) {
+                body.classList.remove('theme-light');
+                icon.className = 'fa-solid fa-moon';
+                localStorage.setItem('ab_theme', 'dark');
+            } else {
+                body.classList.add('theme-light');
+                icon.className = 'fa-solid fa-sun';
+                localStorage.setItem('ab_theme', 'light');
+            }
+        }
+
+        if (localStorage.getItem('ab_theme') === 'light') {
+            document.body.classList.add('theme-light');
+            window.addEventListener('DOMContentLoaded', () => {
+                const icon = document.getElementById('theme-icon');
+                if (icon) icon.className = 'fa-solid fa-sun';
+            });
+        }
+
+        // ── SERVICE WORKER ──
+        const swCode = `
+            const CACHE='ab-v2';
+            self.addEventListener('install', e => self.skipWaiting());
+            self.addEventListener('activate', e => e.waitUntil(clients.claim()));
+            self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(()=>caches.match(e.request))));
+        `;
+        if ('serviceWorker' in navigator) {
+            const swBlob = new Blob([swCode], { type: 'application/javascript' });
+            navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(() => { });
+        }
+
+        // ── OFFLINE DETECTOR ──
+        const offlineBanner = document.getElementById('offline-banner');
+        window.addEventListener('offline', () => { offlineBanner.classList.add('show'); showToast('Sin conexión — modo offline activo', 'warning'); });
+        window.addEventListener('online', () => { offlineBanner.classList.remove('show'); showToast('Conexión restaurada — sincronizando...', 'success'); });
+
+        // ── TOAST SYSTEM ──
+        window.showToast = function (msg, type = 'info', duration = 3500) {
+            const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', warning: 'fa-triangle-exclamation', info: 'fa-circle-info' };
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<i class="fa-solid ${icons[type]} toast-icon"></i><span class="toast-msg">${msg}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.style.animation = 'slideIn 0.3s ease reverse'; setTimeout(() => toast.remove(), 280); }, duration);
+            if (container.children.length > 3) container.firstChild.remove();
+        };
+
+        // ── SWITCH TAB ──
+        window.switchTab = function (tab) {
+            const vReg = document.getElementById('view-registro');
+            const vAdm = document.getElementById('view-admin');
+            const bReg = document.getElementById('btn-tab-registro');
+            const bAdm = document.getElementById('btn-tab-admin');
+
+            if (tab === 'registro') {
+                vReg.style.display = 'block'; vAdm.style.display = 'none';
+                bReg.classList.add('active'); bAdm.classList.remove('active');
+            } else {
+                vReg.style.display = 'none'; vAdm.style.display = 'flex';
+                bAdm.classList.add('active'); bReg.classList.remove('active');
+                if (typeof renderTable === 'function') renderTable();
+            }
+        };
+
+        // ── DEFAULTS ──
+        const now = new Date();
+        document.getElementById('fecha').value = now.toISOString().split('T')[0];
+        document.getElementById('hora').value = now.toTimeString().slice(0, 5);
+        const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        document.getElementById('filtro-mes').value = currentMonthStr;
+        document.getElementById('filtro-mes').addEventListener('change', () => { if (typeof renderTable === 'function') renderTable(); });
+
+        // ── PLATE UPPERCASE ──
+        document.getElementById('placa').addEventListener('input', function () { this.value = this.value.toUpperCase(); });
+    </script>
+
+    <!-- SUPABASE MODULAR -->
+    <script type="module">
+        const getSupabaseConfig = () => {
+            if (typeof import.meta !== 'undefined' && import.meta.env) {
+                const url = import.meta.env.VITE_SUPABASE_URL
+                const key = import.meta.env.VITE_SUPABASE_ANON_KEY
+                if (url && key) return { url, key }
+            }
+            return {
+                url: 'https://xftllyjjqvozjjmgwomg.supabase.co',
+                key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmdGxseWpqcXZvempqbWd3b21nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjExMTIsImV4cCI6MjA5Mzc5NzExMn0.UURzZOytfoYMrxzpohRams_GcJ3ETsEnNNOaSQqeuu8'
+            }
+        }
+
+        const { url: SUPABASE_URL, key: SUPABASE_KEY } = getSupabaseConfig()
+
+        const loadScript = (src) => new Promise((resolve) => {
+            if (document.querySelector(`script[src="${src}"]`)) return resolve()
+            const s = document.createElement('script')
+            s.src = src
+            s.onload = resolve
+            document.body.appendChild(s)
+        })
+
+        let supabase = null
+        let currentUser = null
+        let allRecords = []
+        window.currentFilteredRecords = []
+
+        const escapeHTML = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+
+        async function restoreSession() {
+            try {
+                const { data: { session } } = await supabase.auth.getSession()
+                currentUser = session?.user || null
+            } catch (err) {
+                currentUser = null
+            }
+            supabase.auth.onAuthStateChange((_event, session) => {
+                currentUser = session?.user || null
+            })
+        }
+
+        async function initSupabase() {
+            await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+script')
+            const { createClient } = window.supabase
+            supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
+            await restoreSession()
+            setupRealtimeListener()
+            return supabase
+        }
+
+        // ── STATUS BAR ──
+        const statusBar = document.getElementById('status-bar')
+        const statusText = document.getElementById('status-text')
+
+        function setStatus(online, msg) {
+            statusText.textContent = msg
+            statusBar.className = 'status-bar' + (online ? '' : ' offline')
+        }
+
+        initSupabase().then(() => {
+            setStatus(true, 'CONECTADO — SUPABASE')
+        }).catch(err => {
+            setStatus(false, 'ERROR DE CONEXIÓN — REVISE SU RED')
+        })
+
+        // ── SIGNATURE CANVAS ──
+        const canvas = document.getElementById('signature-pad');
+        const ctx = canvas.getContext('2d');
+        const sigWrap = document.getElementById('sig-wrap');
+        let isDrawing = false;
+        let isBlank = true;
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = 120;
+            // IMPORTANTE: Ahora es transparente para soportar Modo Claro y Oscuro nativamente
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        setTimeout(resizeCanvas, 120);
+
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const src = e.touches ? e.touches[0] : e;
+            return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+        }
+
+        canvas.addEventListener('mousedown', e => {
+            isDrawing = true;
+            sigWrap.classList.add('drawing');
+            const p = getPos(e);
+            ctx.beginPath(); ctx.moveTo(p.x, p.y);
+            ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 2.5; /* Trazo de firma en dorado */
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        });
+        canvas.addEventListener('mousemove', e => {
+            if (!isDrawing) return;
+            const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); isBlank = false;
+        });
+        canvas.addEventListener('mouseup', () => { isDrawing = false; sigWrap.classList.remove('drawing'); });
+        canvas.addEventListener('mouseout', () => { isDrawing = false; sigWrap.classList.remove('drawing'); });
+
+        canvas.addEventListener('touchstart', e => {
+            e.preventDefault(); isDrawing = true; sigWrap.classList.add('drawing');
+            const p = getPos(e);
+            ctx.beginPath(); ctx.moveTo(p.x, p.y);
+            ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 2.5;
+            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        }, { passive: false });
+        canvas.addEventListener('touchmove', e => {
+            if (!isDrawing) return; e.preventDefault();
+            const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); isBlank = false;
+        }, { passive: false });
+        canvas.addEventListener('touchend', e => { e.preventDefault(); isDrawing = false; sigWrap.classList.remove('drawing'); }, { passive: false });
+
+        document.getElementById('btn-clear-sig').addEventListener('click', () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            isBlank = true;
+        });
+
+        // ── PLATE DUPLICATE CHECK ──
+        let plateDebounce;
+        document.getElementById('placa').addEventListener('input', function () {
+            const placa = this.value.toUpperCase().trim();
+            clearTimeout(plateDebounce);
+            if (placa.length < 3) { document.getElementById('plate-alert').classList.remove('show'); return; }
+            plateDebounce = setTimeout(() => {
+                const today = new Date().toISOString().split('T')[0];
+                const dup = allRecords.find(r => r.placa === placa && r.fecha === today);
+                const alert = document.getElementById('plate-alert');
+                const alertText = document.getElementById('plate-alert-text');
+                if (dup) {
+                    alertText.textContent = `Ya registrada hoy a las ${dup.hora}`;
+                    alert.classList.add('show');
+                    if (dup.empresa && dup.empresa !== 'N/A') document.getElementById('empresa').value = dup.empresa;
+                } else {
+                    alert.classList.remove('show');
+                    const prev = allRecords.filter(r => r.placa === placa).sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
+                    if (prev && prev.empresa && prev.empresa !== 'N/A') document.getElementById('empresa').value = prev.empresa;
+                }
+            }, 250);
+        });
+
+        // ── GUARDAR REGISTRO ──
+        document.getElementById('lavado-form').addEventListener('submit', async e => {
+            e.preventDefault();
+            if (!currentUser) { showToast('Debe iniciar sesión para registrar lavados', 'error'); return; }
+            if (isBlank) { showToast('El conductor debe firmar antes de guardar', 'warning'); return; }
+
+            const btn = document.getElementById('btn-submit');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="margin-right:8px;"></i>GUARDANDO...';
+
+            try {
+                const firmaDataUrl = canvas.toDataURL('image/png');
+                const registro = {
+                    fecha: document.getElementById('fecha').value,
+                    hora: document.getElementById('hora').value,
+                    placa: document.getElementById('placa').value,
+                    tipo_vehiculo: document.getElementById('tipo').value,
+                    valor: parseFloat(document.getElementById('valor').value),
+                    empresa: document.getElementById('empresa').value.trim() || 'N/A',
+                    conductor: document.getElementById('conductor').value.trim(),
+                    firma_img: firmaDataUrl,
+                    estado_elaboro: true,
+                    estado_reviso: false,
+                    estado_aprobo: false,
+                    timestamp: new Date().toISOString(),
+                    operario_uid: currentUser?.id || 'anonymous'
+                }
+
+                const { error } = await supabase.from('flota.lavados').insert(registro)
+                if (error) throw error
+
+                showToast('Registro guardado exitosamente', 'success');
+                document.getElementById('lavado-form').reset();
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                isBlank = true;
+                const n = new Date();
+                document.getElementById('fecha').value = n.toISOString().split('T')[0];
+                document.getElementById('hora').value = n.toTimeString().slice(0, 5);
+                document.getElementById('plate-alert').classList.remove('show');
+
+            } catch (err) {
+                if (err.code === 'permission-denied') {
+                    showToast('⛔ ACCESO DENEGADO: No tiene permisos para guardar.', 'error');
+                } else {
+                    showToast('Error al guardar: ' + err.message, 'error');
+                }
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up" style="margin-right:8px;"></i>GUARDAR REGISTRO';
+            }
+        });
+
+        // ── REALTIME LISTENER ──
+        function setupRealtimeListener() {
+            if (!supabase) return
+
+            supabase
+                .channel('flota_lavados')
+                .on('postgres_changes', { event: '*', schema: 'flota', table: 'lavados' }, payload => {
+                    if (payload.eventType === 'INSERT') {
+                        allRecords = [{ id: payload.new.id, ...payload.new }, ...allRecords]
+                    } else if (payload.eventType === 'UPDATE') {
+                        allRecords = allRecords.map(r => r.id === payload.new.id ? { ...r, ...payload.new } : r)
+                    } else if (payload.eventType === 'DELETE') {
+                        allRecords = allRecords.filter(r => r.id !== payload.old.id)
+                    }
+                    if (document.getElementById('view-admin').style.display !== 'none') {
+                        renderTable()
+                    }
+                    const today = new Date().toISOString().split('T')[0]
+                    const todayCount = allRecords.filter(r => r.fecha === today).length
+                    setStatus(true, `EN LÍNEA — ${todayCount} LAVADO${todayCount !== 1 ? 'S' : ''} HOY`)
+                })
+                .subscribe()
+        }
+
+        // ── RENDER TABLE ──
+        const formatCurrency = v => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(v);
+
+        window.renderTable = function () {
+            const tbody = document.getElementById('tabla-registros');
+            const filtroMes = document.getElementById('filtro-mes').value;
+            const filtered = allRecords.filter(r => r.fecha && r.fecha.startsWith(filtroMes));
+            window.currentFilteredRecords = filtered;
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon"><i class="fa-solid fa-car-burst"></i></div><div class="empty-text">SIN REGISTROS EN ${filtroMes}</div></div></td></tr>`;
+                document.getElementById('stat-count').textContent = '0';
+                document.getElementById('stat-total').textContent = '$ 0';
+                document.getElementById('stat-avg').textContent = '$ 0';
+                return;
+            }
+
+            const total = filtered.reduce((s, r) => s + (r.valor || 0), 0);
+            const avg = total / filtered.length;
+            document.getElementById('stat-count').textContent = filtered.length;
+            document.getElementById('stat-total').textContent = formatCurrency(total);
+            document.getElementById('stat-avg').textContent = formatCurrency(avg);
+
+            tbody.innerHTML = filtered.map(r => `
+                <tr>
+                    <td>
+                        <div class="td-date">${escapeHTML(r.fecha)}</div>
+                        <div class="td-time">${escapeHTML(r.hora)}</div>
+                    </td>
+                    <td>
+                        <div class="td-plate">${escapeHTML(r.placa)}</div>
+                        <div class="td-vehicle-type">${escapeHTML(r.tipo_vehiculo)}</div>
+                    </td>
+                    <td>
+                        <div class="td-name">${escapeHTML(r.conductor)}</div>
+                        <div class="td-company">${escapeHTML(r.empresa)}</div>
+                    </td>
+                    <td class="td-value">${formatCurrency(r.valor)}</td>
+                    <td style="text-align:center;">
+                        ${r.firma_img
+                    ? `<img src="${r.firma_img}" alt="Firma" class="sig-thumb">`
+                    : `<span class="no-sig">SIN FIRMA</span>`}
+                    </td>
+                    <td>
+                        <div class="status-group">
+                            <button onclick="cambiarEstado('${escapeHTML(r.id)}','estado_reviso',${!r.estado_reviso})"
+                                class="status-badge ${r.estado_reviso ? 'badge-revisado-on' : 'badge-revisado-off'}">
+                                <i class="fa-solid ${r.estado_reviso ? 'fa-check' : 'fa-eye'}"></i>
+                                ${r.estado_reviso ? 'REVISADO' : 'REVISAR'}
+                            </button>
+                            <button onclick="cambiarEstado('${escapeHTML(r.id)}','estado_aprobo',${!r.estado_aprobo})"
+                                class="status-badge ${r.estado_aprobo ? 'badge-aprobado-on' : 'badge-aprobado-off'}">
+                                <i class="fa-solid ${r.estado_aprobo ? 'fa-check-double' : 'fa-stamp'}"></i>
+                                ${r.estado_aprobo ? 'APROBADO' : 'APROBAR'}
+                            </button>
+                            <!-- NUEVO BOTÓN ELIMINAR -->
+                            <button onclick="confirmarEliminacion('${escapeHTML(r.id)}','${escapeHTML(r.placa)}')" class="status-badge badge-eliminar" title="Eliminar Registro">
+                                <i class="fa-solid fa-trash-can"></i> ELIMINAR
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        };
+
+        // ── ESTADOS Y ELIMINACIÓN ──
+        window.cambiarEstado = async (id, campo, valor) => {
+            if (!supabase) return
+            try {
+                const updateData = { [campo]: valor }
+                const { error } = await supabase
+                    .from('flota.lavados')
+                    .update(updateData)
+                    .eq('id', id)
+                if (error) throw error
+                showToast(valor ? 'Estado actualizado' : 'Estado revertido', 'info')
+            } catch (err) {
+                showToast('Error al actualizar estado', 'error')
+            }
+        };
+
+        // Lógica del Modal de Eliminación
+        let deleteIdPending = null;
+        window.confirmarEliminacion = function (id, placa) {
+            deleteIdPending = id;
+            document.getElementById('confirm-modal-text').innerHTML = `¿Estás seguro de que deseas eliminar permanentemente el registro de la placa <b>${escapeHTML(placa)}</b>?<br><br>Esta acción no se puede deshacer.`;
+            document.getElementById('confirm-modal').style.display = 'flex';
+        };
+
+        window.closeConfirmModal = function () {
+            deleteIdPending = null;
+            document.getElementById('confirm-modal').style.display = 'none';
+        };
+
+        window.ejecutarEliminacion = async function () {
+            if (!deleteIdPending || !supabase) return
+            try {
+                const { error } = await supabase
+                    .from('flota.lavados')
+                    .delete()
+                    .eq('id', deleteIdPending)
+                if (error) throw error
+                showToast('Registro eliminado exitosamente', 'success')
+            } catch (err) {
+                showToast('Error al eliminar: ' + err.message, 'error')
+            } finally {
+                closeConfirmModal()
+            }
+        };
+
+        // ── PDF CLÁSICO / FORMATO FÍSICO ──
+        window.generarPDF = async function () {
+            if (!window.currentFilteredRecords?.length) { showToast('No hay registros para exportar', 'warning'); return; }
+
+            const btnExport = document.querySelector('.btn-export');
+            const originalBtnContent = btnExport.innerHTML;
+            btnExport.disabled = true;
+            btnExport.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="margin-right:5px;"></i> ESPERE...';
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('l', 'pt', 'a4');
+
+                // 1. Intentar cargar el logo para incrustarlo
+                let logoBase64 = null;
+                try {
+                    const response = await fetch('logo.png');
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        logoBase64 = await new Promise((resolve) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve(reader.result);
+                            reader.readAsDataURL(blob);
+                        });
+                    }
+                } catch (e) {
+                    console.warn("No se pudo cargar el logo para el PDF");
+                }
+
+                // Dimensiones del bloque de encabezado principal
+                const startX = 40;
+                const startY = 40;
+                const width = doc.internal.pageSize.width - 80;
+                const height = 70;
+                const col1W = 160;
+                const col3W = 120;
+                const col2W = width - col1W - col3W;
+
+                const fechaHoraGeneracion = new Date().toLocaleString('es-CO', {
+                    day: '2-digit', month: '2-digit', year: 'numeric'
+                }).split(',')[0];
+
+                // 2. Preparar la data de la tabla
+                let totalMes = 0;
+                const tableBody = window.currentFilteredRecords.map(r => {
+                    totalMes += r.valor || 0;
+                    return [
+                        r.fecha,
+                        r.hora,
+                        r.tipo_vehiculo,
+                        r.placa,
+                        new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(r.valor),
+                        r.empresa,
+                        r.conductor,
+                        "" // Espacio en blanco para inyectar la firma
+                    ];
+                });
+
+                // Rellenar filas en blanco para que sean múltiplos de 28
+                const rowsPerPage = 28;
+                const targetRows = Math.max(rowsPerPage, Math.ceil(tableBody.length / rowsPerPage) * rowsPerPage);
+                while (tableBody.length < targetRows) {
+                    tableBody.push(['', '', '', '', '', '', '', '']);
+                }
+
+                // 3. Dibujar la tabla
+                doc.autoTable({
+                    startY: startY + height + 10,
+                    head: [['FECHA', 'HORA', 'TIPO VEHICULO', 'N° PLACA', 'VALOR', 'NOMBRE EMPRESA', 'NOMBRE CONDUCTOR', 'FIRMA']],
+                    body: tableBody,
+                    theme: 'grid',
+                    margin: { top: startY + height + 10, bottom: 45, left: 40, right: 40 }, // Ajustado bottom margin
+                    styles: {
+                        font: 'helvetica', fontSize: 7.5, valign: 'middle', halign: 'center',
+                        lineColor: [0, 0, 0], lineWidth: 0.5, textColor: [0, 0, 0], minCellHeight: 14, cellPadding: 1.5
+                    },
+                    headStyles: {
+                        fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.5, lineColor: [0, 0, 0]
+                    },
+                    columnStyles: {
+                        5: { cellWidth: 100 },
+                        6: { cellWidth: 100 },
+                        7: { cellWidth: 90 }
+                    },
+                    didDrawPage: function (data) {
+                        // ── ENCABEZADO TIPO FÍSICO ──
+                        doc.setDrawColor(0, 0, 0);
+                        doc.setLineWidth(1);
+                        doc.rect(startX, startY, width, height);
+                        doc.line(startX + col1W, startY, startX + col1W, startY + height);
+                        doc.line(startX + col1W + col2W, startY, startX + col1W + col2W, startY + height);
+                        doc.line(startX + col1W, startY + height / 2, startX + width, startY + height / 2);
+
+                        // Celda 1: Logo
+                        if (logoBase64) {
+                            try {
+                                const imgProps = doc.getImageProperties(logoBase64);
+                                const imgWidth = 45;
+                                const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
+                                const imgX = startX + (col1W - imgWidth) / 2;
+                                const imgY = startY + 5;
+                                doc.addImage(logoBase64, imgProps.fileType, imgX, imgY, imgWidth, imgHeight);
+                            } catch (e) {
+                                doc.setFont("helvetica", "bold"); doc.setFontSize(24); doc.setTextColor(0, 0, 0);
+                                doc.text("AB", startX + col1W / 2, startY + 30, { align: 'center' });
+                            }
+                        } else {
+                            doc.setFont("helvetica", "bold"); doc.setFontSize(24); doc.setTextColor(0, 0, 0);
+                            doc.text("AB", startX + col1W / 2, startY + 30, { align: 'center' });
+                        }
+                        doc.setFont("helvetica", "bold"); doc.setFontSize(7); doc.setTextColor(0, 0, 0);
+                        doc.text("TRANS SERVICES A & B", startX + col1W / 2, startY + height - 12, { align: 'center' });
+                        doc.setFont("helvetica", "normal"); doc.setFontSize(6);
+                        doc.text("NIT 900778421-1", startX + col1W / 2, startY + height - 4, { align: 'center' });
+
+                        // Celda 2: Textos Centrales
+                        doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+                        doc.text("COOPERATIVA DE TRANSPORTES Y SERVICIOS A&B", startX + col1W + col2W / 2, startY + 22, { align: 'center' });
+                        doc.text("PLANILLA DE REGISTRO Y CONTROL LAVADAS", startX + col1W + col2W / 2, startY + 55, { align: 'center' });
+
+                        // Celda 3: Códigos
+                        doc.setFont("helvetica", "normal"); doc.setFontSize(8);
+                        doc.text("CODIGO:", startX + col1W + col2W + 5, startY + 15);
+                        doc.text("VERSION: 01", startX + col1W + col2W + 5, startY + 30);
+                        doc.text(fechaHoraGeneracion, startX + col1W + col2W + 5, startY + 62);
+
+                        // ── PIE DE PÁGINA Y TOTALES (Repetido en cada página) ──
+
+                        // Total Recaudado Mensual (Alineado a la derecha sobre la numeración)
+                        doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(0, 0, 0);
+                        doc.text(`TOTAL RECAUDADO MENSUAL: ${new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(totalMes)}`, doc.internal.pageSize.width - 40, doc.internal.pageSize.height - 28, { align: 'right' });
+
+                        // Paginación
+                        doc.setFont("helvetica", "italic"); doc.setFontSize(7); doc.setTextColor(100);
+                        doc.text(`Página ${data.pageNumber} de {totalPages}  |  TRANS SERVICES A&B`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 12, { align: 'center' });
+                        doc.setTextColor(0);
+                    },
+                    didDrawCell: function (data) {
+                        // Inyectar firma en la columna 7
+                        if (data.section === 'body' && data.column.index === 7) {
+                            const rowData = data.row.raw;
+                            // Previene dibujar en filas vacías de relleno
+                            if (rowData && rowData[0] !== '') {
+                                const record = window.currentFilteredRecords[data.row.index];
+                                if (record && record.firma_img) {
+                                    try {
+                                        const iw = 50, ih = 11; // Reducido para encajar en las 28 filas
+                                        doc.addImage(record.firmaImg, 'PNG', data.cell.x + (data.cell.width - iw) / 2, data.cell.y + (data.cell.height - ih) / 2, iw, ih);
+                                    } catch (e) { }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                if (typeof doc.putTotalPages === 'function') doc.putTotalPages('{totalPages}');
+
+                const mesExport = document.getElementById('filtro-mes').value;
+                doc.save(`Planilla_Control_Lavadas_${mesExport}.pdf`);
+                showToast('PDF exportado exitosamente', 'success');
+
+            } catch (err) {
+                console.error("Error PDF:", err);
+                showToast("Error al generar PDF", "error");
+            } finally {
+                btnExport.disabled = false;
+                btnExport.innerHTML = originalBtnContent;
+            }
+        };
+
+        // ── EXCEL ──
+        window.generarExcel = function () {
+            if (!window.currentFilteredRecords?.length) { showToast('No hay registros para exportar', 'warning'); return; }
+            const headers = ['Fecha', 'Hora', 'Tipo Vehículo', 'Placa', 'Valor', 'Empresa', 'Conductor', 'Elaborado', 'Revisado', 'Aprobado'];
+            const rows = window.currentFilteredRecords.map(r => [
+                r.fecha, r.hora, r.tipoVehiculo, r.placa, r.valor,
+                r.empresa, r.conductor,
+                r.estado_elaboro ? 'SÍ' : 'NO',
+                r.estado_reviso ? 'SÍ' : 'NO',
+                r.estado_aprobo ? 'SÍ' : 'NO'
+            ]);
+            const csv = [headers, ...rows].map(row => row.map(c => `"${c}"`).join(',')).join('\n');
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url;
+            a.download = `Lavadas_${document.getElementById('filtro-mes').value}.csv`;
+            a.click(); URL.revokeObjectURL(url);
+            showToast('Archivo CSV exportado (ábrelo en Excel)', 'success');
+        };
+
+    </script>
+</body>
+
+</html>                      

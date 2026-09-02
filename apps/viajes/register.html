@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <script type="importmap">
+    {
+      "imports": {
+        "@supabase/supabase-js": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/+esm"
+      }
+    }
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Conductor | Trans Services A&B</title>
+    <link rel="icon" type="image/png" href="./assets/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./assets/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="TRANS SERVICES A&B" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1E40AF">
+    <link rel="manifest" href="./assets/site.webmanifest" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../assets/css/trans-services-tokens.css">
+    <link rel="stylesheet" href="../../assets/css/trans-services-components.css">
+    <link rel="stylesheet" href="./css/style.css">
+    <script src="../../assets/js/trans-services-ui.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../../assets/js/trans-services-tailwind-config.js"></script>
+</head>
+
+<body class="bg-surface min-h-screen flex flex-col font-sans">
+    <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+    <div id="main-content" class="flex-1 flex flex-col items-center justify-center p-4">
+        <div class="w-full max-w-sm">
+            <div class="text-center mb-6">
+                <img src="./assets/logo.png" alt="Logo Trans Services A&B" class="h-12 mx-auto mb-3">
+                <h1 class="text-[24px] font-bold text-strong">Crear Cuenta</h1>
+                <p class="text-[14px] text-muted mt-1">Regístrate para gestionar tus viajes</p>
+            </div>
+
+            <div class="card p-5">
+                <form id="registerForm" class="space-y-3">
+                    <!-- Datos de Cuenta -->
+                    <div class="space-y-3 pb-4 border-b border-border">
+                        <div>
+                            <label class="label" for="regEmail">Correo Electrónico</label>
+                            <input type="email" id="regEmail" required 
+                                class="apple-input" 
+                                placeholder="correo@ejemplo.com"
+                                autocomplete="email">
+                        </div>
+                        <div>
+                            <label class="label" for="regPassword">Contraseña</label>
+                            <input type="password" id="regPassword" required 
+                                class="apple-input" 
+                                placeholder="Mínimo 6 caracteres"
+                                minlength="6"
+                                autocomplete="new-password">
+                        </div>
+                    </div>
+
+                    <!-- Datos del Conductor -->
+                    <div>
+                        <label class="label" for="regNombre">Nombre Completo</label>
+                        <input type="text" id="regNombre" required 
+                            class="apple-input" 
+                            placeholder="Juan Pérez García"
+                            autocomplete="name">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="label" for="regLicencia">No. Licencia</label>
+                            <input type="text" id="regLicencia" required 
+                                class="apple-input" 
+                                placeholder="12345678"
+                                autocomplete="off">
+                        </div>
+                        <div>
+                            <label class="label" for="regCat">Categoría</label>
+                            <select id="regCat" required class="apple-input">
+                                <option value="">Seleccionar</option>
+                                <option value="A1">A1</option>
+                                <option value="A2">A2</option>
+                                <option value="B1">B1</option>
+                                <option value="B2">B2</option>
+                                <option value="C1">C1</option>
+                                <option value="C2">C2</option>
+                                <option value="C3">C3</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="label" for="regTelefono">Teléfono</label>
+                        <input type="tel" id="regTelefono" required 
+                            class="apple-input" 
+                            placeholder="3001234567"
+                            autocomplete="tel">
+                    </div>
+
+                    <div>
+                        <label class="label" for="regVence">Vencimiento Licencia</label>
+                        <input type="date" id="regVence" required 
+                            class="apple-input">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="label" for="regPlaca">Placa Asignada</label>
+                            <input type="text" id="regPlaca" 
+                                class="apple-input" 
+                                placeholder="ABC-123"
+                                style="text-transform: uppercase">
+                        </div>
+                        <div>
+                            <label class="label" for="regTipo">Tipo Vehículo</label>
+                            <select id="regTipo" class="apple-input">
+                                <option value="">Seleccionar</option>
+                                <option value="Camioneta">Camioneta</option>
+                                <option value="Camión">Camión</option>
+                                <option value="Turbo">Turbo</option>
+                                <option value="Automóvil">Automóvil</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="regError" class="text-danger text-[14px] text-center hidden p-3 bg-danger-soft rounded-xl" role="alert"></div>
+
+                    <button type="submit" id="regBtn"
+                        class="btn btn-primary w-full mt-4">
+                        <span id="regBtnText">Crear Cuenta</span>
+                    </button>
+                </form>
+
+                <div class="mt-5 pt-4 border-t border-border text-center">
+                    <p class="text-[14px] text-muted">
+                        ¿Ya tienes cuenta? 
+                        <a href="login.html" class="text-primary font-semibold hover:underline">Inicia Sesión</a>
+                    </p>
+                </div>
+            </div>
+
+            <div class="mt-6 text-center">
+                <p class="text-[12px] text-muted">
+                    Al registrarte aceptas nuestros términos
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { signUp, createProfile, createConductor } from './js/supabase-client.js';
+
+        lucide.createIcons();
+
+        let isSubmitting = false;
+
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Evitar doble envío
+            if (isSubmitting) return;
+
+            const btn = document.getElementById('regBtn');
+            const btnText = document.getElementById('regBtnText');
+            const errorEl = document.getElementById('regError');
+
+            const email = document.getElementById('regEmail').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const nombre = document.getElementById('regNombre').value.trim();
+            const licencia = document.getElementById('regLicencia').value.trim();
+            const categoria = document.getElementById('regCat').value;
+            const telefono = document.getElementById('regTelefono').value.trim();
+            const vencimiento = document.getElementById('regVence').value;
+            const placa = document.getElementById('regPlaca').value.toUpperCase().trim();
+            const tipo = document.getElementById('regTipo').value;
+
+            if (password.length < 6) {
+                errorEl.textContent = 'La contraseña debe tener al menos 6 caracteres';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                isSubmitting = true;
+                btn.disabled = true;
+                btn.classList.add('opacity-70');
+                btnText.innerHTML = '<i class="animate-spin w-5 h-5" data-lucide="loader-2"></i>';
+                lucide.createIcons();
+                errorEl.classList.add('hidden');
+
+                // 1. Crear usuario en Supabase Auth
+                console.log('[Registro] Paso 1: Creando usuario auth...');
+                const authData = await signUp(email, password);
+                if (!authData.user) throw new Error('No se pudo crear el usuario');
+                console.log('[Registro] Usuario auth creado:', authData.user.id);
+
+                // 2. Crear perfil y rol
+                console.log('[Registro] Paso 2: Creando perfil...');
+                try {
+                    await createProfile(authData.user.id, email, nombre, 'conductor');
+                    console.log('[Registro] Perfil creado correctamente');
+                } catch (profileError) {
+                    console.error('[Registro] Error creando perfil:', profileError);
+                    // Continuar - el perfil puede fallar si user_roles no existe aún
+                    // pero el conductor igual debe crearse
+                }
+
+                // 3. Crear conductor - construir objeto solo con campos válidos
+                console.log('[Registro] Paso 3: Creando conductor...');
+                const palabrasNombre = nombre.trim().split(/\s+/);
+                const nombres = palabrasNombre[0] || nombre;
+                const apellidos = palabrasNombre.slice(1).join(' ') || '';
+
+                const conductorData = {
+                    email,
+                    nombres,
+                    apellidos,
+                    numero_documento: licencia,
+                    licencia_conducir: licencia,
+                    categoria_licencia: categoria,
+                    licencia_vencimiento: vencimiento,
+                    telefono,
+                    estado: 'activo'
+                };
+
+                // Solo agregar campos de vehículo si tienen valor
+                if (placa) conductorData.vehiculo_placa = placa;
+                if (tipo) conductorData.vehiculo_tipo = tipo;
+
+                try {
+                    const conductor = await createConductor(conductorData);
+                    console.log('[Registro] Conductor creado:', conductor?.id);
+                } catch (conductorError) {
+                    console.error('[Registro] Error creando conductor:', conductorError);
+                    
+                    // Mensaje más descriptivo según el tipo de error
+                    const errMsg = conductorError?.message || String(conductorError);
+                    if (errMsg.includes('duplicado') || errMsg.includes('23505') || errMsg.includes('unique')) {
+                        throw new Error('Ya existe un conductor con ese número de documento. Verifica tus datos o contacta al administrador.');
+                    } else if (errMsg.includes('permisos') || errMsg.includes('rls') || errMsg.includes('policy')) {
+                        throw new Error('Error de permisos al guardar datos de conductor. El administrador debe ejecutar la migración SQL más reciente.');
+                    } else if (errMsg.includes('campos obligatorios') || errMsg.includes('23502') || errMsg.includes('not-null')) {
+                        throw new Error('Faltan datos obligatorios del conductor. Completa todos los campos requeridos.');
+                    } else {
+                        throw new Error('Tu cuenta se creó, pero hubo un problema al guardar tus datos de conductor: ' + errMsg);
+                    }
+                }
+
+                TS.toastSuccess('¡Cuenta creada con éxito! Por favor revisa tu correo para verificar tu cuenta.');
+                window.location.href = 'login.html';
+
+            } catch (error) {
+                console.error('[Registro] Error general:', error);
+                btn.disabled = false;
+                btn.classList.remove('opacity-70');
+                btnText.innerText = 'Crear Cuenta';
+                errorEl.textContent = error.message || 'Error al registrar. Intenta de nuevo.';
+                errorEl.classList.remove('hidden');
+            } finally {
+                isSubmitting = false;
+            }
+        });
+    </script>
+</body>
+
+</html>

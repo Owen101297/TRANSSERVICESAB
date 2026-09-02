@@ -30,6 +30,13 @@ export interface Viaje {
   estado: EstadoViaje;
   novedades: Novedad[];
   observaciones?: string;
+  riskScore?: number;
+  riskLevel?: string;
+  distanciaKm?: number;
+  horaSalida?: string;
+  horaLlegada?: string;
+  riskInputs?: Record<string, any>;
+  signatures?: Record<string, string>;
 }
 
 export const ESTADO_VIAJE_LABELS: Record<EstadoViaje, string> = {

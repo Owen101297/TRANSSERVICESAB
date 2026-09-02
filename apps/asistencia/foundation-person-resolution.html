@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FOUNDATION / INTERNAL VALIDATION — Resolucion de Personas (TransServices OS)</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --primary: #2563eb;
+      --accent: #38bdf8;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --border: #334155;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 2rem; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .container { background: var(--card); border: 1px solid var(--border); border-radius: 12px; width: 100%; max-width: 680px; padding: 2rem; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    .badge-internal { background: #3b82f620; color: var(--accent); border: 1px solid var(--accent); padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; letter-spacing: 1px; display: inline-block; margin-bottom: 1rem; }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; color: #fff; }
+    p.subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+    .search-box { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; }
+    input[type="text"] { flex: 1; background: #0f172a; border: 1px solid var(--border); color: #fff; padding: 0.75rem 1rem; border-radius: 8px; font-size: 1rem; outline: none; }
+    input[type="text"]:focus { border-color: var(--primary); }
+    button { background: var(--primary); color: #fff; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    button:hover { background: #1d4ed8; }
+    .result-card { background: #0f172a; border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; display: none; }
+    .result-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1rem; }
+    .status-tag { padding: 0.3rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 700; }
+    .status-CANONICAL { background: #10b98120; color: var(--success); border: 1px solid var(--success); }
+    .status-LEGACY_ONLY { background: #f59e0b20; color: var(--warning); border: 1px solid var(--warning); }
+    .status-UNRESOLVED { background: #ef444420; color: var(--danger); border: 1px solid var(--danger); }
+    .status-CONFLICT { background: #ef444420; color: var(--danger); border: 1px solid var(--danger); }
+    .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .field-item label { display: block; font-size: 0.75rem; color: var(--muted); text-transform: uppercase; margin-bottom: 0.25rem; }
+    .field-item span { font-size: 0.95rem; font-weight: 600; color: #fff; word-break: break-all; }
+    .disclaimer { margin-top: 1.5rem; padding: 0.75rem; background: #33415540; border-radius: 6px; font-size: 0.8rem; color: var(--muted); text-align: center; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="badge-internal">FOUNDATION / INTERNAL VALIDATION</div>
+    <h1>Person Resolution Contract Tester</h1>
+    <p class="subtitle">Prueba técnica de resolución de identidad sin mutaciones en public.asistencia</p>
+
+    <div class="search-box">
+      <input type="text" id="documentInput" placeholder="Ingrese Cédula de Ciudadanía (ej: 1017213548)..." value="1017213548">
+      <button id="btnResolve">Resolver Persona</button>
+    </div>
+
+    <div id="resultCard" class="result-card">
+      <div class="result-header">
+        <div>
+          <label style="font-size:0.75rem; color:var(--muted)">NOMBRE RESUELTO</label>
+          <h2 id="resFullName" style="font-size:1.2rem; color:#fff;">-</h2>
+        </div>
+        <span id="resStatusBadge" class="status-tag status-UNRESOLVED">UNRESOLVED</span>
+      </div>
+
+      <div class="field-grid">
+        <div class="field-item">
+          <label>CÉDULA / DOCUMENTO</label>
+          <span id="resDocument">-</span>
+        </div>
+        <div class="field-item">
+          <label>PERSON_ID (SSOT)</label>
+          <span id="resPersonId" style="font-family:monospace; font-size:0.8rem">-</span>
+        </div>
+        <div class="field-item">
+          <label>FUENTE DE DATOS (SOURCE)</label>
+          <span id="resSource">-</span>
+        </div>
+        <div class="field-item">
+          <label>PROYECTO / ROL</label>
+          <span id="resProjectRole">-</span>
+        </div>
+        <div class="field-item">
+          <label>ESTADO OPERATIVO</label>
+          <span id="resStatus">-</span>
+        </div>
+        <div class="field-item">
+          <label>RESOLUCION DE CONFLICTO</label>
+          <span id="resConflictMsg">Sin conflicto (core.personas prevalece)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      🔒 Esta vista es una herramienta técnica de validación de FASE 3. No altera datos históricos de producción.
+    </div>
+  </div>
+
+  <script type="module">
+    import { resolvePersonByDocument } from '../../packages/identity/services/person-resolver.js'
+    import { supabase } from '../asistencia/supabase-client.js'
+
+    const btn = document.getElementById('btnResolve')
+    const input = document.getElementById('documentInput')
+    const card = document.getElementById('resultCard')
+
+    btn.addEventListener('click', async () => {
+      btn.textContent = 'Buscando...'
+      btn.disabled = true
+
+      try {
+        const doc = input.value.trim()
+        const res = await resolvePersonByDocument(supabase, doc)
+
+        card.style.display = 'block'
+        document.getElementById('resFullName').textContent = res.full_name || 'DESCONOCIDO'
+        document.getElementById('resDocument').textContent = res.document_number || '-'
+        document.getElementById('resPersonId').textContent = res.person_id || 'SIN_ID_CANONICO'
+        document.getElementById('resSource').textContent = res.source || '-'
+        document.getElementById('resProjectRole').textContent = `${res.project} (${res.role_profile})`
+        document.getElementById('resStatus').textContent = res.status || 'activo'
+
+        const badge = document.getElementById('resStatusBadge')
+        badge.className = `status-tag status-${res.resolution_status}`
+        badge.textContent = res.resolution_status
+
+        const conflictSpan = document.getElementById('resConflictMsg')
+        if (res.resolution_status === 'CONFLICT') {
+          conflictSpan.textContent = '⚠️ Conflicto detectado: Prevalece el nombre de core.personas'
+          conflictSpan.style.color = '#f59e0b'
+        } else {
+          conflictSpan.textContent = '✅ Sin conflicto'
+          conflictSpan.style.color = '#10b981'
+        }
+      } catch (err) {
+        alert('Error al resolver la persona: ' + err.message)
+      } finally {
+        btn.textContent = 'Resolver Persona'
+        btn.disabled = false
+      }
+    })
+  </script>
+
+</body>
+</html>

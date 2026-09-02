@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1E3A5F">
+    <title>Registro de Asistencia | Trans Services A&B</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="icon" type="image/png" href="./assets/favicon-96x96-DBY706tV.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="./assets/favicon-Bn4KW8oR.svg" />
+    <link rel="shortcut icon" href="./assets/favicon-CSf-lHi5.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./assets/apple-touch-icon-C7L2pJNQ.png" />
+    <style>
+        .toast { animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .field-label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; margin-bottom: 4px; }
+        .kiosk-input { width: 100%; border: 1.5px solid #cbd5e1; border-radius: 0.75rem; padding: 12px 14px; font-size: 15px; font-weight: 600; color: #1e293b; outline: none; transition: border-color 0.2s, box-shadow 0.2s; background: #fff; }
+        .kiosk-input:focus { border-color: #1e40af; box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.15); }
+        .kiosk-input::placeholder { color: #cbd5e1; font-weight: 500; }
+        select.kiosk-input { appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 12px center; background-size: 16px; }
+    </style>
+  <script type="module" crossorigin src="./assets/main-A-sWyVt0.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/supabase-client-yBd7UpGg.js">
+  <link rel="stylesheet" crossorigin href="./assets/supabase-client-DmuKD20S.css">
+</head>
+
+<body class="bg-slate-100 min-h-screen font-sans">
+
+    <div id="toasts" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-sm"></div>
+
+    <div id="header-container"></div>
+
+    <main class="max-w-md mx-auto px-4 py-6 pb-24 space-y-4">
+
+        <!-- Reloj local -->
+        <div class="bg-blue-900 rounded-2xl p-5 text-center shadow-lg">
+            <p class="text-blue-200 text-xs uppercase tracking-wider font-bold"><i class="fas fa-map-marker-alt mr-1"></i> Colombia (UTC-5)</p>
+            <p id="clockTime" class="text-white text-4xl font-bold tabular-nums mt-1">--:--:--</p>
+            <p id="clockDate" class="text-blue-200 text-xs font-semibold mt-1 capitalize">—</p>
+            <p class="text-blue-300/80 text-[10px] mt-2">La fecha y hora se registran automáticamente al firmar</p>
+        </div>
+
+        <!-- Formulario -->
+        <form id="regForm" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4" autocomplete="off">
+            <div>
+                <label for="inpNombre" class="field-label">Nombre completo *</label>
+                <input type="text" id="inpNombre" class="kiosk-input uppercase" placeholder="Escribe tu nombre..." maxlength="80" required>
+            </div>
+            <div>
+                <label for="inpCedula" class="field-label">Cédula *</label>
+                <input type="text" id="inpCedula" class="kiosk-input" placeholder="Número de cédula" inputmode="numeric" maxlength="15" required>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label for="selCargo" class="field-label">Cargo *</label>
+                    <select id="selCargo" class="kiosk-input">
+                        <option value="CONDUCTOR">CONDUCTOR</option>
+                        <option value="AUXILIAR">AUXILIAR</option>
+                        <option value="COORDINADOR">COORDINADOR</option>
+                        <option value="SUPERVISOR">SUPERVISOR</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="selProyecto" class="field-label">Proyecto *</label>
+                    <select id="selProyecto" class="kiosk-input">
+                        <option value="ICBF">ICBF</option>
+                        <option value="GT">GT</option>
+                        <option value="HOSPITAL">HOSPITAL</option>
+                        <option value="OTRO">OTRO</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label for="inpActividad" class="field-label">Actividad / Capacitación</label>
+                <input type="text" id="inpActividad" class="kiosk-input uppercase" placeholder="Ej: SEMINARIO / CAPACITACIÓN" maxlength="60">
+            </div>
+            <div>
+                <label class="field-label">Firma *</label>
+                <div class="relative">
+                    <div class="signature-box h-[150px] rounded-xl overflow-hidden bg-white">
+                        <canvas id="signaturePad" class="signature-pad"></canvas>
+                    </div>
+                    <button type="button" id="clearSign"
+                        class="absolute top-2 right-2 bg-red-50 hover:bg-red-100 text-red-500 px-2.5 py-1.5 rounded-lg text-[10px] font-bold shadow-sm border border-red-100">
+                        <i class="fas fa-eraser mr-1"></i> Borrar
+                    </button>
+                </div>
+                <p class="text-[10px] text-slate-400 mt-1">Firme dentro del recuadro con el dedo o el mouse.</p>
+            </div>
+            <button type="submit" id="submitBtn"
+                class="w-full bg-blue-700 hover:bg-blue-800 active:bg-blue-900 text-white py-4 rounded-xl font-bold text-base tracking-wide shadow-lg shadow-blue-900/20 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+                <i class="fas fa-pen-nib mr-2"></i> Registrar Asistencia
+            </button>
+        </form>
+
+        <p class="text-center text-[11px] text-slate-400">
+            <i class="fas fa-user-shield mr-1"></i> Administración:
+            <a href="admin.html" class="font-semibold text-slate-400 hover:text-blue-600 underline underline-offset-2">Panel de Asistencia</a>
+        </p>
+    </main>
+
+    <!-- Confirmación -->
+    <div id="successOverlay" class="hidden fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-[90] p-4">
+        <div class="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center">
+            <div class="w-20 h-20 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-check-circle text-4xl"></i>
+            </div>
+            <h2 class="text-xl font-bold text-slate-900">¡Asistencia registrada!</h2>
+            <p id="successName" class="text-slate-600 text-sm mt-1 font-semibold uppercase"></p>
+            <p id="successTime" class="text-slate-400 text-xs mt-1"></p>
+            <div class="flex gap-3 mt-7">
+                <button id="btnOtro" class="flex-1 bg-blue-700 hover:bg-blue-800 text-white py-3.5 rounded-xl font-bold text-sm tracking-wide">
+                    <i class="fas fa-user-plus mr-1.5"></i> Otra persona
+                </button>
+                <button id="btnCerrar" class="px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 py-3.5 rounded-xl font-bold text-sm">Cerrar</button>
+            </div>
+            <p class="text-[10px] text-slate-300 mt-4">Nuevo formulario en <span id="countdown">10</span>s…</p>
+        </div>
+    </div>
+
+</body>
+
+</html>

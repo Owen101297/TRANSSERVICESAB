@@ -98,6 +98,14 @@ async function initBaseCatalogs() {
     }
 
     console.log("✓ Catálogos normativos y contratistas verificados con éxito.");
+
+    // Sincronizar datos históricos de Supabase (Conductores, Asistencias y Viajes)
+    try {
+      const { runSupabaseMigration } = await import("./migrate-from-supabase");
+      await runSupabaseMigration();
+    } catch (migErr) {
+      console.warn("Aviso en sincronización de Supabase:", migErr);
+    }
   } catch (err) {
     console.warn("Aviso al inicializar catálogos (no bloqueante):", err);
   }
@@ -110,3 +118,4 @@ initBaseCatalogs()
   .finally(async () => {
     await prisma.$disconnect();
   });
+

@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <script type="importmap">
+    {
+      "imports": {
+        "@supabase/supabase-js": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/+esm"
+      }
+    }
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciamiento de Viajes | Trans Services A&B</title>
+    <!-- Favicons unificados -->
+    <link rel="icon" type="image/png" href="./assets/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
+    <link rel="shortcut icon" href="./assets/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./assets/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="TRANS SERVICES A&B" />
+    <link rel="manifest" href="./assets/site.webmanifest" />
+
+    <link rel="manifest" href="manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Trans Services App">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1E40AF">
+
+    <link rel="stylesheet" href="./css/style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Design System -->
+    <script src="../../assets/js/trans-services-ui.js"></script>
+
+    <script src="./public/lib/jspdf.umd.min.js"></script>
+    <script src="./public/lib/jspdf.plugin.autotable.min.js"></script>
+
+    <script src="./public/lib/xlsx.full.min.js"></script>
+
+
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../../assets/js/trans-services-tailwind-config.js"></script>
+</head>
+
+<body class="pb-32 antialiased">
+    <a href="#mainContainer" class="skip-link">Saltar al contenido principal</a>
+    <script type="module">
+        import { getCurrentUser, getCurrentProfile } from './js/supabase-client.js';
+        (async () => {
+            try {
+                const user = await getCurrentUser();
+                if (!user) {
+                    window.location.replace('./login.html');
+                    return;
+                }
+                const profile = await getCurrentProfile();
+                if (!profile) {
+                    window.location.replace('./login.html');
+                    return;
+                }
+                window.__currentProfile = profile;
+            } catch (e) {
+                window.location.replace('./login.html');
+            }
+        })();
+    </script>
+
+    <header
+        class="bg-white/95 backdrop-blur-xl sticky top-0 z-50 border-b border-[#E2E8F0]">
+        <div class="max-w-5xl mx-auto px-4">
+            <div class="flex justify-between items-center h-14">
+                <!-- Logo y Título -->
+                <div class="flex items-center gap-3">
+                    <a href="../../apps/index.html" class="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-focus rounded-lg">
+                        <img src="./assets/logo.png" alt="Logo" class="h-8 w-auto">
+                    </a>
+                    <div>
+                        <h1 class="text-[15px] font-semibold text-slate-900 leading-tight">
+                            Gerenciamiento de Viajes</h1>
+                        <p class="text-[11px] text-slate-500">STE-F-010</p>
+                    </div>
+                </div>
+
+                <!-- Acciones Principales (visibles) -->
+                <div class="flex items-center gap-1">
+                    <button onclick="createNewTrip()"
+                        class="flex items-center gap-1.5 px-3 py-2 bg-[#1E40AF] text-white text-[13px] font-medium rounded-xl hover:bg-[#1E3A8A] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-focus"
+                        aria-label="Nuevo viaje">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <span class="hidden sm:inline">Nuevo</span>
+                    </button>
+                    <button onclick="toggleHistory()"
+                        class="p-2.5 text-slate-500 hover:text-[#1E40AF] hover:bg-[#1E40AF]/10 rounded-xl transition-colors"
+                        title="Historial" aria-label="Historial">
+                        <i data-lucide="history" class="w-5 h-5"></i>
+                    </button>
+
+                    <!-- Menú Hamburguesa -->
+                    <button onclick="toggleMobileMenu()"
+                        class="p-2.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors"
+                        title="Menú" aria-label="Abrir menú">
+                        <i data-lucide="menu" class="w-5 h-5" id="menuIcon"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Menú Desplegable (Mobile Menu) -->
+        <div id="mobileMenu" class="hidden bg-white border-t border-[#E2E8F0]">
+            <div class="p-4 space-y-2">
+                <a href="../../apps/index.html" class="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-slate-50 transition-colors text-left">
+                    <div class="w-10 h-10 rounded-full bg-[#B8995E]/10 flex items-center justify-center">
+                        <i data-lucide="layout-grid" class="w-5 h-5 text-[#B8995E]"></i>
+                    </div>
+                    <div>
+                        <p class="font-medium text-[15px] text-slate-900">Biblioteca de Módulos</p>
+                        <p class="text-[12px] text-slate-500">Volver al portal</p>
+                    </div>
+                </a>
+                <button onclick="openReportsPanel(); toggleMobileMenu();"
+                    class="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-slate-50 transition-colors text-left">
+                    <div class="w-10 h-10 rounded-full bg-[#1E40AF]/10 flex items-center justify-center">
+                        <i data-lucide="bar-chart-2" class="w-5 h-5 text-[#1E40AF]"></i>
+                    </div>
+                    <div>
+                        <p class="font-medium text-[15px] text-slate-900">Estadísticas</p>
+                        <p class="text-[12px] text-slate-500">Ver mis métricas</p>
+                    </div>
+                </button>
+
+                <button onclick="openTemplatesPanel(); toggleMobileMenu();"
+                    class="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-slate-50 transition-colors text-left">
+                    <div class="w-10 h-10 rounded-full bg-[#059669]/10 flex items-center justify-center">
+                        <i data-lucide="bookmark" class="w-5 h-5 text-[#059669]"></i>
+                    </div>
+                    <div>
+                        <p class="font-medium text-[15px] text-slate-900">Plantillas</p>
+                        <p class="text-[12px] text-slate-500">Viajes guardados</p>
+                    </div>
+                </button>
+
+                <button onclick="openUserPanel(); toggleMobileMenu();"
+                    class="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-slate-50 transition-colors text-left">
+                    <div class="w-10 h-10 rounded-full bg-[#D97706]/10 flex items-center justify-center">
+                        <i data-lucide="user" class="w-5 h-5 text-[#D97706]"></i>
+                    </div>
+                    <div>
+                        <p class="font-medium text-[15px] text-slate-900">Mi Perfil</p>
+                        <p class="text-[12px] text-slate-500">Datos del conductor</p>
+                    </div>
+                </button>
+
+                <div class="border-t border-[#E2E8F0] pt-2 mt-2">
+                    <button onclick="logout()"
+                        class="flex items-center gap-3 w-full p-3 rounded-xl hover:bg-[#DC2626]/10 transition-colors text-left">
+                        <div class="w-10 h-10 rounded-full bg-[#DC2626]/10 flex items-center justify-center">
+                            <i data-lucide="log-out" class="w-5 h-5 text-[#DC2626]"></i>
+                        </div>
+                        <div>
+                            <p class="font-medium text-[15px] text-[#DC2626]">Cerrar Sesión</p>
+                            <p class="text-[12px] text-slate-500">Salir de la app</p>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Panel de Usuario / Perfil -->
+    <div id="userPanel"
+        class="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-sm hidden z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
+        <div
+            class="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border-t border-t-[#E2E8F0] dark:border-slate-800 sm:border border-[#E2E8F0]">
+            <div
+                class="p-4 border-b border-[#E2E8F0] dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900">
+                <h3 class="font-semibold text-[17px] text-slate-900 dark:text-white">Mi Perfil</h3>
+                <button type="button" onclick="closeUserPanel()"
+                    class="text-slate-500 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4" id="userPanelContent">
+                <!-- Contenido dinámico -->
+            </div>
+        </div>
+    </div>
+
+    <div id="offlineToast"
+        class="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full text-sm font-medium shadow-lg hidden z-[60] flex items-center gap-3 transition-all duration-300">
+        <i data-lucide="wifi-off" class="w-4 h-4"></i> <span>Modo sin conexión. Se sincronizará al recuperar
+            internet.</span>
+    </div>
+
+    <!-- Pantalla de carga inicial para evitar parpadeo -->
+    <div id="loadingScreen" class="fixed inset-0 bg-white z-50 flex items-center justify-center">
+        <div class="text-center">
+            <i data-lucide="loader-2" class="w-10 h-10 animate-spin text-[#1E40AF] mx-auto"></i>
+            <p class="mt-4 text-slate-500">Cargando...</p>
+        </div>
+    </div>
+
+    <main class="max-w-xl mx-auto px-4 sm:px-6 lg:px-8 mt-8" id="mainContainer" style="display:none" tabindex="-1">
+
+        <div class="mb-8">
+            <div class="flex justify-between mb-2">
+                <span id="progressText"
+                    class="text-xs font-bold text-slate-500 uppercase tracking-wider">Paso 1 de 7</span>
+                <span class="text-xs font-bold text-primary"><span id="progressPercent">17</span>%</span>
+            </div>
+            <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                <div id="progressBar" class="bg-primary h-2 rounded-full transition-all duration-500 ease-out"
+                    style="width: 16.6%"></div>
+            </div>
+        </div>
+
+        <form id="travelForm" onsubmit="handleSubmit(event)">
+
+            <div class="form-step">
+                <section class="card-paso">
+                    <h2
+                        class="text-2xl font-bold text-slate-800 dark:text-white mb-8 flex items-center gap-3 tracking-tight">
+                        <div class="p-2.5 bg-[#DBEAFE]/40 dark:bg-[#1E40AF]/20 rounded-2xl"><i data-lucide="map-pin"
+                                class="w-6 h-6 text-[#1E40AF] dark:text-[#60A5FA]"></i></div> 1. Ruta del Viaje
+                    </h2>
+                    <div class="space-y-4">
+                        <div class="input-group">
+                            <label for="fecha" class="label">Fecha del viaje</label>
+                            <input type="date" id="fecha" required class="input-moderno">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="input-group">
+                                <label for="horaSalida" class="label">Hora de Salida</label>
+                                <input type="time" id="horaSalida" required class="input-moderno">
+                            </div>
+                            <div class="input-group">
+                                <label for="horaLlegada" class="label">Hora de Llegada</label>
+                                <input type="time" id="horaLlegada" readonly class="input-moderno">
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label for="origen" class="label">Origen</label>
+                            <input type="text" id="origen" list="ciudades" placeholder="Ej: Villagarzón" required
+                                class="input-moderno">
+                        </div>
+                        <div class="input-group">
+                            <label for="destino" class="label">Destino</label>
+                            <input type="text" id="destino" list="ciudades" placeholder="Ej: Puerto Asís" required
+                                class="input-moderno">
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 border-t pt-4">
+                            <div class="input-group">
+                                <label for="kmSalida" class="label">Kilometraje Inicial</label>
+                                <input type="number" id="kmSalida" oninput="calcKm()" inputmode="numeric"
+                                    pattern="[0-9]*" placeholder="00000" required class="input-moderno">
+                                <div id="gpsSalidaStatus" class="text-xs mt-1 text-slate-400"></div>
+                            </div>
+                            <div class="input-group">
+                                <label for="distanciaEstimada" class="label">KM RECORRIDOS</label>
+                                <input type="number" id="distanciaEstimada" readonly class="input-moderno"
+                                    placeholder="0" inputmode="numeric">
+                            </div>
+                            <div class="input-group">
+                                <label for="kmLlegada" class="label">KM FINAL</label>
+                                <input type="number" id="kmLlegada" readonly class="input-moderno" inputmode="numeric"
+                                    placeholder="Pendiente">
+                                <div id="gpsLlegadaStatus" class="text-xs mt-1 text-slate-400"></div>
+                                <p id="kmError" class="text-red-500 text-xs mt-1 hidden font-bold">El KM de llegada no
+                                    puede ser menor al de salida.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="form-step hidden">
+                <section class="card-paso">
+                    <h2
+                        class="text-2xl font-bold text-slate-800 dark:text-white mb-8 flex items-center gap-3 tracking-tight">
+                        <div class="p-2.5 bg-[#DBEAFE]/40 dark:bg-[#1E40AF]/20 rounded-2xl"><i data-lucide="truck"
+                                class="w-6 h-6 text-[#1E40AF] dark:text-[#60A5FA]"></i></div> 2. Vehículo y Conductor
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-8">
+                        <div class="space-y-4">
+                            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider">Vehículo</h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="input-group">
+                                    <label for="vPlaca" class="label">Placa</label>
+                                    <input type="text" id="vPlaca" placeholder="Placa" required class="input-moderno"
+                                        onblur="searchVehicle()">
+                                </div>
+                                <div class="input-group">
+                                    <label for="vModelo" class="label">Modelo</label>
+                                    <input type="text" id="vModelo" placeholder="Modelo" required class="input-moderno">
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <label for="vColor" class="label">Color</label>
+                                <input type="text" id="vColor" placeholder="Color" required class="input-moderno">
+                            </div>
+                            <div class="input-group">
+                                <label for="vTipo" class="label">Tipo de Vehículo</label>
+                                <select id="vTipo" class="input-moderno">
+                                    <option value="">Tipo de Vehículo</option>
+                                    <option value="Camioneta">Camioneta</option>
+                                    <option value="Camión">Camión</option>
+                                    <option value="Turbo">Turbo</option>
+                                    <option value="Automóvil">Automóvil</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label for="vEmpresa" class="label">Empresa Dueña/Contratista</label>
+                                <input type="text" id="vEmpresa" placeholder="Empresa Dueña/Contratista" required
+                                    class="input-moderno">
+                            </div>
+                        </div>
+                        <div class="space-y-4">
+                            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider">Conductor</h3>
+                            <input type="text" id="cNombre" placeholder="Nombre Completo" required
+                                class="input-moderno">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="input-group">
+                                    <label for="cLicencia" class="label">Licencia</label>
+                                    <input type="text" id="cLicencia" placeholder="Licencia" required
+                                        class="input-moderno">
+                                </div>
+                                <div class="input-group">
+                                    <label for="cCat" class="label">Categoría</label>
+                                    <input type="text" id="cCat" placeholder="Categoría" required class="input-moderno">
+                                </div>
+                            </div>
+                            <div class="input-group">
+                                <label for="cVence" class="label">Vencimiento Licencia</label>
+                                <input type="date" id="cVence" required class="input-moderno">
+                            </div>
+                            <input type="tel" id="cTelefono" placeholder="Celular de contacto" required
+                                class="input-moderno">
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="form-step hidden">
+                <section class="card-paso">
+                    <h2
+                        class="text-2xl font-bold text-slate-800 dark:text-white mb-8 flex items-center gap-3 tracking-tight">
+                        <div class="p-2.5 bg-[#DBEAFE]/40 dark:bg-[#1E40AF]/20 rounded-2xl"><i data-lucide="map"
+                                class="w-6 h-6 text-[#1E40AF] dark:text-[#60A5FA]"></i></div> 3. Rutograma
+                    </h2>
+                    <div class="space-y-4">
+                        <div
+                            class="p-4 bg-[#DBEAFE]/40 dark:bg-[#1E40AF]/10 rounded-xl border border-[#DBEAFE] dark:border-[#1E40AF]/30 mb-4">
+                            <p class="text-sm text-[#1E40AF] dark:text-[#93C5FD]">
+                                <i data-lucide="info" class="inline-block w-4 h-4 mr-1 align-text-bottom"></i>
+                                Sube una imagen del mapa demarcando la ruta y las señalizaciones de tránsito
+                                importantes.
+                            </p>
+                        </div>
+
+                        <div class="flex items-center justify-center w-full">
+                            <label for="rutogramaFile"
+                                class="flex flex-col items-center justify-center w-full h-64 border-2 border-slate-300 border-dashed rounded-2xl cursor-pointer bg-slate-50 dark:hover:bg-slate-800 dark:bg-slate-800/50 hover:bg-slate-100 dark:border-slate-700 dark:hover:border-slate-600 transition-all">
+                                <div class="flex flex-col items-center justify-center pt-5 pb-6 text-center p-4">
+                                    <i data-lucide="image-plus"
+                                        class="w-12 h-12 mb-4 text-slate-400 dark:text-slate-500"></i>
+                                    <p class="mb-2 text-sm text-slate-500 dark:text-slate-400"><span
+                                            class="font-bold text-[#1E40AF] dark:text-[#60A5FA]">Haz clic para
+                                            subir</span> o arrastra la imagen</p>
+                                    <p class="text-xs text-slate-400 dark:text-slate-500">PNG, JPG o JPEG (Máx. 5MB)</p>
+                                </div>
+                                <input id="rutogramaFile" type="file" class="hidden" accept="image/*"
+                                    onchange="previewRutograma(event)" />
+                            </label>
+                        </div>
+
+                        <div id="rutogramaPreview" class="hidden mt-6 relative group">
+                            <img id="rutogramaImg" src="" alt="Vista previa del rutograma"
+                                class="w-full rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 object-cover max-h-[400px]">
+                            <button type="button" onclick="removeRutograma()"
+                                class="absolute top-4 right-4 p-2 bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600 transition-colors">
+                                <i data-lucide="trash-2" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="form-step hidden">
+                <section class="card-paso">
+                    <h2
+                        class="text-2xl font-bold text-slate-800 dark:text-white mb-8 flex items-center gap-3 tracking-tight">
+                        <div class="p-2.5 bg-[#DBEAFE]/40 dark:bg-[#1E40AF]/20 rounded-2xl"><i data-lucide="flag"
+                                class="w-6 h-6 text-[#1E40AF] dark:text-[#60A5FA]"></i></div> 4. Puntos de Control
+                    </h2>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 mb-4 -mt-4">Sitios de reporte y descanso (para
+                        viajes superiores a 2 horas)</p>
+                    <div id="puntosControlContainer" class="space-y-3">
+                    </div>
+                    <button type="button" onclick="addControlPoint()"
+                        class="mt-4 text-sm font-semibold text-[#1E40AF] dark:text-[#60A5FA] hover:text-[#1E3A8A] dark:hover:text-[#93C5FD] flex items-center gap-2 transition-colors">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i> Agregar otro punto
+                    </button>
+                </section>
+            </div>
+
+            <div class="form-step hidden">
+                <section class="card-paso">
+                    <h2
+                        class="text-2xl font-bold text-slate-800 dark:text-white mb-8 flex items-center gap-3 tracking-tight">
+                        <div class="p-2.5 bg-[#DBEAFE]/40 dark:bg-[#1E40AF]/20 rounded-2xl"><i data-lucide="shield-alert"
+                                class="w-6 h-6 text-[#1E40AF] dark:text-[#60A5FA]"></i></div> 5. Análisis de Riesgo
+                    </h2>
+                    <div class="space-y-6" id="riskGrid">
+
+                        <div>
+                            <label for="rDistancia" class="label">A. Distancia a Recorrer</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <label class="cursor-pointer"><input type="radio" name="rDistancia" value="1"
+                                        class="peer sr-only" onchange="updateRisk()" required>
+                                    <div
+                                        class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-transparent peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:shadow-md transition-all text-center text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700">
+                                        &lt; 50 KM</div>
+                                </label>
+                                <label class="cursor-pointer"><input type="radio" name="rDistancia" value="2"
+                                        class="peer sr-only" onchange="updateRisk()">
+                                    <div
+                                        class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-transparent peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:shadow-md transition-all text-center text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700">
+                                        &lt; 100 KM</div>
+                                </label>
+                                <label class="cursor-pointer"><input type="radio" name="rDistancia" value="5"
+                                        class="peer sr-only" onchange="updateRisk()">
+                                    <div
+                                        class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-transparent peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:shadow-md transition-all text-center text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700">
+                                        &lt; 200 KM</div>
+                                </label>
+                                <label class="cursor-pointer"><input type="radio" name="rDistancia" value="8"
+                                        class="peer sr-only" onchange="updateRisk()">
+                                    <div
+                                        class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-transparent peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:shadow-md transition-all text-center text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700">
+                                        > 200 KM</div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="rClima" class="label">B. Clima</label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <label class="cursor-pointer"><input type="radio" name="rClima" value="2"
+                                        class="peer sr-only" onchange="updateRisk()" required>
+                                    <div
+                                        class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-transparent peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:shadow-md transition-all text-center text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700">
+                                        Seco</div>
+                                </label>
+                                <label class="cursor-pointer"><input type="radio" name="rClima" value="4"
+                                        class="peer sr-only" onchange="updateRisk()">
+                                    <div
+                                        class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-transparent peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:shadow-md transition-all text-center text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700">
+                                        Lluvia Suave</div>
+                                </label>
+                                <label class="cursor-pointer"><input type="radio" name="rClima" value="8"
+                                        class="peer sr-only" onchange="updateRisk()">
+                                    <div
+                                        class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-transparent peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:shadow-md transition-all text-center text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700">
+                                        Lluvia Fuerte</div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="rVehiculos" class="label">C. Vehículos y Personas</label>
+                            <div class="grid grid-cols-1 gap-2">
+                                <label class="cursor-pointer flex items-center">
+                                    <input type="radio" name="rVehiculos" value="1" class="peer sr-only"
+                                        onchange="updateRisk()" required>
+                                    <div
+                                        class="w-full p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-transparent peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:shadow-md transition-all text-center hover:bg-slate-200 dark:hover:bg-slate-700">
+                                        <span class="text-sm font-medium">1 Vehículo / 1 Persona</span>
+                                    </div>
+                                </label>
+                                <label class="cursor-pointer flex items-center">
+                                    <input type="radio" name="rVehiculos" value="2" class="peer sr-only"
+                                        onchange="updateRisk()">
+                                    <div
+                                        class="w-full p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-transparent peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:shadow-md transition-all text-center hover:bg-slate-200 dark:hover:bg-slate-700">
+                                        <span class="text-sm font-medium">1 Vehículo / 2+ Personas</span>
+                                    </div>
+                                </label>
+                                <label class="cursor-pointer flex items-center">
+                                    <input type="radio" name="rVehiculos" value="3" class="peer sr-only"
+                                        onchange="updateRisk()">
+                                    <div
+                                        class="w-full p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-transparent peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:shadow-md transition-all text-center hover:bg-slate-200 dark:hover:bg-slate-700">
+                                        <span class="text-sm font-medium">2+ Vehículos / 1+ Persona</span>
+                                    </div>
+                                </label>
+                                <label class="cursor-pointer flex items-center">
+                                    <input type="radio" name="rVehiculos" value="6" class="peer sr-only"
+                                        onchange="updateRisk()">
+                                    <div
+                                        class="w-full p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-transparent peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:shadow-md transition-all text-center hover:bg-slate-200 dark:hover:bg-slate-700">
+                                        <span class="text-sm font-medium">2+ Vehículos / 2+ Personas</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="rVia" class="label">D. Condiciones de la Vía</label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <label class="cursor-pointer"><input type="radio" name="rVia" value="1"
+                                        class="peer sr-only" onchange="updateRisk()" required>
+                                    <div
+                                        class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-transparent peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:shadow-md transition-all text-center text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700">
+                                        Pavimentada</div>
+                                </label>
+                                <label class="cursor-pointer"><input type="radio" name="rVia" value="2"
+                                        class="peer sr-only" onchange="updateRisk()">
+                                    <div
+                                        class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-transparent peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:shadow-md transition-all text-center text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700">
+                                        Mixta</div>
+                                </label>
+                                <label class="cursor-pointer"><input type="radio" name="rVia" value="4"
+                                        class="peer sr-only" onchange="updateRisk()">
+                                    <div
+                                        class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-transparent peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:shadow-md transition-all text-center text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700">
+                                        No Pavim.</div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="rCom" class="label">E. Comunicaciones Disponibles</label>
+                            <div class="grid grid-cols-1 gap-2">
+                                <label class="cursor-pointer flex items-center">
+                                    <input type="radio" name="rCom" value="0" class="peer sr-only"
+                                        onchange="updateRisk()" required>
+                                    <div
+                                        class="w-full p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-transparent peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:shadow-md transition-all text-center hover:bg-slate-200 dark:hover:bg-slate-700">
+                                        <span class="text-sm font-medium">Teléfono Celular</span>
+                                    </div>
+                                </label>
+                                <label class="cursor-pointer flex items-center">
+                                    <input type="radio" name="rCom" value="2" class="peer sr-only"
+                                        onchange="updateRisk()">
+                                    <div
+                                        class="w-full p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-transparent peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:shadow-md transition-all text-center hover:bg-slate-200 dark:hover:bg-slate-700">
+                                        <span class="text-sm font-medium">Sin comunicación (Caravana)</span>
+                                    </div>
+                                </label>
+                                <label class="cursor-pointer flex items-center">
+                                    <input type="radio" name="rCom" value="4" class="peer sr-only"
+                                        onchange="updateRisk()">
+                                    <div
+                                        class="w-full p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-transparent peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:shadow-md transition-all text-center hover:bg-slate-200 dark:hover:bg-slate-700">
+                                        <span class="text-sm font-medium">Sin comunicación (Solo)</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="rFatiga" class="label">F. Hrs. Trabajadas + Tiempo Viaje</label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <label class="cursor-pointer"><input type="radio" name="rFatiga" value="1"
+                                        class="peer sr-only" onchange="updateRisk()" required>
+                                    <div
+                                        class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-transparent peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:shadow-md transition-all text-center text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700">
+                                        &lt; 12 Hrs</div>
+                                </label>
+                                <label class="cursor-pointer"><input type="radio" name="rFatiga" value="3"
+                                        class="peer sr-only" onchange="updateRisk()">
+                                    <div
+                                        class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-transparent peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:shadow-md transition-all text-center text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700">
+                                        &lt; 14 Hrs</div>
+                                </label>
+                                <label class="cursor-pointer"><input type="radio" name="rFatiga" value="6"
+                                        class="peer sr-only" onchange="updateRisk()">
+                                    <div
+                                        class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-transparent peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:shadow-md transition-all text-center text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700">
+                                        &lt; 16 Hrs</div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="rHora" class="label">G. Hora de Traslado</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <label class="cursor-pointer"><input type="radio" name="rHora" value="1"
+                                        class="peer sr-only" onchange="updateRisk()" required>
+                                    <div
+                                        class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-transparent peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:shadow-md transition-all text-center text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700">
+                                        Día (6-18)</div>
+                                </label>
+                                <label class="cursor-pointer"><input type="radio" name="rHora" value="8"
+                                        class="peer sr-only" onchange="updateRisk()">
+                                    <div
+                                        class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-transparent peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:shadow-md transition-all text-center text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-700">
+                                        Noche (18-6)</div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="riskScoreCard"
+                        class="mt-8 p-6 rounded-2xl border text-center transition-all duration-300 shadow-sm bg-white dark:bg-slate-900">
+                        <p class="text-sm uppercase font-bold tracking-widest mb-1">Nivel de Riesgo</p>
+                        <div class="text-4xl font-black mb-2"><span id="totalPoints">0</span> Puntos</div>
+                        <div class="text-lg font-bold tracking-tight" id="riskLevel">CALCULANDO...</div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="form-step hidden">
+                <section class="card-paso">
+                    <h2
+                        class="text-2xl font-bold text-slate-800 dark:text-white mb-8 flex items-center gap-3 tracking-tight">
+                        <div class="p-2.5 bg-[#DBEAFE]/40 dark:bg-[#1E40AF]/20 rounded-2xl"><i data-lucide="clipboard-check"
+                                class="w-6 h-6 text-[#1E40AF] dark:text-[#60A5FA]"></i></div> 6. Verificaciones Pre-Viaje
+                    </h2>
+
+                    <div class="space-y-8">
+                        <div>
+                            <h3 class="font-bold text-slate-900 dark:text-white mb-4 text-lg flex items-center gap-2">
+                                <span
+                                    class="bg-[#DBEAFE] text-[#1E40AF] text-xs font-bold px-2.5 py-0.5 rounded dark:bg-[#1E3A8A] dark:text-[#93C5FD]">A</span>
+                                Conocimientos Previaje
+                            </h3>
+                            <div class="space-y-3">
+                                <label
+                                    class="flex items-start p-4 bg-[#F1F5F9] dark:bg-slate-800 hover:bg-[#DBEAFE]/40 dark:hover:bg-slate-700 rounded-2xl transition-colors cursor-pointer border border-transparent hover:border-[#DBEAFE] dark:hover:border-slate-600">
+                                    <div class="flex-1 mr-4">
+                                        <span
+                                            class="block text-[15px] font-bold text-slate-800 dark:text-slate-200 mb-1">Conocimiento
+                                            de riesgos locales</span>
+                                        <span
+                                            class="block text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Conozco
+                                            el estado de las vías, clima, peatones, animales, etc.</span>
+                                    </div>
+                                    <input type="checkbox" id="cp_riesgos"
+                                        class="w-6 h-6 text-[#1E40AF] rounded-md border-slate-300 focus:ring-[#1E40AF] mt-1">
+                                </label>
+                                <label
+                                    class="flex items-start p-4 bg-[#F1F5F9] dark:bg-slate-800 hover:bg-[#DBEAFE]/40 dark:hover:bg-slate-700 rounded-2xl transition-colors cursor-pointer border border-transparent hover:border-[#DBEAFE] dark:hover:border-slate-600">
+                                    <div class="flex-1 mr-4">
+                                        <span
+                                            class="block text-[15px] font-bold text-slate-800 dark:text-slate-200 mb-1">Transporte
+                                            de personal</span>
+                                        <span
+                                            class="block text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Estoy
+                                            informado que es prohibido transportar personal ajeno a la empresa.</span>
+                                    </div>
+                                    <input type="checkbox" id="cp_personal"
+                                        class="w-6 h-6 text-[#1E40AF] rounded-md border-slate-300 focus:ring-[#1E40AF] mt-1">
+                                </label>
+                                <label
+                                    class="flex items-start p-4 bg-[#F1F5F9] dark:bg-slate-800 hover:bg-[#DBEAFE]/40 dark:hover:bg-slate-700 rounded-2xl transition-colors cursor-pointer border border-transparent hover:border-[#DBEAFE] dark:hover:border-slate-600">
+                                    <div class="flex-1 mr-4">
+                                        <span
+                                            class="block text-[15px] font-bold text-slate-800 dark:text-slate-200 mb-1">Inspección
+                                            del vehículo</span>
+                                        <span class="block text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Se
+                                            realizó la inspección con la lista pre-operacional.</span>
+                                    </div>
+                                    <input type="checkbox" id="cp_inspeccion"
+                                        class="w-6 h-6 text-[#1E40AF] rounded-md border-slate-300 focus:ring-[#1E40AF] mt-1">
+                                </label>
+                                <label
+                                    class="flex items-start p-4 bg-[#F1F5F9] dark:bg-slate-800 hover:bg-[#DBEAFE]/40 dark:hover:bg-slate-700 rounded-2xl transition-colors cursor-pointer border border-transparent hover:border-[#DBEAFE] dark:hover:border-slate-600">
+                                    <div class="flex-1 mr-4">
+                                        <span
+                                            class="block text-[15px] font-bold text-slate-800 dark:text-slate-200 mb-1">Cinturón
+                                            de seguridad</span>
+                                        <span class="block text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Se
+                                            encuentra en buen estado.</span>
+                                    </div>
+                                    <input type="checkbox" id="cp_cinturon"
+                                        class="w-6 h-6 text-[#1E40AF] rounded-md border-slate-300 focus:ring-[#1E40AF] mt-1">
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 class="font-bold text-slate-900 dark:text-white mb-4 text-lg flex items-center gap-2">
+                                <span
+                                    class="bg-[#DBEAFE] text-[#1E40AF] text-xs font-bold px-2.5 py-0.5 rounded dark:bg-[#1E3A8A] dark:text-[#93C5FD]">B</span>
+                                Test de Fatiga
+                            </h3>
+                            <div class="space-y-3">
+                                <label
+                                    class="flex items-start p-4 bg-[#F1F5F9] dark:bg-slate-800 hover:bg-[#DBEAFE]/40 dark:hover:bg-slate-700 rounded-2xl transition-colors cursor-pointer border border-transparent hover:border-[#DBEAFE] dark:hover:border-slate-600">
+                                    <div class="flex-1 mr-4">
+                                        <span
+                                            class="block text-[15px] font-bold text-slate-800 dark:text-slate-200 mb-1">Ausencia
+                                            de Sustancias</span>
+                                        <span
+                                            class="block text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Certifico
+                                            que NO estoy consumiendo licor, drogas o medicamentos que alteren mi
+                                            capacidad.</span>
+                                    </div>
+                                    <input type="checkbox" id="tf_sustancias"
+                                        class="w-6 h-6 text-[#1E40AF] rounded-md border-slate-300 focus:ring-[#1E40AF] mt-1">
+                                </label>
+                                <label
+                                    class="flex items-start p-4 bg-[#F1F5F9] dark:bg-slate-800 hover:bg-[#DBEAFE]/40 dark:hover:bg-slate-700 rounded-2xl transition-colors cursor-pointer border border-transparent hover:border-[#DBEAFE] dark:hover:border-slate-600">
+                                    <div class="flex-1 mr-4">
+                                        <span
+                                            class="block text-[15px] font-bold text-slate-800 dark:text-slate-200 mb-1">Descanso</span>
+                                        <span
+                                            class="block text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Dormí
+                                            por lo menos 8 horas antes de realizar el viaje.</span>
+                                    </div>
+                                    <input type="checkbox" id="tf_descanso"
+                                        class="w-6 h-6 text-[#1E40AF] rounded-md border-slate-300 focus:ring-[#1E40AF] mt-1">
+                                </label>
+                                <label
+                                    class="flex items-start p-4 bg-[#F1F5F9] dark:bg-slate-800 hover:bg-[#DBEAFE]/40 dark:hover:bg-slate-700 rounded-2xl transition-colors cursor-pointer border border-transparent hover:border-[#DBEAFE] dark:hover:border-slate-600">
+                                    <div class="flex-1 mr-4">
+                                        <span
+                                            class="block text-[15px] font-bold text-slate-800 dark:text-slate-200 mb-1">Condiciones
+                                            óptimas</span>
+                                        <span class="block text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Me
+                                            siento en óptimas condiciones para realizar este viaje.</span>
+                                    </div>
+                                    <input type="checkbox" id="tf_condiciones"
+                                        class="w-6 h-6 text-[#1E40AF] rounded-md border-slate-300 focus:ring-[#1E40AF] mt-1">
+                                </label>
+                                <label
+                                    class="flex items-start p-4 bg-[#F1F5F9] dark:bg-slate-800 hover:bg-[#DBEAFE]/40 dark:hover:bg-slate-700 rounded-2xl transition-colors cursor-pointer border border-transparent hover:border-[#DBEAFE] dark:hover:border-slate-600">
+                                    <div class="flex-1 mr-4">
+                                        <span
+                                            class="block text-[15px] font-bold text-slate-800 dark:text-slate-200 mb-1">Conocimiento
+                                            de peligros</span>
+                                        <span
+                                            class="block text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Tengo
+                                            conocimiento de los peligros a los que me expongo.</span>
+                                    </div>
+                                    <input type="checkbox" id="tf_peligros"
+                                        class="w-6 h-6 text-[#1E40AF] rounded-md border-slate-300 focus:ring-[#1E40AF] mt-1">
+                                </label>
+                                <label
+                                    class="flex items-start p-4 bg-[#F1F5F9] dark:bg-slate-800 hover:bg-[#DBEAFE]/40 dark:hover:bg-slate-700 rounded-2xl transition-colors cursor-pointer border border-transparent hover:border-[#DBEAFE] dark:hover:border-slate-600">
+                                    <div class="flex-1 mr-4">
+                                        <span
+                                            class="block text-[15px] font-bold text-slate-800 dark:text-slate-200 mb-1">Uso
+                                            de dispositivos</span>
+                                        <span class="block text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Sé
+                                            que está prohibido usar celulares mientras conduzco.</span>
+                                    </div>
+                                    <input type="checkbox" id="tf_celular"
+                                        class="w-6 h-6 text-[#1E40AF] rounded-md border-slate-300 focus:ring-[#1E40AF] mt-1">
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div class="form-step hidden">
+                <section class="card-paso">
+                    <h2
+                        class="text-2xl font-bold text-slate-800 dark:text-white mb-8 flex items-center gap-3 tracking-tight">
+                        <div class="p-2.5 bg-[#DBEAFE]/40 dark:bg-[#1E40AF]/20 rounded-2xl"><i data-lucide="check-square"
+                                class="w-6 h-6 text-[#1E40AF] dark:text-[#60A5FA]"></i></div> 7. Autorización y
+                        Seguimiento
+                    </h2>
+                    <div class="space-y-6">
+
+                        <div>
+                            <h3
+                                class="font-bold text-slate-900 dark:text-white mb-4 text-lg border-b border-gray-100 dark:border-slate-800 pb-2">
+                                Registro de Control y Seguimiento</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="md:col-span-2">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div>
+                                            <label class="label mb-2">Días Trabajados</label>
+                                            <div class="flex gap-2">
+                                                <label class="cursor-pointer">
+                                                    <input type="radio" id="dia1" name="diasTrabajados" value="dia1"
+                                                        class="peer sr-only">
+                                                    <div
+                                                        class="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-[#DBEAFE] dark:hover:border-blue-500 peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:border-[#1E40AF] dark:peer-checked:border-blue-500 transition-all text-sm font-medium peer-checked:shadow-md focus:outline-none peer-checked:ring-2 peer-checked:ring-[#1E40AF] focus:ring-2 focus:ring-[#1E40AF]/30">
+                                                        Día 1</div>
+                                                </label>
+                                                <label class="cursor-pointer">
+                                                    <input type="radio" id="dia2" name="diasTrabajados" value="dia2"
+                                                        class="peer sr-only">
+                                                    <div
+                                                        class="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-[#DBEAFE] dark:hover:border-blue-500 peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:shadow-md transition-all text-sm font-medium peer-checked:border-[#1E40AF] dark:peer-checked:border-blue-500 focus:outline-none peer-checked:ring-2 peer-checked:ring-[#1E40AF] focus:ring-2 focus:ring-[#1E40AF]/30">
+                                                        Día 2</div>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label for="fechaRHA" class="label">Fecha de Divulgación</label>
+                                            <input type="date" id="fechaRHA" class="input-moderno">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="input-group mt-6">
+                                <label class="label">Medio de Reporte</label>
+                                <div class="flex flex-wrap gap-4">
+                                    <label
+                                        class="flex items-center gap-3 p-4 bg-[#F1F5F9] dark:bg-slate-800 rounded-2xl cursor-pointer hover:bg-[#DBEAFE]/40 dark:hover:bg-slate-700 transition-colors flex-1 min-w-[120px] border border-transparent hover:border-[#DBEAFE] dark:hover:border-slate-600">
+                                        <input type="radio" name="medio" value="Celular"
+                                            class="text-[#1E40AF] w-5 h-5 focus:ring-[#1E40AF]" checked>
+                                        <span class="font-medium text-slate-700 dark:text-slate-300">Celular</span>
+                                    </label>
+                                    <label
+                                        class="flex items-center gap-3 p-4 bg-[#F1F5F9] dark:bg-slate-800 rounded-2xl cursor-pointer hover:bg-[#DBEAFE]/40 dark:hover:bg-slate-700 transition-colors flex-1 min-w-[120px] border border-transparent hover:border-[#DBEAFE] dark:hover:border-slate-600">
+                                        <input type="radio" name="medio" value="Radio"
+                                            class="text-[#1E40AF] w-5 h-5 focus:ring-[#1E40AF]">
+                                        <span class="font-medium text-slate-700 dark:text-slate-300">Radio</span>
+                                    </label>
+                                    <label
+                                        class="flex items-center gap-3 p-4 bg-[#F1F5F9] dark:bg-slate-800 rounded-2xl cursor-pointer hover:bg-[#DBEAFE]/40 dark:hover:bg-slate-700 transition-colors flex-1 min-w-[120px] border border-transparent hover:border-[#DBEAFE] dark:hover:border-slate-600">
+                                        <input type="radio" name="medio" value="Físico"
+                                            class="text-[#1E40AF] w-5 h-5 focus:ring-[#1E40AF]">
+                                        <span class="font-medium text-slate-700 dark:text-slate-300">Físico</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <h3
+                                class="font-bold text-slate-900 dark:text-white mb-4 text-lg border-b border-gray-100 dark:border-slate-800 pb-2">
+                                Directorio de Emergencias</h3>
+                            <button type="button" onclick="openEmergencyPanel()" class="btn btn-secondary">
+                                Ver Directorio <i data-lucide="phone-forwarded" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+
+                        <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div id="containerFirmaConductor">
+                                <label class="label">Firma 1: Conductor</label>
+                                <div class="border rounded-lg p-3 bg-white dark:bg-slate-900">
+                                    <canvas id="signatureCanvasConductor"
+                                        class="w-full h-32 border border-slate-300 dark:border-slate-700 rounded-md bg-slate-50 dark:bg-slate-800 touch-none block"></canvas>
+                                    <div class="flex justify-between items-center mt-2">
+                                        <span id="firma1Fecha" class="text-[10px] text-slate-400"></span>
+                                        <button type="button" onclick="clearSignature('signatureCanvasConductor')"
+                                            class="text-xs text-[#1E40AF] dark:text-[#60A5FA] hover:underline">Limpiar</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="containerFirmaGerencia">
+                                <label class="label">Firma 3: Jefe Gerencia</label>
+                                <div class="border rounded-lg p-3 bg-white dark:bg-slate-900 relative">
+                                    <canvas id="signatureCanvasGerencia"
+                                        class="w-full h-32 border border-slate-300 dark:border-slate-700 rounded-md bg-slate-50 dark:bg-slate-800 touch-none block pointer-events-none"></canvas>
+                                    <div id="gerenciaAutoSignOverlay"
+                                        class="absolute inset-0 flex items-center justify-center z-10">
+                                        <button type="button" onclick="autoSignGerencia()"
+                                            class="bg-[#1E40AF] hover:bg-[#1E3A8A] text-white text-sm font-bold py-3 px-8 rounded-full shadow-lg transition-transform transform hover:scale-105 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-focus">
+                                            <i data-lucide="check-circle" class="w-4 h-4"></i> APROBACIÓN GERENCIA
+                                        </button>
+                                    </div>
+                                    <div class="flex justify-between items-center mt-2">
+                                        <span id="firma3Fecha" class="text-[10px] text-slate-400"></span>
+                                        <button type="button" onclick="clearSignature('signatureCanvasGerencia')"
+                                            class="text-xs text-[#1E40AF] dark:text-[#60A5FA] hover:underline">Limpiar</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div
+                            class="mt-8 p-8 bg-[#D1FAE5]/40 dark:bg-emerald-900/20 rounded-3xl text-center border border-[#A7F3D0] dark:border-emerald-800/50">
+                            <div
+                                class="w-16 h-16 bg-white dark:bg-emerald-900/50 rounded-full flex items-center justify-center mx-auto shadow-sm mb-4">
+                                <i data-lucide="shield-check"
+                                    class="w-8 h-8 text-[#059669] dark:text-emerald-400"></i></div>
+                            <h3 class="text-xl font-bold text-[#065F46] dark:text-emerald-400 mb-2">Todo Listo para el
+                                Viaje</h3>
+                            <p class="text-[15px] text-[#047857]/80 dark:text-emerald-300/80">Al finalizar, se
+                                guardará el registro y se generarán los reportes PDF y Excel.</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </form>
+
+        <div id="emergencyModal"
+            class="fixed inset-0 bg-black/30 dark:bg-black/60 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4 animate-fadeIn">
+            <div
+                class="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md max-h-[85vh] overflow-hidden flex flex-col shadow-2xl m-4 border border-gray-100 dark:border-slate-800">
+                <div
+                    class="p-5 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center bg-white/50 dark:bg-slate-900/50 backdrop-blur-md">
+                    <h3 class="font-bold text-xl text-slate-900 dark:text-white tracking-tight">Directorio de Emergencia
+                    </h3>
+                    <button type="button" onclick="closeEmergencyPanel()"
+                        class="text-slate-500 dark:text-slate-400 p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800"><i
+                            data-lucide="x" class="w-5 h-5"></i></button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-6">
+                    <div class="grid grid-cols-1 gap-4">
+                        <div>
+                            <p class="font-semibold text-slate-900 dark:text-white">GERENTE:</p>
+                            <p class="text-slate-600 dark:text-slate-300"><i data-lucide="phone"
+                                    class="inline-block w-4 h-4 mr-1 align-text-bottom"></i> 3102160080</p>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-slate-900 dark:text-white">HSE:</p>
+                            <p class="text-slate-600 dark:text-slate-300"><i data-lucide="phone"
+                                    class="inline-block w-4 h-4 mr-1 align-text-bottom"></i> 3136332887</p>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-slate-900 dark:text-white">BOMBEROS:</p>
+                            <p class="text-slate-600 dark:text-slate-300"><i data-lucide="phone"
+                                    class="inline-block w-4 h-4 mr-1 align-text-bottom"></i> 3105699619</p>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-slate-900 dark:text-white">CRUZ ROJA:</p>
+                            <p class="text-slate-600 dark:text-slate-300"><i data-lucide="phone"
+                                    class="inline-block w-4 h-4 mr-1 align-text-bottom"></i> 3105770698</p>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-slate-900 dark:text-white">EMERGENCIAS GTE.:</p>
+                            <p class="text-slate-600 dark:text-slate-300"><i data-lucide="phone"
+                                    class="inline-block w-4 h-4 mr-1 align-text-bottom"></i> 3213500500</p>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-slate-900 dark:text-white">DEFENSA CIVIL:</p>
+                            <p class="text-slate-600 dark:text-slate-300"><i data-lucide="phone"
+                                    class="inline-block w-4 h-4 mr-1 align-text-bottom"></i> 6014206074</p>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-slate-900 dark:text-white">POLICIA:</p>
+                            <p class="text-slate-600 dark:text-slate-300"><i data-lucide="phone"
+                                    class="inline-block w-4 h-4 mr-1 align-text-bottom"></i> 3214922157</p>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-slate-900 dark:text-white">HOSPITAL S.G.A:</p>
+                            <p class="text-slate-600 dark:text-slate-300"><i data-lucide="phone"
+                                    class="inline-block w-4 h-4 mr-1 align-text-bottom"></i> 3186156525</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="hseSignModal"
+            class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-[110] flex items-center justify-center p-4 animate-fadeIn">
+            <div
+                class="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md p-6 shadow-2xl border border-gray-100 dark:border-slate-800">
+                <h3 class="text-xl font-bold text-slate-900 dark:text-white mb-4 text-center">Autorización HSE</h3>
+                <p class="text-sm text-slate-500 dark:text-slate-400 text-center mb-6">Por favor, el profesional HSE debe
+                    firmar para autorizar el inicio del viaje.</p>
+
+                <button type="button" onclick="autoSignHSEModal()"
+                    class="mb-4 w-full bg-[#D1FAE5] text-[#047857] hover:bg-[#A7F3D0] font-bold py-2 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors">
+                    <i data-lucide="pen-tool" class="w-4 h-4"></i> Auto-Firma (Estampar)
+                </button>
+
+                <div class="border rounded-xl p-3 bg-slate-50 dark:bg-slate-800 mb-6">
+                    <canvas id="signatureCanvasHSE_Modal"
+                        class="w-full h-40 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 touch-none block"></canvas>
+                    <div class="flex justify-end mt-2">
+                        <button type="button" onclick="clearSignature('signatureCanvasHSE_Modal')"
+                            class="text-xs text-[#1E40AF] dark:text-[#60A5FA] hover:underline">Limpiar Firma</button>
+                    </div>
+                </div>
+
+                <button type="button" id="btnHSEAuth" onclick="submitHSEAuth()" disabled
+                    class="btn btn-primary w-full opacity-50">AUTORIZAR VIAJE Y NOTIFICAR <i data-lucide="send"
+                        class="w-4 h-4 ml-2"></i></button>
+            </div>
+        </div>
+
+        <div
+            class="fixed bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-t border-gray-100 dark:border-slate-800 supports-[backdrop-filter]:bg-white/70">
+            <div class="max-w-xl mx-auto flex justify-between gap-4">
+                <button type="button" id="prevBtn" onclick="nextPrev(-1)"
+                    class="btn btn-secondary w-1/3">Anterior</button>
+                <button type="button" id="nextBtn" onclick="nextPrev(1)"
+                    class="btn btn-primary w-2/3">Siguiente</button>
+            </div>
+        </div>
+
+        <!-- Modal PIN Autorización -->
+        <div id="pinAuthModal"
+            class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-[120] flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
+                <div class="text-center mb-6">
+                    <div class="w-12 h-12 bg-[#FEF3C7] rounded-full flex items-center justify-center mx-auto mb-3">
+                        <i data-lucide="shield-check" class="w-6 h-6 text-[#D97706]"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-slate-900">Autorización Requerida</h3>
+                    <p class="text-sm text-slate-500 mt-1">Ingrese el PIN de administrador para autorizar.</p>
+                </div>
+                <div class="space-y-4">
+                    <input type="password" id="pinAuthInput" maxlength="10" inputmode="numeric" pattern="[0-9]*" autocomplete="off"
+                        class="w-full text-center text-2xl tracking-[0.5em] font-mono py-3 px-4 border-2 border-slate-200 rounded-xl focus:border-[#1E40AF] focus:outline-none focus:ring-4 focus:ring-primary-focus"
+                        placeholder="••••" aria-label="PIN de administrador">
+                    <div id="pinAuthError" class="text-red-500 text-sm text-center hidden">PIN incorrecto. Intente nuevamente.</div>
+                    <div class="flex gap-3">
+                        <button type="button" onclick="closePinAuthModal()" class="flex-1 py-3 text-slate-600 font-medium hover:bg-slate-50 rounded-xl transition-colors">Cancelar</button>
+                        <button type="button" id="btnPinVerify" onclick="submitPinAuth()" class="flex-1 py-3 bg-[#1E40AF] text-white font-medium rounded-xl hover:bg-[#1E40AF] transition-colors">Verificar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="historyModal"
+            class="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-sm hidden z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
+            <div
+                class="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border-t border-t-[#E2E8F0] dark:border-slate-800 sm:border border-[#E2E8F0]">
+                <div
+                    class="p-4 border-b border-[#E2E8F0] dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900">
+                    <h3 class="font-semibold text-[17px] text-slate-900 dark:text-white">Historial de Viajes</h3>
+                    <div class="flex items-center gap-2">
+                        <button onclick="exportHistoryExcel()" title="Exportar Excel"
+                            class="text-[#059669] p-2 hover:bg-[#059669]/10 rounded-xl">
+                            <i data-lucide="download" class="w-5 h-5"></i>
+                        </button>
+                        <button type="button" onclick="toggleHistory()"
+                            class="text-slate-500 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="px-4 pb-2">
+                    <input type="text" id="historySearch" placeholder="Buscar por placa, conductor..."
+                        class="apple-input" onkeyup="filterHistorySearch()">
+                </div>
+                <div class="flex-1 overflow-y-auto" id="historyList">
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de Reportes -->
+        <div id="reportsModal"
+            class="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-sm hidden z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
+            <div
+                class="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border-t border-t-[#E2E8F0] dark:border-slate-800 sm:border border-[#E2E8F0]">
+                <div
+                    class="p-4 border-b border-[#E2E8F0] dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900">
+                    <h3 class="font-semibold text-[17px] text-slate-900 dark:text-white">Reportes y Estadísticas</h3>
+                    <button type="button" onclick="closeReportsPanel()"
+                        class="text-slate-500 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <div class="p-4 border-b border-[#E2E8F0] dark:border-slate-800">
+                    <div class="flex gap-2 overflow-x-auto pb-2 scroll-container">
+                        <button onclick="loadReport('today')" class="apple-tab apple-tab-active" id="tab-today">Hoy</button>
+                        <button onclick="loadReport('week')" class="apple-tab" id="tab-week">Esta Semana</button>
+                        <button onclick="loadReport('month')" class="apple-tab" id="tab-month">Este Mes</button>
+                        <button onclick="loadReport('all')" class="apple-tab" id="tab-all">Todo</button>
+                    </div>
+                </div>
+                <div class="flex-1 overflow-y-auto p-4" id="reportsContent">
+                    <!-- Estadísticas cargadas dinámicamente -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de Plantillas -->
+        <div id="templatesModal"
+            class="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-sm hidden z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
+            <div
+                class="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border-t border-t-[#E2E8F0] dark:border-slate-800 sm:border border-[#E2E8F0]">
+                <div
+                    class="p-4 border-b border-[#E2E8F0] dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900">
+                    <h3 class="font-semibold text-[17px] text-slate-900 dark:text-white">Viajes Frecuentes</h3>
+                    <button type="button" onclick="saveAsTemplate()"
+                        class="text-[#1E40AF] text-[15px] font-semibold">Guardar</button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-4" id="templatesList">
+                    <!-- Plantillas cargadas dinámicamente -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de Alertas -->
+        <div id="alertsModal"
+            class="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-sm hidden z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
+            <div
+                class="bg-white dark:bg-slate-900 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border-t border-t-[#E2E8F0] dark:border-slate-800 sm:border border-[#E2E8F0]">
+                <div
+                    class="p-4 border-b border-[#E2E8F0] dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="bell" class="w-5 h-5 text-[#D97706]"></i>
+                        <h3 class="font-semibold text-[17px] text-slate-900 dark:text-white">Alertas</h3>
+                        <span id="alertsCount" class="bg-[#DC2626] text-white text-[12px] font-bold px-2 py-0.5 rounded-full">0</span>
+                    </div>
+                    <button type="button" onclick="closeAlertsPanel()"
+                        class="text-slate-500 p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-4" id="alertsList">
+                    <!-- Alertas cargadas dinámicamente -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <datalist id="ciudades">
+        <option value="Villagarzón"></option>
+        <option value="Mocoa"></option>
+        <option value="Puerto Asís"></option>
+        <option value="Orito"></option>
+        <option value="Bogotá"></option>
+        <option value="Neiva"></option>
+        <option value="Pitalito"></option>
+        <option value="Pasto"></option>
+        <option value="Cali"></option>
+        <option value="Villavicencio"></option>
+        <option value="Florencia"></option>
+    </datalist>
+
+    <footer class="mt-8 text-center text-xs text-slate-500 max-w-lg mx-auto px-4 pb-8">
+        <p class="font-medium mb-1">COOPERATIVA DE TRANSPORTES Y SERVICIOS A & B</p>
+        <p class="text-slate-400">NIT 900778421-1 | Calle 2 N° 2-52 B/ Fátima Villagarzón Putumayo</p>
+    </footer>
+
+    <script type="module" src="js/app.js"></script>
+</body>
+
+</html>

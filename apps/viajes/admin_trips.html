@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <script type="importmap">
+    {
+      "imports": {
+        "@supabase/supabase-js": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/+esm"
+      }
+    }
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administración de Viajes | Trans Services A&B</title>
+    <!-- Favicons unificados -->
+    <link rel="icon" type="image/png" href="./assets/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
+    <link rel="shortcut icon" href="./assets/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./assets/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="TRANS SERVICES A&B" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1E40AF">
+    <link rel="manifest" href="./assets/site.webmanifest" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../assets/css/trans-services-tokens.css">
+    <link rel="stylesheet" href="../../assets/css/trans-services-components.css">
+    <link rel="stylesheet" href="./css/style.css">
+    <script src="../../assets/js/trans-services-ui.js"></script>
+    <script src="./public/lib/jspdf.umd.min.js"></script>
+    <script src="./public/lib/jspdf.plugin.autotable.min.js"></script>
+    <script src="./public/lib/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../../assets/js/trans-services-tailwind-config.js"></script>
+</head>
+
+<body class="bg-surface min-h-screen font-sans">
+    <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+    <nav class="bg-white/90 backdrop-blur-xl sticky top-0 z-50 border-b border-[#E2E8F0]">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-2">
+            <div class="flex items-center gap-3">
+                <img src="./assets/logo.png" alt="Logo" class="h-8">
+                <div>
+                    <h1 class="font-semibold text-[17px] text-slate-900">Panel de Administración</h1>
+                    <p class="text-[11px] text-muted">STE-F-010</p>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <a href="admin_drivers.html"
+                    class="px-4 py-2 text-[14px] font-medium text-primary hover:bg-primary-focus rounded-xl flex items-center gap-2 transition-colors">
+                    <i data-lucide="users" class="w-4 h-4"></i> Conductores
+                </a>
+                <a href="index.html"
+                    class="px-4 py-2 text-[14px] font-medium text-success hover:bg-success-focus rounded-xl flex items-center gap-2 transition-colors">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i> Nuevo Viaje
+                </a>
+                <button onclick="logout()"
+                    class="px-4 py-2 text-[14px] font-medium text-danger hover:bg-danger-focus rounded-xl flex items-center gap-2 transition-colors" aria-label="Cerrar sesión">
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <main id="main-content" class="max-w-7xl mx-auto p-4">
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <div class="card p-4">
+                <p class="text-[12px] text-muted mb-1">Total Viajes</p>
+                <p class="text-2xl font-bold text-strong" id="stat-total">--</p>
+            </div>
+            <div class="card p-4">
+                <p class="text-[12px] text-muted mb-1">Este Mes</p>
+                <p class="text-2xl font-bold text-primary" id="stat-month">--</p>
+            </div>
+            <div class="card p-4">
+                <p class="text-[12px] text-muted mb-1">Finalizados</p>
+                <p class="text-2xl font-bold text-success" id="stat-finalized">--</p>
+            </div>
+            <div class="card p-4">
+                <p class="text-[12px] text-muted mb-1">Pendientes</p>
+                <p class="text-2xl font-bold text-warning" id="stat-pending">--</p>
+            </div>
+        </div>
+
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-[20px] font-semibold text-strong">Historial de Viajes</h2>
+            <div class="flex gap-2">
+                <button onclick="exportAllExcel()" class="btn btn-success btn-sm">
+                    <i data-lucide="download" class="w-4 h-4"></i> Exportar
+                </button>
+            </div>
+        </div>
+
+        <div class="card overflow-hidden">
+            <div class="p-3 border-b border-border space-y-3">
+                <!-- Búsqueda general -->
+                <div class="relative">
+                    <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted"></i>
+                    <input type="text" id="searchInput" placeholder="Buscar por placa, conductor, origen..."
+                        class="w-full pl-10 pr-4 py-2.5 bg-surface-2 rounded-xl text-[15px] outline-none focus:ring-2 focus:ring-primary-focus" onkeyup="applyFilters()">
+                </div>
+                <!-- Filtros avanzados -->
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
+                    <div>
+                        <label class="text-[11px] text-muted mb-1 block" for="filterDateFrom">Desde</label>
+                        <input type="date" id="filterDateFrom" class="w-full px-3 py-2 bg-surface-2 rounded-xl text-[13px] outline-none focus:ring-2 focus:ring-primary-focus" onchange="applyFilters()">
+                    </div>
+                    <div>
+                        <label class="text-[11px] text-muted mb-1 block" for="filterDateTo">Hasta</label>
+                        <input type="date" id="filterDateTo" class="w-full px-3 py-2 bg-surface-2 rounded-xl text-[13px] outline-none focus:ring-2 focus:ring-primary-focus" onchange="applyFilters()">
+                    </div>
+                    <div>
+                        <label class="text-[11px] text-muted mb-1 block" for="filterStatus">Estado</label>
+                        <select id="filterStatus" class="w-full px-3 py-2 bg-surface-2 rounded-xl text-[13px] outline-none focus:ring-2 focus:ring-primary-focus" onchange="applyFilters()">
+                            <option value="">Todos</option>
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="Pendiente HSE">Pendiente HSE</option>
+                            <option value="Pendiente Gerencia">Pendiente Gerencia</option>
+                            <option value="Autorizado">Autorizado</option>
+                            <option value="Finalizado">Finalizado</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[11px] text-muted mb-1 block" for="filterRisk">Riesgo</label>
+                        <select id="filterRisk" class="w-full px-3 py-2 bg-surface-2 rounded-xl text-[13px] outline-none focus:ring-2 focus:ring-primary-focus" onchange="applyFilters()">
+                            <option value="">Todos</option>
+                            <option value="BAJO">Bajo</option>
+                            <option value="MEDIO">Medio</option>
+                            <option value="ALTO">Alto</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-[11px] text-muted mb-1 block" for="filterDriver">Conductor</label>
+                        <select id="filterDriver" class="w-full px-3 py-2 bg-surface-2 rounded-xl text-[13px] outline-none focus:ring-2 focus:ring-primary-focus" onchange="applyFilters()">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-body">
+                    <thead class="bg-surface-2 text-slate-800 font-medium">
+                        <tr>
+                            <th class="p-3 text-[12px] font-semibold text-muted">Fecha</th>
+                            <th class="p-3 text-[12px] font-semibold text-muted">Vehículo</th>
+                            <th class="p-3 text-[12px] font-semibold text-muted">Conductor</th>
+                            <th class="p-3 text-[12px] font-semibold text-muted">Ruta</th>
+                            <th class="p-3 text-[12px] font-semibold text-muted">Riesgo</th>
+                            <th class="p-3 text-[12px] font-semibold text-muted">Estado</th>
+                            <th class="p-3 text-[12px] font-semibold text-muted text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tripsTableBody" class="divide-y divide-[#E2E8F0]">
+                        <!-- Datos cargados dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="p-3 border-t border-[#E2E8F0] text-center">
+                <button onclick="loadMore()" class="text-primary text-[14px] font-medium" id="loadMoreBtn">Cargar más</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal PIN Admin -->
+    <div id="pinModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="pinModalTitle">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl">
+            <div class="text-center mb-6">
+                <div class="w-12 h-12 bg-warning-soft rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i data-lucide="shield-check" class="w-6 h-6 text-warning"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-strong" id="pinModalTitle">Autorización Requerida</h3>
+                <p class="text-sm text-body mt-1">Ingrese el PIN de administrador para aprobar este viaje de alto riesgo.</p>
+            </div>
+            <div class="space-y-4">
+                <input type="password" id="pinInput" maxlength="10" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="PIN de administrador"
+                    class="w-full text-center text-2xl tracking-[0.5em] font-mono py-3 px-4 border-2 border-border rounded-xl focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary-focus"
+                    placeholder="••••">
+                <div id="pinError" class="text-danger text-sm text-center hidden" role="alert">PIN incorrecto. Intente nuevamente.</div>
+                <div class="flex gap-3">
+                    <button onclick="closePinModal()" class="flex-1 py-3 text-body font-medium hover:bg-surface-2 rounded-xl transition-colors">Cancelar</button>
+                    <button onclick="submitPin()" class="flex-1 py-3 bg-primary text-white font-medium rounded-xl hover:bg-primary-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-focus">Verificar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { supabase, requireAdmin, isAdmin, signOut, getViajes, deleteViaje, getEstadisticasViajes, verifyPinAdmin } from './js/supabase-client.js';
+        import { generatePDF as generatePDFReport } from './js/pdf-generator.js';
+
+        const escapeHTML = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+        lucide.createIcons();
+        window.tripsData = [];
+        let allTrips = [];
+        let displayLimit = 20;
+
+        // Verificar autenticación y rol administrador (protección real con Supabase Auth + user_roles)
+        window.checkAuth = async function() {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) {
+                    window.location.href = 'login.html?reason=unauthorized';
+                    return false;
+                }
+                const admin = await isAdmin();
+                if (!admin) {
+                    window.location.href = 'index.html?reason=forbidden';
+                    return false;
+                }
+                return true;
+            } catch (e) {
+                return false;
+            }
+        };
+
+        window.updateStats = async function() {
+            try {
+                const stats = await getEstadisticasViajes();
+                document.getElementById('stat-total').innerText = stats.total;
+                document.getElementById('stat-finalized').innerText = stats.completados;
+                document.getElementById('stat-pending').innerText = stats.pendientes;
+
+                const now = new Date();
+                const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+                const { data: monthTrips } = await supabase
+                    .from('operacion.viajes')
+                    .select('*', { count: 'exact', head: true })
+                    .gte('fecha', monthStart);
+                document.getElementById('stat-month').innerText = monthTrips?.count || 0;
+
+                allTrips = await getViajes();
+                populateDriverFilter(allTrips);
+            } catch (error) {
+                console.error('Error cargando estadísticas:', error);
+                TS.toastError('Error al cargar datos: ' + error.message);
+            }
+        };
+
+        function populateDriverFilter(trips) {
+            const select = document.getElementById('filterDriver');
+            const drivers = [...new Set(trips.map(t => t.conductor_nombre).filter(Boolean))].sort();
+            const currentValue = select.value;
+            select.innerHTML = '<option value="">Todos</option>';
+            drivers.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                select.appendChild(option);
+            });
+            select.value = currentValue;
+        }
+
+        window.loadTrips = async function() {
+            const isAuth = await window.checkAuth();
+            if (!isAuth) return;
+            await window.updateStats();
+            applyFilters();
+        };
+
+        window.applyFilters = function() {
+            const searchText = document.getElementById('searchInput').value.toLowerCase();
+            const dateFrom = document.getElementById('filterDateFrom').value;
+            const dateTo = document.getElementById('filterDateTo').value;
+            const status = document.getElementById('filterStatus').value;
+            const risk = document.getElementById('filterRisk').value;
+            const driver = document.getElementById('filterDriver').value;
+
+            window.filteredTrips = allTrips.filter(d => {
+                // Text search
+                const text = `${d.fecha} ${d.vehiculo_placa} ${d.conductor_nombre} ${d.origen} ${d.destino}`.toLowerCase();
+                if (searchText && !text.includes(searchText)) return false;
+
+                // Date range
+                if (dateFrom && d.fecha && d.fecha < dateFrom) return false;
+                if (dateTo && d.fecha && d.fecha > dateTo) return false;
+
+                // Status
+                if (status && d.estado !== status) return false;
+
+                // Risk
+                if (risk) {
+                    const riskLevel = (d.risk_score || 0) > 23 ? 'ALTO' : ((d.risk_score || 0) > 15 ? 'MEDIO' : 'BAJO');
+                    if (riskLevel !== risk) return false;
+                }
+
+                // Driver
+                if (driver && d.conductor_nombre !== driver) return false;
+
+                return true;
+            });
+
+            displayLimit = 20;
+            renderTrips();
+        };
+
+        window.renderTrips = function() {
+            const tbody = document.getElementById('tripsTableBody');
+            const tripsToRender = (window.filteredTrips || allTrips).slice(0, displayLimit);
+
+            if (tripsToRender.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-muted">No hay viajes registrados.</td></tr>';
+                return;
+            }
+
+            let html = '';
+            tripsToRender.forEach(d => {
+                const statusClass = d.estado === 'Finalizado' || d.km_llegada
+                    ? 'apple-badge-success'
+                    : d.estado === 'Autorizado'
+                        ? 'apple-badge-info'
+                        : 'apple-badge-warning';
+                const statusText = d.estado || 'En Curso';
+
+                const riskScore = d.risk_score || 0;
+                const riskLevel = riskScore > 23 ? 'ALTO' : (riskScore > 15 ? 'MEDIO' : 'BAJO');
+                const riskClass = riskLevel === 'ALTO' ? 'apple-badge-danger' : (riskLevel === 'MEDIO' ? 'apple-badge-warning' : 'apple-badge-success');
+
+                html += `
+                    <tr class="hover:bg-surface-2 transition-colors">
+                        <td class="p-3">
+                            <p class="text-[14px] font-medium text-slate-900">${escapeHTML(d.fecha || 'N/A')}</p>
+                            <p class="text-[11px] text-muted">${escapeHTML(d.hora_salida || '')}</p>
+                        </td>
+                        <td class="p-3">
+                            <p class="text-[14px] font-semibold text-slate-900">${escapeHTML(d.vehiculo_placa || 'N/A')}</p>
+                            <p class="text-[11px] text-muted">${escapeHTML(d.vehiculo_tipo || '')}</p>
+                        </td>
+                        <td class="p-3">
+                            <p class="text-[14px] text-slate-900">${escapeHTML(d.conductor_nombre || 'N/A')}</p>
+                            <p class="text-[11px] text-muted">${escapeHTML(d.conductor_telefono || '')}</p>
+                        </td>
+                        <td class="p-3">
+                            <p class="text-[13px] text-slate-600">${escapeHTML(d.origen || 'N/A')}</p>
+                            <p class="text-[11px] text-muted">→ ${escapeHTML(d.destino || 'N/A')}</p>
+                        </td>
+                        <td class="p-3">
+                            <span class="apple-badge ${riskClass}">${riskLevel} (${riskScore})</span>
+                        </td>
+                        <td class="p-3">
+                            <span class="apple-badge ${statusClass}">${escapeHTML(statusText)}</span>
+                        </td>
+                        <td class="p-3 text-center">
+                            <div class="flex justify-center gap-1">
+                                ${d.estado === 'Pendiente Gerencia' 
+                                    ? `<button onclick="window.openPinModal('${escapeHTML(d.id)}')" class="text-success hover:bg-success-focus p-2 rounded-xl transition-colors" title="Aprobar Gerencia">
+                                        <i data-lucide="check-circle" class="w-4 h-4"></i>
+                                       </button>`
+                                    : `<a href="index.html?editTripId=${escapeHTML(d.id)}" class="text-primary hover:bg-primary-focus p-2 rounded-xl transition-colors" title="Ver / Editar">
+                                        <i data-lucide="eye" class="w-4 h-4"></i>
+                                       </a>`
+                                }
+                                <button onclick="window.generatePDF('${escapeHTML(d.id)}')" class="text-secondary hover:bg-secondary-soft p-2 rounded-xl transition-colors" title="PDF STE-F-010">
+                                    <i data-lucide="file-text" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="window.deleteTrip('${escapeHTML(d.id)}')" class="text-danger hover:bg-danger-focus p-2 rounded-xl transition-colors" title="Eliminar">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+            lucide.createIcons();
+
+            const loadMoreBtn = document.getElementById('loadMoreBtn');
+            if (loadMoreBtn) {
+                loadMoreBtn.style.display = (window.filteredTrips || allTrips).length > displayLimit ? 'inline-block' : 'none';
+            }
+        };
+
+        window.loadMore = function() {
+            displayLimit += 20;
+            renderTrips();
+        };
+
+        window.generatePDF = function(id) {
+            const trip = allTrips.find(t => t.id === id);
+            if (!trip) return TS.toastError('No se encontró información del viaje');
+            try {
+                generatePDFReport(trip);
+            } catch (err) {
+                console.error('Error generando PDF:', err);
+                TS.toastError('Error al generar PDF: ' + err.message);
+            }
+        };
+
+        window.deleteTrip = async function(id) {
+            const okDelete = await TS.confirm('¿Está seguro de eliminar este registro de viaje? Esta acción no se puede deshacer.');
+            if (!okDelete) return;
+
+            try {
+                await deleteViaje(id);
+                TS.toastSuccess('Viaje eliminado correctamente');
+                loadTrips();
+            } catch (err) {
+                TS.toastError('Error al eliminar: ' + err.message);
+            }
+        };
+
+        window.exportAllExcel = function() {
+            if (!allTrips.length) return TS.toastInfo('No hay datos para exportar');
+            const data = allTrips.map(t => ({
+                Fecha: t.fecha || '',
+                'Hora Salida': t.hora_salida || '',
+                'Hora Llegada': t.hora_llegada || '',
+                Origen: t.origen || '',
+                Destino: t.destino || '',
+                Placa: t.vehiculo_placa || '',
+                Modelo: t.vehiculo_modelo || '',
+                Color: t.vehiculo_color || '',
+                Tipo: t.vehiculo_tipo || '',
+                Conductor: t.conductor_nombre || '',
+                Licencia: t.conductor_licencia || '',
+                Teléfono: t.conductor_telefono || '',
+                'KM Inicial': t.km_salida || '',
+                'KM Final': t.km_llegada || '',
+                Distancia: t.distancia_km || '',
+                Riesgo: t.risk_level || '',
+                Puntaje: t.risk_score || '',
+                Estado: t.estado || ''
+            }));
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Viajes');
+            XLSX.writeFile(wb, `Viajes_TransServices_${new Date().toISOString().split('T')[0]}.xlsx`);
+        };
+
+        // --- MODAL PIN ---
+        let pendingTripId = null;
+
+        window.openPinModal = function(tripId) {
+            pendingTripId = tripId;
+            document.getElementById('pinInput').value = '';
+            document.getElementById('pinError').classList.add('hidden');
+            document.getElementById('pinModal').classList.remove('hidden');
+            document.getElementById('pinModal').style.display = 'flex';
+            setTimeout(() => document.getElementById('pinInput').focus(), 100);
+        };
+
+        window.closePinModal = function() {
+            document.getElementById('pinModal').classList.add('hidden');
+            document.getElementById('pinModal').style.display = 'none';
+            pendingTripId = null;
+        };
+
+        window.submitPin = async function() {
+            const pin = document.getElementById('pinInput').value.trim();
+            const errorEl = document.getElementById('pinError');
+
+            if (!pin) {
+                errorEl.textContent = 'Ingrese el PIN';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            const btn = document.querySelector('#pinModal button:last-child');
+            const originalText = btn.textContent;
+            btn.textContent = 'Verificando...';
+            btn.disabled = true;
+
+            try {
+                const isValid = await verifyPinAdmin(pin);
+                if (isValid && pendingTripId) {
+                    closePinModal();
+                    window.location.href = `index.html?editTripId=${pendingTripId}`;
+                } else {
+                    errorEl.textContent = 'PIN incorrecto. Intente nuevamente.';
+                    errorEl.classList.remove('hidden');
+                    document.getElementById('pinInput').value = '';
+                    document.getElementById('pinInput').focus();
+                }
+            } catch (e) {
+                errorEl.textContent = 'Error al verificar. Intente nuevamente.';
+                errorEl.classList.remove('hidden');
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        };
+
+        // Cerrar modal con Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closePinModal();
+        });
+
+        window.logout = async function() {
+            const okLogout = await TS.confirm('¿Cerrar sesión?');
+            if (!okLogout) return;
+            
+            try {
+                await signOut();
+            } catch (e) {
+                console.warn('SignOut error:', e);
+            }
+            
+            setTimeout(() => {
+                window.location.replace('./login.html');
+            }, 300);
+        };
+
+        // Iniciar
+        window.loadTrips();
+    </script>
+</body>
+
+</html>

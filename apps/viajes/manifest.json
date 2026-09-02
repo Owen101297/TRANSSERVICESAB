@@ -1,0 +1,34 @@
+{
+  "name": "Gerenciamiento de Viajes - Trans Services",
+  "short_name": "Viajes",
+  "start_url": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F2F2F7",
+  "theme_color": "#007AFF",
+  "description": "Aplicación para el gerenciamiento de viajes de Trans Services A&B.",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "./assets/web-app-manifest-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./assets/web-app-manifest-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "./assets/screenshot-mobile.png",
+      "sizes": "390x844",
+      "form_factor": "narrow",
+      "label": "Vista móvil del formulario"
+    }
+  ],
+  "prefer_related_applications": false
+}

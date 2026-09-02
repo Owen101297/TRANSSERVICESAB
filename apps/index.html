@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1E40AF">
+    <title>Biblioteca de Módulos | Trans Services A&B</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Design System -->
+    <link rel="stylesheet" href="../assets/css/trans-services-tokens.css">
+    <link rel="stylesheet" href="../assets/css/trans-services-components.css">
+    <script src="../assets/js/trans-services-ui.js"></script>
+
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" href="../assets/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg" />
+    <link rel="shortcut icon" href="../assets/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="../assets/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="TRANS SERVICES A&B" />
+    <link rel="manifest" href="../assets/site.webmanifest" />
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bg: {
+                            0: '#F8FAFC', // Fondo general
+                            1: '#FFFFFF', // Blanco para tarjetas
+                            2: '#F1F5F9', // Gris para agrupaciones
+                            3: '#E2E8F0', // Gris de bordes
+                        },
+                        gold: {
+                            DEFAULT: '#B8995E', // Dorado corporativo
+                            light: '#C8A86B',
+                            dark: '#96783A',
+                            dim: 'rgba(184, 153, 94, 0.08)',
+                            glow: 'rgba(184, 153, 94, 0.12)',
+                        },
+                        sidebar: {
+                            bg: '#0F172A', // Slate 900
+                            hover: '#1E293B',
+                            active: '#334155'
+                        }
+                    },
+                    fontFamily: {
+                        display: ['Inter', 'sans-serif'],
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8FAFC;
+            color: #0F172A;
+        }
+        .font-display {
+            font-family: 'Inter', sans-serif;
+            letter-spacing: -0.01em;
+        }
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            background: #1E40AF;
+            color: #fff;
+            padding: 8px 16px;
+            z-index: 1000;
+            transition: top 150ms ease;
+        }
+        .skip-link:focus { top: 0; }
+        
+        /* Staggered entrance animation keyframes */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(16px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .animate-fade-in-up {
+            animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+        }
+
+        /* Glassmorphism premium card */
+        .glass-card {
+            background: #FFFFFF;
+            border: 1px solid #E2E8F0;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .glass-card:hover {
+            border-color: #CBD5E1;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+            transform: translateY(-4px);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #F1F5F9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #CBD5E1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94A3B8;
+        }
+    </style>
+</head>
+
+<body class="h-screen flex flex-col md:flex-row md:overflow-hidden overflow-y-auto selection:bg-gold/30">
+    <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+
+    <!-- Backdrop Overlay for Mobile -->
+    <div id="sidebarBackdrop" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-20 hidden opacity-0 transition-opacity duration-300 md:hidden" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar Lateral -->
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-30 w-64 bg-sidebar-bg flex-shrink-0 flex flex-col shadow-xl transform -translate-x-full md:translate-x-0 md:static transition-transform duration-300 ease-in-out h-full">
+        <!-- Logo Header -->
+        <div class="p-5 flex items-center justify-between border-b border-slate-800/60">
+            <div class="flex items-center space-x-3">
+                <img src="../assets/logo.png" alt="Logo" class="w-10 h-10 object-contain">
+                <div>
+                    <span class="block font-bold text-lg tracking-tight text-white font-display">TransService</span>
+                    <span class="block text-[9px] uppercase tracking-[0.2em] text-gold/90 font-bold">Logística Integral</span>
+                </div>
+            </div>
+            <!-- Close Button for Mobile -->
+            <button onclick="toggleSidebar()" class="md:hidden p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors" aria-label="Close menu">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <!-- Navigation Links -->
+        <nav class="flex-grow p-4 space-y-1.5 mt-3 overflow-y-auto text-sm" aria-label="Navegación principal">
+            <p class="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2.5">Portal</p>
+            <a href="../dashboard.html"
+                class="flex items-center space-x-3 p-3 rounded-xl text-slate-300 font-semibold hover:bg-sidebar-hover hover:text-white transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50">
+                <i data-lucide="layout-dashboard" class="w-4 h-4 text-gold"></i>
+                <span>Dashboard Corporativo</span>
+            </a>
+            <a href="#" onclick="goToWebsite(); return false;"
+                class="flex items-center space-x-3 p-3 rounded-xl text-slate-300 font-semibold hover:bg-sidebar-hover hover:text-white transition-all bg-sidebar-hover/40 border border-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/50">
+                <i data-lucide="globe" class="w-4 h-4 text-gold"></i>
+                <span>Página Web Principal</span>
+            </a>
+        </nav>
+
+        <!-- Sidebar Footer -->
+        <div class="p-4 border-t border-slate-800/60 text-[9px] text-slate-500 uppercase tracking-widest font-bold text-center">
+            Biblioteca de Módulos v3.0
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="flex-grow flex flex-col md:overflow-hidden bg-bg-0">
+        
+        <!-- Header -->
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 shrink-0 z-10">
+            <div class="flex items-center gap-2 sm:gap-3">
+                <!-- Hamburger Menu Trigger for Mobile -->
+                <button onclick="toggleSidebar()" class="md:hidden p-2 -ml-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors" aria-label="Toggle menu">
+                    <i data-lucide="menu" class="w-5 h-5"></i>
+                </button>
+                <h2 class="text-sm sm:text-base font-bold text-slate-800 font-display tracking-tight flex items-center gap-2 whitespace-nowrap">
+                    <i data-lucide="folder-open" class="text-slate-500 w-4 h-4 hidden sm:inline"></i> Biblioteca de Módulos
+                </h2>
+            </div>
+            
+            <!-- Search bar -->
+            <div class="flex items-center bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200 w-36 sm:w-64 md:w-80 focus-within:border-slate-400 transition-colors ml-2">
+                <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 mr-1.5 flex-shrink-0"></i>
+                <input 
+                    type="text" 
+                    id="searchApps" 
+                    placeholder="Buscar..." 
+                    oninput="filterApps()"
+                    class="bg-transparent w-full text-xs font-semibold outline-none text-slate-700 placeholder-slate-400"
+                />
+            </div>
+        </header>
+
+        <!-- Main Grid Scroll Area -->
+        <main id="main-content" class="flex-grow p-6 md:overflow-y-auto" tabindex="-1">
+            <div class="max-w-7xl mx-auto space-y-6">
+
+                <!-- Introduction -->
+                <div class="animate-fade-in-up" style="animation-delay: 50ms;">
+                    <h1 class="text-2xl font-black text-slate-900 tracking-tight font-display">Formatos y Aplicaciones</h1>
+                    <p class="text-sm text-slate-500 mt-2">Selecciona el módulo correspondiente para gestionar tus formatos digitales, control preventivo e inspecciones de seguridad.</p>
+                </div>
+
+                <!-- Apps Grid -->
+                <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" id="appsGrid">
+
+                    <!-- Card ASEO -->
+                    <a href="aseo/index.html" class="glass-card rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center justify-center animate-fade-in-up search-item transition-all duration-300 hover:border-primary hover:shadow-primary/10 hover:shadow-lg group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" style="animation-delay: 100ms;" data-tags="aseo limpieza desinfeccion orden">
+                        <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center border border-indigo-100 group-hover:scale-110 transition-transform duration-300 mb-3">
+                            <i data-lucide="brush" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-800 font-display text-sm sm:text-base group-hover:text-primary transition-colors truncate w-full">Control de Aseo</h3>
+                        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1 truncate w-full">Limpieza</p>
+                    </a>
+
+                    <!-- Card ENCUESTA -->
+                    <a href="encuesta/dist/index.html" class="glass-card rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center justify-center animate-fade-in-up search-item transition-all duration-300 hover:border-primary hover:shadow-primary/10 hover:shadow-lg group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" style="animation-delay: 150ms;" data-tags="encuesta evaluacion satisfaccion calidad opinion">
+                        <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center border border-emerald-100 group-hover:scale-110 transition-transform duration-300 mb-3">
+                            <i data-lucide="clipboard-list" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-800 font-display text-sm sm:text-base group-hover:text-primary transition-colors truncate w-full">Encuestas</h3>
+                        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1 truncate w-full">Calidad y Opinión</p>
+                    </a>
+
+                    <!-- Card EXTINTOR -->
+                    <a href="extintor/index.html" class="glass-card rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center justify-center animate-fade-in-up search-item transition-all duration-300 hover:border-primary hover:shadow-primary/10 hover:shadow-lg group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" style="animation-delay: 200ms;" data-tags="extintor fuego seguridad emergencias botiquin rtm">
+                        <div class="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center border border-rose-100 group-hover:scale-110 transition-transform duration-300 mb-3">
+                            <i data-lucide="flame" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-800 font-display text-sm sm:text-base group-hover:text-primary transition-colors truncate w-full">Inspección Extintor</h3>
+                        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1 truncate w-full">Seguridad Vial</p>
+                    </a>
+
+                    <!-- Card VIAJES -->
+                    <a href="viajes/index.html" class="glass-card rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center justify-center animate-fade-in-up search-item transition-all duration-300 hover:border-primary hover:shadow-primary/10 hover:shadow-lg group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" style="animation-delay: 250ms;" data-tags="viajes despachos rutas conductores programacion">
+                        <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center border border-blue-100 group-hover:scale-110 transition-transform duration-300 mb-3">
+                            <i data-lucide="route" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-800 font-display text-sm sm:text-base group-hover:text-primary transition-colors truncate w-full">Servicio de Viajes</h3>
+                        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1 truncate w-full">Rutas y Tiempos</p>
+                    </a>
+
+                    <!-- Card BOTIQUIN -->
+                    <a href="botiquin/index.html" class="glass-card rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center justify-center animate-fade-in-up search-item transition-all duration-300 hover:border-primary hover:shadow-primary/10 hover:shadow-lg group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" style="animation-delay: 300ms;" data-tags="botiquin primeros auxilios emergencias insumos salud">
+                        <div class="w-12 h-12 bg-cyan-50 text-cyan-600 rounded-2xl flex items-center justify-center border border-cyan-100 group-hover:scale-110 transition-transform duration-300 mb-3">
+                            <i data-lucide="activity" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-800 font-display text-sm sm:text-base group-hover:text-primary transition-colors truncate w-full">Control Botiquín</h3>
+                        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1 truncate w-full">Primeros Auxilios</p>
+                    </a>
+
+                    <!-- Card ASISTENCIA -->
+                    <div class="relative group search-item animate-fade-in-up" style="animation-delay: 350ms;" data-tags="asistencia entrada salida firmas horarios control">
+                        <a href="asistencia/index.html" class="glass-card rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center justify-center transition-all duration-300 hover:border-primary hover:shadow-primary/10 hover:shadow-lg h-full w-full group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
+                            <div class="w-12 h-12 bg-violet-50 text-violet-600 rounded-2xl flex items-center justify-center border border-violet-100 group-hover:scale-110 transition-transform duration-300 mb-3">
+                                <i data-lucide="user-check" class="w-6 h-6"></i>
+                            </div>
+                            <h3 class="font-bold text-slate-800 font-display text-sm sm:text-base group-hover:text-primary transition-colors truncate w-full">Asistencia</h3>
+                            <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1 truncate w-full">Registro Diario</p>
+                        </a>
+                        <!-- Admin Shortcut Settings Gear -->
+                        <a href="asistencia/admin.html" class="absolute top-3 right-3 p-1.5 bg-slate-50 hover:bg-slate-200 text-slate-400 hover:text-slate-700 rounded-lg border border-slate-200/60 transition-all z-10 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" title="Panel Administrador">
+                            <i data-lucide="settings" class="w-4 h-4"></i>
+                        </a>
+                    </div>
+
+                    <!-- Card PREOPERACIONAL -->
+                    <a href="preoperacional/index.html" class="glass-card rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center justify-center animate-fade-in-up search-item transition-all duration-300 hover:border-primary hover:shadow-primary/10 hover:shadow-lg group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" style="animation-delay: 400ms;" data-tags="preoperacional inspeccion vehiculos mecanico checklist seguridad">
+                        <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center border border-amber-100 group-hover:scale-110 transition-transform duration-300 mb-3">
+                            <i data-lucide="check-square" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-800 font-display text-sm sm:text-base group-hover:text-primary transition-colors truncate w-full">Preoperacional</h3>
+                        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1 truncate w-full">Seguridad Vial</p>
+                    </a>
+
+                    <!-- Card LAVADO -->
+                    <a href="lavado/index.html" class="glass-card rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center justify-center animate-fade-in-up search-item transition-all duration-300 hover:border-primary hover:shadow-primary/10 hover:shadow-lg group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" style="animation-delay: 450ms;" data-tags="lavado limpieza vehiculos agua aseo externo">
+                        <div class="w-12 h-12 bg-sky-50 text-sky-600 rounded-2xl flex items-center justify-center border border-sky-100 group-hover:scale-110 transition-transform duration-300 mb-3">
+                            <i data-lucide="droplet" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-800 font-display text-sm sm:text-base group-hover:text-primary transition-colors truncate w-full">Bitácora Lavado</h3>
+                        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1 truncate w-full">Limpieza Vehicular</p>
+                    </a>
+
+                    <!-- Card FLOTA -->
+                    <a href="fleet/index.html" class="glass-card rounded-2xl p-4 sm:p-5 flex flex-col items-center text-center justify-center animate-fade-in-up search-item transition-all duration-300 hover:border-primary hover:shadow-primary/10 hover:shadow-lg group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50" style="animation-delay: 500ms;" data-tags="flota vehiculos flotilla automovil camioneta bus transporte mantenimiento documentos soat rtm operacion">
+                        <div class="w-12 h-12 bg-slate-900 text-gold rounded-2xl flex items-center justify-center border border-slate-800 group-hover:scale-110 transition-transform duration-300 mb-3">
+                            <i data-lucide="truck" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-800 font-display text-sm sm:text-base group-hover:text-primary transition-colors truncate w-full">Gestión de Flota</h3>
+                        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1 truncate w-full">Fleet Edition v4.1</p>
+                    </a>
+
+                </div>
+
+                <!-- Empty State Search -->
+                <div id="emptyState" class="hidden p-12 text-center border border-dashed border-slate-200 rounded-3xl bg-white space-y-3">
+                    <i data-lucide="folder-search" class="w-10 h-10 text-slate-400 mx-auto"></i>
+                    <p class="text-sm font-bold text-slate-600 uppercase tracking-wider">No se encontraron módulos</p>
+                    <p class="text-xs text-slate-400">Intenta buscar con otros términos relacionados.</p>
+                </div>
+
+                <!-- Footer -->
+                <footer class="text-center text-[10px] text-slate-400 uppercase font-bold tracking-widest pt-8">
+                    Trans Services A&B | Biblioteca Unificada de Módulos | Compilado Estático en Producción
+                </footer>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- JavaScript code for filter and init -->
+    <script>
+        // Init Lucide Icons
+        lucide.createIcons();
+
+        // Dynamic Filtering function
+        function filterApps() {
+            const query = document.getElementById('searchApps').value.toLowerCase().trim();
+            const items = document.querySelectorAll('.search-item');
+            const grid = document.getElementById('appsGrid');
+            const emptyState = document.getElementById('emptyState');
+            
+            let visibleCount = 0;
+
+            items.forEach(item => {
+                const title = item.querySelector('h3').textContent.toLowerCase();
+                const subtitle = item.querySelector('p').textContent.toLowerCase();
+                const tags = item.getAttribute('data-tags').toLowerCase();
+                
+                if (title.includes(query) || subtitle.includes(query) || tags.includes(query)) {
+                    item.style.display = 'flex';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            if (visibleCount === 0) {
+                grid.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+            } else {
+                grid.classList.remove('hidden');
+                emptyState.classList.add('hidden');
+            }
+        }
+
+        function goToWebsite() {
+            if (window.location.pathname.includes('/dist/')) {
+                window.location.href = '../../index.html';
+            } else {
+                window.location.href = '../index.html';
+            }
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const backdrop = document.getElementById('sidebarBackdrop');
+            if (sidebar.classList.contains('-translate-x-full')) {
+                // Open
+                sidebar.classList.remove('-translate-x-full');
+                backdrop.classList.remove('hidden');
+                setTimeout(() => {
+                    backdrop.classList.remove('opacity-0');
+                    backdrop.classList.add('opacity-100');
+                }, 10);
+            } else {
+                // Close
+                sidebar.classList.add('-translate-x-full');
+                backdrop.classList.remove('opacity-100');
+                backdrop.classList.add('opacity-0');
+                setTimeout(() => {
+                    backdrop.classList.add('hidden');
+                }, 300);
+            }
+        }
+    </script>
+</body>
+</html>

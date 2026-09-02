@@ -94,10 +94,37 @@ export async function createCapacitacionAction(
 }
 
 /**
- * Obtiene todos los registros de asistencia
+ * Obtiene todos los registros de asistencia desde DB
  */
 export async function getAsistenciasDb(): Promise<RegistroAsistencia[]> {
-  return localAsistenciasState;
+  try {
+    if (!process.env.DATABASE_URL) {
+      return localAsistenciasState;
+    }
+
+    const dbAsistencias = await (prisma as any).asistenciaRegistro.findMany({
+      orderBy: { fecha: "desc" },
+    });
+
+    if (!dbAsistencias || dbAsistencias.length === 0) {
+      return localAsistenciasState;
+    }
+
+    return dbAsistencias.map((a: any) => ({
+      id: a.id,
+      personaId: a.personaId || `p_${a.id}`,
+      personaNombre: a.personaNombre,
+      evento: a.evento || "Jornada Operativa / Capacitación",
+      tipoEvento: (a.tipoEvento as any) || "capacitacion",
+      fecha: a.fecha ? a.fecha.toISOString() : new Date().toISOString(),
+      estado: (a.estado as EstadoAsistencia) || (a.asistio ? "presente" : "ausente"),
+      horaLlegada: a.horaLlegada ?? undefined,
+      observaciones: a.observaciones ?? undefined,
+    }));
+  } catch (error) {
+    console.warn("Aviso DB Asistencia (usando memoria):", error);
+    return localAsistenciasState;
+  }
 }
 
 /**
@@ -108,18 +135,44 @@ export async function createAsistenciaAction(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const personaNombre = formData.get("personaNombre") as string;
-    const evento = formData.get("evento") as string;
+    const personaId = (formData.get("personaId") as string) || undefined;
+    const evento = (formData.get("evento") as string) || "Jornada Operativa";
+    const tipoEvento = (formData.get("tipoEvento") as string) || "capacitacion";
     const estado = (formData.get("estado") as EstadoAsistencia) || "presente";
+    const horaLlegada = (formData.get("horaLlegada") as string) || undefined;
+    const observaciones = (formData.get("observaciones") as string) || undefined;
 
+    const newId = `as_${Date.now()}`;
     const newReg: RegistroAsistencia = {
-      id: `as_${Date.now()}`,
-      personaId: `p_${Date.now()}`,
+      id: newId,
+      personaId: personaId || `p_${Date.now()}`,
       personaNombre,
       evento,
-      tipoEvento: "capacitacion",
+      tipoEvento: tipoEvento as any,
       fecha: new Date().toISOString(),
       estado,
     };
+
+    if (process.env.DATABASE_URL) {
+      try {
+        await (prisma as any).asistenciaRegistro.create({
+          data: {
+            id: newId,
+            personaId,
+            personaNombre,
+            evento,
+            tipoEvento,
+            estado,
+            horaLlegada,
+            observaciones,
+            asistio: estado !== "ausente",
+            fecha: new Date(),
+          },
+        });
+      } catch (dbErr) {
+        console.warn("Aviso al guardar asistencia en PostgreSQL:", dbErr);
+      }
+    }
 
     localAsistenciasState.unshift(newReg);
     revalidatePath("/asistencia");

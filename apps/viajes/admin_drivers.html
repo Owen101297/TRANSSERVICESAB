@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <script type="importmap">
+    {
+      "imports": {
+        "@supabase/supabase-js": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/+esm"
+      }
+    }
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administración de Conductores | Trans Services A&B</title>
+    <link rel="icon" type="image/png" href="./assets/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
+    <link rel="shortcut icon" href="./assets/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./assets/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="TRANS SERVICES A&B" />
+    <meta name="theme-color" content="#1E40AF">
+    <link rel="manifest" href="./assets/site.webmanifest" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../../assets/css/trans-services-tokens.css">
+    <link rel="stylesheet" href="../../assets/css/trans-services-components.css">
+    <link rel="stylesheet" href="./css/style.css">
+    <script src="../../assets/js/trans-services-ui.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="../../assets/js/trans-services-tailwind-config.js"></script>
+</head>
+
+<body class="bg-surface min-h-screen font-sans">
+    <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
+    <nav class="bg-white shadow-sm border-b border-[#E2E8F0] px-6 py-4 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <img src="./assets/logo.png" alt="Logo" class="h-8">
+            <h1 class="font-bold text-strong text-lg">Panel de Administración</h1>
+        </div>
+        <div class="flex gap-3">
+            <a href="admin_trips.html"
+                class="text-body hover:text-primary text-sm font-medium flex items-center gap-2">
+                <i data-lucide="map" class="w-4 h-4"></i> Ver Viajes
+            </a>
+            <button onclick="logout()"
+                class="text-danger hover:text-danger-dark text-sm font-medium flex items-center gap-2">
+                <i data-lucide="log-out" class="w-4 h-4"></i> Salir
+            </button>
+        </div>
+    </nav>
+
+    <main id="main-content" class="max-w-6xl mx-auto p-6">
+        <div class="flex justify-between items-center mb-6 flex-wrap gap-3">
+            <h2 class="text-2xl font-bold text-strong">Conductores Registrados</h2>
+            <div class="flex gap-3 flex-wrap">
+                <button onclick="openDriverModal()"
+                    class="btn btn-primary btn-sm">
+                    <i data-lucide="user-plus" class="w-4 h-4"></i> Agregar Conductor
+                </button>
+                <div class="bg-white border border-[#E2E8F0] rounded-lg flex items-center px-3 py-2 gap-2 shadow-sm">
+                    <i data-lucide="search" class="w-4 h-4 text-muted"></i>
+                    <input type="text" id="searchInput" placeholder="Buscar conductor..." class="outline-none text-sm w-48"
+                        onkeyup="filterTable()">
+                </div>
+            </div>
+        </div>
+
+        <div class="card rounded-xl overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-body">
+                    <thead class="bg-surface-2 text-slate-800 font-semibold border-b border-[#E2E8F0]">
+                        <tr>
+                            <th class="p-4">Nombre</th>
+                            <th class="p-4">Licencia</th>
+                            <th class="p-4">Categoría</th>
+                            <th class="p-4">Teléfono</th>
+                            <th class="p-4">Vencimiento</th>
+                            <th class="p-4">Estado</th>
+                            <th class="p-4 text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="driversTableBody">
+                        <!-- Datos cargados dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal CRUD Conductor -->
+    <div id="driverModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div class="p-6 border-b border-[#E2E8F0] flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-strong" id="modalTitle">Nuevo Conductor</h3>
+                <button onclick="closeDriverModal()" class="text-muted hover:text-strong p-1" aria-label="Cerrar">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form id="driverForm" class="p-6 space-y-4">
+                <input type="hidden" id="driverId">
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-strong mb-1" for="dNombres">Nombres *</label>
+                        <input type="text" id="dNombres" required class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-strong mb-1" for="dApellidos">Apellidos *</label>
+                        <input type="text" id="dApellidos" required class="form-input">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-strong mb-1" for="dDocumento">Documento *</label>
+                        <input type="text" id="dDocumento" required class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-strong mb-1" for="dTipoDoc">Tipo</label>
+                        <select id="dTipoDoc" class="form-input">
+                            <option value="CC">CC</option>
+                            <option value="CE">CE</option>
+                            <option value="Pasaporte">Pasaporte</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-strong mb-1" for="dLicencia">Licencia *</label>
+                        <input type="text" id="dLicencia" required class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-strong mb-1" for="dCategoria">Categoría *</label>
+                        <input type="text" id="dCategoria" required class="form-input">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-strong mb-1" for="dVenceLicencia">Vencimiento Licencia</label>
+                        <input type="date" id="dVenceLicencia" class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-strong mb-1" for="dNacimiento">Fecha Nacimiento</label>
+                        <input type="date" id="dNacimiento" class="form-input">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-strong mb-1" for="dTelefono">Teléfono *</label>
+                        <input type="tel" id="dTelefono" required class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-strong mb-1" for="dEmail">Email *</label>
+                        <input type="email" id="dEmail" required class="form-input">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-strong mb-1" for="dEstado">Estado</label>
+                        <select id="dEstado" class="form-input">
+                            <option value="activo">Activo</option>
+                            <option value="inactivo">Inactivo</option>
+                            <option value="licencia">Licencia</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-strong mb-1" for="dIngreso">Fecha Ingreso</label>
+                        <input type="date" id="dIngreso" class="form-input">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-strong mb-1" for="dEps">EPS</label>
+                        <input type="text" id="dEps" class="form-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-strong mb-1" for="dArl">ARL</label>
+                        <input type="text" id="dArl" class="form-input">
+                    </div>
+                </div>
+
+                <div id="formError" class="text-danger text-sm text-center hidden p-3 bg-danger-soft rounded-lg" role="alert"></div>
+
+                <div class="flex gap-3 pt-2">
+                    <button type="button" onclick="closeDriverModal()" class="flex-1 py-2.5 text-body font-medium hover:bg-surface-2 rounded-lg transition-colors border border-[#E2E8F0]">Cancelar</button>
+                    <button type="submit" id="btnSaveDriver" class="flex-1 py-2.5 bg-primary text-white font-medium rounded-lg hover:bg-primary-dark transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-focus">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { requireAdmin, signOut, getConductores, createConductor, updateConductor, deleteConductor } from './js/supabase-client.js';
+
+        const escapeHTML = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+        lucide.createIcons();
+
+        let allDrivers = [];
+
+        window.loadDrivers = async function() {
+            try {
+                await requireAdmin();
+            } catch (e) {
+                return;
+            }
+            const tbody = document.getElementById('driversTableBody');
+            tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center"><i class="animate-spin w-6 h-6 mx-auto text-primary" data-lucide="loader-2"></i></td></tr>';
+            lucide.createIcons();
+
+            try {
+                allDrivers = await getConductores();
+
+                if (!allDrivers || allDrivers.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-muted">No hay conductores registrados.</td></tr>';
+                    return;
+                }
+
+                renderDrivers(allDrivers);
+            } catch (error) {
+                console.error('Error cargando conductores:', error);
+                tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-danger">${error.message || 'Error al cargar conductores'}</td></tr>`;
+            }
+        };
+
+        window.renderDrivers = function(drivers) {
+            const tbody = document.getElementById('driversTableBody');
+            const today = new Date().toISOString().split('T')[0];
+
+            let html = '';
+            drivers.forEach(d => {
+                const vencido = d.licencia_vencimiento && d.licencia_vencimiento < today;
+                const estadoClass = vencido ? 'bg-danger-soft text-danger-dark' : (d.estado === 'activo' ? 'bg-success-soft text-success-dark' : 'bg-warning-soft text-warning-dark');
+                const estadoText = vencido ? 'Vencida' : d.estado;
+
+                html += `
+                    <tr class="border-b border-border hover:bg-surface-2 transition-colors">
+                        <td class="p-4">
+                            <p class="font-medium text-strong">${escapeHTML(d.nombres)} ${escapeHTML(d.apellidos || '')}</p>
+                            <p class="text-xs text-muted">${escapeHTML(d.email || '')}</p>
+                        </td>
+                        <td class="p-4">${escapeHTML(d.licencia_conducir || 'N/A')}</td>
+                        <td class="p-4">${escapeHTML(d.categoria_licencia || 'N/A')}</td>
+                        <td class="p-4">${escapeHTML(d.telefono || 'N/A')}</td>
+                        <td class="p-4 ${vencido ? 'text-danger font-medium' : ''}">${escapeHTML(d.licencia_vencimiento || 'N/A')}</td>
+                        <td class="p-4"><span class="px-2 py-1 rounded-full text-xs font-medium ${estadoClass}">${escapeHTML(estadoText)}</span></td>
+                        <td class="p-4 text-center">
+                            <div class="flex justify-center gap-1">
+                                <button onclick="window.editDriver('${escapeHTML(d.id)}')" class="text-primary hover:bg-primary-focus p-2 rounded-lg transition-colors" title="Editar">
+                                    <i data-lucide="edit-3" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="window.deleteDriver('${escapeHTML(d.id)}')" class="text-danger hover:bg-danger-focus p-2 rounded-lg transition-colors" title="Eliminar">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+            lucide.createIcons();
+        };
+
+        // --- MODAL CRUD ---
+        window.openDriverModal = function(driverId = null) {
+            const modal = document.getElementById('driverModal');
+            const form = document.getElementById('driverForm');
+            const title = document.getElementById('modalTitle');
+            const errorEl = document.getElementById('formError');
+
+            form.reset();
+            errorEl.classList.add('hidden');
+
+            if (driverId) {
+                const driver = allDrivers.find(d => d.id === driverId);
+                if (!driver) return TS.toastError('Conductor no encontrado');
+
+                title.textContent = 'Editar Conductor';
+                document.getElementById('driverId').value = driver.id;
+                document.getElementById('dNombres').value = driver.nombres || '';
+                document.getElementById('dApellidos').value = driver.apellidos || '';
+                document.getElementById('dDocumento').value = driver.numero_documento || '';
+                document.getElementById('dTipoDoc').value = driver.tipo_documento || 'CC';
+                document.getElementById('dLicencia').value = driver.licencia_conducir || '';
+                document.getElementById('dCategoria').value = driver.categoria_licencia || '';
+                document.getElementById('dVenceLicencia').value = driver.licencia_vencimiento || '';
+                document.getElementById('dNacimiento').value = driver.fecha_nacimiento || '';
+                document.getElementById('dTelefono').value = driver.telefono || '';
+                document.getElementById('dEmail').value = driver.email || '';
+                document.getElementById('dEstado').value = driver.estado || 'activo';
+                document.getElementById('dIngreso').value = driver.fecha_ingreso || '';
+                document.getElementById('dEps').value = driver.eps || '';
+                document.getElementById('dArl').value = driver.arl || '';
+            } else {
+                title.textContent = 'Nuevo Conductor';
+                document.getElementById('driverId').value = '';
+                document.getElementById('dIngreso').value = new Date().toISOString().split('T')[0];
+            }
+
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+        };
+
+        window.closeDriverModal = function() {
+            const modal = document.getElementById('driverModal');
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        };
+
+        window.editDriver = function(id) {
+            openDriverModal(id);
+        };
+
+        window.deleteDriver = async function(id) {
+            const driver = allDrivers.find(d => d.id === id);
+            if (!driver) return;
+            const okDelete = await TS.confirm(`¿Eliminar a ${driver.nombres} ${driver.apellidos || ''}?\nEsta acción no se puede deshacer.`);
+            if (!okDelete) return;
+
+            try {
+                await deleteConductor(id);
+                TS.toastSuccess('Conductor eliminado correctamente');
+                await loadDrivers();
+            } catch (error) {
+                TS.toastError('Error al eliminar: ' + (error.message || 'No se pudo eliminar'));
+            }
+        };
+
+        document.getElementById('driverForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btnSaveDriver');
+            const errorEl = document.getElementById('formError');
+            const driverId = document.getElementById('driverId').value;
+
+            const formData = {
+                nombres: document.getElementById('dNombres').value.trim(),
+                apellidos: document.getElementById('dApellidos').value.trim(),
+                numero_documento: document.getElementById('dDocumento').value.trim(),
+                tipo_documento: document.getElementById('dTipoDoc').value,
+                licencia_conducir: document.getElementById('dLicencia').value.trim(),
+                categoria_licencia: document.getElementById('dCategoria').value.trim(),
+                licencia_vencimiento: document.getElementById('dVenceLicencia').value || null,
+                fecha_nacimiento: document.getElementById('dNacimiento').value || null,
+                telefono: document.getElementById('dTelefono').value.trim(),
+                email: document.getElementById('dEmail').value.trim(),
+                estado: document.getElementById('dEstado').value,
+                fecha_ingreso: document.getElementById('dIngreso').value || null,
+                eps: document.getElementById('dEps').value.trim() || null,
+                arl: document.getElementById('dArl').value.trim() || null
+            };
+
+            btn.disabled = true;
+            btn.textContent = 'Guardando...';
+            errorEl.classList.add('hidden');
+
+            try {
+                if (driverId) {
+                    await updateConductor(driverId, formData);
+                    TS.toastSuccess('Conductor actualizado correctamente');
+                } else {
+                    await createConductor(formData);
+                    TS.toastSuccess('Conductor creado correctamente');
+                }
+                closeDriverModal();
+                await loadDrivers();
+            } catch (error) {
+                console.error('Error guardando conductor:', error);
+                errorEl.textContent = error.message || 'Error al guardar. Verifica los datos.';
+                errorEl.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Guardar';
+            }
+        });
+
+        window.logout = async function() {
+            const okLogout = await TS.confirm('¿Cerrar sesión?');
+            if (!okLogout) return;
+            try {
+                await signOut();
+            } catch (e) {
+                console.warn('SignOut error:', e);
+            }
+            setTimeout(() => {
+                window.location.replace('./login.html');
+            }, 300);
+        };
+
+        window.filterTable = function() {
+            const input = document.getElementById('searchInput');
+            const filter = input.value.toLowerCase();
+            const filtered = allDrivers.filter(d => {
+                const text = `${d.nombres} ${d.apellidos || ''} ${d.email || ''} ${d.licencia_conducir || ''} ${d.telefono || ''}`.toLowerCase();
+                return text.includes(filter);
+            });
+            renderDrivers(filtered);
+        };
+
+        window.loadDrivers();
+    </script>
+</body>
+
+</html>

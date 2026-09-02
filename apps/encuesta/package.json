@@ -1,0 +1,31 @@
+{
+  "name": "trans-services-encuesta",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5186",
+    "build": "vite build",
+    "preview": "vite preview --port 5186"
+  },
+  "dependencies": {
+    "clsx": "2.1.1",
+    "html2canvas": "^1.4.1",
+    "qrcode.react": "^4.2.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "tailwind-merge": "3.4.0",
+    "@supabase/supabase-js": "^2.49.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.1.17",
+    "@types/node": "^22.0.0",
+    "@types/react": "19.2.7",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "5.1.1",
+    "tailwindcss": "4.1.17",
+    "typescript": "5.9.3",
+    "vite": "^6.3.5",
+    "vite-plugin-singlefile": "2.3.0"
+  }
+}

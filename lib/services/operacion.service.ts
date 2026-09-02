@@ -2,9 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { SEED_VIAJES, getViajeById as getSeedViajeById } from "@/lib/data/viajes";
-import { getPersonaById } from "@/lib/data/personas";
-import { getVehiculoById } from "@/lib/data/vehiculos";
+import { getPersonaByIdDb } from "@/lib/services/personas.service";
+import { getVehiculoByIdDb } from "@/lib/services/vehiculos.service";
 import { Viaje, EstadoViaje, ServicioViaje, Novedad } from "@/lib/types/viaje";
 
 let localViajesState: Viaje[] = [];
@@ -36,13 +35,16 @@ export async function getViajesDb(): Promise<Viaje[]> {
       contratistaNombre: v.contratistaNombre,
       origen: v.origen,
       destino: v.destino,
-      servicio: v.servicio as ServicioViaje,
+      servicio: (v.servicio as ServicioViaje) || "especial",
       fechaSalida: v.fechaSalida.toISOString(),
       duracionEstimadaHoras: v.duracionEstimadaHoras,
       fechaLlegadaReal: v.fechaLlegadaReal ? v.fechaLlegadaReal.toISOString() : undefined,
-      estado: v.estado as EstadoViaje,
+      estado: (v.estado as EstadoViaje) || "en_curso",
       observaciones: v.observaciones ?? undefined,
-      novedades: v.novedades.map((n: any) => ({
+      riskScore: v.riskScore ?? undefined,
+      riskLevel: v.riskLevel ?? undefined,
+      distanciaKm: v.distanciaKm ?? undefined,
+      novedades: (v.novedades || []).map((n: any) => ({
         id: n.id,
         fecha: n.fecha.toISOString(),
         descripcion: n.descripcion,
@@ -60,7 +62,7 @@ export async function getViajesDb(): Promise<Viaje[]> {
 export async function getViajeByIdDb(id: string): Promise<Viaje | undefined> {
   try {
     if (!process.env.DATABASE_URL) {
-      return localViajesState.find((v) => v.id === id) || getSeedViajeById(id);
+      return localViajesState.find((v) => v.id === id);
     }
 
     const v = await (prisma as any).viaje.findUnique({
@@ -73,7 +75,7 @@ export async function getViajeByIdDb(id: string): Promise<Viaje | undefined> {
     });
 
     if (!v) {
-      return localViajesState.find((viaje) => viaje.id === id) || getSeedViajeById(id);
+      return localViajesState.find((viaje) => viaje.id === id);
     }
 
     return {
@@ -85,20 +87,23 @@ export async function getViajeByIdDb(id: string): Promise<Viaje | undefined> {
       contratistaNombre: v.contratistaNombre,
       origen: v.origen,
       destino: v.destino,
-      servicio: v.servicio as ServicioViaje,
+      servicio: (v.servicio as ServicioViaje) || "especial",
       fechaSalida: v.fechaSalida.toISOString(),
       duracionEstimadaHoras: v.duracionEstimadaHoras,
       fechaLlegadaReal: v.fechaLlegadaReal ? v.fechaLlegadaReal.toISOString() : undefined,
-      estado: v.estado as EstadoViaje,
+      estado: (v.estado as EstadoViaje) || "en_curso",
       observaciones: v.observaciones ?? undefined,
-      novedades: v.novedades.map((n: any) => ({
+      riskScore: v.riskScore ?? undefined,
+      riskLevel: v.riskLevel ?? undefined,
+      distanciaKm: v.distanciaKm ?? undefined,
+      novedades: (v.novedades || []).map((n: any) => ({
         id: n.id,
         fecha: n.fecha.toISOString(),
         descripcion: n.descripcion,
       })),
     };
   } catch (error) {
-    return localViajesState.find((v) => v.id === id) || getSeedViajeById(id);
+    return localViajesState.find((v) => v.id === id);
   }
 }
 
@@ -118,11 +123,11 @@ export async function createViajeAction(
     const duracionEstimadaHoras = parseFloat((formData.get("duracionEstimadaHoras") as string) || "2");
     const observaciones = (formData.get("observaciones") as string) || undefined;
 
-    const persona = getPersonaById(conductorId);
-    const conductorNombre = persona ? `${persona.nombres} ${persona.apellidos}` : "Conductor Asignado";
+    const persona = await getPersonaByIdDb(conductorId);
+    const conductorNombre = persona ? `${persona.nombres} ${persona.apellidos}` : (formData.get("conductorNombre") as string) || "Conductor Asignado";
 
-    const vehiculo = getVehiculoById(vehiculoId);
-    const placa = vehiculo ? vehiculo.placa : "PLACA";
+    const vehiculo = await getVehiculoByIdDb(vehiculoId);
+    const placa = vehiculo ? vehiculo.placa : (formData.get("placa") as string) || "PLACA";
     const contratistaNombre = vehiculo ? vehiculo.contratistaNombre : "Contratista General";
 
     const newId = `t_${Date.now()}`;

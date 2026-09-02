@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="es" class="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HSEQ-F-035 - Inspección de Botiquín | Premium</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" href="./assets/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
+    <link rel="shortcut icon" href="./assets/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./assets/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="TRANS SERVICES A&B" />
+    <meta name="theme-color" content="#1E40AF">
+    <link rel="manifest" href="./assets/site.webmanifest" />
+    <!-- Scripts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+    <script src="../../assets/js/trans-services-ui.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        gold: { DEFAULT: '#D4AF37', light: '#FCE895', dark: '#8A6B27' },
+                        slate: { 50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1', 400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155', 800: '#1e293b', 900: '#0f172a' },
+                        blue: { 50: '#eff6ff', 100: '#dbeafe', 400: '#1e40af', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e3a8a', 900: '#1e3a8a' },
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Outfit', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --bg-0: #f8fafc;
+            --bg-1: #ffffff;
+            --bg-2: #f1f5f9;
+            --bg-3: #e2e8f0;
+            --border: #e2e8f0;
+            --border-gold: rgba(212, 175, 55, 0.4);
+            --gold: #D4AF37;
+            --gold-light: #FCE895;
+            --gold-dark: #8A6B27;
+            --gold-dim: rgba(212, 175, 55, 0.1);
+            --gold-glow: rgba(212, 175, 55, 0.25);
+            --text-1: #0f172a;
+            --text-2: #475569;
+            --text-3: #64748b;
+            --font: 'Outfit', sans-serif;
+            --mono: 'JetBrains Mono', monospace;
+        }
+
+        body {
+            background-color: var(--bg-0);
+            color: var(--text-1);
+            transition: all 0.3s ease;
+            position: relative;
+            min-height: 100vh;
+        }
+
+        /* BG Grid and Orbs for Light Theme */
+        .grid-bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background-image: linear-gradient(rgba(212, 175, 55, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(212, 175, 55, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            mask-image: radial-gradient(ellipse 60% 60% at 50% 0%, black 60%, transparent 100%);
+            pointer-events: none;
+        }
+
+        .orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            pointer-events: none;
+            z-index: 0;
+            animation: orbFloat 25s ease-in-out infinite;
+        }
+
+        .orb-1 {
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.09) 0%, transparent 70%);
+            top: -200px;
+            right: -100px;
+        }
+
+        .orb-2 {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(30, 64, 175, 0.05) 0%, transparent 70%);
+            bottom: 50px;
+            left: -100px;
+            animation-delay: -12s;
+        }
+
+        @keyframes orbFloat {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(25px, -25px) scale(1.05); }
+        }
+
+        .paper-size {
+            width: 100%;
+            max-width: 850px;
+            margin: 1.5rem auto;
+            background: var(--bg-1);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.05), 0 0 20px rgba(212, 175, 55, 0.02);
+            padding: 2.5rem;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            position: relative;
+            z-index: 10;
+        }
+
+        .print-only {
+            display: none !important;
+        }
+
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                font-size: 7.5pt !important;
+                line-height: 1 !important;
+            }
+
+            .no-print,
+            .screen-only {
+                display: none !important;
+            }
+
+            .print-only {
+                display: block !important;
+            }
+
+            .print-inline {
+                display: inline-block !important;
+            }
+
+            .paper-size {
+                box-shadow: none !important;
+                margin: 0 !important;
+                max-width: 100% !important;
+                padding: 0.1in !important;
+                background: white !important;
+                border: none !important;
+                color: black !important;
+            }
+
+            input,
+            select,
+            textarea {
+                display: none !important;
+            }
+
+            /* Reset background utilities for printing */
+            .bg-white,
+            .bg-slate-800,
+            .bg-slate-800\/50,
+            .bg-slate-800\/20,
+            .bg-slate-900 {
+                background-color: transparent !important;
+                background: none !important;
+            }
+
+            .text-slate-200,
+            .text-slate-300,
+            .text-slate-400,
+            .text-slate-500,
+            .text-blue-400 {
+                color: black !important;
+            }
+
+            .border-slate-700,
+            .border-slate-600 {
+                border-color: #cbd5e1 !important;
+            }
+
+            .bg-blue-600 {
+                background-color: #f1f5f9 !important;
+                color: black !important;
+                border: 1px solid #cbd5e1 !important;
+                padding: 1px 0 !important;
+            }
+
+            #inventory-cards {
+                display: none !important;
+            }
+
+            .hidden.md\:block {
+                display: block !important;
+            }
+
+            tr,
+            td,
+            th {
+                page-break-inside: avoid !important;
+                padding: 2px 4px !important;
+                font-size: 7.5pt !important;
+                line-height: 1 !important;
+                height: 14px !important;
+            }
+
+            tbody tr:nth-child(even) {
+                background-color: #f8fafc !important;
+            }
+
+            thead th {
+                background-color: #f1f5f9 !important;
+                border-bottom: 2px solid #cbd5e1 !important;
+                padding: 3px !important;
+            }
+
+            .grid-cols-1.md\:grid-cols-2 {
+                grid-template-columns: 1fr 1fr !important;
+                display: grid !important;
+            }
+
+            .p-3,
+            .p-4 {
+                padding: 3px 6px !important;
+            }
+
+            .mt-4 {
+                margin-top: 4px !important;
+            }
+
+            .mt-8 {
+                margin-top: 6px !important;
+            }
+
+            .mb-4,
+            .mb-3 {
+                margin-bottom: 2px !important;
+            }
+
+            h2 {
+                font-size: 12px !important;
+            }
+
+            h3 {
+                font-size: 9px !important;
+            }
+
+            .max-h-16 {
+                max-height: 50px !important;
+            }
+
+            #observations-container {
+                border: 1px solid #cbd5e1 !important;
+                min-height: 35px !important;
+                padding: 4px !important;
+                font-size: 7.5pt !important;
+                margin-top: 5px !important;
+            }
+
+            .signature-wrapper {
+                border: 1px solid #cbd5e1 !important;
+                background: white !important;
+                height: 50px !important;
+            }
+
+            canvas {
+                display: none !important;
+            }
+
+            .print-signature-img {
+                display: block !important;
+                max-height: 45px;
+                margin: 0 auto;
+            }
+
+            .text-\[9px\],
+            .text-\[10px\] {
+                font-size: 7pt !important;
+            }
+
+            .paper-size {
+                padding: 0.1in !important;
+            }
+
+            #printable-area h2 {
+                margin: 0 !important;
+                line-height: 1.1 !important;
+            }
+
+            .critical-mark {
+                font-weight: bold !important;
+                color: #b91c1c !important;
+            }
+
+            .text-center .print-value {
+                display: block !important;
+                width: 100% !important;
+                text-align: center !important;
+            }
+        }
+
+        /* Custom Scrollbar for Light Theme */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-0);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--gold);
+        }
+
+        input,
+        select,
+        textarea {
+            background-color: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+            color: #0f172a !important;
+            border-radius: 8px;
+            padding: 0.6rem;
+            transition: all 0.2s ease;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--gold) !important;
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2) !important;
+            background-color: #ffffff !important;
+        }
+
+        .item-card {
+            transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .item-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--border-gold);
+            box-shadow: 0 8px 24px rgba(212, 175, 55, 0.08);
+        }
+
+        .signature-wrapper {
+            position: relative;
+            width: 100%;
+            height: 150px;
+            border: 2px dashed #cbd5e1;
+            border-radius: 12px;
+            background-color: #f8fafc;
+            transition: border-color 0.2s;
+        }
+
+        .signature-wrapper:hover {
+            border-color: var(--border-gold);
+        }
+
+        #signature-pad {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        .row-critical {
+            background-color: rgba(239, 68, 68, 0.05);
+            border-left: 4px solid #ef4444 !important;
+        }
+
+        /* PDF Styles */
+        .generating-pdf-mode .paper-size.generating-pdf {
+            background: white !important;
+            color: black !important;
+            padding: 0.2in !important;
+            border: none !important;
+            box-shadow: none !important;
+            max-width: 100% !important;
+        }
+
+        .generating-pdf-mode .generating-pdf input,
+        .generating-pdf-mode .generating-pdf select,
+        .generating-pdf-mode .generating-pdf textarea {
+            display: none !important;
+        }
+
+        .generating-pdf-mode .generating-pdf .print-value {
+            display: inline-block !important;
+            color: black !important;
+        }
+
+        .generating-pdf-mode .generating-pdf .print-only {
+            display: block !important;
+        }
+
+        .generating-pdf-mode .generating-pdf .no-print {
+            display: none !important;
+        }
+
+        .generating-pdf-mode .generating-pdf .bg-slate-800,
+        .generating-pdf-mode .generating-pdf .bg-slate-800\/50,
+        .generating-pdf-mode .generating-pdf .bg-slate-800\/20,
+        .generating-pdf-mode .generating-pdf .bg-slate-900 {
+            background-color: #f8fafc !important;
+            background: #f8fafc !important;
+        }
+
+        .generating-pdf-mode .generating-pdf border,
+        .generating-pdf-mode .generating-pdf .border-slate-700,
+        .generating-pdf-mode .generating-pdf .border-slate-600 {
+            border-color: #cbd5e1 !important;
+        }
+
+        .generating-pdf-mode .generating-pdf .text-slate-200,
+        .generating-pdf-mode .generating-pdf .text-slate-300,
+        .generating-pdf-mode .generating-pdf .text-slate-400,
+        .generating-pdf-mode .generating-pdf .text-slate-500,
+        .generating-pdf-mode .generating-pdf .text-blue-400 {
+            color: black !important;
+        }
+
+        .generating-pdf-mode .generating-pdf .bg-gradient-to-r {
+            background: #e2e8f0 !important;
+            color: black !important;
+        }
+        
+        .generating-pdf-mode .generating-pdf .signature-wrapper {
+            border: 1px solid #cbd5e1 !important;
+            background: white !important;
+            height: 60px !important;
+        }
+
+        .generating-pdf-mode .generating-pdf .critical-mark {
+            color: #b91c1c !important;
+            font-weight: bold !important;
+        }
+    </style>
+</head>
+
+<body class="font-sans antialiased pb-12">
+    <a href="#printable-area" class="skip-link">Saltar al contenido principal</a>
+
+    <!-- BACKGROUND DECORATIONS -->
+    <div class="grid-bg no-print"></div>
+    <div class="orb orb-1 no-print"></div>
+    <div class="orb orb-2 no-print"></div>
+
+    <!-- TOP BAR -->
+    <div
+        class="no-print p-3 bg-gradient-to-r from-gold to-gold-dark text-black sticky top-0 z-50 shadow-[0_10px_30px_rgba(212,175,55,0.15)] backdrop-blur-md flex items-center justify-between">
+        <button onclick="goBackToApps()" class="text-black hover:opacity-75 transition-opacity flex items-center gap-1 font-bold text-xs pl-2 select-none">
+            <svg class="w-4 h-4 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path>
+            </svg>
+            <span>Volver</span>
+        </button>
+        <div class="flex-grow text-center pr-16">
+            <h1 class="font-display font-bold text-sm sm:text-base tracking-tight">Inspección de Botiquín</h1>
+            <p class="text-[9px] sm:text-[10px] opacity-80 font-medium block">Trans Services A&B</p>
+        </div>
+    </div>
+
+    <!-- MAIN FORM CONTAINER -->
+    <div class="paper-size" id="printable-area" tabindex="-1">
+        <!-- HEADER -->
+        <div class="flex flex-wrap border border-slate-200 rounded-t-lg overflow-hidden">
+            <div class="w-1/4 p-4 flex items-center justify-center border-r border-slate-200 bg-slate-50">
+                <img src="./assets/logo.png" alt="Logo" class="max-h-16"
+                    onerror="this.src='https://via.placeholder.com/120x60?text=LOGO+AQU%C3%8D'">
+            </div>
+            <div
+                class="w-1/2 p-4 text-center border-r border-slate-200 flex flex-col justify-center bg-slate-50">
+                <h2 class="font-display font-bold text-base text-blue-800 uppercase">TRANS SERVICES A&B</h2>
+                <p class="text-[10px] uppercase font-medium tracking-widest text-slate-500">Cooperativa de Transportes y
+                    Servicios</p>
+                <p class="text-[11px] font-bold text-slate-700">NIT: 900778421-1</p>
+            </div>
+            <div class="w-1/4 text-[10px] flex flex-col font-medium bg-slate-50">
+                <div class="p-2 border-b border-slate-200 flex justify-between">
+                    <span class="text-slate-500">CÓDIGO:</span> <span class="text-blue-800 font-bold">HSEQ-F-035</span>
+                </div>
+                <div class="p-2 border-b border-slate-200 flex justify-between">
+                    <span class="text-slate-500">VERSIÓN:</span> <span class="font-bold text-slate-800">04</span>
+                </div>
+                <div class="p-2 flex justify-between">
+                    <span class="text-slate-500">FECHA:</span> <span class="font-bold text-slate-800">09/03/2026</span>
+                </div>
+            </div>
+        </div>
+
+        <div
+            class="bg-gradient-to-r from-gold to-gold-dark text-black text-center py-2 font-display font-bold text-xs uppercase tracking-widest">
+            INSPECCIÓN DE EQUIPOS DE PRIMEROS AUXILIOS
+        </div>
+
+        <!-- METADATA -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-0 mt-4 border border-slate-200 rounded-lg overflow-hidden">
+            <div class="border-b md:border-b-0 md:border-r border-slate-200 p-3 flex items-center bg-slate-50">
+                <label class="text-[10px] font-bold w-32 uppercase text-slate-500">Inspector:</label>
+                <input type="text" id="inspector_name" oninput="saveData()"
+                    class="flex-1 bg-transparent border-none font-semibold uppercase text-sm focus:ring-0 text-slate-800"
+                    placeholder="Nombre completo">
+            </div>
+            <div class="p-3 flex items-center bg-slate-50">
+                <label class="text-[10px] font-bold w-32 uppercase text-slate-500">Ubicación/Placa:</label>
+                <input type="text" id="location" oninput="saveData()"
+                    class="flex-1 bg-transparent border-none font-semibold uppercase text-sm focus:ring-0 text-slate-800"
+                    placeholder="ABC-123">
+            </div>
+            <div class="border-t border-r border-slate-200 p-3 flex items-center bg-slate-50">
+                <label class="text-[10px] font-bold w-32 uppercase text-slate-500">Fecha Inspección:</label>
+                <input type="date" id="inspection_date" oninput="saveData()"
+                    class="flex-1 bg-transparent border-none font-semibold text-sm focus:ring-0 text-slate-800">
+            </div>
+            <div class="border-t border-slate-200 p-3 flex items-center bg-slate-50">
+                <label class="text-[10px] font-bold w-32 uppercase text-slate-500">Cargo:</label>
+                <input type="text" id="inspector_role" value="CONDUCTOR" oninput="saveData()"
+                    class="flex-1 bg-transparent border-none font-semibold uppercase text-sm focus:ring-0 text-slate-800">
+            </div>
+        </div>
+
+        <!-- INVENTORY SECTION -->
+        <div class="mt-8">
+            <h3 class="font-display font-bold text-sm text-blue-800 mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5 text-blue-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01">
+                    </path>
+                </svg>
+                LISTADO DE ELEMENTOS
+            </h3>
+
+            <!-- DESKTOP TABLE -->
+            <div class="hidden md:block overflow-hidden border border-slate-200 rounded-lg">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-100 text-slate-600 font-bold text-[10px] uppercase">
+                        <tr>
+                            <th class="p-3">Descripción</th>
+                            <th class="p-3 text-center">Req.</th>
+                            <th class="p-3 text-center">Estado</th>
+                            <th class="p-3 text-center">Cantidad</th>
+                            <th class="p-3">Vencimiento</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventory-body" class="divide-y divide-slate-200">
+                        <!-- Desktop rows here -->
+                    </tbody>
+                    <tfoot class="print-only">
+                        <tr class="bg-slate-100 font-bold">
+                            <td colspan="5" class="p-2 text-right border-t-2 border-slate-400" id="print-summary">
+                                Elementos Conformes: 0 / 21
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <!-- MOBILE CARDS -->
+            <div id="inventory-cards" class="md:hidden space-y-4">
+                <!-- Mobile cards here -->
+            </div>
+        </div>
+
+        <!-- OBSERVACIONES -->
+        <div id="observations-container" class="mt-4 border border-slate-200 rounded-lg p-3 bg-slate-50">
+            <h3
+                class="font-display font-bold text-[10px] text-slate-700 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z">
+                    </path>
+                </svg>
+                Observaciones y Hallazgos:
+            </h3>
+            <div id="obs-alert"
+                class="hidden mb-2 p-2 bg-red-50 border border-red-200 rounded text-[10px] text-red-700 flex items-center gap-2">
+                <span>⚠️</span> Hallazgos críticos detectados. Observaciones son obligatorias.
+            </div>
+            <textarea id="observations" oninput="saveData()"
+                class="w-full h-24 bg-transparent border-none text-sm placeholder:text-slate-400 focus:ring-0 resize-none text-slate-800"
+                placeholder="Describa cualquier novedad o elemento faltante..."></textarea>
+            <div id="print-observations" class="print-only whitespace-pre-wrap min-h-[40px] text-slate-800"></div>
+        </div>
+
+        <div
+            class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-[10px] italic text-blue-800 flex items-start gap-3">
+            <svg class="w-4 h-4 flex-shrink-0 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd"
+                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                    clip-rule="evenodd"></path>
+            </svg>
+            Nota HSEQ: Solo se deben tener medicamentos en el botiquín si existe personal entrenado para suministrarlo
+            (médico o enfermera). Mantenga el botiquín en un lugar accesible y fresco.
+        </div>
+
+        <!-- SIGNATURE SECTION -->
+        <div class="mt-8 border border-slate-200 rounded-lg p-4 bg-slate-50">
+            <h3
+                class="font-display font-bold text-[10px] text-slate-700 uppercase tracking-widest mb-3 flex items-center justify-between">
+                FIRMA DEL INSPECTOR
+                <button onclick="signaturePad.clear()"
+                    class="text-blue-600 hover:text-blue-800 transition-colors no-print font-bold">Limpiar</button>
+            </h3>
+            <div class="signature-wrapper">
+                <canvas id="signature-pad"></canvas>
+            </div>
+            <p class="text-[9px] text-center mt-2 text-slate-500 italic">Al firmar certifico que la inspección es verídica</p>
+        </div>
+    </div>
+
+    <!-- FLOATING ACTIONS -->
+    <div class="no-print fixed bottom-6 left-1/2 -translate-x-1/2 w-[95%] max-w-lg p-4 bg-white/95 border border-slate-200/80 rounded-2xl shadow-[0_15px_40px_rgba(0,0,0,0.1)] backdrop-blur-xl z-[100] space-y-3">
+        <div class="flex gap-2">
+            <button onclick="sendWhatsApp()"
+                class="flex-1 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-bold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98] group text-xs sm:text-sm">
+                <svg class="w-5 h-5 group-hover:rotate-12 transition-transform" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                        d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766 0-3.18-2.587-5.771-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.299.045-.677.063-1.092-.069-.252-.08-.575-.187-.988-.365-1.739-.748-2.874-2.512-2.96-2.626-.087-.114-.694-.925-.694-1.763 0-.839.44-1.251.597-1.42.157-.169.344-.212.459-.212.115 0 .23 0 .331.005.106.004.248-.041.388.293.143.344.487 1.192.529 1.277.043.085.072.184.015.3-.057.115-.086.186-.172.286-.086.1-.18.223-.257.299-.086.084-.175.176-.075.348.1.172.443.731.95 1.183.652.58 1.2.76 1.372.846.172.086.272.072.373-.043.101-.115.429-.501.544-.672.114-.172.23-.143.388-.086.158.057 1.004.473 1.176.559.172.086.287.129.33.201.043.072.043.415-.101.82zM12 2C6.477 2 2 6.477 2 12c0 1.891.524 3.662 1.435 5.179L2 22l4.957-1.3c1.474.82 3.166 1.3 4.977 1.3 5.523 0 10-4.477 10-10S17.523 2 12 2z" />
+                </svg>
+                <span>WhatsApp</span>
+            </button>
+            
+            <button id="btn-download-pdf" onclick="downloadPDF()"
+                class="flex-1 bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-black font-bold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98] text-xs sm:text-sm">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4">
+                    </path>
+                </svg>
+                <span>Descargar PDF</span>
+            </button>
+        </div>
+        
+        <div class="flex gap-2">
+            <button onclick="prepareAndPrint()"
+                class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] text-[11px] sm:text-xs">
+                <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z">
+                    </path>
+                </svg>
+                <span>Imprimir</span>
+            </button>
+            
+            <button onclick="clearAll()"
+                class="flex-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] text-[11px] sm:text-xs">
+                <span>Limpiar Formulario</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const elements = [
+            { name: "Agua potable", req: "1", venc: true },
+            { name: "Alcohol antiséptico botella por 275 ml", req: "1", venc: true },
+            { name: "Apósito ocular", req: "5", venc: false },
+            { name: "Bajalenguas", req: "5", venc: false },
+            { name: "Curitas", req: "10", venc: false },
+            { name: "Esparadrapo de tela rollo de 4\"x 5 Yd", req: "1", venc: false },
+            { name: "Gasas limpias paquete", req: "6", venc: false },
+            { name: "Guantes de látex para examen", req: "6", venc: true },
+            { name: "Inmovilizador para cuello", req: "1", venc: false },
+            { name: "Inmovilizador para extremidades", req: "1", venc: false },
+            { name: "Isodine espuma", req: "1", venc: true },
+            { name: "Isodine solución", req: "1", venc: true },
+            { name: "Lapicero y libreta", req: "1", venc: false },
+            { name: "Manta térmica", req: "1", venc: false },
+            { name: "Manual de primeros auxilios", req: "1", venc: false },
+            { name: "Micropore", req: "1", venc: false },
+            { name: "Tapabocas", req: "5", venc: true },
+            { name: "Tijera de trauma", req: "1", venc: false },
+            { name: "Venda elástica 2 x 5 yardas", req: "5", venc: false },
+            { name: "Venda elástica 3 x 5 yardas", req: "5", venc: false },
+            { name: "Venda elástica 4 x 5 yardas", req: "5", venc: false }
+        ];
+
+        let signaturePad;
+
+        function initApp() {
+            renderTable();
+            renderCards();
+            initSignature();
+            loadSavedData();
+            getBotiquinSupabase();
+
+            // Set default date if empty
+            if (!document.getElementById('inspection_date').value) {
+                document.getElementById('inspection_date').valueAsDate = new Date();
+            }
+        }
+
+        // ── SUPABASE PERSISTENCE (con fallback localStorage) ──
+        let botiquinSupabase = null;
+        let botiquinSupabaseReady = false;
+        let botiquinSupabasePromise = null;
+
+        function getBotiquinSupabase() {
+            if (!botiquinSupabasePromise) {
+                botiquinSupabasePromise = initBotiquinSupabase();
+            }
+            return botiquinSupabasePromise;
+        }
+
+        async function initBotiquinSupabase() {
+            try {
+                if (!window.supabase) {
+                    await new Promise((resolve) => {
+                        const s = document.createElement('script');
+                        s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js';
+                        s.onload = resolve;
+                        document.body.appendChild(s);
+                    });
+                }
+                const { createClient } = window.supabase;
+                botiquinSupabase = createClient(
+                    'https://xftllyjjqvozjjmgwomg.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmdGxseWpqcXZvempqbWd3b21nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjExMTIsImV4cCI6MjA5Mzc5NzExMn0.UURzZOytfoYMrxzpohRams_GcJ3ETsEnNNOaSQqeuu8'
+                );
+                const { data: { session } } = await botiquinSupabase.auth.getSession();
+                botiquinSupabaseReady = !!session;
+            } catch (err) {
+                botiquinSupabaseReady = false;
+            }
+        }
+
+        function buildBotiquinPayload() {
+            const inventory = elements.map((_, i) => ({
+                name: elements[i].name,
+                status: document.getElementById(`status_${i}`).value,
+                qty: document.getElementById(`qty_${i}`).value,
+                exp: elements[i].venc ? document.getElementById(`exp_${i}`).value : null
+            }));
+            const faltantes = inventory.filter(it => it.status === 'M').map(it => it.name);
+            return {
+                fecha: document.getElementById('inspection_date').value || new Date().toISOString().split('T')[0],
+                ubicacion: document.getElementById('location').value || 'SIN UBICACIÓN',
+                cumple: faltantes.length === 0,
+                elementos_faltantes: faltantes,
+                observaciones: document.getElementById('observations').value || null,
+                responsable: document.getElementById('inspector_name').value || 'SIN RESPONSABLE'
+            };
+        }
+
+        async function syncInspeccionToSupabase() {
+            await getBotiquinSupabase();
+            if (!botiquinSupabase || !botiquinSupabaseReady) return false;
+            try {
+                const { data: { session } } = await botiquinSupabase.auth.getSession();
+                if (!session) { botiquinSupabaseReady = false; return false; }
+                const payload = buildBotiquinPayload();
+                const { data: existing } = await botiquinSupabase
+                    .from('hseq.botiquin_inspecciones')
+                    .select('id')
+                    .eq('fecha', payload.fecha)
+                    .eq('ubicacion', payload.ubicacion)
+                    .eq('responsable', payload.responsable)
+                    .limit(1);
+                if (existing && existing.length > 0) {
+                    await botiquinSupabase.from('hseq.botiquin_inspecciones').update(payload).eq('id', existing[0].id);
+                } else {
+                    await botiquinSupabase.from('hseq.botiquin_inspecciones').insert(payload);
+                }
+                return true;
+            } catch (err) {
+                console.warn('[botiquin] Sync Supabase falló (se conserva respaldo local):', err.message);
+                return false;
+            }
+        }
+
+        function initSignature() {
+            try {
+                const canvas = document.getElementById('signature-pad');
+                signaturePad = new SignaturePad(canvas, {
+                    backgroundColor: 'rgba(0,0,0,0)',
+                    penColor: '#8A6B27'
+                });
+
+                function resizeCanvas() {
+                    const ratio = Math.max(window.devicePixelRatio || 1, 1);
+                    canvas.width = canvas.offsetWidth * ratio;
+                    canvas.height = canvas.offsetHeight * ratio;
+                    canvas.getContext("2d").scale(ratio, ratio);
+                    signaturePad.clear();
+                    loadSavedSignature();
+                }
+
+                window.addEventListener("resize", resizeCanvas);
+                resizeCanvas();
+            } catch (error) {
+                console.error("Error initializing SignaturePad:", error);
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('inventory-body');
+            tbody.innerHTML = elements.map((item, i) => `
+                <tr id="row_${i}" class="group transition-colors border-b border-slate-200">
+                    <td class="p-3 text-[11px] font-semibold text-slate-800 uppercase">${item.name}</td>
+                    <td class="p-3 text-center text-[10px] text-slate-600 font-bold">${item.req}</td>
+                    <td class="p-3 text-center">
+                        <select id="status_${i}" onchange="updateRowState(${i}); syncTableToMobile(${i});" class="w-full bg-white border-slate-300 text-[10px] font-bold py-1 text-slate-800">
+                            <option value="B">B (BIEN)</option>
+                            <option value="M">M (MAL)</option>
+                        </select>
+                    </td>
+                    <td class="p-3 text-center">
+                        <input type="number" id="qty_${i}" value="${item.req}" oninput="updateRowState(${i}); syncTableToMobile(${i});" class="w-16 mx-auto block text-center bg-white border-slate-300 text-[10px] py-1 font-bold text-slate-800">
+                    </td>
+                    <td class="p-3 text-center">
+                        ${item.venc ? `<input type="date" id="exp_${i}" oninput="saveData(); syncTableToMobile(${i});" class="w-full bg-white border-slate-300 text-[9px] py-1 text-slate-800">` : '<span class="text-slate-400 px-2 italic">N/A</span>'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderCards() {
+            const container = document.getElementById('inventory-cards');
+            container.innerHTML = elements.map((item, i) => `
+                <div id="card_${i}" class="item-card bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                    <div class="flex justify-between items-start">
+                        <h4 class="font-display font-bold text-xs text-slate-800 uppercase leading-tight flex-1">${item.name}</h4>
+                        <span class="text-[9px] bg-slate-100 px-2 py-1 rounded text-slate-600 font-bold">REQ: ${item.req}</span>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <!-- TACTILE STATE TOGGLE -->
+                        <div>
+                            <label class="text-[8px] uppercase font-bold text-slate-500 block mb-1">Estado</label>
+                            <div class="flex rounded-lg overflow-hidden border border-slate-200 p-0.5 bg-slate-50">
+                                <button type="button" id="btn_bien_${i}" onclick="toggleStatusMobile(${i}, 'B')" 
+                                    class="flex-1 text-[10px] font-bold py-2 rounded-md transition-all text-center">
+                                    BIEN
+                                </button>
+                                <button type="button" id="btn_mal_${i}" onclick="toggleStatusMobile(${i}, 'M')" 
+                                    class="flex-1 text-[10px] font-bold py-2 rounded-md transition-all text-center">
+                                    MAL
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- STEPPER QUANTITY -->
+                        <div>
+                            <label class="text-[8px] uppercase font-bold text-slate-500 block mb-1">Cantidad</label>
+                            <div class="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-slate-50 p-0.5">
+                                <button type="button" onclick="adjustQtyMobile(${i}, -1)" 
+                                    class="w-10 text-slate-600 font-bold text-sm py-1.5 hover:bg-slate-200 transition-colors select-none">-</button>
+                                <input type="number" id="qty_m_${i}" value="${item.req}" oninput="syncFields(${i}, 'qty')" 
+                                    class="w-12 text-center text-xs font-bold bg-transparent border-none text-slate-800 focus:ring-0 p-0">
+                                <button type="button" onclick="adjustQtyMobile(${i}, 1)" 
+                                    class="w-10 text-slate-600 font-bold text-sm py-1.5 hover:bg-slate-200 transition-colors select-none">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${item.venc ? `
+                        <div>
+                            <label class="text-[8px] uppercase font-bold text-slate-500 block mb-1">Vencimiento</label>
+                            <input type="date" id="exp_m_${i}" oninput="syncFields(${i}, 'exp')" class="w-full text-xs py-2 border border-slate-200 rounded-lg bg-white text-slate-800">
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+            
+            // Apply initial button active classes
+            elements.forEach((_, i) => {
+                const status = document.getElementById(`status_${i}`).value;
+                updateMobileToggleButtons(i, status);
+            });
+        }
+
+        function toggleStatusMobile(idx, newStatus) {
+            const selectEl = document.getElementById(`status_${idx}`);
+            if (selectEl) {
+                selectEl.value = newStatus;
+            }
+            updateMobileToggleButtons(idx, newStatus);
+            updateRowState(idx);
+            saveData();
+        }
+
+        function updateMobileToggleButtons(idx, status) {
+            const btnBien = document.getElementById(`btn_bien_${idx}`);
+            const btnMal = document.getElementById(`btn_mal_${idx}`);
+            
+            if (!btnBien || !btnMal) return;
+
+            if (status === 'B') {
+                btnBien.className = "flex-1 text-[10px] font-bold py-2 rounded-md bg-emerald-600 text-white shadow-sm";
+                btnMal.className = "flex-1 text-[10px] font-bold py-2 rounded-md text-slate-600 hover:text-slate-900 bg-transparent";
+            } else {
+                btnBien.className = "flex-1 text-[10px] font-bold py-2 rounded-md text-slate-600 hover:text-slate-900 bg-transparent";
+                btnMal.className = "flex-1 text-[10px] font-bold py-2 rounded-md bg-rose-600 text-white shadow-sm";
+            }
+        }
+
+        function adjustQtyMobile(idx, amount) {
+            const tableQtyInput = document.getElementById(`qty_${idx}`);
+            const cardQtyInput = document.getElementById(`qty_m_${idx}`);
+            if (tableQtyInput) {
+                let currentVal = parseInt(tableQtyInput.value) || 0;
+                let newVal = Math.max(0, currentVal + amount);
+                tableQtyInput.value = newVal;
+                if (cardQtyInput) {
+                    cardQtyInput.value = newVal;
+                }
+                updateRowState(idx);
+                saveData();
+            }
+        }
+
+        function syncTableToMobile(idx) {
+            // Sync status select to mobile active buttons
+            const tableStatus = document.getElementById(`status_${idx}`).value;
+            updateMobileToggleButtons(idx, tableStatus);
+
+            // Sync quantity to mobile input
+            const tableQty = document.getElementById(`qty_${idx}`).value;
+            const cardQty = document.getElementById(`qty_m_${idx}`);
+            if (cardQty) cardQty.value = tableQty;
+
+            // Sync expiration date
+            const expTable = document.getElementById(`exp_${idx}`);
+            const expCard = document.getElementById(`exp_m_${idx}`);
+            if (expTable && expCard) {
+                expCard.value = expTable.value;
+            }
+        }
+
+        function syncFields(idx, field) {
+            const tableVal = document.getElementById(`${field}_${idx}`);
+            const cardVal = document.getElementById(`${field}_m_${idx}`);
+
+            if (field === 'status' || field === 'qty' || field === 'exp') {
+                if (tableVal && cardVal) {
+                    tableVal.value = cardVal.value;
+                }
+            }
+            if (field === 'status') {
+                updateMobileToggleButtons(idx, cardVal.value);
+            }
+            updateRowState(idx);
+            saveData();
+        }
+
+        function updateRowState(idx) {
+            const status = document.getElementById(`status_${idx}`).value;
+            const qty = parseInt(document.getElementById(`qty_${idx}`).value) || 0;
+            const item = elements[idx];
+
+            const isCritical = status === 'M' || qty < parseInt(item.req);
+
+            // Update Table Row
+            const row = document.getElementById(`row_${idx}`);
+            if (isCritical) {
+                row.classList.add('row-critical');
+            } else {
+                row.classList.remove('row-critical');
+            }
+
+            // Update Mobile Card
+            const card = document.getElementById(`card_${idx}`);
+            if (card) {
+                if (isCritical) {
+                    card.classList.add('border-red-300', 'bg-red-50/50');
+                } else {
+                    card.classList.remove('border-red-300', 'bg-red-50/50');
+                }
+            }
+
+            checkObservationsRequirement();
+            saveData();
+        }
+
+        function checkObservationsRequirement() {
+            let criticalFound = false;
+            elements.forEach((_, i) => {
+                const status = document.getElementById(`status_${i}`).value;
+                if (status === 'M') criticalFound = true;
+            });
+
+            const alertBox = document.getElementById('obs-alert');
+            const textarea = document.getElementById('observations');
+
+            if (criticalFound) {
+                alertBox.classList.remove('hidden');
+                textarea.classList.add('ring-2', 'ring-red-300');
+            } else {
+                alertBox.classList.add('hidden');
+                textarea.classList.remove('ring-2', 'ring-red-300');
+            }
+        }
+
+        function saveData() {
+            const data = {
+                inspector: document.getElementById('inspector_name').value,
+                role: document.getElementById('inspector_role').value,
+                location: document.getElementById('location').value,
+                date: document.getElementById('inspection_date').value,
+                obs: document.getElementById('observations').value,
+                inventory: elements.map((_, i) => ({
+                    status: document.getElementById(`status_${i}`).value,
+                    qty: document.getElementById(`qty_${i}`).value,
+                    exp: elements[i].venc ? document.getElementById(`exp_${i}`).value : null
+                }))
+            };
+            localStorage.setItem('botiquin_form_data', JSON.stringify(data));
+            if (signaturePad && typeof signaturePad.isEmpty === 'function' && !signaturePad.isEmpty()) {
+                localStorage.setItem('botiquin_signature', signaturePad.toDataURL());
+            }
+        }
+
+        function loadSavedData() {
+            const saved = localStorage.getItem('botiquin_form_data');
+            if (saved) {
+                const data = JSON.parse(saved);
+                document.getElementById('inspector_name').value = data.inspector || '';
+                document.getElementById('inspector_role').value = data.role || 'CONDUCTOR';
+                document.getElementById('location').value = data.location || '';
+                document.getElementById('inspection_date').value = data.date || '';
+                document.getElementById('observations').value = data.obs || '';
+
+                if (data.inventory) {
+                    data.inventory.forEach((item, i) => {
+                        if (document.getElementById(`status_${i}`)) {
+                            document.getElementById(`status_${i}`).value = item.status;
+                            document.getElementById(`qty_${i}`).value = item.qty;
+                            if (item.exp && document.getElementById(`exp_${i}`)) {
+                                document.getElementById(`exp_${i}`).value = item.exp;
+                            }
+
+                            // Sync mobile cards
+                            if (document.getElementById(`status_m_${i}`)) {
+                                document.getElementById(`status_m_${i}`).value = item.status;
+                                document.getElementById(`qty_m_${i}`).value = item.qty;
+                                if (item.exp && document.getElementById(`exp_m_${i}`)) {
+                                    document.getElementById(`exp_m_${i}`).value = item.exp;
+                                }
+                            }
+                            updateRowState(i);
+                        }
+                    });
+                }
+            }
+            loadSavedSignature();
+        }
+
+        function loadSavedSignature() {
+            const savedSig = localStorage.getItem('botiquin_signature');
+            if (savedSig && signaturePad && typeof signaturePad.fromDataURL === 'function') {
+                signaturePad.fromDataURL(savedSig);
+            }
+        }
+
+        function clearAll() {
+            TS.confirm("¿Estás seguro de borrar todos los datos ingresados?").then(ok => {
+                if (!ok) return;
+                localStorage.removeItem('botiquin_form_data');
+                localStorage.removeItem('botiquin_signature');
+                location.reload();
+            });
+        }
+
+        function prepareAndPrint() {
+            syncInspeccionToSupabase();
+            // Remove any existing print elements
+            document.querySelectorAll('.print-value, .print-signature-img').forEach(el => el.remove());
+
+            // Calculate Summary
+            let conforming = 0;
+            elements.forEach((_, i) => {
+                const status = document.getElementById(`status_${i}`).value;
+                if (status === 'B') conforming++;
+            });
+            document.getElementById('print-summary').textContent = `Elementos Conformes: ${conforming} / ${elements.length}`;
+
+            // Prepare signature for print
+            let signatureLoaded = true;
+            if (signaturePad && typeof signaturePad.isEmpty === 'function' && !signaturePad.isEmpty()) {
+                signatureLoaded = false;
+                const img = document.createElement('img');
+                img.className = 'print-signature-img print-only';
+                img.onload = () => {
+                    signatureLoaded = true;
+                    doPrint();
+                };
+                img.src = signaturePad.toDataURL();
+                document.querySelector('.signature-wrapper').appendChild(img);
+            }
+
+            // Copy observations to print div
+            document.getElementById('print-observations').textContent = document.getElementById('observations').value;
+
+            // Sync all input values to printable spans
+            document.querySelectorAll('input, textarea, select').forEach(el => {
+                let val = '';
+                let isCriticalValue = false;
+
+                if (el.tagName === 'SELECT') {
+                    val = el.options[el.selectedIndex].text;
+                    if (el.value === 'M') isCriticalValue = true;
+                } else if (el.type === 'date') {
+                    if (el.value) {
+                        const [y, m, d] = el.value.split('-');
+                        val = `${d}/${m}/${y}`;
+                    }
+                } else {
+                    val = el.value;
+                }
+
+                const span = document.createElement('span');
+                span.textContent = val;
+                span.className = 'print-value print-inline font-bold';
+                if (isCriticalValue) span.classList.add('critical-mark');
+                el.parentNode.insertBefore(span, el.nextSibling);
+            });
+
+            // Fallback for no signature or simple case
+            if (signatureLoaded) {
+                doPrint();
+            }
+
+            function doPrint() {
+                setTimeout(() => {
+                    window.print();
+                    setTimeout(() => {
+                        document.querySelectorAll('.print-value, .print-signature-img').forEach(el => el.remove());
+                    }, 1000);
+                }, 100);
+            }
+        }
+
+        function downloadPDF() {
+            syncInspeccionToSupabase();
+            const btn = document.getElementById('btn-download-pdf');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `
+                <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-black inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Generando...</span>
+            `;
+            btn.disabled = true;
+
+            // Clone printable area
+            const original = document.getElementById('printable-area');
+            const clone = original.cloneNode(true);
+            
+            // Format signature pad in clone
+            const sigWrapper = clone.querySelector('.signature-wrapper');
+            if (sigWrapper) {
+                sigWrapper.innerHTML = '';
+                if (signaturePad && typeof signaturePad.isEmpty === 'function' && !signaturePad.isEmpty()) {
+                    const img = document.createElement('img');
+                    img.className = 'print-signature-img';
+                    img.style.maxHeight = '48px';
+                    img.style.margin = '0 auto';
+                    img.style.display = 'block';
+                    img.src = signaturePad.toDataURL();
+                    sigWrapper.appendChild(img);
+                }
+            }
+
+            // Remove mobile view items and force desktop table view in the clone
+            const mobileCards = clone.querySelector('#inventory-cards');
+            if (mobileCards) mobileCards.remove();
+            
+            const desktopTableContainer = clone.querySelector('.hidden.md\\:block');
+            if (desktopTableContainer) {
+                desktopTableContainer.classList.remove('hidden', 'md:block');
+            }
+
+            // Copy input/select/textarea values in clone to text spans
+            const originalInputs = original.querySelectorAll('input, select, textarea');
+            const cloneInputs = clone.querySelectorAll('input, select, textarea');
+            
+            cloneInputs.forEach((el, index) => {
+                const origEl = originalInputs[index];
+                if (!origEl) return;
+                
+                let val = '';
+                let isCriticalValue = false;
+
+                if (origEl.tagName === 'SELECT') {
+                    val = origEl.options[origEl.selectedIndex].text;
+                    if (origEl.value === 'M') isCriticalValue = true;
+                } else if (origEl.type === 'date') {
+                    if (origEl.value) {
+                        const [y, m, d] = origEl.value.split('-');
+                        val = `${d}/${m}/${y}`;
+                    }
+                } else {
+                    val = origEl.value;
+                }
+
+                const span = document.createElement('span');
+                span.textContent = val;
+                span.className = 'font-bold text-slate-800 text-[10px]';
+                if (isCriticalValue) {
+                    span.className += ' text-red-600';
+                }
+                el.parentNode.insertBefore(span, el.nextSibling);
+                el.remove();
+            });
+
+            // Set styling for HTML PDF capture to look like a professional full-page document
+            clone.style.background = '#ffffff';
+            clone.style.color = '#000000';
+            clone.style.padding = '20px';
+            clone.style.boxShadow = 'none';
+            clone.style.border = 'none';
+            clone.style.width = '760px'; // Fills the page width beautifully within 0.3in margins
+            clone.style.margin = '0 auto';
+            clone.style.display = 'block';
+            
+            // Spacings and font sizes to fill the page elegantly
+            const itemsTitle = clone.querySelector('.mt-8');
+            if (itemsTitle) {
+                itemsTitle.className = 'mt-4 mb-2 flex items-center gap-2 font-display font-bold text-xs text-slate-800 uppercase tracking-wider';
+            }
+            
+            // Adjust table spacing for a clean, professional look
+            clone.querySelectorAll('#inventory-body tr').forEach(row => {
+                row.style.height = '17px';
+            });
+            clone.querySelectorAll('td, th').forEach(el => {
+                el.style.padding = '2px 5px';
+                el.style.fontSize = '8.5pt';
+                el.style.lineHeight = '1';
+            });
+            
+            // Adjust metadata grid spacing
+            clone.querySelectorAll('.p-3').forEach(el => {
+                el.style.padding = '3px 6px';
+                el.style.fontSize = '9pt';
+            });
+            
+            // Adjust logo and header spacing
+            clone.querySelectorAll('.p-2, .p-4').forEach(el => {
+                el.style.padding = '3px 6px';
+            });
+            
+            // Adjust observations box
+            const obsBox = clone.querySelector('#observations-container');
+            if (obsBox) {
+                obsBox.style.marginTop = '4px';
+                obsBox.style.padding = '4px 8px';
+                obsBox.style.minHeight = '40px';
+                obsBox.style.fontSize = '8.5pt';
+                obsBox.style.backgroundColor = '#f8fafc';
+            }
+            
+            // Remove the HSEQ notice box from PDF to save space and avoid space collapses
+            const warningBox = clone.querySelector('.bg-blue-50');
+            if (warningBox) {
+                warningBox.remove();
+            }
+            
+            // Adjust signature wrapper to fit exactly at bottom of page 1
+            const sigWrapperClone = clone.querySelector('.signature-wrapper');
+            if (sigWrapperClone) {
+                sigWrapperClone.parentNode.style.pageBreakInside = 'avoid';
+                sigWrapperClone.parentNode.style.marginTop = '4px';
+                sigWrapperClone.style.height = '45px';
+                sigWrapperClone.style.marginTop = '4px';
+                sigWrapperClone.style.backgroundColor = '#ffffff';
+            }
+
+            // Fix any remaining hidden classes or text-colors on headers/metadata inside the clone
+            clone.querySelectorAll('.bg-slate-800, .bg-slate-800\\/50, .bg-slate-800\\/20, .bg-slate-900').forEach(el => {
+                el.style.backgroundColor = '#f8fafc';
+            });
+            clone.querySelectorAll('.border-slate-750, .border-slate-700, .border-slate-600, .border-slate-200, border').forEach(el => {
+                el.style.borderColor = '#cbd5e1';
+            });
+            clone.querySelectorAll('h2, h3, span, label, td, th').forEach(el => {
+                el.style.color = '#000000';
+            });
+            clone.querySelectorAll('.bg-gradient-to-r').forEach(el => {
+                el.style.background = '#e2e8f0';
+                el.style.color = '#000000';
+            });
+
+            // Force the entire document clone to avoid page breaks inside
+            clone.style.pageBreakInside = 'avoid';
+
+            // Setup options
+            const plate = document.getElementById('location').value || 'Reporte';
+            const opt = {
+                margin:       [0.35, 0.3, 0.35, 0.3], // Top, Left, Bottom, Right
+                filename:     `Inspeccion_Botiquin_${plate.toUpperCase()}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { 
+                    scale: 2, 
+                    useCORS: true, 
+                    logging: false,
+                    backgroundColor: '#ffffff'
+                },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' },
+                pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+            };
+
+            // Run html2pdf using clone directly
+            html2pdf().set(opt).from(clone).save().then(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }).catch(err => {
+                console.error("Error generating PDF: ", err);
+                TS.toastError("Error al descargar el PDF. Use la función Imprimir como alternativa.");
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            });
+        }
+
+        function generatePDF() {
+            downloadPDF();
+        }
+
+        function sendWhatsApp() {
+            const inspector = document.getElementById('inspector_name').value;
+            const loc = document.getElementById('location').value;
+            const date = document.getElementById('inspection_date').value;
+            const obs = document.getElementById('observations').value;
+
+            if (!inspector || !loc) {
+                TS.toastWarning("Por favor completa el INSPECTOR y la PLACA DEL VEHÍCULO.");
+                return;
+            }
+
+            let message = `🏥 *INSPECCIÓN DE BOTIQUÍN:* _${loc.toUpperCase()}_\n`;
+            message += `━━━━━━━━━━━━━━━━━━━━\n`;
+            message += `👤 *Inspector:* ${inspector.toUpperCase()}\n`;
+            message += `📅 *Fecha:* ${date}\n`;
+            message += `\n🚨 *ELEMENTOS CON NOVEDAD:* \n`;
+
+            let hasNovedad = false;
+            elements.forEach((item, i) => {
+                const status = document.getElementById(`status_${i}`).value;
+                const qty = document.getElementById(`qty_${i}`).value;
+                if (status === 'M' || parseInt(qty) < parseInt(item.req)) {
+                    message += `• ${item.name}: *ESTADO ${status}* (Cont: ${qty})\n`;
+                    hasNovedad = true;
+                }
+            });
+
+            if (!hasNovedad) message += `✅ Todo en buen estado.\n`;
+            if (obs) message += `\n📝 *Observaciones:* ${obs.toUpperCase()}\n`;
+
+            message += `\n_Certificado digitalmente por el inspector_`;
+
+            const encoded = encodeURIComponent(message);
+            window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+        }
+
+        function goBackToApps() {
+            if (window.location.pathname.includes('/dist/')) {
+                window.location.href = '../../index.html';
+            } else {
+                window.location.href = '../index.html';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+
+</html>

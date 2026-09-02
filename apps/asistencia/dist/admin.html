@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1E40AF">
+    <title>Admin Asistencia | Trans Services A&B</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        gold: { DEFAULT: '#C8A86B', light: '#F4E2AB', dark: '#8B703C' },
+                        'gray-bg': '#D8D9DB', 'gray-shadow': '#5C5C5C',
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="icon" type="image/png" href="./assets/favicon-96x96-DBY706tV.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="./assets/favicon-Bn4KW8oR.svg" />
+    <link rel="shortcut icon" href="./assets/favicon-CSf-lHi5.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./assets/apple-touch-icon-C7L2pJNQ.png" />
+    <meta name="apple-mobile-web-app-title" content="TRANS SERVICES A&B" />
+    <link rel="manifest" href="./assets/site-yxw_3c9J.webmanifest" />
+    <style>
+        .stat-card { transition: transform 0.15s, box-shadow 0.15s; }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
+        .toast { animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .sortable { cursor: pointer; user-select: none; }
+        .sortable:hover { background: #e2e8f0; }
+        .view-btn { transition: all 0.2s; }
+        #trendCanvas { width: 100% !important; height: 80px !important; }
+        .skeleton { background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 0.5rem; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        .modal-open { overflow: hidden; }
+        .row-hover:hover { background: #f8fafc; }
+        .flatpickr-day.has-data { position: relative; }
+        .flatpickr-day.has-data::after { content: ''; position: absolute; bottom: 1px; left: 50%; transform: translateX(-50%); width: 5px; height: 5px; border-radius: 50%; background: #C8A86B; }
+        .flatpickr-day.has-data.today::after { background: #fff; }
+        .flatpickr-day.has-data.selected::after { background: #fff; }
+        .flatpickr-calendar { border-radius: 12px !important; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.12) !important; }
+        .flatpickr-months .flatpickr-month { background: #1e3a5f !important; }
+        .flatpickr-current-month .flatpickr-monthDropdown-months { background: #1e3a5f !important; color: #fff !important; }
+        .flatpickr-current-month input.cur-year { color: #fff !important; }
+        span.flatpickr-weekday { color: #1e3a5f !important; font-weight: 700 !important; font-size: 11px !important; }
+        .flatpickr-day.today { border-color: #C8A86B !important; }
+        .flatpickr-day.selected { background: #1e3a5f !important; border-color: #1e3a5f !important; }
+        .flatpickr-months .flatpickr-prev-month, .flatpickr-months .flatpickr-next-month { fill: #fff !important; }
+    </style>
+  <script type="module" crossorigin src="./assets/admin-CeiZHInQ.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/supabase-client-yBd7UpGg.js">
+  <link rel="stylesheet" crossorigin href="./assets/supabase-client-DmuKD20S.css">
+</head>
+
+<body class="bg-slate-100 min-h-screen font-sans text-sm">
+
+    
+    <a href="#statsBar" class="skip-link">Saltar al contenido principal</a>
+<!-- Toast Container -->
+    <div id="toasts" class="no-print fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-sm"></div>
+ 
+     <!-- Main Toolbar -->
+     <div class="no-print sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
+        <div class="max-w-[1400px] mx-auto px-4 py-3">
+            <div class="flex flex-col lg:flex-row gap-3 items-start lg:items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 bg-blue-900 rounded-lg flex items-center justify-center text-white text-sm">
+                        <i class="fas fa-clipboard-list"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-slate-900 leading-tight">Panel de Asistencia</h1>
+                        <p class="text-[10px] text-slate-400 font-medium">Gestión de registros diarios</p>
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-2 items-center">
+                    <div>
+                        <input type="date" id="searchDate"
+                            class="border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all">
+                    </div>
+                    <div>
+                        <select id="filterProject"
+                            class="border border-slate-300 rounded-lg px-3 py-2 text-xs font-semibold bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all uppercase">
+                            <option value="">TODOS</option>
+                            <option value="ICBF">ICBF</option>
+                            <option value="GT">GT</option>
+                            <option value="HOSPITAL">HOSPITAL</option>
+                            <option value="OTRO">OTRO</option>
+                        </select>
+                    </div>
+                    <button id="loadBtn"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold text-xs shadow-sm transition-all flex items-center gap-1.5">
+                        <i class="fas fa-sync-alt"></i> <span>Cargar</span>
+                    </button>
+                    <button id="csvBtn"
+                        class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold text-xs shadow-sm transition-all flex items-center gap-1.5">
+                        <i class="fas fa-file-csv"></i> <span>CSV</span>
+                    </button>
+                    <button id="printBtn"
+                        class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg font-bold text-xs shadow-sm transition-all flex items-center gap-1.5">
+                        <i class="fas fa-print"></i> <span>Imprimir</span>
+                    </button>
+                </div>
+            </div>
+            <!-- View Toggle + Search -->
+            <div class="flex flex-wrap items-center gap-3 mt-3 pt-3 border-t border-slate-100">
+                <div class="flex bg-slate-100 rounded-lg p-0.5">
+                    <button id="viewTable"
+                        class="view-btn px-3 py-1.5 text-xs font-bold rounded-md bg-white text-slate-800 shadow-sm">Tabla</button>
+                    <button id="viewPrint"
+                        class="view-btn px-3 py-1.5 text-xs font-bold rounded-md text-slate-500 hover:text-slate-800">Formato F-007</button>
+                </div>
+                <div class="relative flex-1 min-w-[200px] max-w-xs">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" id="searchInput" placeholder="Buscar por nombre, cédula..."
+                        class="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all">
+                </div>
+                <div class="text-xs text-slate-400 font-medium">
+                    <span id="resultCount">0</span> resultados
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-[1400px] mx-auto px-4 py-4 space-y-4">
+
+        <!-- Stats Bar -->
+        <div id="statsBar" class="no-print hidden grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3" tabindex="-1">
+            <div class="stat-card bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center"><i class="fas fa-users text-sm"></i></div>
+                    <div><p class="text-2xl font-bold text-slate-900" id="statTotal">0</p><p class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Total Registros</p></div>
+                </div>
+            </div>
+            <div class="stat-card bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center"><i class="fas fa-id-badge text-sm"></i></div>
+                    <div><p class="text-2xl font-bold text-slate-900" id="statUnique">0</p><p class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Únicos</p></div>
+                </div>
+            </div>
+            <div class="stat-card bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center"><i class="fas fa-project-diagram text-sm"></i></div>
+                    <div><p class="text-2xl font-bold text-slate-900" id="statICBF">0</p><p class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">ICBF</p></div>
+                </div>
+            </div>
+            <div class="stat-card bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-violet-50 text-violet-600 rounded-lg flex items-center justify-center"><i class="fas fa-project-diagram text-sm"></i></div>
+                    <div><p class="text-2xl font-bold text-slate-900" id="statGT">0</p><p class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">GT</p></div>
+                </div>
+            </div>
+            <div class="stat-card bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-rose-50 text-rose-600 rounded-lg flex items-center justify-center"><i class="fas fa-user-tie text-sm"></i></div>
+                    <div><p class="text-2xl font-bold text-slate-900" id="statConductores">0</p><p class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Conductores</p></div>
+                </div>
+            </div>
+            <div class="stat-card bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-cyan-50 text-cyan-600 rounded-lg flex items-center justify-center"><i class="fas fa-chart-line text-sm"></i></div>
+                    <div><canvas id="trendCanvas" class="w-full h-[32px]"></canvas></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table View -->
+        <div id="tableView" class="no-print hidden bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold text-[10px]">
+                            <th class="sortable px-3 py-3 text-left w-10" data-sort="idx"># <i class="fas fa-sort text-[8px] ml-1"></i></th>
+                            <th class="sortable px-3 py-3 text-left" data-sort="nombre">Nombre <i class="fas fa-sort text-[8px] ml-1"></i></th>
+                            <th class="sortable px-3 py-3 text-left" data-sort="cedula">Cédula <i class="fas fa-sort text-[8px] ml-1"></i></th>
+                            <th class="sortable px-3 py-3 text-left" data-sort="cargo">Cargo <i class="fas fa-sort text-[8px] ml-1"></i></th>
+                            <th class="sortable px-3 py-3 text-left" data-sort="proyecto">Proyecto <i class="fas fa-sort text-[8px] ml-1"></i></th>
+                            <th class="sortable px-3 py-3 text-left" data-sort="hora">Hora <i class="fas fa-sort text-[8px] ml-1"></i></th>
+                            <th class="px-3 py-3 text-left">Firma</th>
+                            <th class="px-3 py-3 text-center w-20">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+            <div class="flex items-center justify-between px-4 py-3 bg-slate-50 border-t border-slate-200">
+                <span class="text-[10px] text-slate-400 font-medium"><span id="tableStart">0</span>–<span id="tableEnd">0</span> de <span id="tableTotal">0</span></span>
+                <div class="flex gap-1">
+                    <button id="pagePrev" class="px-2 py-1 text-xs rounded border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-30" disabled><i class="fas fa-chevron-left"></i></button>
+                    <span id="pageInfo" class="px-2 py-1 text-xs font-bold text-slate-500">1/1</span>
+                    <button id="pageNext" class="px-2 py-1 text-xs rounded border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-30" disabled><i class="fas fa-chevron-right"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loadingState" class="no-print hidden bg-white rounded-xl border border-slate-200 shadow-sm p-8">
+            <div class="space-y-3">
+                <div class="skeleton h-4 w-3/4"></div>
+                <div class="skeleton h-4 w-1/2"></div>
+                <div class="skeleton h-4 w-2/3"></div>
+                <div class="skeleton h-4 w-1/3"></div>
+            </div>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="no-print text-center py-16">
+            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-file-alt text-2xl text-slate-300"></i>
+            </div>
+            <p class="text-slate-400 font-semibold">Selecciona una fecha y presiona <span class="font-bold text-slate-500">Cargar</span></p>
+            <p class="text-xs text-slate-300 mt-1">Los datos aparecerán aquí con estadísticas y tabla dinámica.</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="errorState" class="no-print hidden text-center py-16">
+            <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-exclamation-triangle text-2xl text-red-300"></i>
+            </div>
+            <p class="text-red-500 font-semibold" id="errorMessage">Error de conexión.</p>
+            <button onclick="document.getElementById('loadBtn').click()" class="mt-3 text-xs text-blue-600 hover:text-blue-800 font-bold">Reintentar</button>
+        </div>
+
+        <!-- Print View Container -->
+        <div id="printContainer" class="hidden"></div>
+
+        <!-- Empty Print State -->
+        <div id="emptyPrint" class="no-print hidden mt-10 text-center text-gray-500">
+            <i class="fas fa-file-alt text-4xl mb-2"></i>
+            <p>Selecciona fecha y carga para generar el reporte.</p>
+        </div>
+    </div>
+
+    <!-- Print Template -->
+    <template id="page-template">
+        <div class="form-container bg-white shadow-2xl form-border relative text-black leading-tight flex flex-col page-break">
+            <header id="template-header" class="border-b-2 border-black flex-none"></header>
+            <div class="p-1 border-b-2 border-black space-y-1 text-xs flex-none">
+                <div class="flex items-center">
+                    <span class="font-bold w-24">Ciudad y fecha:</span>
+                    <input type="text" data-field="ciudad" class="sync-input input-clean flex-1 font-bold text-blue-900" placeholder="Ej: Bogotá..." value="Villagarzón, ">
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <div class="flex items-center"><span class="font-bold mr-2">Horario:</span><input type="text" data-field="horario" class="sync-input input-clean flex-1" placeholder="08:00 - 10:00"></div>
+                    <div class="flex items-center"><span class="font-bold mr-2">Duración:</span><input type="text" data-field="duracion" class="sync-input input-clean flex-1" placeholder="2 Horas"></div>
+                    <div class="flex items-center"><span class="font-bold mr-2">Total H.H:</span><input type="text" data-field="hh" class="sync-input input-clean flex-1" placeholder="20"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div class="flex items-center"><span class="font-bold mr-2">Instructor:</span><input type="text" data-field="instructor" class="sync-input input-clean flex-1 font-bold" value="Owen Alvares zuñiga"></div>
+                    <div class="flex items-center"><span class="font-bold mr-2">Proveedor:</span><input type="text" data-field="proveedor" class="sync-input input-clean flex-1" value="TRANS SERVICES A&B"></div>
+                </div>
+            </div>
+            <div class="border-b-2 border-black grid grid-cols-[30%_70%] min-h-[135px] max-h-[135px] flex-none">
+                <div class="border-r border-black text-[9px]">
+                    <div class="bg-gray-header text-center font-bold border-b border-black p-1">ACTIVIDAD REALIZADA</div>
+                    <div class="p-1 space-y-1">
+                        <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" data-field="chk-divulgacion" class="sync-input accent-black"> Divulgacion</label>
+                        <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" data-field="chk-reinduccion" class="sync-input accent-black"> Reinducción</label>
+                        <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" data-field="chk-charla" class="sync-input accent-black"> Charla 5 min</label>
+                        <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" data-field="chk-curso" class="sync-input accent-black"> Curso / Taller</label>
+                        <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" data-field="chk-seminario" class="sync-input accent-black" checked> Seminario / Cap.</label>
+                        <div class="flex items-center gap-1"><label class="whitespace-nowrap cursor-pointer"><input type="checkbox" data-field="chk-otro" class="sync-input accent-black"> Otro:</label><input type="text" data-field="otro-texto" class="sync-input input-clean text-[9px]"></div>
+                    </div>
+                </div>
+                <div class="flex flex-col">
+                    <div class="bg-gray-header text-center font-bold border-b border-black p-1 text-[9px]">TEMAS TRATADOS</div>
+                    <textarea data-field="temas" class="sync-input input-clean flex-1 p-1 resize-none h-full text-justify text-[10px]" placeholder="Escriba temas..."></textarea>
+                </div>
+            </div>
+            <div class="flex-grow">
+                <table class="w-full text-[10px] border-collapse">
+                    <thead><tr class="bg-gray-header">
+                        <th class="cell-border w-8 py-0.5">No.</th>
+                        <th class="cell-border w-1/3 py-0.5">NOMBRE DEL TRABAJADOR</th>
+                        <th class="cell-border w-20 py-0.5">No. CEDULA</th>
+                        <th class="cell-border w-1/4 py-0.5">CARGO</th>
+                        <th class="cell-border py-0.5">FIRMA</th>
+                    </tr></thead>
+                    <tbody class="tabla-cuerpo"></tbody>
+                </table>
+            </div>
+            <div class="mt-auto border-t-2 border-black p-1 text-[10px] flex-none no-break">
+                <div class="mb-2 flex items-center gap-2"><span class="font-bold">Observaciones:</span><input type="text" data-field="obs" class="sync-input input-clean flex-1" placeholder="Sin novedades."></div>
+                <div class="flex justify-center items-end mt-2">
+                    <div class="text-center w-64 mx-auto relative group">
+                        <button class="btn-clear-sign no-print absolute top-0 right-0 bg-red-100 text-red-600 px-1 rounded text-[9px] opacity-0 group-hover:opacity-100 z-10"><i class="fas fa-trash"></i></button>
+                        <div class="resp-signature-box"><canvas class="resp-signature-pad mx-auto"></canvas></div>
+                        <div class="pt-0.5"><input type="text" data-field="responsable" class="sync-input input-clean text-center font-bold w-full uppercase" value="Owen Alvares zuñiga"><div class="text-[9px]">Firma de la persona responsable</div></div>
+                    </div>
+                </div>
+                <div class="absolute bottom-1 right-2 text-[8px] text-gray-400 page-number"></div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Edit Modal -->
+    <div id="editModal" class="no-print hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl border border-slate-100">
+            <div class="flex items-center justify-between mb-5">
+                <h3 class="font-bold text-slate-900"><i class="fas fa-edit text-blue-500 mr-2"></i>Editar Registro</h3>
+                <button onclick="document.getElementById('editModal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button>
+            </div>
+            <input type="hidden" id="editId">
+            <div class="space-y-3">
+                <div><label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Nombre</label><input type="text" id="editNombre" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"></div>
+                <div><label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Cédula</label><input type="text" id="editCedula" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none"></div>
+                <div><label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Cargo</label>
+                    <select id="editCargo" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none">
+                        <option value="CONDUCTOR">CONDUCTOR</option><option value="AUXILIAR">AUXILIAR</option>
+                        <option value="COORDINADOR">COORDINADOR</option><option value="SUPERVISOR">SUPERVISOR</option>
+                    </select>
+                </div>
+                <div><label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Proyecto</label>
+                    <select id="editProyecto" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none uppercase">
+                        <option value="ICBF">ICBF</option><option value="GT">GT</option><option value="HOSPITAL">HOSPITAL</option><option value="OTRO">OTRO</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button onclick="document.getElementById('editModal').classList.add('hidden')" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-colors">Cancelar</button>
+                <button id="confirmEdit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-colors">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Modal -->
+    <div id="deleteModal" class="no-print hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-slate-100 text-center">
+            <div class="w-14 h-14 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4"><i class="fas fa-trash text-xl"></i></div>
+            <h3 class="font-bold text-slate-900 mb-1">¿Eliminar registro?</h3>
+            <p class="text-slate-500 text-xs mb-6">Esta acción no se puede deshacer.</p>
+            <input type="hidden" id="deleteId">
+            <div class="flex gap-3">
+                <button onclick="document.getElementById('deleteModal').classList.add('hidden')" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider">Cancelar</button>
+                <button id="confirmDelete" class="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>

@@ -1,0 +1,160 @@
+@import url("https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css");
+
+/* --- ESTILOS GLOBALES --- */
+* {
+    box-sizing: border-box;
+}
+
+/* --- ESTILOS COMUNES --- */
+
+/* Estilos de impresión */
+@media print {
+    @page {
+        size: letter;
+        margin: 10mm;
+        /* Margen profesional estándar */
+    }
+
+    body {
+        background: white;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        margin: 0;
+        padding: 0;
+    }
+
+    /* Evitar saltos de página dentro de elementos críticos */
+    .no-break {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .input-clean {
+        border: none !important;
+        background: transparent !important;
+        padding: 0 !important;
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+        color: transparent;
+    }
+
+    .page-break {
+        page-break-after: always;
+    }
+}
+
+/* --- FORMATO REPORTE (admin) --- */
+.form-container {
+    width: 195.9mm;
+    /* 215.9mm - 20mm de márgenes */
+    min-height: 245mm;
+    /* Reducido para margen de seguridad extremo */
+    padding: 0;
+    border: 2px solid #000;
+    position: relative;
+    background: #fff;
+    margin: 20px auto;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+}
+
+@media print {
+    .form-container {
+        margin: 0 auto;
+        max-height: 245mm;
+        overflow: hidden;
+    }
+}
+
+.bg-gray-header {
+    background-color: #f3f4f6 !important;
+}
+
+.cell-border {
+    border: 1px solid #000;
+}
+
+.input-clean {
+    border: none;
+    outline: none;
+    background: transparent;
+}
+
+/* Estilos del Canvas (Firma) */
+.signature-pad-container {
+    position: relative;
+    width: 100%;
+    height: 150px;
+}
+
+/* Área de firma en el registro (index) */
+.signature-box {
+    background-color: #fcfcfc;
+    border: 2px dashed #94a3b8;
+    border-radius: 0.5rem;
+    cursor: crosshair;
+    transition: border-color 0.2s;
+}
+
+.signature-box:hover {
+    border-color: #3b82f6;
+}
+
+/* Imagen de firma en el reporte (admin) */
+.signature-img {
+    display: block;
+    margin: 0 auto;
+    max-height: 24px;
+    /* Reducida para caber en fila de 26px */
+    width: auto;
+    filter: contrast(150%);
+}
+
+/* Lienzo interactivo */
+canvas.signature-pad,
+canvas.resp-signature-pad {
+    width: 100% !important;
+    height: 100% !important;
+    touch-action: none;
+}
+
+/* Clases de altura fija para filas de tabla */
+.row-h-fixed {
+    height: 25px !important;
+    /* Altura extrema de seguridad */
+}
+
+/* Firma del responsable (admin footer) */
+.resp-signature-box {
+    background-color: #f1f5f9;
+    border-bottom: 1px solid #000;
+    margin-bottom: 1px;
+    /* Menos margen */
+}
+
+/* Fila de tabla compacta para que quepan 20 */
+.row-h-compact {
+    height: 23px !important;
+    overflow: hidden;
+    break-inside: avoid;
+}
+
+/* Estilos Adicionales */
+.form-input-styled {
+    width: 100%;
+    border-bottom: 2px solid #e5e7eb;
+    padding: 2px 0;
+    transition: border-color 0.3s;
+}
+
+.form-input-styled:focus {
+    outline: none;
+    border-color: #111827;
+}
