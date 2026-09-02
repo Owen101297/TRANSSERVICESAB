@@ -34,7 +34,7 @@ export default async function ViajeDetailPage({
   const viaje = await getViajeByIdDb(id);
   if (!viaje) notFound();
 
-  const activo = viaje.estado === "en_curso" || viaje.estado === "con_novedad";
+  const activo = viaje.estado !== "finalizado";
 
   return (
     <div className="space-y-6">

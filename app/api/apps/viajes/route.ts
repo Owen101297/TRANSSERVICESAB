@@ -42,6 +42,15 @@ export async function POST(req: Request) {
       if (vehiculo) vId = vehiculo.id;
     }
 
+    const now = new Date();
+    const horaLocalCo = now.toLocaleTimeString("es-CO", {
+      timeZone: "America/Bogota",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+    const horaFinal = horaSalida && horaSalida !== "06:00" ? horaSalida : horaLocalCo;
+
     const viaje = await prisma.viaje.create({
       data: {
         conductorId: cId || "conductor-general",
@@ -51,8 +60,8 @@ export async function POST(req: Request) {
         contratistaNombre: body.contratistaNombre || "TRANS SERVICES COOPERATIVA A&B",
         origen: origen || "Base Operativa",
         destino: destino || "Destino Operativo",
-        fechaSalida: fechaSalida ? new Date(fechaSalida) : new Date(),
-        horaSalida: horaSalida || "06:00",
+        fechaSalida: fechaSalida ? new Date(fechaSalida) : now,
+        horaSalida: horaFinal,
         distanciaKm: distanciaKm ? Number(distanciaKm) : null,
         duracionEstimadaHoras: duracionEstimadaHoras ? Number(duracionEstimadaHoras) : 4,
         estado: "en_curso",
@@ -130,4 +139,43 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: error.message || "Error al consultar viajes" }, { status: 500 });
   }
 }
+
+export async function PATCH(req: Request) {
+  try {
+    const body = await req.json();
+    const { id, estado, observaciones } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "ID de viaje requerido" }, { status: 400 });
+    }
+
+    const now = new Date();
+    const horaLlegadaCo = now.toLocaleTimeString("es-CO", {
+      timeZone: "America/Bogota",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+
+    const viaje = await prisma.viaje.update({
+      where: { id },
+      data: {
+        estado: estado || "finalizado",
+        fechaLlegadaReal: now,
+        horaLlegada: horaLlegadaCo,
+        observaciones: observaciones || undefined,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Viaje actualizado exitosamente",
+      viaje,
+    });
+  } catch (error: any) {
+    console.error("Error al actualizar viaje:", error);
+    return NextResponse.json({ error: error.message || "Error al actualizar viaje" }, { status: 500 });
+  }
+}
+
 

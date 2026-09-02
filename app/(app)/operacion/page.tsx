@@ -34,19 +34,26 @@ function getEstadoLabel(estado?: string): string {
   return mapped[estado.toLowerCase()] || estado;
 }
 
-function formatFechaHora(iso?: string) {
-  if (!iso) return "—";
+function formatFechaHora(iso?: string | Date, horaSalida?: string | null) {
+  if (!iso) return horaSalida || "—";
   try {
     const d = new Date(iso);
-    if (isNaN(d.getTime())) return "—";
-    return d.toLocaleString("es-CO", {
+    if (isNaN(d.getTime())) return horaSalida || "—";
+    const dateStr = d.toLocaleDateString("es-CO", {
+      timeZone: "America/Bogota",
       day: "2-digit",
       month: "2-digit",
+      year: "numeric",
+    });
+    const timeStr = horaSalida || d.toLocaleTimeString("es-CO", {
+      timeZone: "America/Bogota",
       hour: "2-digit",
       minute: "2-digit",
+      hour12: true,
     });
+    return `${dateStr} · ${timeStr}`;
   } catch {
-    return "—";
+    return horaSalida || "—";
   }
 }
 
@@ -81,9 +88,9 @@ const columns: Column<Viaje>[] = [
   {
     header: "Salida",
     accessor: "fechaSalida",
-    render: (v) => (
-      <span className="font-[family-name:var(--font-mono)] text-xs">
-        {formatFechaHora(v as string)}
+    render: (v, row) => (
+      <span className="font-[family-name:var(--font-mono)] text-xs text-mist-200">
+        {formatFechaHora(v as string, row.horaSalida)}
       </span>
     ),
   },
@@ -135,11 +142,11 @@ export default async function OperacionPage({
 
   const enCurso = allViajes.filter((v) => {
     const e = (v.estado || "").toLowerCase();
-    return e === "en_curso" || e === "con_novedad" || e === "autorizado" || e === "en curso";
+    return e !== "finalizado" && e !== "completado" && e !== "programado";
   });
   const programados = allViajes.filter((v) => {
     const e = (v.estado || "").toLowerCase();
-    return e === "programado" || e.includes("pendiente");
+    return e === "programado";
   });
   const finalizados = allViajes.filter((v) => {
     const e = (v.estado || "").toLowerCase();
@@ -153,9 +160,9 @@ export default async function OperacionPage({
   };
 
   const tabs = [
-    { key: "en_curso", label: "Activos / En Curso", count: enCurso.length },
-    { key: "programado", label: "Programados / Pendientes", count: programados.length },
-    { key: "finalizado", label: "Historial Completo", count: finalizados.length },
+    { key: "en_curso", label: "En Curso / Activos", count: enCurso.length },
+    { key: "programado", label: "Programados", count: programados.length },
+    { key: "finalizado", label: "Historial", count: finalizados.length },
   ];
 
   return (
