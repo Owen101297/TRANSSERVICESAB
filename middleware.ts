@@ -1,17 +1,19 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { decodeSession, AUTH_COOKIE_NAME } from "@/lib/auth";
+import { decodeSession, AUTH_COOKIE_NAME } from "@/lib/session";
 
-export function middleware(req: any) {
+export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Ignorar assets internos, healthcheck, api de autenticación y archivos estáticos
+  // 1. Ignorar assets estáticos, Next internals, endpoints de salud y APIs públicas
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api/health") ||
     pathname.startsWith("/api/auth") ||
-    pathname.startsWith("/api/apps") || // Endpoints públicos de apps
-    pathname.includes(".") // .ico, .png, .svg, .js, .css
+    pathname.startsWith("/api/apps") ||
+    pathname.startsWith("/assets") ||
+    pathname.startsWith("/apps/shared") ||
+    pathname.includes(".")
   ) {
     return NextResponse.next();
   }
@@ -19,7 +21,7 @@ export function middleware(req: any) {
   const token = req.cookies.get(AUTH_COOKIE_NAME)?.value;
   const session = token ? decodeSession(token) : null;
 
-  // 1. Si está en /login y ya tiene sesión activa
+  // 2. Si está en /login y ya está autenticado
   if (pathname === "/login") {
     if (session) {
       if (session.rolPrincipal === "conductor") {
@@ -30,14 +32,14 @@ export function middleware(req: any) {
     return NextResponse.next();
   }
 
-  // 2. Si no tiene sesión activa
+  // 3. Si no tiene sesión activa
   if (!session) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // 3. Si es un Conductor intentando acceder al ERP Administrativo
+  // 4. Si es un Conductor intentando acceder al ERP Administrativo
   if (session.rolPrincipal === "conductor") {
     const allowedForDriver =
       pathname === "/portal-conductor" ||
