@@ -1,6 +1,6 @@
 /**
  * Trans Services Cooperativa A&B - SSO & Data Bridge
- * Gestiona la sesión unificada del conductor y la comunicación directa con el backend ERP
+ * Gestiona la sesión unificada del conductor, la identidad de marca y la comunicación con el ERP
  */
 (function () {
   // 1. Obtener sesión desde localStorage o parámetros de URL
@@ -38,16 +38,14 @@
 
   // 2. Si no hay sesión iniciada, redirigir al portal
   if (!session) {
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     const portalUrl = '/portal-conductor';
-    console.info('No hay sesión de conductor activa. Redirigiendo a:', portalUrl);
     if (!window.location.search.includes('demo=true')) {
       window.location.href = portalUrl;
       return;
     }
   }
 
-  // 3. Inyectar Barra Superior Unificada "Volver al Portal"
+  // 3. Inyectar Barra Superior Unificada con Logo de Trans Services y "Volver al Portal"
   function injectTopBar() {
     if (document.getElementById('ts-sso-bar')) return;
 
@@ -59,15 +57,15 @@
       left: 0;
       right: 0;
       z-index: 999999;
-      background: #0f172a;
-      border-bottom: 1px solid #334155;
+      background: #090e17;
+      border-bottom: 1px solid #1e293b;
       padding: 8px 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       font-family: system-ui, -apple-system, sans-serif;
       color: #f8fafc;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
     `;
 
     const nombre = session ? session.nombre : 'Conductor';
@@ -75,16 +73,19 @@
 
     bar.innerHTML = `
       <div style="display:flex; align-items:center; gap:10px;">
-        <a href="/portal-conductor" style="display:inline-flex; align-items:center; gap:6px; background:#1e293b; color:#38bdf8; padding:6px 12px; border-radius:6px; font-size:12px; font-weight:600; text-decoration:none; border:1px solid #475569;">
-          <span>←</span> <span>Portal Conductor</span>
+        <a href="/portal-conductor" style="display:inline-flex; align-items:center; gap:6px; background:#1e293b; color:#38bdf8; padding:6px 12px; border-radius:8px; font-size:12px; font-weight:700; text-decoration:none; border:1px solid #334155; transition:all 0.2s ease;">
+          <span style="font-size:14px;">←</span> <span>Portal Conductor</span>
         </a>
-        <div style="display:flex; flex-direction:column;">
-          <span style="font-size:12px; font-weight:700; color:#f8fafc; line-height:1.2;">${nombre}</span>
-          <span style="font-size:10px; color:#94a3b8; font-family:monospace;">DOC: ${session ? session.documento : '—'}</span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <img src="/brand/logo.png" alt="Trans Services" style="height:24px; width:auto; border-radius:4px; object-fit:contain;" onerror="this.style.display='none'" />
+          <div style="display:flex; flex-direction:column;">
+            <span style="font-size:11px; font-weight:800; color:#f8fafc; line-height:1.1; letter-spacing:0.3px;">${nombre}</span>
+            <span style="font-size:9px; color:#94a3b8; font-family:monospace;">DOC: ${session ? session.documento : '—'}</span>
+          </div>
         </div>
       </div>
-      <div style="display:flex; align-items:center; gap:8px;">
-        <span style="background:#0284c7; color:#ffffff; font-family:monospace; font-weight:800; font-size:11px; padding:3px 8px; border-radius:4px; letter-spacing:0.5px; border:1px solid #38bdf8;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span style="background:rgba(56, 189, 248, 0.12); color:#38bdf8; font-family:monospace; font-weight:800; font-size:11px; padding:4px 9px; border-radius:6px; letter-spacing:0.5px; border:1px solid rgba(56, 189, 248, 0.3);">
           ${placa}
         </span>
       </div>
@@ -143,9 +144,12 @@
     autoFillFields();
   }
 
-  // 5. Exponer objeto global para enviar datos al ERP
+  // 5. Exponer objeto global para enviar datos al ERP y regresar al portal
   window.TransServices = {
     getSession: () => session,
+    returnToPortal: () => {
+      window.location.href = '/portal-conductor';
+    },
     submitData: async function (endpoint, data) {
       const payload = {
         ...data,

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   Truck,
   ClipboardCheck,
@@ -22,88 +23,126 @@ import {
   Search,
   X,
   Zap,
+  Clock,
+  CheckCircle2,
+  Calendar,
+  AlertCircle,
+  Home,
+  Navigation,
+  FileText,
+  LifeBuoy,
 } from "lucide-react";
 import { PlateTag } from "@/components/ui/PlateTag";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 
-interface AppTile {
-  title: string;
-  subtitle: string;
-  icon: any;
-  href: string;
-  badge: string;
-  color: "cyan" | "amber" | "green" | "red";
+interface AppCategory {
+  category: string;
+  apps: {
+    id: string;
+    title: string;
+    subtitle: string;
+    icon: any;
+    href: string;
+    badge: string;
+    color: "cyan" | "amber" | "green" | "red";
+    priority?: boolean;
+  }[];
 }
 
-const APPS: AppTile[] = [
+const CATEGORIAS_APPS: AppCategory[] = [
   {
-    title: "Plan de Viaje & Riesgo",
-    subtitle: "Evaluación HSE y hoja de ruta",
-    icon: Truck,
-    href: "/apps/viajes/index.html",
-    badge: "Prioritario",
-    color: "cyan",
+    category: "Operación & Ruta Diaria",
+    apps: [
+      {
+        id: "preoperacional",
+        title: "Inspección Preoperacional",
+        subtitle: "Checklist técnico-mecánico obligatorio de inicio de turno",
+        icon: ClipboardCheck,
+        href: "/apps/preoperacional/index.html",
+        badge: "Obligatorio",
+        color: "amber",
+        priority: true,
+      },
+      {
+        id: "viajes",
+        title: "Plan de Viaje & Riesgo",
+        subtitle: "Gerenciamiento de ruta, pasajeros y evaluación HSE",
+        icon: Truck,
+        href: "/apps/viajes/index.html",
+        badge: "Prioritario",
+        color: "cyan",
+        priority: true,
+      },
+      {
+        id: "asistencia",
+        title: "Registro de Asistencia",
+        subtitle: "Marcación de turno y firma digital diaria",
+        icon: UserCheck,
+        href: "/apps/asistencia/index.html",
+        badge: "Diario",
+        color: "green",
+      },
+    ],
   },
   {
-    title: "Preoperacional Diario",
-    subtitle: "Checklist técnico-mecánico",
-    icon: ClipboardCheck,
-    href: "/apps/preoperacional/index.html",
-    badge: "Obligatorio",
-    color: "amber",
+    category: "Higiene & Desinfección Vehicular",
+    apps: [
+      {
+        id: "lavado",
+        title: "Control de Lavado",
+        subtitle: "Registro y control de limpieza exterior e interior",
+        icon: Droplets,
+        href: "/apps/lavado/index.html",
+        badge: "Operativo",
+        color: "cyan",
+      },
+      {
+        id: "aseo",
+        title: "Aseo y Desinfección",
+        subtitle: "Protocolo de bioseguridad y desinfección de cabina",
+        icon: Sparkles,
+        href: "/apps/aseo/index.html",
+        badge: "Semanal",
+        color: "green",
+      },
+    ],
   },
   {
-    title: "Registro de Asistencia",
-    subtitle: "Firma digital y registro diario",
-    icon: UserCheck,
-    href: "/apps/asistencia/index.html",
-    badge: "Diario",
-    color: "green",
-  },
-  {
-    title: "Control de Lavado",
-    subtitle: "Registro de limpieza y lavado",
-    icon: Droplets,
-    href: "/apps/lavado/index.html",
-    badge: "Control",
-    color: "cyan",
-  },
-  {
-    title: "Aseo y Desinfección",
-    subtitle: "Protocolo de bioseguridad",
-    icon: Sparkles,
-    href: "/apps/aseo/index.html",
-    badge: "Semanal",
-    color: "green",
-  },
-  {
-    title: "Inspección de Extintor",
-    subtitle: "Control de carga y manómetro",
-    icon: ShieldAlert,
-    href: "/apps/extintor/index.html",
-    badge: "Mensual",
-    color: "red",
-  },
-  {
-    title: "Inspección de Botiquín",
-    subtitle: "Inventario de insumos médicos",
-    icon: HeartPulse,
-    href: "/apps/botiquin/index.html",
-    badge: "Mensual",
-    color: "amber",
-  },
-  {
-    title: "Encuesta de Riesgo Vial",
-    subtitle: "Valoración PESV anual",
-    icon: FileQuestion,
-    href: "/apps/encuesta/index.html",
-    badge: "Periódico",
-    color: "cyan",
+    category: "Inspecciones de Seguridad & Emergencia",
+    apps: [
+      {
+        id: "extintor",
+        title: "Inspección de Extintor",
+        subtitle: "Control de presión, manómetro y fecha de recarga",
+        icon: ShieldAlert,
+        href: "/apps/extintor/index.html",
+        badge: "Mensual",
+        color: "red",
+      },
+      {
+        id: "botiquin",
+        title: "Inspección de Botiquín",
+        subtitle: "Inventario de dotación y fechas de caducidad",
+        icon: HeartPulse,
+        href: "/apps/botiquin/index.html",
+        badge: "Mensual",
+        color: "amber",
+      },
+      {
+        id: "encuesta",
+        title: "Encuesta de Riesgo Vial",
+        subtitle: "Valoración de hábitos y caracterización PESV",
+        icon: FileQuestion,
+        href: "/apps/encuesta/index.html",
+        badge: "PESV",
+        color: "cyan",
+      },
+    ],
   },
 ];
 
 export default function PortalConductorMobilePage() {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<"inicio" | "apps" | "ayuda">("inicio");
   const [driver, setDriver] = useState<{
     id?: string;
     nombre: string;
@@ -175,7 +214,6 @@ export default function PortalConductorMobilePage() {
   };
 
   const handleOpenApp = (href: string) => {
-    // Sincronizar sesión activa en localStorage antes de abrir
     if (driver) {
       localStorage.setItem("transservices_conductor", JSON.stringify(driver));
     }
@@ -211,7 +249,7 @@ export default function PortalConductorMobilePage() {
 
         setVehicleFeedback({
           type: "success",
-          msg: `¡Vehículo asignado a ${updatedPlaca} con éxito!`,
+          msg: `¡Vehículo actualizado a ${updatedPlaca} con éxito!`,
         });
 
         setTimeout(() => {
@@ -222,7 +260,7 @@ export default function PortalConductorMobilePage() {
       } else {
         setVehicleFeedback({
           type: "error",
-          msg: data.error || "No se pudo cambiar el vehículo. Inténtalo nuevamente.",
+          msg: data.error || "No se pudo cambiar el vehículo.",
         });
       }
     } catch (err: any) {
@@ -254,40 +292,49 @@ export default function PortalConductorMobilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-asphalt-950 text-paper-50 flex flex-col font-[family-name:var(--font-body)]">
-      {/* Barra de Encabezado Móvil */}
-      <header className="sticky top-0 z-40 bg-asphalt-900/90 backdrop-blur-md border-b border-line-600 px-4 py-3 flex items-center justify-between shadow-lg">
+    <div className="min-h-screen bg-asphalt-950 text-paper-50 flex flex-col font-[family-name:var(--font-body)] pb-20">
+      {/* Cabecera Principal con Logo Oficial */}
+      <header className="sticky top-0 z-40 bg-asphalt-900/95 backdrop-blur-md border-b border-line-600 px-4 py-2.5 flex items-center justify-between shadow-xl">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-radar-cyan/10 border border-radar-cyan/30 flex items-center justify-center text-radar-cyan shadow-sm">
-            <Shield size={20} />
+          <div className="relative h-9 w-28 shrink-0 flex items-center">
+            <Image
+              src="/brand/logo.png"
+              alt="Trans Services Cooperativa A&B"
+              width={112}
+              height={36}
+              className="object-contain"
+              priority
+            />
           </div>
-          <div>
-            <h1 className="font-[family-name:var(--font-display)] text-lg font-black tracking-wide leading-tight text-paper-50">
+          <div className="hidden sm:block border-l border-line-600 pl-3">
+            <h1 className="font-[family-name:var(--font-display)] text-sm font-black tracking-wide text-paper-50 leading-tight">
               PORTAL DEL CONDUCTOR
             </h1>
-            <p className="text-[10px] text-mist-200 font-mono tracking-wider">
-              TRANS SERVICES COOPERATIVA A&B
+            <p className="text-[9px] text-radar-cyan font-mono font-bold tracking-wider">
+              OPERACIÓN CONECTADA 24/7
             </p>
           </div>
         </div>
 
-        <button
-          onClick={handleLogout}
-          title="Cerrar sesión"
-          className="p-2 rounded-xl bg-asphalt-800 border border-line-600 hover:border-alert-red text-fog-400 hover:text-alert-red transition-all flex items-center gap-1.5 text-xs font-semibold"
-        >
-          <LogOut size={16} />
-          <span className="hidden sm:inline">Salir</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleLogout}
+            title="Cerrar sesión"
+            className="p-2 rounded-xl bg-asphalt-800 border border-line-600 hover:border-alert-red text-fog-400 hover:text-alert-red transition-all flex items-center gap-1.5 text-xs font-semibold shadow-sm"
+          >
+            <LogOut size={15} />
+            <span className="hidden sm:inline">Salir</span>
+          </button>
+        </div>
       </header>
 
       {/* Contenido Principal */}
       <main className="flex-1 max-w-2xl w-full mx-auto p-4 space-y-4">
-        {/* Tarjeta de Perfil y Vehículo Asignado */}
+        {/* Tarjeta de Perfil y Asignación de Vehículo */}
         <div className="bg-asphalt-900 border border-line-600 rounded-2xl p-4 shadow-xl relative overflow-hidden">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-asphalt-800 border border-line-600 flex items-center justify-center font-[family-name:var(--font-display)] text-xl font-bold text-radar-cyan shadow-inner">
+              <div className="w-12 h-12 rounded-xl bg-asphalt-800 border border-radar-cyan/30 flex items-center justify-center font-[family-name:var(--font-display)] text-xl font-black text-radar-cyan shadow-inner">
                 {driver?.nombre
                   ? driver.nombre
                       .split(" ")
@@ -297,10 +344,10 @@ export default function PortalConductorMobilePage() {
                   : "CO"}
               </div>
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-radar-cyan">
-                  Conductor Activo
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-radar-cyan">
+                  <UserCheck size={12} /> Conductor Activo
                 </span>
-                <h2 className="font-[family-name:var(--font-display)] text-xl font-bold text-paper-50 leading-tight">
+                <h2 className="font-[family-name:var(--font-display)] text-lg sm:text-xl font-bold text-paper-50 leading-tight">
                   {driver?.nombre || "Cargando perfil..."}
                 </h2>
                 <p className="text-xs text-mist-200 font-mono mt-0.5">
@@ -325,7 +372,7 @@ export default function PortalConductorMobilePage() {
               <button
                 type="button"
                 onClick={() => setIsVehicleModalOpen(true)}
-                className="mt-2 inline-flex items-center gap-1 text-[11px] font-mono text-radar-cyan hover:underline font-bold bg-radar-cyan/10 hover:bg-radar-cyan/20 border border-radar-cyan/30 px-2.5 py-1 rounded-lg transition-all active:scale-95"
+                className="mt-2 inline-flex items-center gap-1 text-[11px] font-mono text-radar-cyan hover:underline font-bold bg-radar-cyan/10 hover:bg-radar-cyan/20 border border-radar-cyan/30 px-2.5 py-1 rounded-lg transition-all active:scale-95 shadow-sm"
               >
                 <RefreshCw size={12} className="shrink-0" />
                 <span>{driver?.placa && driver.placa !== "SIN ASIGNAR" ? "Cambiar Placa" : "Elegir Placa"}</span>
@@ -334,14 +381,14 @@ export default function PortalConductorMobilePage() {
           </div>
 
           {!driver?.placa || driver?.placa === "SIN ASIGNAR" ? (
-            <div className="mt-3.5 p-2.5 bg-signal-amber/10 border border-signal-amber/20 rounded-xl text-xs text-signal-amber flex items-center justify-between gap-2">
+            <div className="mt-3.5 p-3 bg-signal-amber/15 border border-signal-amber/30 rounded-xl text-xs text-signal-amber flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <AlertTriangle size={16} className="shrink-0" />
-                <span>No tienes un vehículo asignado. Selecciona tu placa para continuar.</span>
+                <span>Selecciona el vehículo que vas a operar para habilitar tus formatos.</span>
               </div>
               <button
                 onClick={() => setIsVehicleModalOpen(true)}
-                className="px-2.5 py-1 bg-signal-amber text-asphalt-950 font-bold rounded-lg text-xs uppercase tracking-wider shrink-0"
+                className="px-3 py-1 bg-signal-amber text-asphalt-950 font-bold rounded-lg text-xs uppercase tracking-wider shrink-0 shadow-md"
               >
                 Asignar
               </button>
@@ -349,70 +396,115 @@ export default function PortalConductorMobilePage() {
           ) : null}
         </div>
 
-        {/* Título de Sección */}
-        <div className="flex items-center justify-between pt-1">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-fog-400">
-            Aplicaciones Operativas ({APPS.length})
-          </h3>
-          <span className="text-[11px] text-mist-200 font-mono">
-            Acceso Directo Unificado
-          </span>
+        {/* Tarjeta Interactiva: Estado de Turno & Preoperacional de Hoy */}
+        <div className="bg-gradient-to-br from-asphalt-900 via-asphalt-900 to-asphalt-800 border border-signal-amber/30 rounded-2xl p-4 shadow-xl relative overflow-hidden">
+          <div className="flex items-center justify-between gap-2 mb-2.5">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-signal-amber/20 border border-signal-amber/40 flex items-center justify-center text-signal-amber">
+                <Clock size={15} />
+              </div>
+              <div>
+                <h3 className="font-[family-name:var(--font-display)] text-sm font-bold text-paper-50 uppercase tracking-wide">
+                  Turno Operativo de Hoy
+                </h3>
+                <p className="text-[10px] text-fog-400 font-mono">
+                  {new Date().toLocaleDateString("es-CO", { weekday: "long", year: "numeric", month: "short", day: "numeric" })}
+                </p>
+              </div>
+            </div>
+
+            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-signal-amber/15 border border-signal-amber/30 text-signal-amber flex items-center gap-1">
+              <AlertCircle size={11} /> Requisito PESV
+            </span>
+          </div>
+
+          <div className="p-3 bg-asphalt-950/70 border border-line-600 rounded-xl flex items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <p className="text-xs font-semibold text-paper-50">
+                Inspección Preoperacional Diaria (IMTO-F-010)
+              </p>
+              <p className="text-[11px] text-fog-400">
+                Debes diligenciar y firmar el estado mecánico antes de encender el vehículo.
+              </p>
+            </div>
+            <button
+              onClick={() => handleOpenApp("/apps/preoperacional/index.html")}
+              className="px-3.5 py-2 bg-signal-amber hover:bg-signal-amber/90 text-asphalt-950 font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-1.5 shrink-0 shadow-lg shadow-signal-amber/20 transition-all active:scale-95"
+            >
+              <span>Diligenciar</span>
+              <ArrowRight size={13} />
+            </button>
+          </div>
         </div>
 
-        {/* Cuadrícula de Aplicaciones Táctiles */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {APPS.map((app, idx) => {
-            const Icon = app.icon;
-            const style = colorStyles[app.color];
+        {/* Sección de Aplicaciones Operativas Organizadas */}
+        {CATEGORIAS_APPS.map((cat, catIdx) => (
+          <div key={catIdx} className="space-y-2.5 pt-1">
+            <div className="flex items-center justify-between px-1">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-fog-400 flex items-center gap-1.5 font-mono">
+                <span className="w-1.5 h-1.5 rounded-full bg-radar-cyan"></span>
+                {cat.category}
+              </h3>
+              <span className="text-[10px] text-mist-200 font-mono">
+                {cat.apps.length} formatos
+              </span>
+            </div>
 
-            return (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => handleOpenApp(app.href)}
-                className={`w-full text-left p-4 rounded-2xl border transition-all duration-200 flex flex-col justify-between group active:scale-[0.98] shadow-md ${style}`}
-              >
-                <div className="flex items-start justify-between gap-2 w-full">
-                  <div className="w-11 h-11 rounded-xl bg-asphalt-900/80 border border-line-600 flex items-center justify-center text-inherit group-hover:scale-110 transition-transform">
-                    <Icon size={22} />
-                  </div>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-asphalt-950/70 border border-line-600 text-mist-200">
-                    {app.badge}
-                  </span>
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {cat.apps.map((app) => {
+                const Icon = app.icon;
+                const style = colorStyles[app.color];
 
-                <div className="mt-4 flex items-end justify-between w-full">
-                  <div>
-                    <h4 className="font-[family-name:var(--font-display)] text-lg font-bold text-paper-50 leading-snug group-hover:text-inherit transition-colors">
-                      {app.title}
-                    </h4>
-                    <p className="text-xs text-mist-200 mt-0.5 line-clamp-1">
-                      {app.subtitle}
-                    </p>
-                  </div>
-                  <div className="w-7 h-7 rounded-lg bg-asphalt-900 border border-line-600 flex items-center justify-center text-fog-400 group-hover:text-paper-50 group-hover:border-paper-50 transition-all shrink-0">
-                    <ArrowRight size={14} />
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+                return (
+                  <button
+                    key={app.id}
+                    type="button"
+                    onClick={() => handleOpenApp(app.href)}
+                    className={`w-full text-left p-4 rounded-2xl border transition-all duration-200 flex flex-col justify-between group active:scale-[0.98] shadow-md ${style}`}
+                  >
+                    <div className="flex items-start justify-between gap-2 w-full">
+                      <div className="w-10 h-10 rounded-xl bg-asphalt-900/90 border border-line-600 flex items-center justify-center text-inherit group-hover:scale-110 transition-transform shadow-inner">
+                        <Icon size={20} />
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-asphalt-950/80 border border-line-600 text-mist-200">
+                        {app.badge}
+                      </span>
+                    </div>
+
+                    <div className="mt-3.5 flex items-end justify-between w-full">
+                      <div>
+                        <h4 className="font-[family-name:var(--font-display)] text-base font-bold text-paper-50 leading-snug group-hover:text-inherit transition-colors">
+                          {app.title}
+                        </h4>
+                        <p className="text-[11px] text-mist-200 mt-0.5 line-clamp-1 leading-normal">
+                          {app.subtitle}
+                        </p>
+                      </div>
+                      <div className="w-7 h-7 rounded-lg bg-asphalt-900 border border-line-600 flex items-center justify-center text-fog-400 group-hover:text-paper-50 group-hover:border-paper-50 transition-all shrink-0">
+                        <ArrowRight size={13} />
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
 
         {/* Soporte de Emergencias y HSE */}
-        <div className="mt-6 bg-asphalt-900/60 border border-line-600 rounded-2xl p-4 flex items-center justify-between gap-3 text-xs text-mist-200">
+        <div className="mt-6 bg-asphalt-900/70 border border-line-600 rounded-2xl p-4 flex items-center justify-between gap-3 text-xs text-mist-200 shadow-lg">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-signal-amber/10 border border-signal-amber/30 flex items-center justify-center text-signal-amber">
+            <div className="w-10 h-10 rounded-xl bg-signal-amber/10 border border-signal-amber/30 flex items-center justify-center text-signal-amber shrink-0">
               <Phone size={18} />
             </div>
             <div>
-              <p className="font-bold text-paper-50">Línea de Emergencia & HSE</p>
-              <p className="text-[11px] text-fog-400">Atención 24/7 en carretera</p>
+              <p className="font-bold text-paper-50 text-xs">Línea de Emergencia & HSE 24/7</p>
+              <p className="text-[11px] text-fog-400">Atención inmediata en carretera y contingencias</p>
             </div>
           </div>
           <a
             href="tel:+573100000000"
-            className="py-2 px-3.5 bg-signal-amber text-asphalt-950 font-bold rounded-xl text-xs uppercase tracking-wider hover:bg-signal-amber/90 transition-colors"
+            className="py-2 px-3.5 bg-signal-amber text-asphalt-950 font-bold rounded-xl text-xs uppercase tracking-wider hover:bg-signal-amber/90 transition-colors shrink-0 shadow-md"
           >
             Llamar
           </a>
@@ -561,10 +653,52 @@ export default function PortalConductorMobilePage() {
         </div>
       )}
 
-      {/* Pie de página */}
-      <footer className="p-4 text-center text-[11px] text-fog-400 border-t border-line-600/50 mt-auto">
-        Trans Services Cooperativa A&B · Conexión Operativa Segura
-      </footer>
+      {/* Barra de Navegación Inferior Fija para Móviles (Bottom Navigation Bar) */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-asphalt-900/95 backdrop-blur-lg border-t border-line-600 px-4 py-2 flex items-center justify-around shadow-2xl">
+        <button
+          onClick={() => setActiveTab("inicio")}
+          className={`flex flex-col items-center gap-1 transition-colors ${
+            activeTab === "inicio" ? "text-radar-cyan" : "text-fog-400 hover:text-paper-50"
+          }`}
+        >
+          <Home size={18} />
+          <span className="text-[10px] font-semibold tracking-wide">Inicio</span>
+        </button>
+
+        <button
+          onClick={() => handleOpenApp("/apps/viajes/index.html")}
+          className="flex flex-col items-center gap-1 text-fog-400 hover:text-paper-50 transition-colors"
+        >
+          <Navigation size={18} />
+          <span className="text-[10px] font-semibold tracking-wide">Mis Viajes</span>
+        </button>
+
+        <button
+          onClick={() => handleOpenApp("/apps/preoperacional/index.html")}
+          className="flex flex-col items-center gap-1 text-signal-amber hover:text-signal-amber/80 transition-colors"
+        >
+          <div className="p-1.5 rounded-full bg-signal-amber/20 border border-signal-amber/40 -mt-3 shadow-lg">
+            <ClipboardCheck size={20} className="text-signal-amber" />
+          </div>
+          <span className="text-[10px] font-bold tracking-wide text-signal-amber">Preoperacional</span>
+        </button>
+
+        <button
+          onClick={() => setIsVehicleModalOpen(true)}
+          className="flex flex-col items-center gap-1 text-fog-400 hover:text-paper-50 transition-colors"
+        >
+          <Truck size={18} />
+          <span className="text-[10px] font-semibold tracking-wide">Mi Vehículo</span>
+        </button>
+
+        <a
+          href="tel:+573100000000"
+          className="flex flex-col items-center gap-1 text-fog-400 hover:text-alert-red transition-colors"
+        >
+          <LifeBuoy size={18} />
+          <span className="text-[10px] font-semibold tracking-wide">S.O.S</span>
+        </a>
+      </nav>
     </div>
   );
 }
