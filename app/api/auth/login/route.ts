@@ -21,9 +21,15 @@ export async function POST(req: Request) {
         );
       }
 
-      // Buscar persona en la base de datos
-      const persona = await prisma.persona.findUnique({
-        where: { numeroDocumento: cleanDoc },
+      // Buscar persona en la base de datos de manera flexible
+      const persona = await prisma.persona.findFirst({
+        where: {
+          OR: [
+            { numeroDocumento: cleanDoc },
+            { id: cleanDoc },
+            { email: { contains: cleanDoc, mode: "insensitive" } },
+          ],
+        },
         include: {
           asignaciones: {
             where: { estado: "activa" },
