@@ -5,9 +5,10 @@ import { decodeSession, AUTH_COOKIE_NAME } from "@/lib/auth";
 export function middleware(req: any) {
   const { pathname } = req.nextUrl;
 
-  // Ignorar assets internos, api de autenticación y archivos estáticos
+  // Ignorar assets internos, healthcheck, api de autenticación y archivos estáticos
   if (
     pathname.startsWith("/_next") ||
+    pathname.startsWith("/api/health") ||
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/apps") || // Endpoints públicos de apps
     pathname.includes(".") // .ico, .png, .svg, .js, .css
