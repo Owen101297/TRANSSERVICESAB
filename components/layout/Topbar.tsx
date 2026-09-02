@@ -1,6 +1,8 @@
 "use client";
 
-import { Search, Bell, PanelLeftOpen, PanelLeftClose } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Search, Bell, PanelLeftOpen, PanelLeftClose, LogOut } from "lucide-react";
 
 interface TopbarProps {
   userName?: string;
@@ -9,10 +11,33 @@ interface TopbarProps {
 }
 
 export function Topbar({
-  userName = "Owen",
+  userName: defaultUserName = "Administrador",
   isSidebarCollapsed = false,
   onToggleSidebar,
 }: TopbarProps) {
+  const router = useRouter();
+  const [userName, setUserName] = useState(defaultUserName);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.authenticated && d.user?.nombre) {
+          setUserName(d.user.nombre);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {}
+    localStorage.removeItem("transservices_conductor");
+    router.push("/login");
+    router.refresh();
+  };
+
   return (
     <header className="flex h-16 shrink-0 items-center justify-between border-b border-line-600 bg-asphalt-950 px-4 sm:px-6">
       <div className="flex items-center gap-3 w-full max-w-lg">
@@ -39,7 +64,7 @@ export function Topbar({
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <button
           aria-label="Notificaciones"
           className="relative rounded-md p-2 text-fog-400 hover:bg-asphalt-800 hover:text-paper-50 transition-colors"
@@ -47,11 +72,22 @@ export function Topbar({
           <Bell size={18} />
           <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-alert-red" />
         </button>
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-asphalt-700 font-[family-name:var(--font-display)] text-sm font-bold text-signal-amber border border-line-600">
+
+        <div className="flex items-center gap-2 pl-2 border-l border-line-600">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-asphalt-700 font-[family-name:var(--font-display)] text-sm font-bold text-radar-cyan border border-line-600">
             {userName.charAt(0)}
           </div>
-          <span className="text-sm text-paper-50 hidden sm:inline-block font-medium">{userName}</span>
+          <span className="text-sm text-paper-50 hidden sm:inline-block font-medium truncate max-w-[140px]">
+            {userName}
+          </span>
+
+          <button
+            onClick={handleLogout}
+            title="Cerrar sesión"
+            className="p-2 rounded-lg text-fog-400 hover:text-alert-red hover:bg-asphalt-800 transition-colors ml-1"
+          >
+            <LogOut size={16} />
+          </button>
         </div>
       </div>
     </header>

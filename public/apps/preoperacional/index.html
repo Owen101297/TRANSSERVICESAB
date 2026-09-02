@@ -263,52 +263,32 @@
                 img.src = logoCandidates[0];
             }, []);
 
-            // Verificar sesión activa
+            // Verificar sesión activa via SSO
             const checkSession = async () => {
                 try {
-                    const client = await initSupabase();
-                    supabase = client;
-                    if (supabase) {
-                        const { data: { session } } = await supabase.auth.getSession();
-                        if (session) {
-                            currentUser = session.user;
-                            await loadDriverProfile(currentUser.email);
-                            setView('form');
-                            // Limpiar hash de OAuth de la URL
-                            if (window.location.hash) {
-                                window.history.replaceState(null, null, window.location.pathname + window.location.search);
-                            }
-                        } else {
-                            // Verificar si venimos de un callback de OAuth (Google/Gmail)
-                            const isOAuthCallback = window.location.hash.includes('access_token=') || window.location.search.includes('code=');
-                            
-                            if (isOAuthCallback) {
-                                // Escuchar el cambio de estado de autenticación (el callback resolverá de forma asíncrona)
-                                const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-                                    if (currentSession) {
-                                        currentUser = currentSession.user;
-                                        await loadDriverProfile(currentUser.email);
-                                        setView('form');
-                                        // Limpiar hash de OAuth de la URL
-                                        window.history.replaceState(null, null, window.location.pathname + window.location.search);
-                                        subscription?.unsubscribe();
-                                    }
-                                });
-                                
-                                // Si en 6 segundos no se resuelve, ir a login por seguridad
-                                setTimeout(() => {
-                                    setView(prev => prev === 'loading' ? 'login' : prev);
-                                }, 6000);
-                            } else {
-                                setView('login');
-                            }
-                        }
-                    } else {
-                        setView('login');
+                    const sso = window.TransServices?.getSession();
+                    if (sso && sso.nombre) {
+                        currentUser = {
+                            id: sso.id || sso.documento,
+                            email: sso.documento + '@transservices.com',
+                            user_metadata: { full_name: sso.nombre }
+                        };
+                        setConductorId(sso.id || sso.documento);
+                        setCurrentForm(prev => ({
+                            ...prev,
+                            conductor: sso.nombre,
+                            documento: sso.documento,
+                            placa: sso.placa && sso.placa !== 'SIN ASIGNAR' ? normalizePlaca(sso.placa) : (prev.placa || '')
+                        }));
+                        setView('form');
+                        return;
                     }
+
+                    // Si no hay sesión activa, redirigir al portal/login
+                    window.location.href = '/portal-conductor';
                 } catch (err) {
                     console.error("Error en checkSession:", err);
-                    setView('login');
+                    window.location.href = '/portal-conductor';
                 }
             };
 

@@ -28,6 +28,8 @@ model Persona {
   contratistaId     String?
   contratistaNombre String?
   fotoIniciales     String
+  pin               String?            @default("1234")
+  passwordHash      String?
 
   // Relaciones
   licenciaConduccion LicenciaConduccion?

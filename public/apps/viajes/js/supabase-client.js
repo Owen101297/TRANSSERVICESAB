@@ -219,19 +219,34 @@ export async function signOut() {
 }
 
 export async function getCurrentUser() {
-    const { data: { user }, error } = await supabase.auth.getUser()
-    if (error) {
-        // Si es simplemente que no hay sesión activa, no es un error grave
-        if (error.name === 'AuthSessionMissingError' || error.message?.includes('session missing')) {
-            return null
-        }
-        handleError(error, 'getCurrentUser')
-        return null
+    const sso = window.TransServices?.getSession();
+    if (sso && sso.nombre) {
+        return {
+            id: sso.id || sso.documento,
+            email: (sso.documento || 'conductor') + '@transservices.com',
+            user_metadata: {
+                nombre_completo: sso.nombre,
+                full_name: sso.nombre,
+                documento: sso.documento,
+                placa: sso.placa
+            }
+        };
     }
-    return user
+
+    try {
+        const { data: { user }, error } = await supabase.auth.getUser()
+        if (error) return null;
+        return user;
+    } catch {
+        return null;
+    }
 }
 
 export async function getSession() {
+    const sso = window.TransServices?.getSession();
+    if (sso && sso.nombre) {
+        return { user: await getCurrentUser(), access_token: 'sso-erp' };
+    }
     const { data: { session }, error } = await supabase.auth.getSession()
     if (error) {
         handleError(error, 'getSession')
@@ -257,6 +272,17 @@ export async function updatePassword(newPassword) {
 // ============================================================
 
 export async function getProfile(userId) {
+    const sso = window.TransServices?.getSession();
+    if (sso && sso.nombre) {
+        return {
+            id: sso.id || sso.documento,
+            nombre_completo: sso.nombre,
+            rol: 'conductor',
+            numero_documento: sso.documento,
+            placa_vehiculo: sso.placa,
+        };
+    }
+
     if (!userId) return null
     const { data: profile, error } = await supabase
         .from('core.personas')
@@ -269,7 +295,6 @@ export async function getProfile(userId) {
         handleError(error, 'getProfile')
     }
 
-    // Obtener rol desde core.user_roles (tabla separada para evitar recursión RLS)
     if (profile) {
         const { data: roleData, error: roleError } = await supabase
             .from('core.user_roles')
@@ -285,6 +310,17 @@ export async function getProfile(userId) {
 }
 
 export async function getCurrentProfile() {
+    const sso = window.TransServices?.getSession();
+    if (sso && sso.nombre) {
+        return {
+            id: sso.id || sso.documento,
+            nombre_completo: sso.nombre,
+            rol: 'conductor',
+            numero_documento: sso.documento,
+            placa_vehiculo: sso.placa,
+        };
+    }
+
     const user = await getCurrentUser()
     if (!user) return null
     if (cachedProfile) return cachedProfile
@@ -306,8 +342,8 @@ export async function isAdmin() {
 export async function requireAuth() {
     const user = await getCurrentUser()
     if (!user) {
-        window.location.href = './login.html?reason=unauthorized'
-        throw new Error('Debes iniciar sesión para acceder.')
+        window.location.href = '/portal-conductor'
+        throw new Error('Debes iniciar sesión en el Portal del Conductor.')
     }
     return user
 }
@@ -316,7 +352,7 @@ export async function requireAdmin() {
     const user = await requireAuth()
     const admin = await isAdmin()
     if (!admin) {
-        window.location.href = './index.html?reason=forbidden'
+        window.location.href = '/portal-conductor'
         throw new Error('Acceso denegado. Solo administradores.')
     }
     return user
