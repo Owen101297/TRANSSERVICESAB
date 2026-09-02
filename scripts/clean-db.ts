@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { ITEMS_SGSST } from "../lib/data/sgsst-items";
 import { PASOS_PESV } from "../lib/data/pesv-pasos";
 import { SEED_ROLES } from "../lib/data/roles";
+import { runSupabaseMigration } from "./migrate-from-supabase";
 
 const prisma = new PrismaClient();
 
@@ -101,7 +102,6 @@ async function initBaseCatalogs() {
 
     // Sincronizar datos históricos de Supabase (Conductores, Asistencias y Viajes)
     try {
-      const { runSupabaseMigration } = await import("./migrate-from-supabase");
       await runSupabaseMigration();
     } catch (migErr) {
       console.warn("Aviso en sincronización de Supabase:", migErr);
