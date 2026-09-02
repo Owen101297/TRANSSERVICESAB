@@ -116,6 +116,9 @@ initBaseCatalogs()
     console.error("Error al inicializar catálogos:", err);
   })
   .finally(async () => {
-    await prisma.$disconnect();
+    try {
+      await prisma.$disconnect();
+    } catch {}
+    process.exit(0);
   });
 
