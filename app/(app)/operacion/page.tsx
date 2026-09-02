@@ -12,20 +12,42 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PlateTag } from "@/components/ui/PlateTag";
 import { FuecTrigger } from "@/components/operacion/FuecTrigger";
 
-const ESTADO_TO_STATUS: Record<EstadoViaje, "activo" | "pendiente" | "cerrado" | "critico"> = {
-  en_curso: "activo",
-  programado: "pendiente",
-  finalizado: "cerrado",
-  con_novedad: "critico",
-};
+function mapEstadoToStatus(estado?: string): "activo" | "pendiente" | "cerrado" | "critico" {
+  const e = (estado || "").toLowerCase();
+  if (e.includes("curso") || e.includes("autorizado")) return "activo";
+  if (e.includes("pendiente") || e.includes("programado")) return "pendiente";
+  if (e.includes("novedad") || e.includes("critico") || e.includes("alto")) return "critico";
+  return "cerrado";
+}
 
-function formatFechaHora(iso: string) {
-  return new Date(iso).toLocaleString("es-CO", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function getEstadoLabel(estado?: string): string {
+  if (!estado) return "En curso";
+  const mapped: Record<string, string> = {
+    en_curso: "En curso",
+    programado: "Programado",
+    finalizado: "Finalizado",
+    con_novedad: "Con novedad",
+    pendiente: "Pendiente",
+    pendiente_hse: "Pendiente HSE",
+    autorizado: "Autorizado",
+  };
+  return mapped[estado.toLowerCase()] || estado;
+}
+
+function formatFechaHora(iso?: string) {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "—";
+    return d.toLocaleString("es-CO", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "—";
+  }
 }
 
 const columns: Column<Viaje>[] = [
@@ -74,7 +96,7 @@ const columns: Column<Viaje>[] = [
     header: "Novedades",
     accessor: "novedades",
     render: (v) => {
-      const n = (v as Viaje["novedades"]).length;
+      const n = (v as Viaje["novedades"])?.length || 0;
       return n > 0 ? (
         <span className="text-signal-amber font-bold">{n}</span>
       ) : (
@@ -87,8 +109,8 @@ const columns: Column<Viaje>[] = [
     accessor: "estado",
     render: (v, row) => (
       <Link href={`/operacion/${row.id}`}>
-        <StatusBadge status={ESTADO_TO_STATUS[v as EstadoViaje]}>
-          {ESTADO_VIAJE_LABELS[v as EstadoViaje]}
+        <StatusBadge status={mapEstadoToStatus(v as string)}>
+          {getEstadoLabel(v as string)}
         </StatusBadge>
       </Link>
     ),

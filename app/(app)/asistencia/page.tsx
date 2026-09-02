@@ -32,7 +32,7 @@ const columns: Column<RegistroAsistencia>[] = [
     accessor: "fecha",
     render: (v) => (
       <span className="font-[family-name:var(--font-mono)] text-xs">
-        {new Date(v as string).toLocaleDateString("es-CO")}
+        {v ? new Date(v as string).toLocaleDateString("es-CO") : "—"}
       </span>
     ),
   },
