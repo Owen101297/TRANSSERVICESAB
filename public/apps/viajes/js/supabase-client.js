@@ -437,6 +437,16 @@ export async function deleteConductor(id) {
 // ============================================================
 
 export async function getViajes() {
+    try {
+        const res = await fetch('/api/apps/viajes');
+        if (res.ok) {
+            const data = await res.json();
+            return data || [];
+        }
+    } catch (e) {
+        console.warn('Aviso en getViajes local:', e);
+    }
+
     const { data, error } = await supabase
         .from('operacion.viajes')
         .select('*')
@@ -450,6 +460,19 @@ export async function getViajes() {
 }
 
 export async function getViajesByConductor(conductorId) {
+    try {
+        const sso = window.TransServices?.getSession();
+        const doc = sso ? sso.documento : '';
+        const url = `/api/apps/viajes?conductorId=${encodeURIComponent(conductorId || '')}&doc=${encodeURIComponent(doc || '')}`;
+        const res = await fetch(url);
+        if (res.ok) {
+            const data = await res.json();
+            return data || [];
+        }
+    } catch (e) {
+        console.warn('Aviso en getViajesByConductor local:', e);
+    }
+
     const { data, error } = await supabase
         .from('operacion.viajes')
         .select('*')
@@ -464,6 +487,16 @@ export async function getViajesByConductor(conductorId) {
 }
 
 export async function getViajesByFecha(fecha) {
+    try {
+        const res = await fetch('/api/apps/viajes');
+        if (res.ok) {
+            const data = await res.json();
+            return data.filter(v => (v.fecha_salida || '').startsWith(fecha));
+        }
+    } catch (e) {
+        console.warn('Aviso en getViajesByFecha local:', e);
+    }
+
     const { data, error } = await supabase
         .from('operacion.viajes')
         .select('*')
@@ -478,6 +511,16 @@ export async function getViajesByFecha(fecha) {
 }
 
 export async function getViajesByPlaca(placa) {
+    try {
+        const res = await fetch(`/api/apps/viajes?placa=${encodeURIComponent(placa || '')}`);
+        if (res.ok) {
+            const data = await res.json();
+            return data || [];
+        }
+    } catch (e) {
+        console.warn('Aviso en getViajesByPlaca local:', e);
+    }
+
     const { data, error } = await supabase
         .from('operacion.viajes')
         .select('*')
@@ -496,6 +539,17 @@ export async function getViajesHoy() {
 }
 
 export async function getViajeById(id) {
+    try {
+        const res = await fetch('/api/apps/viajes');
+        if (res.ok) {
+            const data = await res.json();
+            const found = data.find(v => v.id === id);
+            if (found) return found;
+        }
+    } catch (e) {
+        console.warn('Aviso en getViajeById local:', e);
+    }
+
     const { data, error } = await supabase
         .from('operacion.viajes')
         .select('*')
@@ -510,6 +564,20 @@ export async function getViajeById(id) {
 }
 
 export async function getEstadisticasViajes() {
+    try {
+        const res = await fetch('/api/apps/viajes');
+        if (res.ok) {
+            const data = await res.json();
+            const total = data?.length || 0;
+            const completados = data?.filter(v => v.estado === 'completado' || v.estado === 'finalizado' || v.estado === 'Finalizado').length || 0;
+            const enCurso = data?.filter(v => v.estado === 'en_curso' || v.estado === 'En Curso' || v.estado === 'autorizado' || v.estado === 'Autorizado').length || 0;
+            const pendientes = data?.filter(v => v.estado === 'pendiente' || v.estado === 'Pendiente' || v.estado === 'Pendiente HSE').length || 0;
+            return { total, completados, enCurso, pendientes };
+        }
+    } catch (e) {
+        console.warn('Aviso en getEstadisticasViajes local:', e);
+    }
+
     try {
         const { data, error } = await supabase
             .from('operacion.viajes')

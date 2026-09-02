@@ -130,7 +130,7 @@ export default function PortalConductorPage() {
     setSelectedConductor(p);
     getAsignacionesDb().then((aList) => {
       const asig = (aList || []).find((a) => a.conductorId === p.id && a.estado === "activa");
-      const placa = asig ? asig.placa : (vehiculos[0]?.placa || null);
+      const placa = asig ? asig.placa : null;
       setAssignedPlate(placa);
       persistDriverSession(p, placa);
     });
@@ -152,7 +152,6 @@ export default function PortalConductorPage() {
         setVehiculos(vList || []);
 
         if (drivers.length > 0) {
-          // Intentar restaurar sesión previa de localStorage o primer conductor
           let current = drivers[0];
           try {
             const raw = localStorage.getItem("transservices_conductor");
@@ -165,7 +164,7 @@ export default function PortalConductorPage() {
 
           setSelectedConductor(current);
           const asig = (aList || []).find((a) => a.conductorId === current.id && a.estado === "activa");
-          const placa = asig ? asig.placa : (vList[0]?.placa || null);
+          const placa = asig ? asig.placa : null;
           setAssignedPlate(placa);
           persistDriverSession(current, placa);
         }

@@ -133,9 +133,18 @@ export default async function OperacionPage({
   const vehiculos = await getVehiculosDb();
   const personas = await getPersonasDb();
 
-  const enCurso = allViajes.filter((v) => v.estado === "en_curso" || v.estado === "con_novedad");
-  const programados = allViajes.filter((v) => v.estado === "programado");
-  const finalizados = allViajes.filter((v) => v.estado === "finalizado");
+  const enCurso = allViajes.filter((v) => {
+    const e = (v.estado || "").toLowerCase();
+    return e === "en_curso" || e === "con_novedad" || e === "autorizado" || e === "en curso";
+  });
+  const programados = allViajes.filter((v) => {
+    const e = (v.estado || "").toLowerCase();
+    return e === "programado" || e.includes("pendiente");
+  });
+  const finalizados = allViajes.filter((v) => {
+    const e = (v.estado || "").toLowerCase();
+    return e === "finalizado" || e === "completado";
+  });
 
   const dataPorTab: Record<string, Viaje[]> = {
     en_curso: enCurso,
@@ -144,9 +153,9 @@ export default async function OperacionPage({
   };
 
   const tabs = [
-    { key: "en_curso", label: "Activos", count: enCurso.length },
-    { key: "programado", label: "Programados", count: programados.length },
-    { key: "finalizado", label: "Historial", count: finalizados.length },
+    { key: "en_curso", label: "Activos / En Curso", count: enCurso.length },
+    { key: "programado", label: "Programados / Pendientes", count: programados.length },
+    { key: "finalizado", label: "Historial Completo", count: finalizados.length },
   ];
 
   return (

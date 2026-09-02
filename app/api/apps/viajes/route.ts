@@ -76,3 +76,58 @@ export async function POST(req: Request) {
     );
   }
 }
+
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const conductorDocumento = searchParams.get("conductorDocumento") || searchParams.get("doc");
+    const conductorId = searchParams.get("conductorId");
+    const placa = searchParams.get("placa");
+
+    const where: any = {};
+    if (conductorId) where.conductorId = conductorId;
+    if (placa) where.placa = placa.toUpperCase();
+
+    // Si viene documento, buscar el ID de la persona
+    if (conductorDocumento && !conductorId) {
+      const persona = await prisma.persona.findUnique({
+        where: { numeroDocumento: conductorDocumento },
+      });
+      if (persona) {
+        where.conductorId = persona.id;
+      }
+    }
+
+    const viajes = await prisma.viaje.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+
+    // Mapear al formato que espera la web app
+    const data = viajes.map((v) => ({
+      id: v.id,
+      conductor_id: v.conductorId,
+      conductor_nombre: v.conductorNombre,
+      vehiculo_placa: v.placa,
+      origen: v.origen,
+      destino: v.destino,
+      fecha_salida: v.fechaSalida ? v.fechaSalida.toISOString() : new Date().toISOString(),
+      hora_salida: v.horaSalida || "06:00",
+      distancia_km: v.distanciaKm,
+      duracion_estimada_horas: v.duracionEstimadaHoras,
+      risk_score: v.riskScore,
+      risk_level: v.riskLevel,
+      risk_inputs: v.riskInputs,
+      signatures: v.signatures,
+      estado: v.estado,
+      created_at: v.createdAt ? v.createdAt.toISOString() : new Date().toISOString(),
+    }));
+
+    return NextResponse.json(data);
+  } catch (error: any) {
+    console.error("Error al consultar viajes:", error);
+    return NextResponse.json({ error: error.message || "Error al consultar viajes" }, { status: 500 });
+  }
+}
+
