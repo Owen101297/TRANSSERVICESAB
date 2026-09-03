@@ -112,6 +112,8 @@ function normalizeRecord(item: any, idx: number): NormalizedAsistencia {
   };
 }
 
+export const dynamic = "force-dynamic";
+
 // Obtiene todos los registros desde Supabase
 async function fetchSupabaseRecords(): Promise<NormalizedAsistencia[]> {
   try {
@@ -120,7 +122,7 @@ async function fetchSupabaseRecords(): Promise<NormalizedAsistencia[]> {
         apikey: SUPABASE_KEY,
         Authorization: `Bearer ${SUPABASE_KEY}`,
       },
-      next: { revalidate: 10 },
+      cache: "no-store",
     });
 
     if (!res.ok) return [];
