@@ -31,6 +31,8 @@ import {
   Navigation,
   FileText,
   LifeBuoy,
+  ChevronRight,
+  Sliders,
 } from "lucide-react";
 import { PlateTag } from "@/components/ui/PlateTag";
 
@@ -43,8 +45,9 @@ interface AppCategory {
     icon: any;
     href: string;
     badge: string;
-    color: "cyan" | "amber" | "green" | "red";
-    priority?: boolean;
+    gradient: string;
+    iconColor: string;
+    badgeColor: string;
   }[];
 }
 
@@ -54,13 +57,14 @@ const CATEGORIAS_APPS: AppCategory[] = [
     apps: [
       {
         id: "preoperacional",
-        title: "Inspección Preoperacional",
+        title: "Preoperacional Diario",
         subtitle: "Checklist técnico-mecánico obligatorio de inicio de turno",
         icon: ClipboardCheck,
         href: "/apps/preoperacional/index.html",
         badge: "Obligatorio",
-        color: "amber",
-        priority: true,
+        gradient: "from-[#FF9500]/20 via-[#FF9500]/5 to-transparent",
+        iconColor: "text-[#FF9500]",
+        badgeColor: "bg-[#FF9500]/15 text-[#FF9500] border-[#FF9500]/30",
       },
       {
         id: "viajes",
@@ -69,8 +73,9 @@ const CATEGORIAS_APPS: AppCategory[] = [
         icon: Truck,
         href: "/apps/viajes/index.html",
         badge: "Prioritario",
-        color: "cyan",
-        priority: true,
+        gradient: "from-[#007AFF]/20 via-[#007AFF]/5 to-transparent",
+        iconColor: "text-[#007AFF]",
+        badgeColor: "bg-[#007AFF]/15 text-[#007AFF] border-[#007AFF]/30",
       },
       {
         id: "asistencia",
@@ -79,7 +84,9 @@ const CATEGORIAS_APPS: AppCategory[] = [
         icon: UserCheck,
         href: "/apps/asistencia/index.html",
         badge: "Diario",
-        color: "green",
+        gradient: "from-[#34C759]/20 via-[#34C759]/5 to-transparent",
+        iconColor: "text-[#34C759]",
+        badgeColor: "bg-[#34C759]/15 text-[#34C759] border-[#34C759]/30",
       },
     ],
   },
@@ -93,7 +100,9 @@ const CATEGORIAS_APPS: AppCategory[] = [
         icon: Droplets,
         href: "/apps/lavado/index.html",
         badge: "Operativo",
-        color: "cyan",
+        gradient: "from-[#32ADE6]/20 via-[#32ADE6]/5 to-transparent",
+        iconColor: "text-[#32ADE6]",
+        badgeColor: "bg-[#32ADE6]/15 text-[#32ADE6] border-[#32ADE6]/30",
       },
       {
         id: "aseo",
@@ -102,7 +111,9 @@ const CATEGORIAS_APPS: AppCategory[] = [
         icon: Sparkles,
         href: "/apps/aseo/index.html",
         badge: "Semanal",
-        color: "green",
+        gradient: "from-[#30B0C7]/20 via-[#30B0C7]/5 to-transparent",
+        iconColor: "text-[#30B0C7]",
+        badgeColor: "bg-[#30B0C7]/15 text-[#30B0C7] border-[#30B0C7]/30",
       },
     ],
   },
@@ -116,7 +127,9 @@ const CATEGORIAS_APPS: AppCategory[] = [
         icon: ShieldAlert,
         href: "/apps/extintor/index.html",
         badge: "Mensual",
-        color: "red",
+        gradient: "from-[#FF3B30]/20 via-[#FF3B30]/5 to-transparent",
+        iconColor: "text-[#FF3B30]",
+        badgeColor: "bg-[#FF3B30]/15 text-[#FF3B30] border-[#FF3B30]/30",
       },
       {
         id: "botiquin",
@@ -125,7 +138,9 @@ const CATEGORIAS_APPS: AppCategory[] = [
         icon: HeartPulse,
         href: "/apps/botiquin/index.html",
         badge: "Mensual",
-        color: "amber",
+        gradient: "from-[#FF9500]/20 via-[#FF9500]/5 to-transparent",
+        iconColor: "text-[#FF9500]",
+        badgeColor: "bg-[#FF9500]/15 text-[#FF9500] border-[#FF9500]/30",
       },
       {
         id: "encuesta",
@@ -134,7 +149,9 @@ const CATEGORIAS_APPS: AppCategory[] = [
         icon: FileQuestion,
         href: "/apps/encuesta/index.html",
         badge: "PESV",
-        color: "cyan",
+        gradient: "from-[#5856D6]/20 via-[#5856D6]/5 to-transparent",
+        iconColor: "text-[#5856D6]",
+        badgeColor: "bg-[#5856D6]/15 text-[#5856D6] border-[#5856D6]/30",
       },
     ],
   },
@@ -142,7 +159,7 @@ const CATEGORIAS_APPS: AppCategory[] = [
 
 export default function PortalConductorMobilePage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"inicio" | "apps" | "ayuda">("inicio");
+  const [activeTab, setActiveTab] = useState<"inicio" | "viajes" | "vehiculo" | "ayuda">("inicio");
   const [driver, setDriver] = useState<{
     id?: string;
     nombre: string;
@@ -151,7 +168,7 @@ export default function PortalConductorMobilePage() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Estados para Cambio Rápido de Vehículo
+  // Estados para Cambio Rápido de Vehículo (Apple Sheet Modal)
   const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false);
   const [availableVehicles, setAvailableVehicles] = useState<
     { id: string; placa: string; marca?: string; modelo?: string; contratistaNombre?: string }[]
@@ -176,7 +193,6 @@ export default function PortalConductorMobilePage() {
           setDriver(sessionObj);
           localStorage.setItem("transservices_conductor", JSON.stringify(sessionObj));
         } else {
-          // Intentar leer de localStorage si existe
           try {
             const raw = localStorage.getItem("transservices_conductor");
             if (raw) {
@@ -249,14 +265,14 @@ export default function PortalConductorMobilePage() {
 
         setVehicleFeedback({
           type: "success",
-          msg: `¡Vehículo actualizado a ${updatedPlaca} con éxito!`,
+          msg: `¡Vehículo asignado a ${updatedPlaca}!`,
         });
 
         setTimeout(() => {
           setIsVehicleModalOpen(false);
           setVehicleFeedback(null);
           setVehicleSearch("");
-        }, 1200);
+        }, 1100);
       } else {
         setVehicleFeedback({
           type: "error",
@@ -273,7 +289,6 @@ export default function PortalConductorMobilePage() {
     }
   };
 
-  // Filtrar vehículos disponibles
   const filteredVehicles = useMemo(() => {
     if (!vehicleSearch.trim()) return availableVehicles;
     const q = vehicleSearch.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -284,204 +299,165 @@ export default function PortalConductorMobilePage() {
     });
   }, [availableVehicles, vehicleSearch]);
 
-  const colorStyles = {
-    cyan: "border-radar-cyan/30 text-radar-cyan bg-radar-cyan/5 hover:border-radar-cyan shadow-radar-cyan/5",
-    amber: "border-signal-amber/30 text-signal-amber bg-signal-amber/5 hover:border-signal-amber shadow-signal-amber/5",
-    green: "border-ok-green/30 text-ok-green bg-ok-green/5 hover:border-ok-green shadow-ok-green/5",
-    red: "border-alert-red/30 text-alert-red bg-alert-red/5 hover:border-alert-red shadow-alert-red/5",
-  };
-
   return (
-    <div className="min-h-screen bg-asphalt-950 text-paper-50 flex flex-col font-[family-name:var(--font-body)] pb-20">
-      {/* Cabecera Principal con Logo Oficial */}
-      <header className="sticky top-0 z-40 bg-asphalt-900/95 backdrop-blur-md border-b border-line-600 px-4 py-2.5 flex items-center justify-between shadow-xl">
+    <div className="min-h-screen bg-black text-[#F5F5F7] flex flex-col font-[-apple-system,BlinkMacSystemFont,'SF_Pro_Text','SF_Pro_Display',Helvetica,Arial,sans-serif] selection:bg-[#007AFF] selection:text-white pb-28">
+      {/* Fondo con Iluminación Ambiental Apple */}
+      <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_50%_0%,rgba(0,122,255,0.08),transparent_50%),radial-gradient(circle_at_100%_20%,rgba(255,149,0,0.05),transparent_40%)]" />
+
+      {/* Cabecera Estilo Apple Glass */}
+      <header className="sticky top-0 z-40 bg-black/75 backdrop-blur-2xl border-b border-white/[0.08] px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="relative h-9 w-28 shrink-0 flex items-center">
+          <div className="relative h-8 w-28 shrink-0 flex items-center">
             <Image
               src="/brand/logo.png"
-              alt="Trans Services Cooperativa A&B"
+              alt="Trans Services"
               width={112}
-              height={36}
+              height={32}
               className="object-contain"
               priority
             />
           </div>
-          <div className="hidden sm:block border-l border-line-600 pl-3">
-            <h1 className="font-[family-name:var(--font-display)] text-sm font-black tracking-wide text-paper-50 leading-tight">
-              PORTAL DEL CONDUCTOR
-            </h1>
-            <p className="text-[9px] text-radar-cyan font-mono font-bold tracking-wider">
-              OPERACIÓN CONECTADA 24/7
-            </p>
+          <div className="hidden sm:block border-l border-white/10 pl-3">
+            <span className="text-[11px] font-semibold text-white/90 tracking-tight">
+              Portal del Conductor
+            </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleLogout}
-            title="Cerrar sesión"
-            className="p-2 rounded-xl bg-asphalt-800 border border-line-600 hover:border-alert-red text-fog-400 hover:text-alert-red transition-all flex items-center gap-1.5 text-xs font-semibold shadow-sm"
-          >
-            <LogOut size={15} />
-            <span className="hidden sm:inline">Salir</span>
-          </button>
-        </div>
+        <button
+          onClick={handleLogout}
+          className="px-3 py-1.5 rounded-full bg-white/[0.08] hover:bg-white/[0.14] active:scale-95 text-white/80 hover:text-white border border-white/[0.08] transition-all text-xs font-medium flex items-center gap-1.5 backdrop-blur-md"
+        >
+          <LogOut size={13} />
+          <span>Salir</span>
+        </button>
       </header>
 
       {/* Contenido Principal */}
-      <main className="flex-1 max-w-2xl w-full mx-auto p-4 space-y-4">
-        {/* Tarjeta de Perfil y Asignación de Vehículo */}
-        <div className="bg-asphalt-900 border border-line-600 rounded-2xl p-4 shadow-xl relative overflow-hidden">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-asphalt-800 border border-radar-cyan/30 flex items-center justify-center font-[family-name:var(--font-display)] text-xl font-black text-radar-cyan shadow-inner">
-                {driver?.nombre
-                  ? driver.nombre
-                      .split(" ")
-                      .map((n) => n[0])
-                      .slice(0, 2)
-                      .join("")
-                  : "CO"}
+      <main className="flex-1 max-w-xl w-full mx-auto p-4 space-y-4 relative z-10">
+        {/* Dynamic Island / Live Activity Widget de Turno */}
+        <div className="bg-gradient-to-r from-white/[0.06] via-white/[0.03] to-white/[0.06] border border-white/[0.12] rounded-[24px] p-3.5 backdrop-blur-3xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-[#FF9500] animate-pulse shadow-[0_0_10px_#FF9500]" />
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-white/50">
+                Turno en Curso · {new Date().toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short" })}
+              </p>
+              <h3 className="text-xs font-semibold text-white tracking-tight">
+                Inspección Preoperacional Requerida
+              </h3>
+            </div>
+          </div>
+          <button
+            onClick={() => handleOpenApp("/apps/preoperacional/index.html")}
+            className="px-3 py-1.5 rounded-full bg-[#FF9500] hover:bg-[#FF9500]/90 active:scale-95 text-black font-bold text-xs shadow-[0_2px_12px_rgba(255,149,0,0.3)] transition-all flex items-center gap-1 shrink-0"
+          >
+            <span>Iniciar</span>
+            <ChevronRight size={14} />
+          </button>
+        </div>
+
+        {/* Apple Card Widget: Conductor & Vehículo de Titanio */}
+        <div className="bg-gradient-to-br from-[#1C1C1E] via-[#151517] to-[#0D0D0E] border border-white/[0.12] rounded-[28px] p-5 shadow-[0_12px_40px_rgba(0,0,0,0.6)] relative overflow-hidden group">
+          {/* Brillo especular de luz superior */}
+          <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-64 h-32 bg-white/[0.06] rounded-full blur-2xl pointer-events-none" />
+
+          <div className="flex items-start justify-between gap-3 relative z-10">
+            <div className="flex items-center gap-3.5">
+              <div className="w-13 h-13 rounded-2xl bg-gradient-to-tr from-[#007AFF] to-[#5856D6] p-0.5 shadow-lg shadow-[#007AFF]/20">
+                <div className="w-full h-full rounded-[14px] bg-black/30 backdrop-blur-sm flex items-center justify-center font-bold text-base text-white">
+                  {driver?.nombre
+                    ? driver.nombre
+                        .split(" ")
+                        .map((n) => n[0])
+                        .slice(0, 2)
+                        .join("")
+                    : "CO"}
+                </div>
               </div>
               <div>
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-radar-cyan">
-                  <UserCheck size={12} /> Conductor Activo
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#007AFF]">
+                  Conductor Certificado
                 </span>
-                <h2 className="font-[family-name:var(--font-display)] text-lg sm:text-xl font-bold text-paper-50 leading-tight">
-                  {driver?.nombre || "Cargando perfil..."}
+                <h2 className="text-lg font-bold text-white tracking-tight leading-tight">
+                  {driver?.nombre || "Cargando conductor..."}
                 </h2>
-                <p className="text-xs text-mist-200 font-mono mt-0.5">
+                <p className="text-xs text-white/50 font-mono mt-0.5">
                   C.C. {driver?.documento || "—"}
                 </p>
               </div>
             </div>
 
-            {/* Placa Asignada con botón para cambiar */}
+            {/* Placa con estética Apple */}
             <div className="text-right flex flex-col items-end">
-              <span className="text-[10px] font-medium uppercase tracking-wider text-fog-400 block mb-1">
-                Vehículo Asignado
+              <span className="text-[10px] font-medium uppercase tracking-wider text-white/40 block mb-1">
+                Vehículo Activo
               </span>
               {driver?.placa && driver.placa !== "SIN ASIGNAR" ? (
-                <PlateTag plate={driver.placa} />
+                <div className="px-3 py-1 rounded-xl bg-white/[0.08] border border-white/[0.15] font-mono font-black text-sm text-white tracking-widest shadow-inner">
+                  {driver.placa}
+                </div>
               ) : (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider bg-signal-amber/10 border border-signal-amber/30 text-signal-amber">
-                  <AlertTriangle size={12} /> Sin Asignar
+                <span className="px-2.5 py-1 rounded-xl bg-[#FF9500]/15 border border-[#FF9500]/30 text-[#FF9500] text-[11px] font-bold">
+                  Sin Asignar
                 </span>
               )}
 
               <button
                 type="button"
                 onClick={() => setIsVehicleModalOpen(true)}
-                className="mt-2 inline-flex items-center gap-1 text-[11px] font-mono text-radar-cyan hover:underline font-bold bg-radar-cyan/10 hover:bg-radar-cyan/20 border border-radar-cyan/30 px-2.5 py-1 rounded-lg transition-all active:scale-95 shadow-sm"
+                className="mt-2 inline-flex items-center gap-1 text-[11px] text-[#007AFF] hover:text-[#007AFF]/80 active:scale-95 font-semibold transition-all"
               >
-                <RefreshCw size={12} className="shrink-0" />
-                <span>{driver?.placa && driver.placa !== "SIN ASIGNAR" ? "Cambiar Placa" : "Elegir Placa"}</span>
+                <RefreshCw size={11} className="shrink-0" />
+                <span>Cambiar Placa</span>
               </button>
             </div>
           </div>
-
-          {!driver?.placa || driver?.placa === "SIN ASIGNAR" ? (
-            <div className="mt-3.5 p-3 bg-signal-amber/15 border border-signal-amber/30 rounded-xl text-xs text-signal-amber flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <AlertTriangle size={16} className="shrink-0" />
-                <span>Selecciona el vehículo que vas a operar para habilitar tus formatos.</span>
-              </div>
-              <button
-                onClick={() => setIsVehicleModalOpen(true)}
-                className="px-3 py-1 bg-signal-amber text-asphalt-950 font-bold rounded-lg text-xs uppercase tracking-wider shrink-0 shadow-md"
-              >
-                Asignar
-              </button>
-            </div>
-          ) : null}
         </div>
 
-        {/* Tarjeta Interactiva: Estado de Turno & Preoperacional de Hoy */}
-        <div className="bg-gradient-to-br from-asphalt-900 via-asphalt-900 to-asphalt-800 border border-signal-amber/30 rounded-2xl p-4 shadow-xl relative overflow-hidden">
-          <div className="flex items-center justify-between gap-2 mb-2.5">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-signal-amber/20 border border-signal-amber/40 flex items-center justify-center text-signal-amber">
-                <Clock size={15} />
-              </div>
-              <div>
-                <h3 className="font-[family-name:var(--font-display)] text-sm font-bold text-paper-50 uppercase tracking-wide">
-                  Turno Operativo de Hoy
-                </h3>
-                <p className="text-[10px] text-fog-400 font-mono">
-                  {new Date().toLocaleDateString("es-CO", { weekday: "long", year: "numeric", month: "short", day: "numeric" })}
-                </p>
-              </div>
-            </div>
-
-            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-signal-amber/15 border border-signal-amber/30 text-signal-amber flex items-center gap-1">
-              <AlertCircle size={11} /> Requisito PESV
-            </span>
-          </div>
-
-          <div className="p-3 bg-asphalt-950/70 border border-line-600 rounded-xl flex items-center justify-between gap-3">
-            <div className="space-y-0.5">
-              <p className="text-xs font-semibold text-paper-50">
-                Inspección Preoperacional Diaria (IMTO-F-010)
-              </p>
-              <p className="text-[11px] text-fog-400">
-                Debes diligenciar y firmar el estado mecánico antes de encender el vehículo.
-              </p>
-            </div>
-            <button
-              onClick={() => handleOpenApp("/apps/preoperacional/index.html")}
-              className="px-3.5 py-2 bg-signal-amber hover:bg-signal-amber/90 text-asphalt-950 font-black text-xs uppercase tracking-wider rounded-xl flex items-center gap-1.5 shrink-0 shadow-lg shadow-signal-amber/20 transition-all active:scale-95"
-            >
-              <span>Diligenciar</span>
-              <ArrowRight size={13} />
-            </button>
-          </div>
-        </div>
-
-        {/* Sección de Aplicaciones Operativas Organizadas */}
+        {/* Categorías de Aplicaciones estilo iOS Control Center & Widgets */}
         {CATEGORIAS_APPS.map((cat, catIdx) => (
           <div key={catIdx} className="space-y-2.5 pt-1">
-            <div className="flex items-center justify-between px-1">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-fog-400 flex items-center gap-1.5 font-mono">
-                <span className="w-1.5 h-1.5 rounded-full bg-radar-cyan"></span>
+            <div className="flex items-center justify-between px-2">
+              <h3 className="text-[11px] font-bold uppercase tracking-wider text-white/40">
                 {cat.category}
               </h3>
-              <span className="text-[10px] text-mist-200 font-mono">
-                {cat.apps.length} formatos
+              <span className="text-[10px] text-white/30 font-mono">
+                {cat.apps.length} módulos
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {cat.apps.map((app) => {
                 const Icon = app.icon;
-                const style = colorStyles[app.color];
 
                 return (
                   <button
                     key={app.id}
                     type="button"
                     onClick={() => handleOpenApp(app.href)}
-                    className={`w-full text-left p-4 rounded-2xl border transition-all duration-200 flex flex-col justify-between group active:scale-[0.98] shadow-md ${style}`}
+                    className={`w-full text-left p-4 rounded-[26px] bg-gradient-to-b ${app.gradient} bg-[#141416]/90 border border-white/[0.08] hover:border-white/[0.18] transition-all duration-200 flex flex-col justify-between group active:scale-[0.97] shadow-[0_4px_20px_rgba(0,0,0,0.3)] backdrop-blur-xl relative overflow-hidden`}
                   >
                     <div className="flex items-start justify-between gap-2 w-full">
-                      <div className="w-10 h-10 rounded-xl bg-asphalt-900/90 border border-line-600 flex items-center justify-center text-inherit group-hover:scale-110 transition-transform shadow-inner">
-                        <Icon size={20} />
+                      <div className="w-10 h-10 rounded-2xl bg-white/[0.06] border border-white/[0.10] flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform">
+                        <Icon size={20} className={app.iconColor} />
                       </div>
-                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-asphalt-950/80 border border-line-600 text-mist-200">
+                      <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider border ${app.badgeColor}`}>
                         {app.badge}
                       </span>
                     </div>
 
-                    <div className="mt-3.5 flex items-end justify-between w-full">
+                    <div className="mt-4 flex items-end justify-between w-full">
                       <div>
-                        <h4 className="font-[family-name:var(--font-display)] text-base font-bold text-paper-50 leading-snug group-hover:text-inherit transition-colors">
+                        <h4 className="text-base font-bold text-white tracking-tight leading-snug group-hover:text-white transition-colors">
                           {app.title}
                         </h4>
-                        <p className="text-[11px] text-mist-200 mt-0.5 line-clamp-1 leading-normal">
+                        <p className="text-[11px] text-white/50 mt-0.5 line-clamp-1 leading-normal">
                           {app.subtitle}
                         </p>
                       </div>
-                      <div className="w-7 h-7 rounded-lg bg-asphalt-900 border border-line-600 flex items-center justify-center text-fog-400 group-hover:text-paper-50 group-hover:border-paper-50 transition-all shrink-0">
-                        <ArrowRight size={13} />
+                      <div className="w-6 h-6 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40 group-hover:text-white group-hover:bg-white/[0.12] transition-all shrink-0">
+                        <ChevronRight size={14} />
                       </div>
                     </div>
                   </button>
@@ -491,61 +467,57 @@ export default function PortalConductorMobilePage() {
           </div>
         ))}
 
-        {/* Soporte de Emergencias y HSE */}
-        <div className="mt-6 bg-asphalt-900/70 border border-line-600 rounded-2xl p-4 flex items-center justify-between gap-3 text-xs text-mist-200 shadow-lg">
+        {/* Soporte de Emergencias y HSE estilo Apple Card */}
+        <div className="mt-4 bg-gradient-to-r from-white/[0.04] to-white/[0.02] border border-white/[0.08] rounded-[24px] p-4 flex items-center justify-between gap-3 text-xs text-white/70 backdrop-blur-xl">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-signal-amber/10 border border-signal-amber/30 flex items-center justify-center text-signal-amber shrink-0">
-              <Phone size={18} />
+            <div className="w-9 h-9 rounded-2xl bg-[#FF3B30]/15 border border-[#FF3B30]/30 flex items-center justify-center text-[#FF3B30] shrink-0">
+              <Phone size={17} />
             </div>
             <div>
-              <p className="font-bold text-paper-50 text-xs">Línea de Emergencia & HSE 24/7</p>
-              <p className="text-[11px] text-fog-400">Atención inmediata en carretera y contingencias</p>
+              <p className="font-bold text-white text-xs">Línea de Emergencia HSE 24/7</p>
+              <p className="text-[11px] text-white/40">Asistencia inmediata en ruta</p>
             </div>
           </div>
           <a
             href="tel:+573100000000"
-            className="py-2 px-3.5 bg-signal-amber text-asphalt-950 font-bold rounded-xl text-xs uppercase tracking-wider hover:bg-signal-amber/90 transition-colors shrink-0 shadow-md"
+            className="px-3.5 py-2 rounded-full bg-[#FF3B30] text-white font-bold text-xs shadow-md shadow-[#FF3B30]/20 hover:bg-[#FF3B30]/90 active:scale-95 transition-all shrink-0"
           >
             Llamar
           </a>
         </div>
       </main>
 
-      {/* Modal Táctil de Cambio de Vehículo */}
+      {/* Modal Táctil de Cambio de Vehículo (Apple Bottom Sheet) */}
       {isVehicleModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-asphalt-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-lg bg-asphalt-900 border border-line-500 rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-            {/* Cabecera */}
-            <div className="p-4 border-b border-line-600 bg-asphalt-950/50 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-radar-cyan/15 border border-radar-cyan/30 flex items-center justify-center text-radar-cyan">
-                  <Truck size={18} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-paper-50 font-display uppercase tracking-wide">
-                    Seleccionar Vehículo / Placa
-                  </h3>
-                  <p className="text-[11px] text-fog-400">
-                    Elige el vehículo que conducirás en este turno
-                  </p>
-                </div>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-md bg-[#1C1C1E] border border-white/[0.15] rounded-t-[32px] sm:rounded-[28px] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            {/* Grabber decorativo de iOS */}
+            <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mt-3 sm:hidden" />
+
+            <div className="p-4 border-b border-white/[0.08] flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-white tracking-tight">
+                  Seleccionar Vehículo
+                </h3>
+                <p className="text-[11px] text-white/50">
+                  Elige la placa para tu turno actual
+                </p>
               </div>
               <button
                 onClick={() => setIsVehicleModalOpen(false)}
-                className="p-1.5 rounded-lg text-fog-400 hover:text-paper-50 hover:bg-asphalt-800 transition-colors"
+                className="w-7 h-7 rounded-full bg-white/[0.08] text-white/70 hover:text-white flex items-center justify-center transition-colors"
               >
-                <X size={18} />
+                <X size={15} />
               </button>
             </div>
 
-            {/* Contenido */}
             <div className="p-4 space-y-3 overflow-y-auto flex-1">
               {vehicleFeedback && (
                 <div
-                  className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+                  className={`p-3 rounded-2xl text-xs flex items-center gap-2 ${
                     vehicleFeedback.type === "success"
-                      ? "bg-ok-green/15 border border-ok-green/30 text-ok-green"
-                      : "bg-alert-red/15 border border-alert-red/30 text-alert-red"
+                      ? "bg-[#34C759]/15 border border-[#34C759]/30 text-[#34C759]"
+                      : "bg-[#FF3B30]/15 border border-[#FF3B30]/30 text-[#FF3B30]"
                   }`}
                 >
                   {vehicleFeedback.type === "success" ? <Check size={16} /> : <AlertTriangle size={16} />}
@@ -553,39 +525,37 @@ export default function PortalConductorMobilePage() {
                 </div>
               )}
 
-              {/* Buscador de Placa */}
+              {/* Buscador iOS */}
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-fog-400" size={15} />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={15} />
                 <input
                   type="text"
                   autoFocus
                   value={vehicleSearch}
                   onChange={(e) => setVehicleSearch(e.target.value)}
-                  placeholder="Buscar o escribir placa (ej. NSY-352, WGM-212)..."
-                  className="w-full bg-asphalt-950 border border-line-600 rounded-xl pl-9 pr-3 py-2.5 text-xs text-paper-50 placeholder:text-fog-400/50 font-mono focus:border-radar-cyan focus:outline-none uppercase"
+                  placeholder="Buscar o escribir placa (ej. NSY-352)..."
+                  className="w-full bg-white/[0.06] border border-white/[0.10] rounded-2xl pl-9 pr-3 py-2.5 text-xs text-white placeholder:text-white/30 font-mono focus:border-[#007AFF] focus:outline-none uppercase"
                 />
               </div>
 
-              {/* Opción Directa si escribe una placa personalizada */}
               {vehicleSearch.trim().length >= 5 && (
                 <button
                   type="button"
                   onClick={() => handleConfirmVehicleChange(vehicleSearch)}
                   disabled={isSubmittingVehicle}
-                  className="w-full p-2.5 rounded-xl bg-radar-cyan/15 border border-radar-cyan/40 hover:bg-radar-cyan/25 text-radar-cyan flex items-center justify-between text-xs font-semibold transition-colors"
+                  className="w-full p-3 rounded-2xl bg-[#007AFF]/15 border border-[#007AFF]/40 hover:bg-[#007AFF]/25 text-[#007AFF] flex items-center justify-between text-xs font-semibold transition-colors"
                 >
                   <span className="flex items-center gap-2 font-mono">
-                    <Zap size={14} /> Usar placa escrita: {vehicleSearch.toUpperCase()}
+                    <Zap size={14} /> Usar: {vehicleSearch.toUpperCase()}
                   </span>
-                  <span className="text-[10px] uppercase font-bold">Seleccionar</span>
+                  <span className="text-[10px] font-bold">Confirmar ➔</span>
                 </button>
               )}
 
-              {/* Lista de Vehículos de la Flota */}
-              <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                 {filteredVehicles.length === 0 ? (
-                  <div className="p-4 text-center text-xs text-fog-400 bg-asphalt-950/40 rounded-xl border border-line-600/50">
-                    No se encontraron coincidencias. Puedes usar la placa que escribiste arriba.
+                  <div className="p-4 text-center text-xs text-white/40 bg-white/[0.02] rounded-2xl border border-white/[0.06]">
+                    No hay coincidencias. Usa la placa escrita arriba.
                   </div>
                 ) : (
                   filteredVehicles.map((v) => {
@@ -600,32 +570,32 @@ export default function PortalConductorMobilePage() {
                         type="button"
                         onClick={() => handleConfirmVehicleChange(v.placa)}
                         disabled={isSubmittingVehicle}
-                        className={`w-full p-3 rounded-xl border text-left flex items-center justify-between text-xs transition-all active:scale-[0.98] ${
+                        className={`w-full p-3.5 rounded-2xl border text-left flex items-center justify-between text-xs transition-all active:scale-[0.98] ${
                           isCurrent
-                            ? "bg-radar-cyan/15 border-radar-cyan text-radar-cyan font-bold"
-                            : "bg-asphalt-950 border-line-600 hover:border-line-500 text-paper-50"
+                            ? "bg-[#007AFF]/15 border-[#007AFF] text-[#007AFF] font-bold"
+                            : "bg-white/[0.03] border-white/[0.08] hover:border-white/[0.15] text-white"
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <span className="px-2.5 py-1 rounded-md bg-asphalt-800 border border-line-600 font-mono font-black text-sm text-paper-50 tracking-wider">
+                          <span className="px-2.5 py-1 rounded-lg bg-black/40 border border-white/[0.12] font-mono font-black text-sm text-white tracking-wider">
                             {v.placa}
                           </span>
                           <div>
-                            <p className="font-semibold text-xs text-paper-50">
+                            <p className="font-semibold text-xs text-white">
                               {v.marca} {v.modelo}
                             </p>
-                            <p className="text-[10px] text-fog-400 font-mono">
+                            <p className="text-[10px] text-white/40 font-mono">
                               {v.contratistaNombre || "Propio / Cooperativa"}
                             </p>
                           </div>
                         </div>
 
                         {isCurrent ? (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-radar-cyan text-asphalt-950">
-                            Actual
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#007AFF] text-white">
+                            Activo
                           </span>
                         ) : (
-                          <span className="text-[11px] text-fog-400 font-mono group-hover:text-radar-cyan">
+                          <span className="text-[11px] text-white/40 font-mono">
                             Elegir ➔
                           </span>
                         )}
@@ -636,15 +606,11 @@ export default function PortalConductorMobilePage() {
               </div>
             </div>
 
-            {/* Pie del modal */}
-            <div className="p-4 border-t border-line-600 bg-asphalt-950/50 flex items-center justify-between">
-              <span className="text-[11px] text-fog-400">
-                Se actualizará tu sesión y Preoperacional
-              </span>
+            <div className="p-4 border-t border-white/[0.08] flex items-center justify-end">
               <button
                 type="button"
                 onClick={() => setIsVehicleModalOpen(false)}
-                className="px-4 py-2 text-xs font-semibold text-fog-400 hover:text-paper-50 rounded-xl"
+                className="px-4 py-2 text-xs font-semibold text-white/60 hover:text-white rounded-full bg-white/[0.06] hover:bg-white/[0.12] transition-colors"
               >
                 Cerrar
               </button>
@@ -653,50 +619,50 @@ export default function PortalConductorMobilePage() {
         </div>
       )}
 
-      {/* Barra de Navegación Inferior Fija para Móviles (Bottom Navigation Bar) */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-asphalt-900/95 backdrop-blur-lg border-t border-line-600 px-4 py-2 flex items-center justify-around shadow-2xl">
+      {/* Floating Glass Capsule Dock (Barra Inferior Flotante de Apple) */}
+      <nav className="fixed bottom-4 left-4 right-4 z-40 max-w-md mx-auto bg-[#1C1C1E]/80 backdrop-blur-3xl border border-white/[0.12] rounded-full px-5 py-2.5 flex items-center justify-around shadow-[0_12px_40px_rgba(0,0,0,0.7)]">
         <button
           onClick={() => setActiveTab("inicio")}
-          className={`flex flex-col items-center gap-1 transition-colors ${
-            activeTab === "inicio" ? "text-radar-cyan" : "text-fog-400 hover:text-paper-50"
+          className={`flex flex-col items-center gap-0.5 transition-all ${
+            activeTab === "inicio" ? "text-[#007AFF] scale-105" : "text-white/50 hover:text-white"
           }`}
         >
-          <Home size={18} />
-          <span className="text-[10px] font-semibold tracking-wide">Inicio</span>
+          <Home size={19} />
+          <span className="text-[9px] font-semibold tracking-tight">Inicio</span>
         </button>
 
         <button
           onClick={() => handleOpenApp("/apps/viajes/index.html")}
-          className="flex flex-col items-center gap-1 text-fog-400 hover:text-paper-50 transition-colors"
+          className="flex flex-col items-center gap-0.5 text-white/50 hover:text-white transition-all active:scale-95"
         >
-          <Navigation size={18} />
-          <span className="text-[10px] font-semibold tracking-wide">Mis Viajes</span>
+          <Navigation size={19} />
+          <span className="text-[9px] font-semibold tracking-tight">Viajes</span>
         </button>
 
         <button
           onClick={() => handleOpenApp("/apps/preoperacional/index.html")}
-          className="flex flex-col items-center gap-1 text-signal-amber hover:text-signal-amber/80 transition-colors"
+          className="flex flex-col items-center gap-0.5 text-[#FF9500] hover:text-[#FF9500]/90 transition-all active:scale-95 -mt-3.5"
         >
-          <div className="p-1.5 rounded-full bg-signal-amber/20 border border-signal-amber/40 -mt-3 shadow-lg">
-            <ClipboardCheck size={20} className="text-signal-amber" />
+          <div className="p-2.5 rounded-full bg-gradient-to-tr from-[#FF9500] to-[#FF5E3A] text-black shadow-[0_4px_16px_rgba(255,149,0,0.4)]">
+            <ClipboardCheck size={20} className="stroke-[2.5]" />
           </div>
-          <span className="text-[10px] font-bold tracking-wide text-signal-amber">Preoperacional</span>
+          <span className="text-[9px] font-bold tracking-tight text-[#FF9500]">Preoperacional</span>
         </button>
 
         <button
           onClick={() => setIsVehicleModalOpen(true)}
-          className="flex flex-col items-center gap-1 text-fog-400 hover:text-paper-50 transition-colors"
+          className="flex flex-col items-center gap-0.5 text-white/50 hover:text-white transition-all active:scale-95"
         >
-          <Truck size={18} />
-          <span className="text-[10px] font-semibold tracking-wide">Mi Vehículo</span>
+          <Truck size={19} />
+          <span className="text-[9px] font-semibold tracking-tight">Vehículo</span>
         </button>
 
         <a
           href="tel:+573100000000"
-          className="flex flex-col items-center gap-1 text-fog-400 hover:text-alert-red transition-colors"
+          className="flex flex-col items-center gap-0.5 text-white/50 hover:text-[#FF3B30] transition-all active:scale-95"
         >
-          <LifeBuoy size={18} />
-          <span className="text-[10px] font-semibold tracking-wide">S.O.S</span>
+          <LifeBuoy size={19} />
+          <span className="text-[9px] font-semibold tracking-tight">S.O.S</span>
         </a>
       </nav>
     </div>
