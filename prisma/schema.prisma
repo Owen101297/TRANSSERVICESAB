@@ -480,23 +480,40 @@ model IndicadorPesv {
 model Capacitacion {
   id                  String   @id @default(cuid())
   nombre              String
-  tipo                String   @default("sg-sst") // sg-sst, pesv, hseq, operativa
+  tipo                String   @default("pesv") // pesv, sg-sst, hseq, operativa
+  programa            String   @default("Plan de Capacitacion PESV (Paso 9/18)") // Plan PESV, Plan SG-SST, Operativa
+  categoria           String   @default("charla_semanal") // charla_semanal, capacitacion_mensual, induccion, entrenamiento
   fecha               DateTime
-  duracionHoras       Float    @default(1.0)
+  duracionHoras       Float    @default(0.25) // 0.25h = 15min
+  facilitador         String?  @default("Coordinador HSEQ / PESV")
+  objetivo            String?
+  lugar               String?  @default("Plataforma Digital / Portal Conductor")
+  materialTipo        String   @default("texto") // texto, video, pdf, presentacion
+  materialUrl         String?  // URL de video YouTube/Vimeo o archivo PDF
+  materialContenido   String?  // Texto instructivo o puntos clave de la charla
+  preguntas           Json?    @default("[]") // Lista de preguntas de validación
+  requiereSelfie      Boolean  @default(true)
+  requiereFirma       Boolean  @default(true)
   asistentesEsperados Int      @default(0)
-  asistentesReales    Int?
+  asistentesReales    Int?     @default(0)
   estado              String   @default("programada") // programada, realizada, cancelada
+
+  asistencias         AsistenciaRegistro[]
 
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
   @@index([tipo])
+  @@index([programa])
+  @@index([categoria])
   @@index([estado])
+  @@index([fecha])
 }
 
 model AsistenciaRegistro {
   id                  String   @id @default(cuid())
   capacitacionId      String?
+  capacitacion        Capacitacion? @relation(fields: [capacitacionId], references: [id], onDelete: Cascade)
   personaId           String?
   personaDocumento    String?
   personaNombre       String
@@ -504,14 +521,17 @@ model AsistenciaRegistro {
   proyecto            String?
   facilitador         String?
   lugar               String?
-  duracionHoras       Float?   @default(1.0)
+  duracionHoras       Float?   @default(0.25)
   asistio             Boolean  @default(true)
   estado              String   @default("presente") // presente, tardanza, ausente
   horaLlegada         String?
   evento              String?  @default("Jornada Operativa / Capacitación")
-  tipoEvento          String   @default("capacitacion") // capacitacion, reunion, turno, etc.
-  firmaUrl            String?
-  fotoUrl             String?
+  tipoEvento          String   @default("capacitacion") // capacitacion, charla_semanal, reunion, turno
+  firmaUrl            String?  // Firma digital en Base64 o URL
+  fotoUrl             String?  // Foto selfie de verificación facial
+  calificacion        Float?   @default(100.0) // Nota o porcentaje de evaluación
+  respuestas          Json?    @default("{}") // Respuestas enviadas por el conductor
+  tiempoLectura       Int?     @default(0) // Tiempo en segundos en la app
   observaciones       String?
   fecha               DateTime @default(now())
 

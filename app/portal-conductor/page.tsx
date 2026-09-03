@@ -24,6 +24,7 @@ import {
   Home,
   Navigation,
   LifeBuoy,
+  GraduationCap,
 } from "lucide-react";
 
 interface AppCategory {
@@ -81,6 +82,33 @@ const CATEGORIAS_APPS: AppCategory[] = [
     ],
   },
   {
+    category: "Formación & Seguridad Vial",
+    apps: [
+      {
+        id: "capacitaciones",
+        title: "Charlas & Capacitaciones",
+        subtitle: "Formación continua SG-SST y PESV con selfie y firma",
+        icon: GraduationCap,
+        href: "/portal-conductor/capacitaciones",
+        badge: "Semanal",
+        iconBg: "bg-amber-50 border-amber-200/60 text-[#FF9500]",
+        iconColor: "text-[#FF9500]",
+        badgeColor: "bg-amber-100/70 text-amber-800 border-amber-300/60",
+      },
+      {
+        id: "encuesta",
+        title: "Encuesta de Riesgo Vial",
+        subtitle: "Valoración de hábitos y caracterización PESV",
+        icon: FileQuestion,
+        href: "/apps/encuesta/index.html",
+        badge: "PESV",
+        iconBg: "bg-indigo-50 border-indigo-200/60 text-[#5856D6]",
+        iconColor: "text-[#5856D6]",
+        badgeColor: "bg-indigo-100/70 text-indigo-800 border-indigo-300/60",
+      },
+    ],
+  },
+  {
     category: "Higiene & Desinfección Vehicular",
     apps: [
       {
@@ -131,17 +159,6 @@ const CATEGORIAS_APPS: AppCategory[] = [
         iconBg: "bg-orange-50 border-orange-200/60 text-[#FF9500]",
         iconColor: "text-[#FF9500]",
         badgeColor: "bg-orange-100/70 text-orange-800 border-orange-300/60",
-      },
-      {
-        id: "encuesta",
-        title: "Encuesta de Riesgo Vial",
-        subtitle: "Valoración de hábitos y caracterización PESV",
-        icon: FileQuestion,
-        href: "/apps/encuesta/index.html",
-        badge: "PESV",
-        iconBg: "bg-indigo-50 border-indigo-200/60 text-[#5856D6]",
-        iconColor: "text-[#5856D6]",
-        badgeColor: "bg-indigo-100/70 text-indigo-800 border-indigo-300/60",
       },
     ],
   },
