@@ -69,9 +69,9 @@ const CATEGORIAS_APPS: AppCategory[] = [
       {
         id: "viajes",
         title: "Gerenciamiento de Viaje",
-        subtitle: "Gerenciamiento de ruta, pasajeros y evaluación de riesgo vial",
+        subtitle: "Gerenciamiento de ruta, pasajeros y evaluación HSE",
         icon: Truck,
-        href: "/portal-conductor/viajes",
+        href: "/apps/viajes/index.html",
         badge: "Prioritario",
         gradient: "from-[#007AFF]/20 via-[#007AFF]/5 to-transparent",
         iconColor: "text-[#007AFF]",
