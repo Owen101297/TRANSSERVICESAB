@@ -7,8 +7,20 @@ import "./globals.css";
 // con acceso normal a internet — es un cambio de una línea.
 
 export const metadata: Metadata = {
-  title: "A&B OS",
-  description: "Sistema operativo empresarial — TRANSSERVICES A&B",
+  title: "A&B OS | Trans Services Cooperativa A&B",
+  description: "Sistema operativo empresarial & Portal del Conductor — TRANSSERVICES A&B",
+  icons: {
+    icon: [
+      { url: "/brand/logo.png", type: "image/png" },
+      { url: "/favicon.ico" },
+    ],
+    apple: [
+      { url: "/brand/logo.png" },
+    ],
+    shortcut: [
+      { url: "/brand/logo.png" },
+    ],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

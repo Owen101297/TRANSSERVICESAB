@@ -306,20 +306,21 @@ export default function PortalConductorMobilePage() {
 
       {/* Cabecera Estilo Apple Glass */}
       <header className="sticky top-0 z-40 bg-black/75 backdrop-blur-2xl border-b border-white/[0.08] px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="relative h-8 w-28 shrink-0 flex items-center">
-            <Image
+        <div className="flex items-center gap-2.5">
+          <div className="h-7 max-w-[110px] shrink-0 flex items-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
               src="/brand/logo.png"
               alt="Trans Services"
-              width={112}
-              height={32}
-              className="object-contain"
-              priority
+              className="h-7 w-auto max-w-[110px] object-contain"
             />
           </div>
-          <div className="hidden sm:block border-l border-white/10 pl-3">
-            <span className="text-[11px] font-semibold text-white/90 tracking-tight">
+          <div className="border-l border-white/10 pl-2.5 py-0.5">
+            <span className="text-[11px] font-bold text-white tracking-tight block leading-tight">
               Portal del Conductor
+            </span>
+            <span className="text-[9px] font-mono text-[#007AFF] block leading-tight">
+              Trans Services A&B
             </span>
           </div>
         </div>
