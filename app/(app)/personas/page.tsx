@@ -15,6 +15,7 @@ import {
   RotateCcw,
   Users,
   ShieldCheck,
+  Search,
 } from "lucide-react";
 import {
   getPersonasDb,
@@ -85,6 +86,9 @@ export default function PersonasPage() {
     fetchPersonas();
   }, []);
 
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filtroPerfil, setFiltroPerfil] = useState<string>("todos");
+
   // Métricas
   const total = personas.length;
   const activos = personas.filter((p) => p.estado === "activo").length;
@@ -92,16 +96,28 @@ export default function PersonasPage() {
   const retirados = personas.filter((p) => p.estado === "retirado" || p.estado === "inactivo").length;
   const conductores = personas.filter((p) => p.estado === "activo" && p.perfiles.includes("conductor")).length;
 
-  // Filtrado según pestaña seleccionada y filtro de alertas
+  // Filtrado según pestaña seleccionada, búsqueda y filtro de alertas
   const filteredPersonas = personas.filter((p) => {
     if (onlyWithAlerts) {
       const diag = evaluarAlertasPersona(p);
       if (!diag.tieneAlertas) return false;
     }
-    if (currentTab === "activos") return p.estado === "activo";
-    if (currentTab === "descanso") return p.estado === "descanso" || p.estado === "vacaciones";
-    if (currentTab === "retirados") return p.estado === "retirado" || p.estado === "inactivo";
-    return true; // todos
+    if (currentTab === "activos" && p.estado !== "activo") return false;
+    if (currentTab === "descanso" && p.estado !== "descanso" && p.estado !== "vacaciones") return false;
+    if (currentTab === "retirados" && p.estado !== "retirado" && p.estado !== "inactivo") return false;
+
+    if (filtroPerfil !== "todos" && !p.perfiles.includes(filtroPerfil as any)) return false;
+
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase();
+      const matchNombre = `${p.nombres} ${p.apellidos}`.toLowerCase().includes(q);
+      const matchDoc = p.numeroDocumento?.toLowerCase().includes(q);
+      const matchPerfiles = p.perfiles?.join(" ").toLowerCase().includes(q);
+      const matchContratista = p.contratistaNombre?.toLowerCase().includes(q);
+      return matchNombre || matchDoc || matchPerfiles || matchContratista;
+    }
+
+    return true;
   });
 
   const toggleSelectAll = () => {
@@ -349,34 +365,49 @@ export default function PersonasPage() {
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Cabecera Principal */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-4">
+      {/* Cabecera del Módulo con Métricas Compactas y Acciones */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-600/70 pb-3">
         <div>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold text-paper-50 tracking-wide">
-            Control de Personal &amp; Conductores
+          <div className="flex items-center gap-2 text-xs font-mono text-radar-cyan font-semibold uppercase tracking-wider">
+            <Users size={15} className="text-radar-cyan" />
+            <span>Talento Humano &amp; Conductores · TH-FOR-01</span>
+          </div>
+          <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight text-paper-50 mt-0.5">
+            Personal &amp; Expedientes
           </h1>
-          <p className="mt-1 text-sm text-fog-400">
-            Expediente único con trazabilidad de desvinculaciones y archivo histórico para auditorías HSEQ / PESV.
-          </p>
         </div>
-        <div className="flex items-center gap-2.5">
+
+        {/* Métricas Compactas en Píldoras y Botones de Acción */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-lg border border-line-600 bg-asphalt-900 px-2.5 py-1 text-xs font-mono text-fog-400">
+            Total: <strong className="text-paper-50 font-bold">{total}</strong>
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-lg border border-ok-green/30 bg-ok-green-dim/20 px-2.5 py-1 text-xs font-mono text-ok-green">
+            Activos: <strong>{activos}</strong>
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-lg border border-signal-amber/30 bg-signal-amber-dim/20 px-2.5 py-1 text-xs font-mono text-signal-amber">
+            Conductores: <strong>{conductores}</strong>
+          </span>
+
+          <div className="h-4 w-px bg-line-600 mx-1 hidden sm:block" />
+
           <IconButton
-            icon={<Download size={18} />}
+            icon={<Download size={15} />}
             tooltip={`Exportar matriz Excel (${filteredPersonas.length} registros)`}
             variant="secondary"
             onClick={() => exportPersonasToExcel(filteredPersonas)}
             disabled={filteredPersonas.length === 0}
           />
           <IconButton
-            icon={<UploadCloud size={18} />}
+            icon={<UploadCloud size={15} />}
             tooltip="Carga masiva desde archivo Excel / CSV"
             variant="secondary"
             onClick={() => setIsBulkOpen(true)}
           />
           <Link href="/personas/nueva">
             <IconButton
-              icon={<Plus size={20} />}
+              icon={<Plus size={15} />}
               tooltip="Registrar nueva persona / conductor"
               variant="primary"
             />
@@ -384,84 +415,98 @@ export default function PersonasPage() {
         </div>
       </div>
 
-      {/* Métricas Principales */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl">
-        <StatCard label="Activos en Ruta / Planta" value={activos} accent="green" trend="Operación diaria" />
-        <StatCard label="Conductores Activos" value={conductores} accent="amber" trend="Con pase habilitado" />
-        <StatCard label="En Descanso / Vacaciones" value={enDescanso} accent="cyan" trend="Fuera de turno" />
-        <StatCard label="Histórico / Retirados" value={retirados} accent="amber" trend="Archivo de auditoría" />
-      </div>
-
-      {/* Centro de Alertas Preventivas de Vencimiento */}
-      <AlertasVencimientoPanel
-        personas={personas}
-        onlyWithAlerts={onlyWithAlerts}
-        onToggleOnlyWithAlerts={() => setOnlyWithAlerts(!onlyWithAlerts)}
-      />
-
-      {/* Barra de Pestañas de Filtrado de Historial */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-600 pb-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => {
-              setCurrentTab("activos");
-              setSelectedIds([]);
-            }}
-            className={`px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
-              currentTab === "activos"
-                ? "bg-ok-green text-asphalt-950 shadow-md"
-                : "bg-asphalt-800 text-mist-200 hover:text-paper-50 hover:bg-asphalt-700 border border-line-600"
-            }`}
-          >
-            ● Activos ({activos})
-          </button>
-
-          <button
-            onClick={() => {
-              setCurrentTab("descanso");
-              setSelectedIds([]);
-            }}
-            className={`px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
-              currentTab === "descanso"
-                ? "bg-radar-cyan text-asphalt-950 shadow-md"
-                : "bg-asphalt-800 text-mist-200 hover:text-paper-50 hover:bg-asphalt-700 border border-line-600"
-            }`}
-          >
-            Descanso / Vacaciones ({enDescanso})
-          </button>
-
-          <button
-            onClick={() => {
-              setCurrentTab("retirados");
-              setSelectedIds([]);
-            }}
-            className={`px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
-              currentTab === "retirados"
-                ? "bg-signal-amber text-asphalt-950 shadow-md"
-                : "bg-asphalt-800 text-mist-200 hover:text-paper-50 hover:bg-asphalt-700 border border-line-600"
-            }`}
-          >
-            📁 Histórico / Retirados ({retirados})
-          </button>
-
-          <button
-            onClick={() => {
-              setCurrentTab("todos");
-              setSelectedIds([]);
-            }}
-            className={`px-3.5 py-1.5 rounded-md text-xs font-semibold transition-all ${
-              currentTab === "todos"
-                ? "bg-paper-50 text-asphalt-950 shadow-md"
-                : "bg-asphalt-800 text-mist-200 hover:text-paper-50 hover:bg-asphalt-700 border border-line-600"
-            }`}
-          >
-            Todos los registros ({total})
-          </button>
+      {/* Barra de Control y Filtros Unificada en 1 Sola Línea */}
+      <div className="bg-asphalt-900 border border-line-600 rounded-xl p-2.5 flex flex-wrap items-center justify-between gap-2.5 shadow-sm">
+        {/* Buscador Universal */}
+        <div className="relative flex-1 min-w-[220px]">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-fog-400" />
+          <input
+            type="text"
+            placeholder="Buscar por nombre, cédula, cargo o contratista..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full rounded-lg border border-line-600 bg-asphalt-950 pl-8 pr-3 py-1.5 text-xs text-paper-50 placeholder:text-fog-400 focus:border-radar-cyan focus:outline-none"
+          />
         </div>
 
-        <span className="text-xs text-fog-400 font-mono">
-          Mostrando {filteredPersonas.length} de {total} registros
-        </span>
+        {/* Píldoras de Estado y Filtros Dropdown */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Selector de Estado / Tab */}
+          <div className="flex items-center gap-1 bg-asphalt-950 p-0.5 rounded-lg border border-line-600">
+            <button
+              type="button"
+              onClick={() => setCurrentTab("activos")}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold font-mono transition-all ${
+                currentTab === "activos"
+                  ? "bg-ok-green text-asphalt-950 font-bold"
+                  : "text-fog-400 hover:text-paper-50"
+              }`}
+            >
+              ● Activos ({activos})
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentTab("descanso")}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold font-mono transition-all ${
+                currentTab === "descanso"
+                  ? "bg-radar-cyan text-asphalt-950 font-bold"
+                  : "text-fog-400 hover:text-paper-50"
+              }`}
+            >
+              Descanso ({enDescanso})
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentTab("retirados")}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold font-mono transition-all ${
+                currentTab === "retirados"
+                  ? "bg-signal-amber text-asphalt-950 font-bold"
+                  : "text-fog-400 hover:text-paper-50"
+              }`}
+            >
+              Histórico ({retirados})
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentTab("todos")}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold font-mono transition-all ${
+                currentTab === "todos"
+                  ? "bg-paper-50 text-asphalt-950 font-bold"
+                  : "text-fog-400 hover:text-paper-50"
+              }`}
+            >
+              Todos ({total})
+            </button>
+          </div>
+
+          {/* Toggle de Alertas */}
+          <button
+            type="button"
+            onClick={() => setOnlyWithAlerts(!onlyWithAlerts)}
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold font-mono transition-all ${
+              onlyWithAlerts
+                ? "bg-alert-red text-white font-bold shadow-sm"
+                : "bg-asphalt-950 text-fog-400 hover:text-paper-50 border border-line-600"
+            }`}
+          >
+            <AlertTriangle size={13} className={onlyWithAlerts ? "text-white" : "text-signal-amber"} />
+            <span>Alertas</span>
+          </button>
+
+          {/* Selector de Perfil / Rol */}
+          <select
+            value={filtroPerfil}
+            onChange={(e) => setFiltroPerfil(e.target.value)}
+            className="rounded-lg border border-line-600 bg-asphalt-950 px-2.5 py-1.5 text-xs text-paper-50 font-mono focus:border-radar-cyan focus:outline-none"
+          >
+            <option value="todos">Todos los Roles</option>
+            <option value="conductor">Conductores</option>
+            <option value="administrativo">Administrativos</option>
+            <option value="mecanico">Mecánicos</option>
+            <option value="hseq">HSEQ / Seguridad</option>
+            <option value="operaciones">Operaciones</option>
+          </select>
+        </div>
       </div>
 
       {errorMessage && (

@@ -289,27 +289,38 @@ export function FlotaClientView({
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Cabecera del Módulo con Botones de Acción */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="space-y-4">
+      {/* Cabecera del Módulo con Métricas Compactas y Botones de Acción */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-600/70 pb-3">
         <div>
-          <div className="flex items-center gap-2 text-xs font-mono text-signal-amber font-semibold uppercase tracking-wider mb-1">
-            <Truck size={16} className="text-signal-amber" />
+          <div className="flex items-center gap-2 text-xs font-mono text-signal-amber font-semibold uppercase tracking-wider">
+            <Truck size={15} className="text-signal-amber" />
             <span>Gestión del Parque Automotor · FL-FOR-01</span>
           </div>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold text-paper-50">
+          <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight text-paper-50 mt-0.5">
             Flota de Vehículos
           </h1>
-          <p className="mt-1 text-sm text-fog-400">
-            Control de matrículas, estado de seguros obligatorios, revisiones técnico-mecánicas y vinculación con contratistas.
-          </p>
         </div>
 
-        {/* Botones de Acción Compactos con Tooltip */}
+        {/* Métricas Compactas y Acciones en 1 Línea */}
         <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-lg border border-line-600 bg-asphalt-900 px-2.5 py-1 text-xs font-mono text-fog-400">
+            Total: <strong className="text-paper-50 font-bold">{total}</strong>
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-lg border border-ok-green/30 bg-ok-green-dim/20 px-2.5 py-1 text-xs font-mono text-ok-green">
+            Activos: <strong>{activos}</strong>
+          </span>
+          {enMantenimiento > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-signal-amber/30 bg-signal-amber-dim/20 px-2.5 py-1 text-xs font-mono text-signal-amber">
+              Taller: <strong>{enMantenimiento}</strong>
+            </span>
+          )}
+
+          <div className="h-4 w-px bg-line-600 mx-1 hidden sm:block" />
+
           {selectedIds.length > 0 && (
             <IconButton
-              icon={<Trash2 size={16} />}
+              icon={<Trash2 size={15} />}
               tooltip={`Eliminar ${selectedIds.length} seleccionados`}
               variant="danger"
               onClick={handleDeleteSelected}
@@ -318,14 +329,14 @@ export function FlotaClientView({
           )}
 
           <IconButton
-            icon={<UploadCloud size={16} />}
+            icon={<UploadCloud size={15} />}
             tooltip="Carga Masiva de Flota (Excel / CSV)"
             variant="secondary"
             onClick={() => setIsBulkModalOpen(true)}
           />
 
           <IconButton
-            icon={<Download size={16} />}
+            icon={<Download size={15} />}
             tooltip="Exportar Matriz Oficial en Excel (FL-FOR-01)"
             variant="secondary"
             onClick={() => exportarFlotaAExcel(vehiculos, asignacionesMap)}
@@ -333,7 +344,7 @@ export function FlotaClientView({
 
           <Link href="/flota/nuevo">
             <IconButton
-              icon={<Plus size={16} />}
+              icon={<Plus size={15} />}
               tooltip="Registrar Nuevo Vehículo"
               variant="primary"
             />
@@ -341,30 +352,41 @@ export function FlotaClientView({
         </div>
       </div>
 
-      {/* Métricas Principales */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl">
-        <StatCard label="Total Vehículos" value={total} accent="amber" trend="Parque automotor" />
-        <StatCard label="Flota Activa" value={activos} accent="green" trend="En operación" />
-        <StatCard label="En Mantenimiento" value={enMantenimiento} accent="amber" trend="Taller / Revisión" />
-        <StatCard label="Contratistas Propietarios" value={contratistasCount} accent="cyan" trend="Empresas y aliados" />
-      </div>
+      {/* Barra de Control y Filtros Unificada en 1 Sola Línea */}
+      <div className="bg-asphalt-900 border border-line-600 rounded-xl p-2.5 flex flex-wrap items-center justify-between gap-2.5 shadow-sm">
+        {/* Buscador Universal */}
+        <div className="relative flex-1 min-w-[220px]">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-fog-400" />
+          <input
+            type="text"
+            placeholder="Buscar por placa, marca, conductor o contratista..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full rounded-lg border border-line-600 bg-asphalt-950 pl-8 pr-3 py-1.5 text-xs text-paper-50 placeholder:text-fog-400 focus:border-signal-amber focus:outline-none"
+          />
+        </div>
 
-      {/* Semáforo Preventivo de Vencimientos */}
-      <AlertasFlotaPanel
-        vehiculos={vehiculos}
-        filtroSoloAlertas={filtroSoloAlertas}
-        onToggleSoloAlertas={() => setFiltroSoloAlertas(!filtroSoloAlertas)}
-      />
-
-      {/* Barra de Filtros y Buscador */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-600 pb-3">
+        {/* Filtros Dropdown Compactos y Toggle de Alertas */}
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setFiltroSoloAlertas(!filtroSoloAlertas)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold font-mono transition-all ${
+              filtroSoloAlertas
+                ? "bg-alert-red text-white font-bold shadow-sm"
+                : "bg-asphalt-950 text-fog-400 hover:text-paper-50 border border-line-600"
+            }`}
+          >
+            <AlertTriangle size={13} className={filtroSoloAlertas ? "text-white" : "text-signal-amber"} />
+            <span>Solo con Alertas</span>
+          </button>
+
           <select
             value={filtroTipo}
             onChange={(e) => setFiltroTipo(e.target.value)}
-            className="rounded-lg border border-line-600 bg-asphalt-900 px-3 py-1.5 text-xs text-paper-50 font-mono focus:border-signal-amber focus:outline-none"
+            className="rounded-lg border border-line-600 bg-asphalt-950 px-2.5 py-1.5 text-xs text-paper-50 font-mono focus:border-signal-amber focus:outline-none"
           >
-            <option value="todos">Todos los tipos de vehículo</option>
+            <option value="todos">Todos los Tipos</option>
             <option value="bus">Buses</option>
             <option value="buseta">Busetas</option>
             <option value="microbus">Microbuses</option>
@@ -376,28 +398,18 @@ export function FlotaClientView({
           <select
             value={filtroServicio}
             onChange={(e) => setFiltroServicio(e.target.value)}
-            className="rounded-lg border border-line-600 bg-asphalt-900 px-3 py-1.5 text-xs text-paper-50 font-mono focus:border-signal-amber focus:outline-none"
+            className="rounded-lg border border-line-600 bg-asphalt-950 px-2.5 py-1.5 text-xs text-paper-50 font-mono focus:border-signal-amber focus:outline-none"
           >
-            <option value="todos">Todas las modalidades</option>
+            <option value="todos">Todas Modalidades</option>
             <option value="especial">Transporte Especial</option>
             <option value="escolar">Escolar</option>
             <option value="turismo">Turismo</option>
           </select>
         </div>
-
-        <div className="w-full sm:w-64">
-          <input
-            type="text"
-            placeholder="Buscar por placa, marca, chofer..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full rounded-md border border-line-600 bg-asphalt-900 px-3 py-1.5 text-xs text-paper-50 placeholder:text-fog-400 focus:border-signal-amber focus:outline-none"
-          />
-        </div>
       </div>
 
-      {/* Tabla de Vehículos */}
-      <Card className="p-0 overflow-hidden">
+      {/* Tabla Principal Inmediata */}
+      <Card className="p-0 overflow-hidden shadow-sm">
         <DataTable columns={columns} data={filteredVehiculos} />
       </Card>
 
