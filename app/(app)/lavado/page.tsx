@@ -19,7 +19,6 @@ import {
   Sparkles,
   Car,
   AlertTriangle,
-  Plus,
 } from "lucide-react";
 import { Card, StatCard } from "@/components/ui/Card";
 import { PlateTag } from "@/components/ui/PlateTag";
@@ -72,21 +71,6 @@ export default function ControlLavadosPage() {
   // Modal para confirmar eliminación
   const [deletePending, setDeletePending] = useState<LavadoRecord | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-
-  // Modal para crear nuevo registro rápido
-  const [isNewModalOpen, setIsNewModalOpen] = useState(false);
-  const [newForm, setNewForm] = useState({
-    fecha: new Date().toISOString().split("T")[0],
-    hora: new Date().toTimeString().slice(0, 5),
-    placa: "",
-    tipoVehiculo: "Camioneta",
-    valor: 25000,
-    empresa: "",
-    conductorNombre: "",
-    conductorDocumento: "",
-    observaciones: "",
-  });
-  const [isSubmittingNew, setIsSubmittingNew] = useState(false);
 
   // ── Cargar Registros ──
   const loadRecords = useCallback(async () => {
@@ -149,41 +133,6 @@ export default function ControlLavadosPage() {
       console.error("Error al eliminar:", err);
     } finally {
       setIsDeleting(false);
-    }
-  };
-
-  // ── Crear Registro Rápido ──
-  const handleCreateRecord = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newForm.placa || !newForm.conductorNombre) return;
-
-    setIsSubmittingNew(true);
-    try {
-      const res = await fetch("/api/apps/lavado", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newForm),
-      });
-
-      if (res.ok) {
-        setIsNewModalOpen(false);
-        setNewForm({
-          fecha: new Date().toISOString().split("T")[0],
-          hora: new Date().toTimeString().slice(0, 5),
-          placa: "",
-          tipoVehiculo: "Camioneta",
-          valor: 25000,
-          empresa: "",
-          conductorNombre: "",
-          conductorDocumento: "",
-          observaciones: "",
-        });
-        loadRecords();
-      }
-    } catch (err) {
-      console.error("Error al crear lavado:", err);
-    } finally {
-      setIsSubmittingNew(false);
     }
   };
 
@@ -300,16 +249,6 @@ export default function ControlLavadosPage() {
           >
             <Printer size={14} />
             <span>Imprimir Planilla</span>
-          </Button>
-
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setIsNewModalOpen(true)}
-            className="flex items-center gap-1.5 text-xs font-bold"
-          >
-            <Plus size={15} />
-            <span>Registrar Lavado</span>
           </Button>
         </div>
       </div>
@@ -665,162 +604,6 @@ export default function ControlLavadosPage() {
                 {isDeleting ? "Eliminando..." : "Sí, Eliminar"}
               </Button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── MODAL: NUEVO REGISTRO RÁPIDO ── */}
-      {isNewModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-          <div className="w-full max-w-lg rounded-2xl border border-line-600 bg-asphalt-900 p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-line-600 pb-3">
-              <div>
-                <h3 className="font-bold text-paper-50 text-base">Registrar Nuevo Lavado</h3>
-                <p className="text-xs text-fog-400">Ingreso manual directo al sistema ERP</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsNewModalOpen(false)}
-                className="text-fog-400 hover:text-paper-50"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateRecord} className="space-y-3.5 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-fog-400 font-mono mb-1">Fecha</label>
-                  <input
-                    type="date"
-                    required
-                    value={newForm.fecha}
-                    onChange={(e) => setNewForm({ ...newForm, fecha: e.target.value })}
-                    className="w-full bg-asphalt-950 border border-line-600 rounded-xl px-3 py-2 text-paper-50 focus:border-signal-amber focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-fog-400 font-mono mb-1">Hora</label>
-                  <input
-                    type="time"
-                    required
-                    value={newForm.hora}
-                    onChange={(e) => setNewForm({ ...newForm, hora: e.target.value })}
-                    className="w-full bg-asphalt-950 border border-line-600 rounded-xl px-3 py-2 text-paper-50 focus:border-signal-amber focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-fog-400 font-mono mb-1">Placa *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="AAA-000"
-                    value={newForm.placa}
-                    onChange={(e) => setNewForm({ ...newForm, placa: e.target.value.toUpperCase() })}
-                    className="w-full bg-asphalt-950 border border-line-600 rounded-xl px-3 py-2 text-paper-50 font-mono font-bold uppercase focus:border-signal-amber focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-fog-400 font-mono mb-1">Tipo de Vehículo</label>
-                  <select
-                    value={newForm.tipoVehiculo}
-                    onChange={(e) => setNewForm({ ...newForm, tipoVehiculo: e.target.value })}
-                    className="w-full bg-asphalt-950 border border-line-600 rounded-xl px-3 py-2 text-paper-50 focus:border-signal-amber focus:outline-none"
-                  >
-                    <option value="Motocicleta">🏍 Motocicleta</option>
-                    <option value="Automóvil">🚗 Automóvil</option>
-                    <option value="Camioneta">🚙 Camioneta</option>
-                    <option value="Buseta / Microbús">🚐 Buseta / Microbús</option>
-                    <option value="Camión">🚛 Camión</option>
-                    <option value="Maquinaria">🚧 Maquinaria</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-fog-400 font-mono mb-1">Valor Servicio ($ COP)</label>
-                  <input
-                    type="number"
-                    required
-                    min={0}
-                    step={100}
-                    value={newForm.valor}
-                    onChange={(e) => setNewForm({ ...newForm, valor: Number(e.target.value) })}
-                    className="w-full bg-asphalt-950 border border-line-600 rounded-xl px-3 py-2 text-paper-50 font-mono font-bold focus:border-signal-amber focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-fog-400 font-mono mb-1">Empresa / Contratista</label>
-                  <input
-                    type="text"
-                    placeholder="Ej. Cooperativa A&B / Ecopetrol"
-                    value={newForm.empresa}
-                    onChange={(e) => setNewForm({ ...newForm, empresa: e.target.value })}
-                    className="w-full bg-asphalt-950 border border-line-600 rounded-xl px-3 py-2 text-paper-50 focus:border-signal-amber focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-fog-400 font-mono mb-1">Nombre Conductor *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Nombre completo"
-                    value={newForm.conductorNombre}
-                    onChange={(e) => setNewForm({ ...newForm, conductorNombre: e.target.value })}
-                    className="w-full bg-asphalt-950 border border-line-600 rounded-xl px-3 py-2 text-paper-50 focus:border-signal-amber focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-fog-400 font-mono mb-1">Cédula Conductor</label>
-                  <input
-                    type="text"
-                    placeholder="Número de identificación"
-                    value={newForm.conductorDocumento}
-                    onChange={(e) => setNewForm({ ...newForm, conductorDocumento: e.target.value })}
-                    className="w-full bg-asphalt-950 border border-line-600 rounded-xl px-3 py-2 text-paper-50 font-mono focus:border-signal-amber focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-fog-400 font-mono mb-1">Observaciones</label>
-                <textarea
-                  rows={2}
-                  placeholder="Detalles del lavado (motor, cojinería, etc.)..."
-                  value={newForm.observaciones}
-                  onChange={(e) => setNewForm({ ...newForm, observaciones: e.target.value })}
-                  className="w-full bg-asphalt-950 border border-line-600 rounded-xl px-3 py-2 text-paper-50 focus:border-signal-amber focus:outline-none"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-line-600">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsNewModalOpen(false)}
-                  disabled={isSubmittingNew}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="sm"
-                  disabled={isSubmittingNew}
-                  className="font-bold"
-                >
-                  {isSubmittingNew ? "Guardando..." : "Guardar en ERP"}
-                </Button>
-              </div>
-            </form>
           </div>
         </div>
       )}

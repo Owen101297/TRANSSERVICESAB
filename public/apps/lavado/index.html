@@ -3,237 +3,216 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>TRANS SERVICES A&B — Control de Lavado</title>
-    <meta name="theme-color" content="#0f0f0f">
+    <meta name="theme-color" content="#F8FAFC">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Lavadero AB">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Lavado AB">
     <link rel="icon" type="image/png" href="/logo.png" />
     <link rel="apple-touch-icon" href="/logo.png" />
+    <link rel="manifest" id="manifest-link">
     <script src="../shared/auth-bridge.js"></script>
 
-    <!-- Fuentes premium -->
+    <!-- Fuentes Apple Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link
-        href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap"
-        rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 
     <style>
         :root {
-            /* ── PALETA DARK LUXURY (Modernizada) ── */
-            --bg-primary: #0f1115;
-            --bg-secondary: #16181d;
-            --bg-card: #1a1c23;
-            --bg-elevated: #22252e;
+            /* ── PALETA APPLE LIGHT LUXURY ── */
+            --bg-canvas: #F8FAFC;
+            --bg-card: #FFFFFF;
+            --bg-elevated: #F1F5F9;
+            --bg-input: #F8FAFC;
 
-            --accent-gold: #e2c044;
-            --accent-gold-dim: rgba(226, 192, 68, 0.12);
-            --accent-gold-border: rgba(226, 192, 68, 0.3);
-
-            --accent-green: #34d399;
-            --accent-green-dim: rgba(52, 211, 153, 0.1);
-            --accent-amber: #fbbf24;
-            --accent-red: #f87171;
-
-            --text-primary: #f8fafc;
-            --text-secondary: #94a3b8;
-            --text-muted: #64748b;
-
-            --border: rgba(255, 255, 255, 0.06);
-            --border-bright: rgba(255, 255, 255, 0.12);
-
-            --font-display: 'Bebas Neue', sans-serif;
-            --font-body: 'DM Sans', sans-serif;
-            --font-mono: 'DM Mono', monospace;
-
-            --shadow-glow: 0 0 40px rgba(226, 192, 68, 0.08);
-            --shadow-card: 0 10px 40px rgba(0, 0, 0, 0.5);
-            --radius: 16px;
-            --radius-sm: 10px;
-        }
-
-        /* ── PALETA LIGHT LUXURY (Modernizada) ── */
-        body.theme-light {
-            --bg-primary: #f8fafc;
-            --bg-secondary: #ffffff;
-            --bg-card: #ffffff;
-            --bg-elevated: #f1f5f9;
-
-            --text-primary: #0f172a;
+            --text-main: #0F172A;
             --text-secondary: #475569;
-            --text-muted: #94a3b8;
+            --text-muted: #94A3B8;
 
-            --border: rgba(0, 0, 0, 0.06);
-            --border-bright: rgba(0, 0, 0, 0.12);
+            --line-subtle: #E2E8F0;
+            --line-focus: #0F172A;
 
-            --shadow-glow: 0 4px 20px rgba(226, 192, 68, 0.15);
-            --shadow-card: 0 8px 30px rgba(0, 0, 0, 0.04);
+            --accent-black: #0F172A;
+            --accent-blue: #0284C7;
+            --accent-green: #059669;
+            --accent-amber: #D97706;
+            --accent-red: #DC2626;
+
+            --radius-card: 26px;
+            --radius-input: 16px;
+            --radius-pill: 9999px;
+
+            --shadow-apple: 0 4px 25px -4px rgba(15, 23, 42, 0.05), 0 2px 10px -2px rgba(15, 23, 42, 0.03);
+            --shadow-float: 0 12px 32px -6px rgba(15, 23, 42, 0.08);
+
+            --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --font-mono: 'IBM Plex Mono', monospace;
         }
 
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
-            font-family: var(--font-body);
-            background: var(--bg-primary);
-            color: var(--text-primary);
+            font-family: var(--font-main);
+            background-color: var(--bg-canvas);
+            color: var(--text-main);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             overflow-x: hidden;
-            transition: background 0.3s ease, color 0.3s ease;
-            position: relative;
+            -webkit-font-smoothing: antialiased;
         }
 
-        /* Se han eliminado las decoraciones de fondo complejas (body::before y body::after) 
-           para asegurar un renderizado limpio, profesional y consistente en todos los dispositivos. */
-
+        /* ── NAVBAR APPLE GLASS ── */
         nav {
             position: sticky;
             top: 0;
             z-index: 100;
-            background: rgba(15, 17, 21, 0.85);
+            background: rgba(255, 255, 255, 0.85);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--border);
-            transition: background 0.3s ease;
-        }
-
-        body.theme-light nav {
-            background: rgba(255, 255, 255, 0.85);
-        }
-
-        body.theme-light .btn-submit {
-            color: #ffffff;
+            border-bottom: 1px solid var(--line-subtle);
         }
 
         .nav-inner {
-            max-width: 1200px;
+            max-width: 1080px;
             margin: 0 auto;
-            padding: 0 20px;
+            padding: 0 16px;
             height: 64px;
             display: flex;
             align-items: center;
             justify-content: space-between;
+            gap: 12px;
+        }
+
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-back-portal {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 12px;
+            border-radius: var(--radius-pill);
+            background: var(--bg-elevated);
+            color: var(--text-main);
+            text-decoration: none;
+            font-size: 0.8rem;
+            font-weight: 700;
+            transition: all 0.2s ease;
+            border: 1px solid var(--line-subtle);
+        }
+
+        .btn-back-portal:hover {
+            background: #E2E8F0;
+            transform: translateX(-2px);
         }
 
         .nav-brand {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
 
         .nav-logo {
-            width: 38px;
-            height: 38px;
+            width: 34px;
+            height: 34px;
             border-radius: 10px;
-            border: 1px solid var(--accent-gold-border);
             object-fit: contain;
-            background: #0a0a0a;
+            background: #FFFFFF;
             padding: 2px;
+            border: 1px solid var(--line-subtle);
         }
 
         .nav-title {
-            font-family: var(--font-display);
-            font-size: 1.4rem;
-            letter-spacing: 2px;
-            color: var(--text-primary);
-            line-height: 1;
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--text-main);
+            letter-spacing: -0.3px;
+            line-height: 1.1;
         }
 
-        .nav-badge {
-            font-size: 0.6rem;
+        .nav-subtitle {
+            font-size: 0.68rem;
+            font-weight: 600;
+            color: var(--text-muted);
             font-family: var(--font-mono);
-            color: var(--accent-gold);
-            background: var(--accent-gold-dim);
-            border: 1px solid var(--accent-gold-border);
-            padding: 2px 7px;
-            border-radius: 4px;
-            letter-spacing: 1px;
-            text-transform: uppercase;
         }
 
-        .nav-tabs {
+        /* ── SEGMENTED CONTROL TABS (APPLE STYLE) ── */
+        .segmented-control {
             display: flex;
-            gap: 4px;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 10px;
+            background: #E2E8F0;
             padding: 4px;
-            transition: background 0.3s;
+            border-radius: var(--radius-pill);
+            gap: 2px;
         }
 
         .tab-btn {
-            font-family: var(--font-body);
+            font-family: var(--font-main);
             font-size: 0.8rem;
-            font-weight: 500;
-            color: var(--text-muted);
+            font-weight: 700;
+            color: var(--text-secondary);
             background: transparent;
             border: none;
             cursor: pointer;
-            padding: 7px 16px;
-            border-radius: 7px;
-            transition: all 0.2s ease;
-            letter-spacing: 0.3px;
-        }
-
-        .tab-btn:hover {
-            color: var(--text-secondary);
-            background: var(--bg-elevated);
+            padding: 6px 14px;
+            border-radius: var(--radius-pill);
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .tab-btn.active {
-            color: #ffffff;
-            background: var(--accent-gold);
-            font-weight: 600;
+            color: var(--text-main);
+            background: #FFFFFF;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
         }
 
+        /* ── STATUS BAR ── */
         .status-bar {
-            background: rgba(0, 229, 153, 0.06);
-            border-bottom: 1px solid rgba(0, 229, 153, 0.15);
-            padding: 6px 20px;
+            background: #ECFDF5;
+            border-bottom: 1px solid #A7F3D0;
+            padding: 6px 16px;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
             font-size: 0.72rem;
             font-family: var(--font-mono);
+            font-weight: 600;
             color: var(--accent-green);
-            letter-spacing: 0.5px;
         }
 
         .status-dot {
-            width: 6px;
-            height: 6px;
+            width: 7px;
+            height: 7px;
             border-radius: 50%;
             background: var(--accent-green);
             animation: pulse-dot 2s ease-in-out infinite;
         }
 
         @keyframes pulse-dot {
-
-            0%,
-            100% {
-                opacity: 1;
-                transform: scale(1);
-            }
-
-            50% {
-                opacity: 0.5;
-                transform: scale(0.8);
-            }
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
         }
 
         .status-bar.offline {
-            background: rgba(255, 77, 109, 0.06);
-            border-color: rgba(255, 77, 109, 0.2);
+            background: #FEF2F2;
+            border-color: #FECACA;
             color: var(--accent-red);
         }
 
@@ -243,1211 +222,639 @@
 
         main {
             flex: 1;
-            position: relative;
-            z-index: 1;
-            overflow-y: auto;
-        }
-
-        #view-registro {
-            padding: 24px 20px 40px;
-        }
-
-        .form-container {
-            max-width: 520px;
+            padding: 24px 16px 48px;
+            max-width: 680px;
+            width: 100%;
             margin: 0 auto;
-            animation: fadeUp 0.4s ease;
         }
 
-        @keyframes fadeUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .form-header {
-            margin-bottom: 28px;
+        /* ── HEADER DE SECCIÓN ── */
+        .view-header {
+            margin-bottom: 24px;
             text-align: center;
         }
 
-        .form-header .eyebrow {
-            font-family: var(--font-mono);
+        .view-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: var(--radius-pill);
+            background: #F1F5F9;
+            color: var(--text-secondary);
             font-size: 0.7rem;
-            color: var(--accent-gold);
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            margin-bottom: 8px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            margin-bottom: 10px;
+            border: 1px solid var(--line-subtle);
         }
 
-        .form-header h2 {
-            font-family: var(--font-display);
-            font-size: 2.2rem;
-            letter-spacing: 2px;
-            color: var(--text-primary);
-            line-height: 1;
+        .view-title {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--text-main);
+            letter-spacing: -0.5px;
+            line-height: 1.15;
+            margin-bottom: 6px;
         }
 
-        .form-card {
+        .view-desc {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            max-width: 480px;
+            margin: 0 auto;
+        }
+
+        /* ── TARJETA DEL FORMULARIO (APPLE SQUIRCLE) ── */
+        .apple-card {
             background: var(--bg-card);
-            border: 1px solid var(--border-bright);
-            border-radius: 16px;
-            padding: 28px;
-            box-shadow: var(--shadow-card);
-            position: relative;
-            overflow: hidden;
-            transition: background 0.3s;
-        }
-
-        .form-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, transparent, var(--accent-gold), transparent);
-            opacity: 0.8;
+            border: 1px solid var(--line-subtle);
+            border-radius: var(--radius-card);
+            padding: 28px 24px;
+            box-shadow: var(--shadow-apple);
         }
 
         .form-section {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
 
-        .form-section-title {
+        .form-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .section-tag {
+            font-size: 0.7rem;
+            font-weight: 800;
             font-family: var(--font-mono);
-            font-size: 0.65rem;
-            color: var(--text-muted);
-            letter-spacing: 2px;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
             margin-bottom: 12px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .form-row {
+        .section-tag::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--line-subtle);
+        }
+
+        .form-grid-2 {
             display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 12px;
         }
 
-        .form-row.cols-2 {
-            grid-template-columns: 1fr 1fr;
+        @media (max-width: 480px) {
+            .form-grid-2 {
+                grid-template-columns: 1fr;
+            }
         }
 
-        .field-group {
+        .field-box {
             display: flex;
             flex-direction: column;
             gap: 6px;
         }
 
         .field-label {
-            font-size: 0.72rem;
-            font-weight: 600;
-            color: var(--text-secondary);
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-main);
         }
 
         .field-input {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-bright);
-            border-radius: var(--radius-sm);
-            color: var(--text-primary);
-            font-family: var(--font-body);
-            font-size: 0.9rem;
-            padding: 10px 14px;
+            background: var(--bg-input);
+            border: 1.5px solid var(--line-subtle);
+            border-radius: var(--radius-input);
+            padding: 12px 14px;
+            font-family: var(--font-main);
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-main);
             outline: none;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
             width: 100%;
-            -webkit-appearance: none;
-            appearance: none;
         }
 
         .field-input:focus {
-            border-color: var(--accent-gold);
-            background: rgba(212, 175, 55, 0.04);
-            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.08);
+            border-color: var(--accent-black);
+            background: #FFFFFF;
+            box-shadow: 0 0 0 4px rgba(15, 23, 42, 0.06);
         }
 
-        .field-input::placeholder {
-            color: var(--text-muted);
-        }
-
-        .field-input.plate-input {
+        .field-input.plate-badge {
             font-family: var(--font-mono);
-            font-size: 1.1rem;
-            font-weight: 500;
-            letter-spacing: 3px;
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: 2px;
             text-align: center;
-            color: var(--accent-gold);
+            color: var(--text-main);
             text-transform: uppercase;
+            background: #FFFBEB;
+            border-color: #FDE68A;
         }
 
-        .field-input option {
-            background: var(--bg-card);
+        .field-input.plate-badge:focus {
+            border-color: #D97706;
+            box-shadow: 0 0 0 4px rgba(217, 119, 6, 0.12);
         }
 
-        .value-input-wrap {
+        .value-wrapper {
             position: relative;
         }
 
-        .value-prefix {
+        .value-wrapper span {
             position: absolute;
             left: 14px;
             top: 50%;
             transform: translateY(-50%);
-            color: var(--accent-green);
             font-family: var(--font-mono);
-            font-weight: 500;
-            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text-muted);
         }
 
-        .value-input-wrap .field-input {
-            padding-left: 30px;
+        .value-wrapper .field-input {
+            padding-left: 32px;
+            font-family: var(--font-mono);
+            font-weight: 700;
         }
 
         .plate-alert {
             display: none;
-            font-size: 0.72rem;
-            font-family: var(--font-mono);
-            color: var(--accent-amber);
-            background: rgba(255, 179, 71, 0.08);
-            border: 1px solid rgba(255, 179, 71, 0.25);
-            border-radius: 6px;
-            padding: 7px 10px;
             margin-top: 6px;
-            animation: fadeUp 0.2s ease;
+            padding: 8px 12px;
+            border-radius: 12px;
+            background: #FEF3C7;
+            border: 1px solid #FDE68A;
+            color: #92400E;
+            font-size: 0.75rem;
+            font-weight: 600;
+            font-family: var(--font-mono);
+            align-items: center;
+            gap: 6px;
         }
 
         .plate-alert.show {
             display: flex;
-            align-items: center;
-            gap: 6px;
         }
 
-        .sig-header {
+        /* ── CANVAS DE FIRMA APPLE ── */
+        .sig-container {
+            background: #F8FAFC;
+            border: 1.5px dashed #CBD5E1;
+            border-radius: var(--radius-input);
+            padding: 8px;
+            position: relative;
+            cursor: crosshair;
+            transition: all 0.2s ease;
+        }
+
+        .sig-container.drawing {
+            border-color: var(--accent-black);
+            background: #FFFFFF;
+        }
+
+        canvas {
+            width: 100%;
+            height: 130px;
+            display: block;
+            border-radius: 10px;
+        }
+
+        .sig-tools {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
 
         .btn-clear-sig {
-            font-size: 0.72rem;
+            background: #FEE2E2;
             color: var(--accent-red);
-            background: rgba(255, 77, 109, 0.08);
-            border: 1px solid rgba(255, 77, 109, 0.2);
-            border-radius: 6px;
+            border: none;
             padding: 4px 10px;
+            border-radius: var(--radius-pill);
+            font-size: 0.72rem;
+            font-weight: 700;
             cursor: pointer;
-            font-family: var(--font-body);
-            transition: all 0.2s;
+            transition: all 0.2s ease;
         }
 
         .btn-clear-sig:hover {
-            background: rgba(255, 77, 109, 0.15);
+            background: #FECACA;
         }
 
-        .sig-canvas-wrap {
-            border: 2px dashed var(--border-bright);
-            border-radius: var(--radius-sm);
-            overflow: hidden;
-            background: var(--bg-secondary);
-            transition: border-color 0.2s, background 0.3s;
-        }
-
-        .sig-canvas-wrap:hover {
-            border-color: var(--accent-gold-border);
-        }
-
-        .sig-canvas-wrap.drawing {
-            border-color: var(--accent-gold);
-            border-style: solid;
-        }
-
-        #signature-pad {
-            touch-action: none;
+        /* ── BOTÓN PRINCIPAL APPLE JET-BLACK ── */
+        .btn-apple-submit {
             width: 100%;
-            height: 120px;
-            cursor: crosshair;
-            display: block;
-        }
-
-        .sig-hint {
-            font-size: 0.65rem;
-            font-family: var(--font-mono);
-            color: var(--text-muted);
-            text-align: center;
-            margin-top: 6px;
-            letter-spacing: 0.5px;
-        }
-
-        .btn-submit {
-            width: 100%;
-            background: linear-gradient(135deg, var(--accent-gold) 0%, #b5952f 100%);
-            font-family: var(--font-display);
-            font-size: 1.1rem;
-            letter-spacing: 2px;
+            padding: 16px 20px;
+            border-radius: var(--radius-input);
+            background: var(--accent-black);
+            color: #FFFFFF;
             border: none;
-            border-radius: var(--radius-sm);
-            padding: 14px;
+            font-family: var(--font-main);
+            font-size: 1rem;
+            font-weight: 800;
+            letter-spacing: -0.2px;
             cursor: pointer;
-            transition: all 0.25s;
-            box-shadow: 0 4px 20px rgba(212, 175, 55, 0.25);
-            margin-top: 4px;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2);
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
 
-        .btn-submit:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 8px 30px rgba(212, 175, 55, 0.35);
+        .btn-apple-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(15, 23, 42, 0.28);
         }
 
-        .btn-submit:active {
-            transform: translateY(0);
+        .btn-apple-submit:active {
+            transform: scale(0.98);
         }
 
-        .btn-submit:disabled {
-            opacity: 0.5;
+        .btn-apple-submit:disabled {
+            opacity: 0.6;
             cursor: not-allowed;
             transform: none;
         }
 
-        /* ── ADMIN VIEW ── */
+        /* ── VISTA ADMIN / HISTORIAL ── */
         #view-admin {
-            padding: 24px 20px 40px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
+            max-width: 980px;
         }
 
         .kpi-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 14px;
-            max-width: 1200px;
-            margin: 0 auto;
-            width: 100%;
-            animation: fadeUp 0.3s ease;
+            margin-bottom: 24px;
         }
 
-        .kpi-card {
+        .kpi-box {
             background: var(--bg-card);
-            border: 1px solid var(--border-bright);
-            border-radius: var(--radius);
-            padding: 18px 20px;
-            position: relative;
-            overflow: hidden;
-            transition: transform 0.2s, box-shadow 0.2s, background 0.3s;
+            border: 1px solid var(--line-subtle);
+            border-radius: 20px;
+            padding: 18px;
+            box-shadow: var(--shadow-apple);
         }
 
-        .kpi-card:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-glow);
-        }
-
-        .kpi-card::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-        }
-
-        .kpi-card.gold::after {
-            background: linear-gradient(90deg, transparent, var(--accent-gold), transparent);
-        }
-
-        .kpi-card.green::after {
-            background: linear-gradient(90deg, transparent, var(--accent-green), transparent);
-        }
-
-        .kpi-card.amber::after {
-            background: linear-gradient(90deg, transparent, var(--accent-amber), transparent);
-        }
-
-        .kpi-label {
-            font-family: var(--font-mono);
-            font-size: 0.65rem;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            margin-bottom: 10px;
-        }
-
-        .kpi-card.gold .kpi-label {
-            color: var(--accent-gold);
-        }
-
-        .kpi-card.green .kpi-label {
-            color: var(--accent-green);
-        }
-
-        .kpi-card.amber .kpi-label {
-            color: var(--accent-amber);
-        }
-
-        .kpi-value {
-            font-family: var(--font-display);
-            font-size: 2rem;
-            color: var(--text-primary);
-            line-height: 1;
-            letter-spacing: 1px;
-        }
-
-        .kpi-sub {
+        .kpi-title {
             font-size: 0.72rem;
+            font-weight: 700;
             color: var(--text-muted);
-            margin-top: 4px;
+            text-transform: uppercase;
+            font-family: var(--font-mono);
+            margin-bottom: 4px;
         }
 
-        .kpi-icon {
-            position: absolute;
-            right: 18px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 2rem;
-            opacity: 0.07;
+        .kpi-number {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: var(--text-main);
+            letter-spacing: -0.5px;
         }
 
-        .admin-toolbar {
-            max-width: 1200px;
-            margin: 0 auto;
-            width: 100%;
+        .admin-bar {
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
             justify-content: space-between;
             gap: 12px;
-            flex-wrap: wrap;
-            animation: fadeUp 0.35s ease;
+            margin-bottom: 16px;
         }
 
-        .toolbar-title {
-            font-family: var(--font-display);
-            font-size: 1.4rem;
-            letter-spacing: 2px;
-            color: var(--text-primary);
-        }
-
-        .toolbar-actions {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .month-input {
-            background: var(--bg-card);
-            border: 1px solid var(--border-bright);
-            border-radius: var(--radius-sm);
-            color: var(--text-primary);
-            font-family: var(--font-mono);
-            font-size: 0.8rem;
-            padding: 8px 12px;
-            outline: none;
-            cursor: pointer;
-        }
-
-        .month-input:focus {
-            border-color: var(--accent-gold);
-        }
-
-        .btn-theme {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-bright);
-            color: var(--accent-gold);
-            font-size: 0.9rem;
-            padding: 8px 12px;
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .btn-theme:hover {
-            background: var(--bg-elevated);
-            transform: translateY(-1px);
-        }
-
-        .btn-export {
-            background: rgba(255, 77, 109, 0.1);
-            border: 1px solid rgba(255, 77, 109, 0.3);
-            color: #ff4d6d;
-            font-family: var(--font-body);
-            font-size: 0.8rem;
-            font-weight: 600;
-            padding: 8px 16px;
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
+        .btn-action-pill {
+            display: inline-flex;
             align-items: center;
             gap: 6px;
+            padding: 8px 14px;
+            border-radius: var(--radius-pill);
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1px solid var(--line-subtle);
+            background: #FFFFFF;
+            color: var(--text-main);
+            transition: all 0.2s ease;
         }
 
-        .btn-export:hover {
-            background: rgba(255, 77, 109, 0.18);
-            transform: translateY(-1px);
+        .btn-action-pill:hover {
+            background: var(--bg-elevated);
         }
 
-        .btn-export-xlsx {
-            background: rgba(0, 229, 153, 0.08);
-            border: 1px solid rgba(0, 229, 153, 0.25);
-            color: var(--accent-green);
-        }
-
-        .btn-export-xlsx:hover {
-            background: rgba(0, 229, 153, 0.15);
-        }
-
-        .table-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            width: 100%;
+        .table-card {
             background: var(--bg-card);
-            border: 1px solid var(--border-bright);
-            border-radius: var(--radius);
+            border: 1px solid var(--line-subtle);
+            border-radius: var(--radius-card);
             overflow: hidden;
-            box-shadow: var(--shadow-card);
-            animation: fadeUp 0.4s ease;
-            transition: background 0.3s;
-        }
-
-        .table-wrap {
-            overflow-x: auto;
+            box-shadow: var(--shadow-apple);
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
+            text-align: left;
             font-size: 0.85rem;
         }
 
-        thead {
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border-bright);
-            transition: background 0.3s;
-        }
-
-        thead th {
-            font-family: var(--font-mono);
-            font-size: 0.65rem;
-            letter-spacing: 1.5px;
+        th {
+            background: #F8FAFC;
+            padding: 12px 16px;
+            font-size: 0.7rem;
+            font-weight: 700;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
             color: var(--text-muted);
-            padding: 13px 16px;
-            text-align: left;
-            white-space: nowrap;
-            font-weight: 400;
+            border-bottom: 1px solid var(--line-subtle);
+            font-family: var(--font-mono);
         }
 
-        thead th:last-child {
-            text-align: center;
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--line-subtle);
+            color: var(--text-main);
         }
 
-        tbody tr {
-            border-bottom: 1px solid var(--border);
-            transition: background 0.15s;
-        }
-
-        tbody tr:last-child {
+        tr:last-child td {
             border-bottom: none;
         }
 
-        tbody tr:hover {
-            background: rgba(212, 175, 55, 0.05);
-        }
-
-        tbody td {
-            padding: 13px 16px;
-            vertical-align: middle;
-            color: var(--text-secondary);
-        }
-
-        .td-plate {
-            font-family: var(--font-mono);
-            font-size: 0.95rem;
-            font-weight: 500;
-            color: var(--accent-gold);
-            letter-spacing: 2px;
-        }
-
-        .td-vehicle-type {
-            font-size: 0.72rem;
-            color: var(--text-muted);
-            margin-top: 2px;
-        }
-
-        .td-date {
-            font-family: var(--font-mono);
-            font-size: 0.8rem;
-            color: var(--text-primary);
-        }
-
-        .td-time {
-            font-size: 0.72rem;
-            color: var(--text-muted);
-            margin-top: 2px;
-        }
-
-        .td-name {
-            color: var(--text-primary);
-            font-weight: 500;
-        }
-
-        .td-company {
-            font-size: 0.72rem;
-            color: var(--text-muted);
-            margin-top: 2px;
-        }
-
-        .td-value {
-            font-family: var(--font-mono);
-            font-size: 0.9rem;
-            font-weight: 500;
-            color: var(--accent-green);
-            text-align: right;
-            white-space: nowrap;
-        }
-
-        .sig-thumb {
-            height: 36px;
-            max-width: 90px;
-            object-fit: contain;
-            border-radius: 4px;
-            border: 1px solid var(--border);
-            background: rgba(255, 255, 255, 0.05);
-            display: block;
-            margin: 0 auto;
-        }
-
-        body.theme-light .sig-thumb {
-            background: rgba(0, 0, 0, 0.02);
-        }
-
-        .no-sig {
-            font-size: 0.7rem;
-            color: var(--accent-red);
-            font-family: var(--font-mono);
-            text-align: center;
-        }
-
-        .status-group {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            align-items: center;
-            min-width: 110px;
-        }
-
-        .status-badge {
+        .badge-status {
             display: inline-flex;
             align-items: center;
-            gap: 5px;
-            font-size: 0.65rem;
+            gap: 4px;
+            padding: 4px 8px;
+            border-radius: var(--radius-pill);
+            font-size: 0.7rem;
+            font-weight: 700;
             font-family: var(--font-mono);
-            letter-spacing: 0.5px;
-            padding: 4px 9px;
-            border-radius: 5px;
-            border: 1px solid;
+            border: none;
             cursor: pointer;
-            transition: all 0.2s;
-            white-space: nowrap;
-            text-transform: uppercase;
-            font-weight: 500;
-            width: 100%;
-            justify-content: center;
         }
 
-        .badge-elaborado {
-            color: var(--accent-green);
-            background: rgba(0, 229, 153, 0.06);
-            border-color: rgba(0, 229, 153, 0.2);
-            cursor: default;
+        .badge-on { background: #ECFDF5; color: #059669; }
+        .badge-off { background: #F1F5F9; color: #64748B; }
+
+        .sig-thumb {
+            width: 50px;
+            height: 25px;
+            object-fit: contain;
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-radius: 6px;
         }
 
-        .badge-revisado-off {
-            color: var(--text-muted);
-            background: transparent;
-            border-color: var(--border-bright);
-        }
-
-        .badge-revisado-off:hover {
-            color: var(--accent-gold);
-            border-color: var(--accent-gold-border);
-            background: var(--accent-gold-dim);
-        }
-
-        .badge-revisado-on {
-            color: var(--accent-gold);
-            background: var(--accent-gold-dim);
-            border-color: var(--accent-gold-border);
-        }
-
-        .badge-aprobado-off {
-            color: var(--text-muted);
-            background: transparent;
-            border-color: var(--border-bright);
-        }
-
-        .badge-aprobado-off:hover {
-            color: var(--accent-amber);
-            border-color: rgba(255, 179, 71, 0.3);
-            background: rgba(255, 179, 71, 0.06);
-        }
-
-        .badge-aprobado-on {
-            color: var(--accent-amber);
-            background: rgba(255, 179, 71, 0.06);
-            border-color: rgba(255, 179, 71, 0.3);
-        }
-
-        .badge-eliminar {
-            color: var(--accent-red);
-            background: rgba(239, 68, 68, 0.05);
-            border-color: rgba(239, 68, 68, 0.2);
-            margin-top: 4px;
-        }
-
-        .badge-eliminar:hover {
-            background: rgba(239, 68, 68, 0.15);
-            border-color: var(--accent-red);
-        }
-
-        .empty-state {
-            padding: 60px 20px;
-            text-align: center;
-        }
-
-        .empty-icon {
-            font-size: 3rem;
-            opacity: 0.15;
-            margin-bottom: 16px;
-        }
-
-        .empty-text {
-            color: var(--text-muted);
-            font-family: var(--font-mono);
-            font-size: 0.8rem;
-            letter-spacing: 1px;
-        }
-
-        .skeleton-row td {
-            padding: 13px 16px;
-        }
-
-        .skel {
-            height: 14px;
-            border-radius: 4px;
-            background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-secondary) 50%, var(--bg-elevated) 75%);
-            background-size: 400% 100%;
-            animation: shimmer 1.5s ease-in-out infinite;
-        }
-
-        @keyframes shimmer {
-            0% {
-                background-position: 100% 50%;
-            }
-
-            100% {
-                background-position: -100% 50%;
-            }
-        }
-
-        /* ── MODALS (TOASTS Y CONFIRM) ── */
+        /* ── TOAST NOTIFICATIONS ── */
         #toast-container {
             position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 1000;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
             display: flex;
-            flex-direction: column-reverse;
-            gap: 10px;
+            flex-direction: column;
+            gap: 8px;
             pointer-events: none;
         }
 
         .toast {
-            background: var(--bg-elevated);
-            border: 1px solid var(--border-bright);
-            border-radius: var(--radius-sm);
-            padding: 12px 16px;
+            pointer-events: auto;
+            background: rgba(15, 23, 42, 0.95);
+            color: #FFFFFF;
+            backdrop-filter: blur(12px);
+            padding: 12px 20px;
+            border-radius: var(--radius-pill);
+            font-size: 0.85rem;
+            font-weight: 700;
+            box-shadow: var(--shadow-float);
             display: flex;
             align-items: center;
-            gap: 10px;
-            font-size: 0.82rem;
-            min-width: 260px;
-            max-width: 320px;
-            box-shadow: var(--shadow-card);
-            animation: slideIn 0.3s ease;
-            pointer-events: all;
+            gap: 8px;
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateX(20px);
-            }
+        .toast.success { background: #059669; }
+        .toast.error { background: #DC2626; }
+        .toast.warning { background: #D97706; }
 
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        .toast.success {
-            border-left: 3px solid var(--accent-green);
-        }
-
-        .toast.error {
-            border-left: 3px solid var(--accent-red);
-        }
-
-        .toast.warning {
-            border-left: 3px solid var(--accent-amber);
-        }
-
-        .toast.info {
-            border-left: 3px solid var(--accent-gold);
-        }
-
-        .toast-icon {
-            font-size: 1rem;
-            flex-shrink: 0;
-        }
-
-        .toast.success .toast-icon {
-            color: var(--accent-green);
-        }
-
-        .toast.error .toast-icon {
-            color: var(--accent-red);
-        }
-
-        .toast.warning .toast-icon {
-            color: var(--accent-amber);
-        }
-
-        .toast.info .toast-icon {
-            color: var(--accent-gold);
-        }
-
-        .toast-msg {
-            color: var(--text-primary);
-            line-height: 1.4;
-        }
-
-        #confirm-modal {
-            position: fixed;
-            inset: 0;
-            z-index: 200;
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(5px);
-            display: none;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .confirm-box {
-            background: var(--bg-card);
-            border: 1px solid var(--border-bright);
-            border-radius: var(--radius);
-            padding: 24px;
-            max-width: 320px;
-            text-align: center;
-            box-shadow: var(--shadow-card);
-            animation: fadeUp 0.2s ease;
-        }
-
-        .confirm-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-            justify-content: center;
-        }
-
-        .btn-cancel,
-        .btn-confirm {
-            padding: 10px 16px;
-            border-radius: var(--radius-sm);
-            border: none;
-            cursor: pointer;
-            font-weight: 600;
-            font-family: var(--font-body);
-            font-size: 0.9rem;
-            transition: transform 0.2s;
-        }
-
-        .btn-cancel {
-            background: var(--bg-elevated);
-            color: var(--text-primary);
-        }
-
-        .btn-cancel:hover {
-            filter: brightness(1.2);
-        }
-
-        .btn-confirm {
-            background: var(--accent-red);
-            color: white;
-        }
-
-        .btn-confirm:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-        }
-
-        #offline-banner {
-            display: none;
-            background: rgba(255, 77, 109, 0.08);
-            border-bottom: 1px solid rgba(255, 77, 109, 0.2);
-            padding: 8px 20px;
-            text-align: center;
-            font-family: var(--font-mono);
-            font-size: 0.72rem;
-            color: var(--accent-red);
-            letter-spacing: 0.5px;
-            z-index: 99;
-            position: relative;
-        }
-
-        #offline-banner.show {
-            display: block;
-        }
-
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: var(--bg-secondary);
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--border-bright);
-            border-radius: 3px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--text-muted);
-        }
-
-        @media (max-width: 480px) {
-            .form-row.cols-2 {
-                grid-template-columns: 1fr;
-            }
-
-            .nav-title {
-                font-size: 1.1rem;
-            }
-
-            .nav-badge {
-                display: none;
-            }
-
-            .kpi-value {
-                font-size: 1.6rem;
-            }
-
-            .admin-toolbar {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            .toolbar-actions {
-                width: 100%;
-                overflow-x: auto;
-                padding-bottom: 5px;
-            }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
 
 <body>
 
-    <a href="#view-registro" class="skip-link">Saltar al contenido principal</a>
-
-    <!-- NAVBAR -->
+    <!-- NAVBAR GLASS APPLE -->
     <nav>
         <div class="nav-inner">
-            <div class="nav-brand">
-                <img src="../../assets/logo.png" alt="AB" class="nav-logo">
-                <div>
-                    <div class="nav-title">TRANS SERVICES A&B</div>
+            <div class="nav-left">
+                <a href="/portal-conductor" class="btn-back-portal" title="Regresar al Portal">
+                    <i class="fa-solid fa-chevron-left"></i>
+                    <span>Portal</span>
+                </a>
+                <div class="nav-brand">
+                    <img src="/logo.png" alt="AB" class="nav-logo">
+                    <div>
+                        <div class="nav-title">Control de Lavado</div>
+                        <div class="nav-subtitle">OP-FOR-04 • FLOTA</div>
+                    </div>
                 </div>
-                <span class="nav-badge">SISTEMA v2.0</span>
             </div>
-            <div class="nav-tabs">
+
+            <div class="segmented-control">
                 <button onclick="switchTab('registro')" id="btn-tab-registro" class="tab-btn active">
-                    <i class="fa-solid fa-pen-to-square" style="margin-right:5px;font-size:0.75rem;"></i>Registro
+                    <i class="fa-solid fa-pen"></i> Registro
                 </button>
                 <button onclick="switchTab('admin')" id="btn-tab-admin" class="tab-btn">
-                    <i class="fa-solid fa-chart-line" style="margin-right:5px;font-size:0.75rem;"></i>Admin
+                    <i class="fa-solid fa-table-list"></i> Historial
                 </button>
             </div>
         </div>
     </nav>
 
-    <!-- OFFLINE BANNER -->
-    <div id="offline-banner">
-        <i class="fa-solid fa-wifi-slash" style="margin-right:8px;"></i>
-        SIN CONEXIÓN — Los registros se sincronizarán cuando vuelva la conexión
-    </div>
-
     <!-- STATUS BAR -->
     <div id="status-bar" class="status-bar">
         <span class="status-dot"></span>
-        <span id="status-text">CONECTANDO AL SERVIDOR...</span>
+        <span id="status-text">CONECTANDO CON EL ERP...</span>
     </div>
 
     <!-- TOAST CONTAINER -->
     <div id="toast-container"></div>
 
-    <!-- CONFIRM MODAL ELIMINAR -->
-    <div id="confirm-modal">
-        <div class="confirm-box">
-            <i class="fa-solid fa-triangle-exclamation"
-                style="font-size:2rem; color:var(--accent-red); margin-bottom:12px;"></i>
-            <h3
-                style="font-family:var(--font-display); font-size:1.4rem; letter-spacing:1px; margin-bottom:8px; color:var(--text-primary);">
-                CONFIRMAR ELIMINACIÓN</h3>
-            <p id="confirm-modal-text"
-                style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:20px; line-height:1.4;"></p>
-            <div class="confirm-actions">
-                <button class="btn-cancel" onclick="closeConfirmModal()">Cancelar</button>
-                <button class="btn-confirm" onclick="ejecutarEliminacion()">Sí, Eliminar</button>
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- VISTA REGISTRO (APPLE LIGHT) -->
+    <!-- ═══════════════════════════════════════════ -->
+    <main id="view-registro">
+        <div class="view-header">
+            <div class="view-badge">
+                <i class="fa-solid fa-droplet" style="color:#0284C7;"></i>
+                FORMULARIO DIGITALIZADO
             </div>
+            <h1 class="view-title">Registro de Lavado</h1>
+            <p class="view-desc">Ingresa los datos del vehículo y firma digitalmente para liquidación y soporte.</p>
         </div>
-    </div>
 
-    <!-- ═══════════════════════════════════════════ -->
-    <!-- VISTA REGISTRO -->
-    <!-- ═══════════════════════════════════════════ -->
-    <main id="view-registro" tabindex="-1">
-        <div class="form-container">
-            <div class="form-header">
-                <div class="eyebrow">LAVADERO / CONTROL</div>
-                <h2>NUEVO REGISTRO</h2>
-            </div>
+        <div class="apple-card">
+            <form id="lavado-form">
 
-            <div class="form-card">
-                <form id="lavado-form">
-
-                    <div class="form-section">
-                        <div class="form-section-title">01 — Fecha y Hora del Servicio</div>
-                        <div class="form-row cols-2">
-                            <div class="field-group">
-                                <label class="field-label">Fecha</label>
-                                <input type="date" id="fecha" required class="field-input">
-                            </div>
-                            <div class="field-group">
-                                <label class="field-label">Hora</label>
-                                <input type="time" id="hora" required class="field-input">
-                            </div>
+                <!-- 01. Fecha y Hora -->
+                <div class="form-section">
+                    <div class="section-tag">01 • Fecha y Hora</div>
+                    <div class="form-grid-2">
+                        <div class="field-box">
+                            <label class="field-label">Fecha del Servicio</label>
+                            <input type="date" id="fecha" required class="field-input">
+                        </div>
+                        <div class="field-box">
+                            <label class="field-label">Hora del Servicio</label>
+                            <input type="time" id="hora" required class="field-input">
                         </div>
                     </div>
+                </div>
 
-                    <div class="form-section">
-                        <div class="form-section-title">02 — Datos del Vehículo</div>
-                        <div class="form-row cols-2">
-                            <div class="field-group">
-                                <label class="field-label">Placa</label>
-                                <input type="text" id="placa" required placeholder="AAA-000" maxlength="7"
-                                    class="field-input plate-input" autocomplete="off" spellcheck="false">
-                                <div id="plate-alert" class="plate-alert">
-                                    <i class="fa-solid fa-triangle-exclamation"></i>
-                                    <span id="plate-alert-text"></span>
-                                </div>
+                <!-- 02. Vehículo -->
+                <div class="form-section">
+                    <div class="section-tag">02 • Vehículo</div>
+                    <div class="form-grid-2">
+                        <div class="field-box">
+                            <label class="field-label">Placa del Vehículo</label>
+                            <input type="text" id="placa" required placeholder="AAA-000" maxlength="7"
+                                class="field-input plate-badge" autocomplete="off">
+                            <div id="plate-alert" class="plate-alert">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                <span id="plate-alert-text"></span>
                             </div>
-                            <div class="field-group">
-                                <label class="field-label">Tipo de Vehículo</label>
-                                <select id="tipo" required class="field-input">
-                                    <option value="">Seleccionar...</option>
-                                    <option value="Motocicleta">🏍 Motocicleta</option>
-                                    <option value="Automóvil">🚗 Automóvil</option>
-                                    <option value="Camioneta">🚙 Camioneta</option>
-                                    <option value="Camión">🚛 Camión</option>
-                                    <option value="Maquinaria">🚧 Maquinaria</option>
-                                </select>
-                            </div>
+                        </div>
+                        <div class="field-box">
+                            <label class="field-label">Tipo de Vehículo</label>
+                            <select id="tipo" required class="field-input">
+                                <option value="Camioneta">🚙 Camioneta</option>
+                                <option value="Automóvil">🚗 Automóvil</option>
+                                <option value="Buseta / Microbús">🚐 Buseta / Microbús</option>
+                                <option value="Camión">🚛 Camión</option>
+                                <option value="Motocicleta">🏍 Motocicleta</option>
+                                <option value="Maquinaria">🚧 Maquinaria</option>
+                            </select>
                         </div>
                     </div>
+                </div>
 
-                    <div class="form-section">
-                        <div class="form-section-title">03 — Servicio y Cliente</div>
-                        <div class="form-row" style="margin-bottom:12px;">
-                            <div class="field-group">
-                                <label class="field-label">Valor del Servicio</label>
-                                <div class="value-input-wrap">
-                                    <span class="value-prefix">$</span>
-                                    <input type="number" id="valor" required placeholder="0" min="0" step="100"
-                                        class="field-input">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="form-row cols-2">
-                            <div class="field-group">
-                                <label class="field-label">Empresa <span
-                                        style="color:var(--text-muted);font-weight:400;">(opcional)</span></label>
-                                <input type="text" id="empresa" placeholder="N/A" class="field-input">
-                            </div>
-                            <div class="field-group">
-                                <label class="field-label">Nombre Conductor</label>
-                                <input type="text" id="conductor" required placeholder="Nombre completo"
-                                    class="field-input">
-                            </div>
+                <!-- 03. Liquidación y Conductor -->
+                <div class="form-section">
+                    <div class="section-tag">03 • Liquidación y Conductor</div>
+                    <div class="field-box" style="margin-bottom: 12px;">
+                        <label class="field-label">Valor del Servicio ($ COP)</label>
+                        <div class="value-wrapper">
+                            <span>$</span>
+                            <input type="number" id="valor" required placeholder="0" min="0" step="100" class="field-input" value="25000">
                         </div>
                     </div>
-
-                    <div class="form-section" style="margin-bottom:24px;">
-                        <div class="sig-header">
-                            <div class="form-section-title" style="margin-bottom:0;border:none;padding:0;">04 — Firma
-                                del Conductor <span style="color:var(--accent-red);">*</span></div>
-                            <button type="button" class="btn-clear-sig" id="btn-clear-sig">
-                                <i class="fa-solid fa-eraser" style="margin-right:4px;"></i>Limpiar
-                            </button>
+                    <div class="form-grid-2">
+                        <div class="field-box">
+                            <label class="field-label">Empresa / Contratista</label>
+                            <input type="text" id="empresa" placeholder="Ej. Cooperativa A&B" class="field-input">
                         </div>
-                        <div style="margin-top:10px;" class="sig-canvas-wrap" id="sig-wrap">
-                            <canvas id="signature-pad"></canvas>
+                        <div class="field-box">
+                            <label class="field-label">Nombre del Conductor</label>
+                            <input type="text" id="conductor" required placeholder="Nombre completo" class="field-input">
                         </div>
-                        <p class="sig-hint">FIRME CON SU DEDO O LÁPIZ TÁCTIL DENTRO DEL RECUADRO</p>
                     </div>
+                </div>
 
-                    <button type="submit" id="btn-submit" class="btn-submit">
-                        <i class="fa-solid fa-cloud-arrow-up" style="margin-right:8px;"></i>
-                        GUARDAR REGISTRO
-                    </button>
+                <!-- 04. Firma Digital -->
+                <div class="form-section">
+                    <div class="sig-tools">
+                        <div class="section-tag" style="margin-bottom:0;">04 • Firma del Conductor *</div>
+                        <button type="button" class="btn-clear-sig" id="btn-clear-sig">
+                            <i class="fa-solid fa-eraser"></i> Borrar
+                        </button>
+                    </div>
+                    <div class="sig-container" id="sig-wrap">
+                        <canvas id="signature-pad"></canvas>
+                    </div>
+                </div>
 
-                </form>
-            </div>
+                <!-- Botón de Guardado -->
+                <button type="submit" id="btn-submit" class="btn-apple-submit">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    <span>Guardar Registro en ERP</span>
+                </button>
+
+            </form>
         </div>
     </main>
 
     <!-- ═══════════════════════════════════════════ -->
-    <!-- VISTA ADMIN -->
+    <!-- VISTA ADMIN / HISTORIAL (APPLE LIGHT) -->
     <!-- ═══════════════════════════════════════════ -->
     <main id="view-admin" style="display:none;">
+        <div class="view-header">
+            <div class="view-badge">
+                <i class="fa-solid fa-chart-pie" style="color:#059669;"></i>
+                CONSOLIDADO & AUDITORÍA
+            </div>
+            <h1 class="view-title">Historial de Lavados</h1>
+            <p class="view-desc">Consulta los registros del mes, estados de aprobación y exportación oficial.</p>
+        </div>
 
-        <!-- KPI CARDS -->
+        <!-- KPIs -->
         <div class="kpi-grid">
-            <div class="kpi-card gold">
-                <div class="kpi-label">Total Lavados</div>
-                <div class="kpi-value" id="stat-count">—</div>
-                <div class="kpi-sub">en el mes seleccionado</div>
-                <div class="kpi-icon"><i class="fa-solid fa-car-side"></i></div>
+            <div class="kpi-box">
+                <div class="kpi-title">Total Lavados</div>
+                <div class="kpi-number" id="stat-count">0</div>
             </div>
-            <div class="kpi-card green" style="grid-column: span 2;">
-                <div class="kpi-label">Valor Total Recaudado</div>
-                <div class="kpi-value" id="stat-total">$ —</div>
-                <div class="kpi-sub">ingresos brutos del período</div>
-                <div class="kpi-icon"><i class="fa-solid fa-sack-dollar"></i></div>
+            <div class="kpi-box">
+                <div class="kpi-title">Valor Recaudado</div>
+                <div class="kpi-number" id="stat-total" style="color:#059669;">$ 0</div>
             </div>
-            <div class="kpi-card amber">
-                <div class="kpi-label">Promedio por Lavado</div>
-                <div class="kpi-value" id="stat-avg">—</div>
-                <div class="kpi-sub">valor promedio</div>
-                <div class="kpi-icon"><i class="fa-solid fa-chart-simple"></i></div>
+            <div class="kpi-box">
+                <div class="kpi-title">Promedio / Lavado</div>
+                <div class="kpi-number" id="stat-avg">$ 0</div>
             </div>
         </div>
 
-        <!-- TOOLBAR -->
-        <div class="admin-toolbar">
-            <div class="toolbar-title">CONSOLIDADO MENSUAL</div>
-            <div class="toolbar-actions">
-                <input type="month" id="filtro-mes" class="month-input">
-
-                <!-- BOTÓN TEMA (LIGHT/DARK) -->
-                <button onclick="toggleTheme()" class="btn-theme" title="Cambiar Tema de Color">
-                    <i class="fa-solid fa-moon" id="theme-icon"></i>
+        <!-- Barra de Acciones -->
+        <div class="admin-bar">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <label style="font-size:0.75rem; font-weight:700; color:var(--text-muted);">PERÍODO:</label>
+                <input type="month" id="filtro-mes" class="field-input" style="padding:6px 10px; width:auto; border-radius:12px; font-family:var(--font-mono);">
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button onclick="generarPDF()" class="btn-action-pill" style="color:#0284C7;">
+                    <i class="fa-solid fa-file-pdf"></i> Planilla PDF
                 </button>
-
-                <button onclick="generarPDF()" class="btn-export">
-                    <i class="fa-solid fa-file-pdf"></i> PDF
-                </button>
-                <button onclick="generarExcel()" class="btn-export btn-export-xlsx">
-                    <i class="fa-solid fa-file-excel"></i> XLSX
+                <button onclick="generarExcel()" class="btn-action-pill" style="color:#059669;">
+                    <i class="fa-solid fa-file-excel"></i> Excel (CSV)
                 </button>
             </div>
         </div>
 
-        <!-- TABLE -->
-        <div class="table-container">
-            <div class="table-wrap">
+        <!-- Tabla -->
+        <div class="table-card">
+            <div style="overflow-x:auto;">
                 <table>
                     <thead>
                         <tr>
                             <th>Fecha / Hora</th>
                             <th>Placa</th>
-                            <th>Empresa / Conductor</th>
+                            <th>Conductor / Empresa</th>
                             <th style="text-align:right;">Valor</th>
                             <th style="text-align:center;">Firma</th>
-                            <th style="text-align:center;">Estado / Acciones</th>
+                            <th style="text-align:center;">Estado</th>
                         </tr>
                     </thead>
                     <tbody id="tabla-registros">
-                        <!-- skeleton -->
-                        <tr class="skeleton-row">
-                            <td>
-                                <div class="skel" style="width:80px;"></div>
-                            </td>
-                            <td>
-                                <div class="skel" style="width:70px;"></div>
-                            </td>
-                            <td>
-                                <div class="skel" style="width:120px;"></div>
-                            </td>
-                            <td>
-                                <div class="skel" style="width:60px;margin-left:auto;"></div>
-                            </td>
-                            <td>
-                                <div class="skel" style="width:70px;margin:0 auto;"></div>
-                            </td>
-                            <td>
-                                <div class="skel" style="width:90px;margin:0 auto;"></div>
-                            </td>
-                        </tr>
-                        <tr class="skeleton-row">
-                            <td>
-                                <div class="skel" style="width:80px;"></div>
-                            </td>
-                            <td>
-                                <div class="skel" style="width:70px;"></div>
-                            </td>
-                            <td>
-                                <div class="skel" style="width:140px;"></div>
-                            </td>
-                            <td>
-                                <div class="skel" style="width:60px;margin-left:auto;"></div>
-                            </td>
-                            <td>
-                                <div class="skel" style="width:70px;margin:0 auto;"></div>
-                            </td>
-                            <td>
-                                <div class="skel" style="width:90px;margin:0 auto;"></div>
-                            </td>
-                        </tr>
-                        <tr class="skeleton-row">
-                            <td>
-                                <div class="skel" style="width:80px;"></div>
-                            </td>
-                            <td>
-                                <div class="skel" style="width:70px;"></div>
-                            </td>
-                            <td>
-                                <div class="skel" style="width:100px;"></div>
-                            </td>
-                            <td>
-                                <div class="skel" style="width:60px;margin-left:auto;"></div>
-                            </td>
-                            <td>
-                                <div class="skel" style="width:70px;margin:0 auto;"></div>
-                            </td>
-                            <td>
-                                <div class="skel" style="width:90px;margin:0 auto;"></div>
+                        <tr>
+                            <td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">
+                                Cargando registros del ERP...
                             </td>
                         </tr>
                     </tbody>
@@ -1456,65 +863,12 @@
         </div>
     </main>
 
-    <!-- ═══════════════════════════════════════════════ -->
-    <!-- PWA + SCRIPTS -->
-    <!-- ═══════════════════════════════════════════════ -->
+    <!-- SCRIPTS NATIVOS ERP (POSTGRESQL & RAILWAY) -->
     <script>
-        // ── MANIFEST DINÁMICO ──
-        const manifestData = {
-            name: "TRANS SERVICES A&B - Lavadero",
-            short_name: "Lavadero AB",
-            start_url: window.location.pathname,
-            display: "standalone",
-            background_color: "#0a0a0a",
-            theme_color: "#0f0f0f",
-            icons: [
-                { src: "logo.png", sizes: "192x192", type: "image/png" },
-                { src: "logo.png", sizes: "512x512", type: "image/png", purpose: "any maskable" }
-            ]
-        };
-        const mBlob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
-        document.getElementById('manifest-link').setAttribute('href', URL.createObjectURL(mBlob));
+        let allRecords = [];
+        window.currentFilteredRecords = [];
 
-        // ── THEME TOGGLE ──
-        function toggleTheme() {
-            const body = document.body;
-            const icon = document.getElementById('theme-icon');
-            if (body.classList.contains('theme-light')) {
-                body.classList.remove('theme-light');
-                icon.className = 'fa-solid fa-moon';
-                localStorage.setItem('ab_theme', 'dark');
-            } else {
-                body.classList.add('theme-light');
-                icon.className = 'fa-solid fa-sun';
-                localStorage.setItem('ab_theme', 'light');
-            }
-        }
-
-        if (localStorage.getItem('ab_theme') === 'light') {
-            document.body.classList.add('theme-light');
-            window.addEventListener('DOMContentLoaded', () => {
-                const icon = document.getElementById('theme-icon');
-                if (icon) icon.className = 'fa-solid fa-sun';
-            });
-        }
-
-        // ── SERVICE WORKER ──
-        const swCode = `
-            const CACHE='ab-v2';
-            self.addEventListener('install', e => self.skipWaiting());
-            self.addEventListener('activate', e => e.waitUntil(clients.claim()));
-            self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(()=>caches.match(e.request))));
-        `;
-        if ('serviceWorker' in navigator) {
-            const swBlob = new Blob([swCode], { type: 'application/javascript' });
-            navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(() => { });
-        }
-
-        // ── OFFLINE DETECTOR ──
-        const offlineBanner = document.getElementById('offline-banner');
-        window.addEventListener('offline', () => { offlineBanner.classList.add('show'); showToast('Sin conexión — modo offline activo', 'warning'); });
-        window.addEventListener('online', () => { offlineBanner.classList.remove('show'); showToast('Conexión restaurada — sincronizando...', 'success'); });
+        const escapeHTML = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
         // ── TOAST SYSTEM ──
         window.showToast = function (msg, type = 'info', duration = 3500) {
@@ -1522,13 +876,20 @@
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
-            toast.innerHTML = `<i class="fa-solid ${icons[type]} toast-icon"></i><span class="toast-msg">${msg}</span>`;
+            toast.innerHTML = `<i class="fa-solid ${icons[type] || 'fa-info'}"></i><span>${msg}</span>`;
             container.appendChild(toast);
-            setTimeout(() => { toast.style.animation = 'slideIn 0.3s ease reverse'; setTimeout(() => toast.remove(), 280); }, duration);
-            if (container.children.length > 3) container.firstChild.remove();
+            setTimeout(() => { toast.remove(); }, duration);
         };
 
-        // ── SWITCH TAB ──
+        // ── STATUS BAR ──
+        function setStatus(online, msg) {
+            const statusText = document.getElementById('status-text');
+            const statusBar = document.getElementById('status-bar');
+            if (statusText) statusText.textContent = msg;
+            if (statusBar) statusBar.className = 'status-bar' + (online ? '' : ' offline');
+        }
+
+        // ── TABS ──
         window.switchTab = function (tab) {
             const vReg = document.getElementById('view-registro');
             const vAdm = document.getElementById('view-admin');
@@ -1536,44 +897,20 @@
             const bAdm = document.getElementById('btn-tab-admin');
 
             if (tab === 'registro') {
-                vReg.style.display = 'block'; vAdm.style.display = 'none';
-                bReg.classList.add('active'); bAdm.classList.remove('active');
+                vReg.style.display = 'block';
+                vAdm.style.display = 'none';
+                bReg.classList.add('active');
+                bAdm.classList.remove('active');
             } else {
-                vReg.style.display = 'none'; vAdm.style.display = 'flex';
-                bAdm.classList.add('active'); bReg.classList.remove('active');
-                if (typeof renderTable === 'function') renderTable();
+                vReg.style.display = 'none';
+                vAdm.style.display = 'block';
+                bAdm.classList.add('active');
+                bReg.classList.remove('active');
+                loadRecordsFromERP();
             }
         };
 
-        // ── DEFAULTS ──
-        const now = new Date();
-        document.getElementById('fecha').value = now.toISOString().split('T')[0];
-        document.getElementById('hora').value = now.toTimeString().slice(0, 5);
-        const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        document.getElementById('filtro-mes').value = currentMonthStr;
-        document.getElementById('filtro-mes').addEventListener('change', () => { if (typeof renderTable === 'function') renderTable(); });
-
-        // ── PLATE UPPERCASE ──
-        document.getElementById('placa').addEventListener('input', function () { this.value = this.value.toUpperCase(); });
-    </script>
-
-    <!-- MOTOR NATIVO ERP TRANSSERVICES (POSTGRESQL & RAILWAY) -->
-    <script>
-        let allRecords = [];
-        window.currentFilteredRecords = [];
-
-        const escapeHTML = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
-        // ── STATUS BAR ──
-        const statusBar = document.getElementById('status-bar');
-        const statusText = document.getElementById('status-text');
-
-        function setStatus(online, msg) {
-            if (statusText) statusText.textContent = msg;
-            if (statusBar) statusBar.className = 'status-bar' + (online ? '' : ' offline');
-        }
-
-        // ── CARGAR REGISTROS DESDE EL ERP ──
+        // ── CARGA DE REGISTROS ──
         async function loadRecordsFromERP() {
             const filtroMes = document.getElementById('filtro-mes')?.value || new Date().toISOString().slice(0, 7);
             try {
@@ -1584,22 +921,16 @@
                     const today = new Date().toISOString().split('T')[0];
                     const todayCount = allRecords.filter(r => r.fecha === today).length;
                     setStatus(true, `CONECTADO AL ERP — ${todayCount} LAVADO${todayCount !== 1 ? 'S' : ''} HOY`);
-                    if (document.getElementById('view-admin').style.display !== 'none') {
-                        renderTable();
-                    }
+                    renderTable();
                 } else {
                     setStatus(false, 'SINCRONIZANDO CON EL ERP...');
                 }
             } catch (err) {
-                console.warn('Modo offline / ERP remoto:', err);
                 setStatus(false, 'MODO LOCAL / OFFLINE ACTIVO');
             }
         }
 
-        // Inicializar carga
-        loadRecordsFromERP();
-
-        // ── SIGNATURE CANVAS ──
+        // ── SIGNATURE CANVAS APPLE ──
         const canvas = document.getElementById('signature-pad');
         const ctx = canvas ? canvas.getContext('2d') : null;
         const sigWrap = document.getElementById('sig-wrap');
@@ -1609,9 +940,9 @@
         function resizeCanvas() {
             if (!canvas || !canvas.parentElement) return;
             const rect = canvas.parentElement.getBoundingClientRect();
-            canvas.width = rect.width;
-            canvas.height = 120;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            canvas.width = rect.width - 16;
+            canvas.height = 130;
+            if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
 
         window.addEventListener('resize', resizeCanvas);
@@ -1658,7 +989,7 @@
             isBlank = true;
         });
 
-        // ── PLATE DUPLICATE CHECK ──
+        // ── AUTOCOMPLETADO Y VALIDACIÓN DE PLACA ──
         let plateDebounce;
         document.getElementById('placa')?.addEventListener('input', function () {
             const placa = this.value.toUpperCase().trim();
@@ -1670,7 +1001,7 @@
                 const dup = allRecords.find(r => r.placa === placa && r.fecha === today);
                 const alertText = document.getElementById('plate-alert-text');
                 if (dup) {
-                    if (alertText) alertText.textContent = `Ya registrada hoy a las ${dup.hora}`;
+                    if (alertText) alertText.textContent = `Registrada hoy a las ${dup.hora}`;
                     if (alert) alert.classList.add('show');
                     if (dup.empresa && dup.empresa !== 'N/A') document.getElementById('empresa').value = dup.empresa;
                 } else {
@@ -1681,14 +1012,14 @@
             }, 250);
         });
 
-        // ── GUARDAR REGISTRO DIRECTO EN EL ERP ──
+        // ── GUARDAR EN ERP ──
         document.getElementById('lavado-form')?.addEventListener('submit', async e => {
             e.preventDefault();
-            if (isBlank) { showToast('El conductor o lavador debe firmar antes de guardar', 'warning'); return; }
+            if (isBlank) { showToast('El conductor debe firmar antes de guardar', 'warning'); return; }
 
             const btn = document.getElementById('btn-submit');
             btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="margin-right:8px;"></i>GUARDANDO EN ERP...';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Guardando en ERP...</span>';
 
             try {
                 const firmaDataUrl = canvas.toDataURL('image/png');
@@ -1718,10 +1049,10 @@
 
                 const data = await res.json();
                 if (!res.ok || !data.success) {
-                    throw new Error(data.error || 'No se pudo guardar en el servidor ERP');
+                    throw new Error(data.error || 'No se pudo guardar en el ERP');
                 }
 
-                showToast('✓ Registro guardado exitosamente en el ERP', 'success');
+                showToast('✓ Guardado exitosamente en el ERP', 'success');
                 document.getElementById('lavado-form').reset();
                 if (ctx && canvas) ctx.clearRect(0, 0, canvas.width, canvas.height);
                 isBlank = true;
@@ -1730,15 +1061,13 @@
                 document.getElementById('hora').value = n.toTimeString().slice(0, 5);
                 document.getElementById('plate-alert')?.classList.remove('show');
 
-                // Recargar registros actualizados
                 loadRecordsFromERP();
 
             } catch (err) {
-                console.error('Error al guardar:', err);
                 showToast('Error al guardar: ' + err.message, 'error');
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up" style="margin-right:8px;"></i>GUARDAR REGISTRO';
+                btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i><span>Guardar Registro en ERP</span>';
             }
         });
 
@@ -1753,7 +1082,7 @@
             window.currentFilteredRecords = filtered;
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon"><i class="fa-solid fa-car-burst"></i></div><div class="empty-text">SIN REGISTROS EN ${filtroMes}</div></div></td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);"><i class="fa-solid fa-inbox" style="font-size:24px; margin-bottom:8px; display:block;"></i>Sin registros en ${filtroMes}</td></tr>`;
                 document.getElementById('stat-count').textContent = '0';
                 document.getElementById('stat-total').textContent = '$ 0';
                 document.getElementById('stat-avg').textContent = '$ 0';
@@ -1769,100 +1098,36 @@
             tbody.innerHTML = filtered.map(r => `
                 <tr>
                     <td>
-                        <div class="td-date">${escapeHTML(r.fecha)}</div>
-                        <div class="td-time">${escapeHTML(r.hora)}</div>
+                        <div style="font-weight:700;">${escapeHTML(r.fecha)}</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted); font-family:var(--font-mono);">${escapeHTML(r.hora)}</div>
                     </td>
                     <td>
-                        <div class="td-plate">${escapeHTML(r.placa)}</div>
-                        <div class="td-vehicle-type">${escapeHTML(r.tipoVehiculo || r.tipo_vehiculo)}</div>
+                        <span style="display:inline-block; padding:3px 8px; border-radius:6px; background:#FFFBEB; border:1px solid #FDE68A; font-family:var(--font-mono); font-weight:700; color:#92400E;">${escapeHTML(r.placa)}</span>
+                        <div style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;">${escapeHTML(r.tipoVehiculo || r.tipo_vehiculo)}</div>
                     </td>
                     <td>
-                        <div class="td-name">${escapeHTML(r.conductorNombre || r.conductor)}</div>
-                        <div class="td-company">${escapeHTML(r.empresa)}</div>
+                        <div style="font-weight:600;">${escapeHTML(r.conductorNombre || r.conductor)}</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">${escapeHTML(r.empresa)}</div>
                     </td>
-                    <td class="td-value">${formatCurrency(r.valor)}</td>
+                    <td style="text-align:right; font-family:var(--font-mono); font-weight:700; color:#059669;">${formatCurrency(r.valor)}</td>
                     <td style="text-align:center;">
                         ${(r.firmaUrl || r.firma_img)
-                    ? `<img src="${r.firmaUrl || r.firma_img}" alt="Firma" class="sig-thumb">`
-                    : `<span class="no-sig">SIN FIRMA</span>`}
+                            ? `<img src="${r.firmaUrl || r.firma_img}" alt="Firma" class="sig-thumb">`
+                            : `<span style="font-size:0.7rem; color:var(--text-muted);">Sin firma</span>`}
                     </td>
-                    <td>
-                        <div class="status-group">
-                            <button onclick="cambiarEstado('${escapeHTML(r.id)}','estadoReviso',${!r.estadoReviso})"
-                                class="status-badge ${r.estadoReviso ? 'badge-revisado-on' : 'badge-revisado-off'}">
-                                <i class="fa-solid ${r.estadoReviso ? 'fa-check' : 'fa-eye'}"></i>
-                                ${r.estadoReviso ? 'REVISADO' : 'REVISAR'}
-                            </button>
-                            <button onclick="cambiarEstado('${escapeHTML(r.id)}','estadoAprobo',${!r.estadoAprobo})"
-                                class="status-badge ${r.estadoAprobo ? 'badge-aprobado-on' : 'badge-aprobado-off'}">
-                                <i class="fa-solid ${r.estadoAprobo ? 'fa-check-double' : 'fa-stamp'}"></i>
-                                ${r.estadoAprobo ? 'APROBADO' : 'APROBAR'}
-                            </button>
-                            <button onclick="confirmarEliminacion('${escapeHTML(r.id)}','${escapeHTML(r.placa)}')" class="status-badge badge-eliminar" title="Eliminar Registro">
-                                <i class="fa-solid fa-trash-can"></i> ELIMINAR
-                            </button>
-                        </div>
+                    <td style="text-align:center;">
+                        <span class="badge-status ${r.estadoAprobo ? 'badge-on' : 'badge-off'}">
+                            ${r.estadoAprobo ? '<i class="fa-solid fa-check"></i> Aprobado' : '<i class="fa-solid fa-clock"></i> Pendiente'}
+                        </span>
                     </td>
                 </tr>
             `).join('');
         };
 
-        // ── ESTADOS Y ELIMINACIÓN EN EL ERP ──
-        window.cambiarEstado = async (id, campo, valor) => {
-            try {
-                const res = await fetch('/api/apps/lavado', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id, [campo]: valor })
-                });
-                if (res.ok) {
-                    allRecords = allRecords.map(r => r.id === id ? { ...r, [campo]: valor } : r);
-                    renderTable();
-                    showToast(valor ? 'Estado actualizado' : 'Estado revertido', 'info');
-                }
-            } catch (err) {
-                showToast('Error al actualizar estado en el ERP', 'error');
-            }
-        };
-
-        let deleteIdPending = null;
-        window.confirmarEliminacion = function (id, placa) {
-            deleteIdPending = id;
-            document.getElementById('confirm-modal-text').innerHTML = `¿Estás seguro de que deseas eliminar el registro de la placa <b>${escapeHTML(placa)}</b> del ERP?`;
-            document.getElementById('confirm-modal').style.display = 'flex';
-        };
-
-        window.closeConfirmModal = function () {
-            deleteIdPending = null;
-            document.getElementById('confirm-modal').style.display = 'none';
-        };
-
-        window.ejecutarEliminacion = async function () {
-            if (!deleteIdPending) return;
-            try {
-                const res = await fetch(`/api/apps/lavado?id=${deleteIdPending}`, {
-                    method: 'DELETE'
-                });
-                if (res.ok) {
-                    allRecords = allRecords.filter(r => r.id !== deleteIdPending);
-                    renderTable();
-                    showToast('Registro eliminado exitosamente del ERP', 'success');
-                }
-            } catch (err) {
-                showToast('Error al eliminar: ' + err.message, 'error');
-            } finally {
-                closeConfirmModal();
-            }
-        };
-
-        // ── PDF CLÁSICO / FORMATO FÍSICO ──
+        // ── EXPORTAR PDF ──
         window.generarPDF = async function () {
             if (!window.currentFilteredRecords?.length) { showToast('No hay registros para exportar', 'warning'); return; }
-
-            const btnExport = document.querySelector('.btn-export');
-            const originalBtnContent = btnExport.innerHTML;
-            btnExport.disabled = true;
-            btnExport.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="margin-right:5px;"></i> GENERANDO PDF...';
+            showToast('Generando Planilla Oficial PDF...', 'info');
 
             try {
                 const { jsPDF } = window.jspdf;
@@ -1879,42 +1144,23 @@
                             reader.readAsDataURL(blob);
                         });
                     }
-                } catch (e) {
-                    console.warn("Logo fallback para PDF");
-                }
+                } catch (e) { }
 
-                const startX = 40;
-                const startY = 40;
-                const width = doc.internal.pageSize.width - 80;
-                const height = 70;
-                const col1W = 160;
-                const col3W = 120;
-                const col2W = width - col1W - col3W;
-
-                const fechaHoraGeneracion = new Date().toLocaleString('es-CO', {
-                    day: '2-digit', month: '2-digit', year: 'numeric'
-                }).split(',')[0];
+                const startX = 40, startY = 40, width = doc.internal.pageSize.width - 80, height = 70;
+                const col1W = 160, col3W = 120, col2W = width - col1W - col3W;
+                const fechaGen = new Date().toLocaleDateString('es-CO');
 
                 let totalMes = 0;
                 const tableBody = window.currentFilteredRecords.map(r => {
                     totalMes += r.valor || 0;
                     return [
-                        r.fecha,
-                        r.hora,
-                        r.tipoVehiculo || r.tipo_vehiculo || 'Camioneta',
-                        r.placa,
+                        r.fecha, r.hora, r.tipoVehiculo || r.tipo_vehiculo || 'Camioneta', r.placa,
                         new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(r.valor),
-                        r.empresa || 'N/A',
-                        r.conductorNombre || r.conductor,
-                        ""
+                        r.empresa || 'N/A', r.conductorNombre || r.conductor, ""
                     ];
                 });
 
-                const rowsPerPage = 28;
-                const targetRows = Math.max(rowsPerPage, Math.ceil(tableBody.length / rowsPerPage) * rowsPerPage);
-                while (tableBody.length < targetRows) {
-                    tableBody.push(['', '', '', '', '', '', '', '']);
-                }
+                while (tableBody.length < 28) tableBody.push(['', '', '', '', '', '', '', '']);
 
                 doc.autoTable({
                     startY: startY + height + 10,
@@ -1922,21 +1168,11 @@
                     body: tableBody,
                     theme: 'grid',
                     margin: { top: startY + height + 10, bottom: 45, left: 40, right: 40 },
-                    styles: {
-                        font: 'helvetica', fontSize: 7.5, valign: 'middle', halign: 'center',
-                        lineColor: [0, 0, 0], lineWidth: 0.5, textColor: [0, 0, 0], minCellHeight: 14, cellPadding: 1.5
-                    },
-                    headStyles: {
-                        fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', lineWidth: 0.5, lineColor: [0, 0, 0]
-                    },
-                    columnStyles: {
-                        5: { cellWidth: 100 },
-                        6: { cellWidth: 100 },
-                        7: { cellWidth: 90 }
-                    },
+                    styles: { font: 'helvetica', fontSize: 7.5, valign: 'middle', halign: 'center', minCellHeight: 14 },
+                    headStyles: { fillColor: [245, 245, 245], textColor: [0, 0, 0], fontStyle: 'bold' },
+                    columnStyles: { 5: { cellWidth: 100 }, 6: { cellWidth: 100 }, 7: { cellWidth: 90 } },
                     didDrawPage: function (data) {
-                        doc.setDrawColor(0, 0, 0);
-                        doc.setLineWidth(1);
+                        doc.setDrawColor(0, 0, 0); doc.setLineWidth(1);
                         doc.rect(startX, startY, width, height);
                         doc.line(startX + col1W, startY, startX + col1W, startY + height);
                         doc.line(startX + col1W + col2W, startY, startX + col1W + col2W, startY + height);
@@ -1945,20 +1181,10 @@
                         if (logoBase64) {
                             try {
                                 const imgProps = doc.getImageProperties(logoBase64);
-                                const imgWidth = 45;
-                                const imgHeight = (imgProps.height * imgWidth) / imgProps.width;
-                                const imgX = startX + (col1W - imgWidth) / 2;
-                                const imgY = startY + 5;
-                                doc.addImage(logoBase64, imgProps.fileType, imgX, imgY, imgWidth, imgHeight);
-                            } catch (e) {
-                                doc.setFont("helvetica", "bold"); doc.setFontSize(24); doc.setTextColor(0, 0, 0);
-                                doc.text("AB", startX + col1W / 2, startY + 30, { align: 'center' });
-                            }
-                        } else {
-                            doc.setFont("helvetica", "bold"); doc.setFontSize(24); doc.setTextColor(0, 0, 0);
-                            doc.text("AB", startX + col1W / 2, startY + 30, { align: 'center' });
+                                doc.addImage(logoBase64, imgProps.fileType, startX + (col1W - 45) / 2, startY + 5, 45, (imgProps.height * 45) / imgProps.width);
+                            } catch (e) { }
                         }
-                        doc.setFont("helvetica", "bold"); doc.setFontSize(7); doc.setTextColor(0, 0, 0);
+                        doc.setFont("helvetica", "bold"); doc.setFontSize(7);
                         doc.text("TRANS SERVICES A & B", startX + col1W / 2, startY + height - 12, { align: 'center' });
                         doc.setFont("helvetica", "normal"); doc.setFontSize(6);
                         doc.text("NIT 900778421-1", startX + col1W / 2, startY + height - 4, { align: 'center' });
@@ -1970,56 +1196,39 @@
                         doc.setFont("helvetica", "normal"); doc.setFontSize(8);
                         doc.text("CODIGO: OP-FOR-04", startX + col1W + col2W + 5, startY + 15);
                         doc.text("VERSION: 01", startX + col1W + col2W + 5, startY + 30);
-                        doc.text(fechaHoraGeneracion, startX + col1W + col2W + 5, startY + 62);
+                        doc.text(fechaGen, startX + col1W + col2W + 5, startY + 62);
 
-                        doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(0, 0, 0);
-                        doc.text(`TOTAL RECAUDADO MENSUAL: ${new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(totalMes)}`, doc.internal.pageSize.width - 40, doc.internal.pageSize.height - 28, { align: 'right' });
-
-                        doc.setFont("helvetica", "italic"); doc.setFontSize(7); doc.setTextColor(100);
-                        doc.text(`Página ${data.pageNumber} de {totalPages}  |  TRANS SERVICES A&B`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 12, { align: 'center' });
-                        doc.setTextColor(0);
+                        doc.setFont("helvetica", "bold"); doc.setFontSize(9);
+                        doc.text(`TOTAL RECAUDADO: ${formatCurrency(totalMes)}`, doc.internal.pageSize.width - 40, doc.internal.pageSize.height - 25, { align: 'right' });
                     },
                     didDrawCell: function (data) {
-                        if (data.section === 'body' && data.column.index === 7) {
-                            const rowData = data.row.raw;
-                            if (rowData && rowData[0] !== '') {
-                                const record = window.currentFilteredRecords[data.row.index];
-                                const firmaSrc = record?.firmaUrl || record?.firma_img;
-                                if (firmaSrc) {
-                                    try {
-                                        const iw = 50, ih = 11;
-                                        doc.addImage(firmaSrc, 'PNG', data.cell.x + (data.cell.width - iw) / 2, data.cell.y + (data.cell.height - ih) / 2, iw, ih);
-                                    } catch (e) { }
-                                }
+                        if (data.section === 'body' && data.column.index === 7 && data.row.raw && data.row.raw[0] !== '') {
+                            const record = window.currentFilteredRecords[data.row.index];
+                            const firmaSrc = record?.firmaUrl || record?.firma_img;
+                            if (firmaSrc) {
+                                try {
+                                    doc.addImage(firmaSrc, 'PNG', data.cell.x + (data.cell.width - 50) / 2, data.cell.y + (data.cell.height - 11) / 2, 50, 11);
+                                } catch (e) { }
                             }
                         }
                     }
                 });
 
-                if (typeof doc.putTotalPages === 'function') doc.putTotalPages('{totalPages}');
-
                 const mesExport = document.getElementById('filtro-mes')?.value || 'consolidado';
                 doc.save(`Planilla_Control_Lavadas_${mesExport}.pdf`);
-                showToast('Planilla PDF exportada exitosamente', 'success');
-
+                showToast('Planilla PDF descargada', 'success');
             } catch (err) {
-                console.error("Error PDF:", err);
-                showToast("Error al generar PDF", "error");
-            } finally {
-                btnExport.disabled = false;
-                btnExport.innerHTML = originalBtnContent;
+                showToast("Error al exportar PDF", "error");
             }
         };
 
-        // ── EXCEL ──
+        // ── EXPORTAR EXCEL ──
         window.generarExcel = function () {
             if (!window.currentFilteredRecords?.length) { showToast('No hay registros para exportar', 'warning'); return; }
-            const headers = ['Fecha', 'Hora', 'Tipo Vehículo', 'Placa', 'Valor', 'Empresa', 'Conductor', 'Revisado', 'Aprobado'];
+            const headers = ['Fecha', 'Hora', 'Tipo Vehículo', 'Placa', 'Valor', 'Empresa', 'Conductor', 'Aprobado'];
             const rows = window.currentFilteredRecords.map(r => [
                 r.fecha, r.hora, r.tipoVehiculo || r.tipo_vehiculo || 'Camioneta', r.placa, r.valor,
-                r.empresa || 'N/A', r.conductorNombre || r.conductor,
-                r.estadoReviso ? 'SÍ' : 'NO',
-                r.estadoAprobo ? 'SÍ' : 'NO'
+                r.empresa || 'N/A', r.conductorNombre || r.conductor, r.estadoAprobo ? 'SÍ' : 'NO'
             ]);
             const csv = [headers, ...rows].map(row => row.map(c => `"${c}"`).join(',')).join('\n');
             const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -2027,9 +1236,17 @@
             const a = document.createElement('a'); a.href = url;
             a.download = `Lavadas_${document.getElementById('filtro-mes')?.value || 'mes'}.csv`;
             a.click(); URL.revokeObjectURL(url);
-            showToast('Archivo CSV exportado exitosamente', 'success');
+            showToast('Archivo CSV exportado', 'success');
         };
+
+        // Inicialización
+        const now = new Date();
+        document.getElementById('fecha').value = now.toISOString().split('T')[0];
+        document.getElementById('hora').value = now.toTimeString().slice(0, 5);
+        document.getElementById('filtro-mes').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        document.getElementById('filtro-mes').addEventListener('change', loadRecordsFromERP);
+        loadRecordsFromERP();
     </script>
 </body>
 
-</html>                      
+</html>
