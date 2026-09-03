@@ -57,35 +57,34 @@
       left: 0;
       right: 0;
       z-index: 999999;
-      background: #090e17;
-      border-bottom: 1px solid #1e293b;
-      padding: 8px 14px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid #E2E8F0;
+      padding: 10px 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-family: system-ui, -apple-system, sans-serif;
-      color: #f8fafc;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #0F172A;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     `;
 
     const nombre = session ? session.nombre : 'Conductor';
     const placa = session && session.placa ? session.placa : 'VEHÍCULO';
 
     bar.innerHTML = `
-      <div style="display:flex; align-items:center; gap:10px;">
-        <a href="/portal-conductor" style="display:inline-flex; align-items:center; gap:6px; background:#1e293b; color:#38bdf8; padding:6px 12px; border-radius:8px; font-size:12px; font-weight:700; text-decoration:none; border:1px solid #334155; transition:all 0.2s ease;">
-          <span style="font-size:14px;">←</span> <span>Portal Conductor</span>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <a href="/portal-conductor" style="display:inline-flex; align-items:center; gap:6px; background:#F1F5F9; color:#0F172A; padding:6px 12px; border-radius:10px; font-size:12px; font-weight:700; text-decoration:none; border:1px solid #E2E8F0; transition:all 0.15s ease;">
+          <span style="font-size:14px; color:#1E40AF; font-weight:bold;">←</span> <span>Portal</span>
         </a>
-        <div style="display:flex; align-items:center; gap:8px;">
-          <img src="/brand/logo.png" alt="Trans Services" style="height:24px; width:auto; border-radius:4px; object-fit:contain;" onerror="this.style.display='none'" />
-          <div style="display:flex; flex-direction:column;">
-            <span style="font-size:11px; font-weight:800; color:#f8fafc; line-height:1.1; letter-spacing:0.3px;">${nombre}</span>
-            <span style="font-size:9px; color:#94a3b8; font-family:monospace;">DOC: ${session ? session.documento : '—'}</span>
-          </div>
+        <div style="display:flex; flex-direction:column;">
+          <span style="font-size:13px; font-weight:700; color:#0F172A; line-height:1.2;">${nombre}</span>
+          <span style="font-size:10px; color:#64748B; font-family:ui-monospace, monospace;">C.C. ${session ? session.documento : '—'}</span>
         </div>
       </div>
-      <div style="display:flex; align-items:center; gap:6px;">
-        <span style="background:rgba(56, 189, 248, 0.12); color:#38bdf8; font-family:monospace; font-weight:800; font-size:11px; padding:4px 9px; border-radius:6px; letter-spacing:0.5px; border:1px solid rgba(56, 189, 248, 0.3);">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span style="background:#EFF6FF; color:#1E40AF; font-family:ui-monospace, monospace; font-weight:800; font-size:12px; padding:4px 10px; border-radius:8px; letter-spacing:0.5px; border:1px solid #BFDBFE;">
           ${placa}
         </span>
       </div>
