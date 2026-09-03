@@ -132,6 +132,15 @@ window.toggleEventDetails = function () {
 };
 
 // --- AUTOCOMPLETADO DE CONDUCTOR POR CÉDULA ---
+let cedulaSearchTimer = null;
+window.onCedulaInput = function (val) {
+    clearTimeout(cedulaSearchTimer);
+    if (!val || val.trim().length < 5) return;
+    cedulaSearchTimer = setTimeout(() => {
+        window.buscarConductorPorCedula(val);
+    }, 250);
+};
+
 window.buscarConductorPorCedula = async function (cedula) {
     if (!cedula || cedula.trim().length < 5) return;
     const status = $('cedulaSearchStatus');
@@ -140,9 +149,17 @@ window.buscarConductorPorCedula = async function (cedula) {
     try {
         const conductor = await getConductorByDocumento(cedula.trim());
         if (conductor) {
-            if ($('inpNombre')) $('inpNombre').value = `${conductor.nombres || ''} ${conductor.apellidos || ''}`.trim();
-            if ($('selCargo')) $('selCargo').value = 'CONDUCTOR';
-            showToast('Datos del conductor cargados automáticamente', 'info');
+            const nombreCompleto = conductor.nombreCompleto || `${conductor.nombres || ''} ${conductor.apellidos || ''}`.trim();
+            if ($('inpNombre') && nombreCompleto) $('inpNombre').value = nombreCompleto;
+            if ($('selCargo') && conductor.cargo) $('selCargo').value = conductor.cargo;
+            if ($('selProyecto') && conductor.proyecto) {
+                const p = (conductor.proyecto || '').toUpperCase();
+                if (p.includes('ICBF')) $('selProyecto').value = 'ICBF';
+                else if (p.includes('GT') || p.includes('TIERRA')) $('selProyecto').value = 'GT';
+                else if (p.includes('HOSPITAL')) $('selProyecto').value = 'HOSPITAL';
+                else $('selProyecto').value = 'OTRO';
+            }
+            showToast(`Conductor: ${nombreCompleto}`, 'info');
         }
     } catch (e) {
         console.warn('Búsqueda por cédula:', e);

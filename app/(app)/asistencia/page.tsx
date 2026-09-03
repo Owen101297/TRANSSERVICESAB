@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import Link from "next/link";
 import { 
   Calendar, 
   Filter, 
@@ -10,13 +9,13 @@ import {
   RefreshCw, 
   Search, 
   PenTool, 
-  Users, 
-  CheckCircle2, 
   FileText, 
   ExternalLink,
   ChevronLeft,
   ChevronRight,
-  Eye
+  Eye,
+  CheckCircle2,
+  Clock
 } from "lucide-react";
 import { Card, StatCard } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -41,11 +40,10 @@ interface AsistenciaItem {
 export default function AsistenciaAdminPage() {
   const [fecha, setFecha] = useState<string>(() => {
     const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
+    // Default to Colombia local date YYYY-MM-DD
+    return d.toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
   });
+
   const [proyecto, setProyecto] = useState<string>("TODOS");
   const [tipoEvento, setTipoEvento] = useState<string>("TODOS");
   const [registros, setRegistros] = useState<AsistenciaItem[]>([]);
@@ -54,6 +52,7 @@ export default function AsistenciaAdminPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [signatureModal, setSignatureModal] = useState<string | null>(null);
+  const [datesSummary, setDatesSummary] = useState<Record<string, { total: number; proyectos: string[] }>>({});
 
   // Metadatos sincronizados para el formato legal imprimible TH-FOR-03
   const [formatoMeta, setFormatoMeta] = useState({
@@ -68,6 +67,22 @@ export default function AsistenciaAdminPage() {
 
   const PAGE_SIZE = 20;
 
+  // Cargar resumen de fechas activas
+  const fetchDatesSummary = async () => {
+    try {
+      const res = await fetch("/api/apps/asistencia?datesSummary=true");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.datesSummary) {
+          setDatesSummary(json.datesSummary);
+        }
+      }
+    } catch (e) {
+      console.warn("Aviso fechas activas:", e);
+    }
+  };
+
+  // Cargar registros del día seleccionado
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -87,6 +102,10 @@ export default function AsistenciaAdminPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchDatesSummary();
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -109,8 +128,11 @@ export default function AsistenciaAdminPage() {
   const stats = useMemo(() => {
     const total = registros.length;
     const uniqueMap = new Set(registros.map((r) => r.personaDocumento || r.personaNombre));
-    const icbf = registros.filter((r) => (r.proyecto || "").toUpperCase() === "ICBF").length;
-    const gt = registros.filter((r) => (r.proyecto || "").toUpperCase() === "GT" || (r.proyecto || "").toUpperCase().includes("TIERRA")).length;
+    const icbf = registros.filter((r) => (r.proyecto || "").toUpperCase().includes("ICBF")).length;
+    const gt = registros.filter((r) => {
+      const p = (r.proyecto || "").toUpperCase();
+      return p.includes("GT") || p.includes("TIERRA");
+    }).length;
     const cond = registros.filter((r) => (r.cargo || "").toUpperCase().includes("CONDUCTOR")).length;
     return {
       total,
@@ -176,6 +198,13 @@ export default function AsistenciaAdminPage() {
     return pages;
   }, [registros]);
 
+  // Fechas activas ordenadas para píldoras de acceso rápido
+  const activeDatesList = useMemo(() => {
+    return Object.entries(datesSummary)
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .slice(0, 7);
+  }, [datesSummary]);
+
   return (
     <div className="space-y-6">
       {/* ============================================================ */}
@@ -191,7 +220,7 @@ export default function AsistenciaAdminPage() {
               Control Maestro de Asistencia (TH-FOR-03)
             </h1>
             <p className="mt-1 text-xs text-fog-400 font-medium">
-              Administración, consulta en tiempo real, actas oficiales y firmas digitales del SG-SST / PESV.
+              Gestión centralizada de asistencias, firmas digitales en alta definición y actas oficiales del SG-SST / PESV.
             </p>
           </div>
 
@@ -226,6 +255,41 @@ export default function AsistenciaAdminPage() {
           </div>
         </div>
 
+        {/* Barra de Fechas con Registros Activos (Píldoras Rápidas) */}
+        {activeDatesList.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            <span className="text-[11px] font-mono font-bold text-fog-400 uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5 text-radar-cyan" /> Días con Actividad:
+            </span>
+            <div className="flex items-center gap-1.5">
+              {activeDatesList.map(([dStr, info]) => {
+                const isSelected = fecha === dStr;
+                return (
+                  <button
+                    key={dStr}
+                    onClick={() => {
+                      setFecha(dStr);
+                      setCurrentPage(1);
+                    }}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all border ${
+                      isSelected
+                        ? "bg-radar-cyan text-asphalt-950 border-radar-cyan shadow-sm"
+                        : "bg-asphalt-900 text-mist-200 border-line-600 hover:border-line-500"
+                    }`}
+                  >
+                    <span>{dStr}</span>
+                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                      isSelected ? "bg-asphalt-950 text-radar-cyan" : "bg-asphalt-800 text-ok-green"
+                    }`}>
+                      {info.total}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Filtros y Selector de Vista */}
         <div className="flex flex-wrap items-center justify-between gap-3 bg-asphalt-900 border border-line-600 p-3 rounded-2xl">
           <div className="flex flex-wrap items-center gap-3">
@@ -235,9 +299,17 @@ export default function AsistenciaAdminPage() {
               <input
                 type="date"
                 value={fecha}
-                onChange={(e) => setFecha(e.target.value)}
+                onChange={(e) => {
+                  setFecha(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="bg-transparent text-xs font-mono text-paper-50 outline-none border-none cursor-pointer"
               />
+              {datesSummary[fecha] && (
+                <span className="px-1.5 py-0.5 bg-ok-green/20 text-ok-green border border-ok-green/40 text-[10px] font-mono font-black rounded-md">
+                  {datesSummary[fecha].total} reg
+                </span>
+              )}
             </div>
 
             {/* Filtro Proyecto */}
@@ -245,7 +317,10 @@ export default function AsistenciaAdminPage() {
               <Filter className="w-4 h-4 text-fog-400" />
               <select
                 value={proyecto}
-                onChange={(e) => setProyecto(e.target.value)}
+                onChange={(e) => {
+                  setProyecto(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="bg-transparent text-xs font-bold text-paper-50 outline-none border-none uppercase cursor-pointer"
               >
                 <option value="TODOS" className="bg-asphalt-900 text-paper-50">PROYECTO: TODOS</option>
@@ -261,7 +336,10 @@ export default function AsistenciaAdminPage() {
             <div className="flex items-center gap-2 bg-asphalt-950 border border-line-600 px-3 py-1.5 rounded-xl">
               <select
                 value={tipoEvento}
-                onChange={(e) => setTipoEvento(e.target.value)}
+                onChange={(e) => {
+                  setTipoEvento(e.target.value);
+                  setCurrentPage(1);
+                }}
                 className="bg-transparent text-xs font-bold text-paper-50 outline-none border-none uppercase cursor-pointer"
               >
                 <option value="TODOS" className="bg-asphalt-900 text-paper-50">ACTIVIDAD: TODAS</option>
@@ -275,7 +353,10 @@ export default function AsistenciaAdminPage() {
             </div>
 
             <button
-              onClick={fetchData}
+              onClick={() => {
+                fetchData();
+                fetchDatesSummary();
+              }}
               disabled={loading}
               className="px-3 py-1.5 bg-asphalt-800 hover:bg-asphalt-700 text-radar-cyan font-bold text-xs rounded-xl border border-line-500 transition-colors flex items-center gap-1.5"
             >
@@ -341,7 +422,7 @@ export default function AsistenciaAdminPage() {
             </div>
 
             <div className="text-xs font-mono text-fog-400">
-              Mostrando {paginatedRegistros.length} de {filteredRegistros.length} registros
+              Mostrando {paginatedRegistros.length} de {filteredRegistros.length} registros ({fecha})
             </div>
           </div>
 
@@ -370,7 +451,7 @@ export default function AsistenciaAdminPage() {
                           <span>Cargando datos desde Railway...</span>
                         </div>
                       ) : (
-                        "No se encontraron registros de asistencia para los filtros seleccionados."
+                        `No hay registros de asistencia para el ${fecha}. Selecciona otro día en el calendario o en la barra superior.`
                       )}
                     </td>
                   </tr>
@@ -380,8 +461,8 @@ export default function AsistenciaAdminPage() {
                     return (
                       <tr key={r.id || idx} className="hover:bg-asphalt-800/50 transition-colors">
                         <td className="px-4 py-3 text-center font-mono text-fog-400 text-[11px]">{rowNum}</td>
-                        <td className="px-4 py-3 font-medium text-paper-50">{r.personaNombre}</td>
-                        <td className="px-4 py-3 font-mono text-fog-400">{r.personaDocumento || "—"}</td>
+                        <td className="px-4 py-3 font-medium text-paper-50 uppercase">{r.personaNombre}</td>
+                        <td className="px-4 py-3 font-mono font-bold text-paper-50">{r.personaDocumento || "—"}</td>
                         <td className="px-4 py-3">
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-asphalt-950 border border-line-600 text-mist-200 uppercase">
                             {r.cargo || "CONDUCTOR"}
@@ -397,10 +478,10 @@ export default function AsistenciaAdminPage() {
                           {r.firmaUrl ? (
                             <button
                               onClick={() => setSignatureModal(r.firmaUrl!)}
-                              className="inline-flex items-center gap-1 px-2 py-1 bg-asphalt-950 border border-line-600 rounded text-[10px] font-mono text-radar-cyan hover:border-radar-cyan transition-colors"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-asphalt-950 border border-line-600 rounded-lg text-[11px] font-mono text-radar-cyan hover:border-radar-cyan transition-colors"
                               title="Ver firma digital"
                             >
-                              <Eye className="w-3 h-3" />
+                              <Eye className="w-3.5 h-3.5" />
                               <span>Firma</span>
                             </button>
                           ) : (
@@ -458,7 +539,7 @@ export default function AsistenciaAdminPage() {
               <h3 className="text-xs font-bold uppercase tracking-wider text-paper-50 font-mono">
                 Parámetros del Acta Imprimible (TH-FOR-03)
               </h3>
-              <span className="text-xs text-fog-400">Los datos modificados se reflejan en las hojas membretadas</span>
+              <span className="text-xs text-fog-400">Los datos modificados se sincronizan en las hojas oficiales</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
               <div>
@@ -475,7 +556,7 @@ export default function AsistenciaAdminPage() {
                 <input
                   type="text"
                   value={formatoMeta.facilitador}
-                  onChange={(e) => setFormatoMeta({ ...formatoMeta, tema: e.target.value })}
+                  onChange={(e) => setFormatoMeta({ ...formatoMeta, facilitador: e.target.value })}
                   className="w-full bg-asphalt-950 border border-line-600 rounded-lg px-3 py-1.5 text-paper-50 font-semibold"
                 />
               </div>
@@ -611,7 +692,7 @@ export default function AsistenciaAdminPage() {
                               <td className="border-r border-black px-2 uppercase font-bold text-[10px]">
                                 {r ? r.personaNombre : ""}
                               </td>
-                              <td className="border-r border-black px-1.5 text-center font-mono text-[10px]">
+                              <td className="border-r border-black px-1.5 text-center font-mono font-bold text-[10px]">
                                 {r ? r.personaDocumento || "—" : ""}
                               </td>
                               <td className="border-r border-black px-1 text-center uppercase text-[9px]">
