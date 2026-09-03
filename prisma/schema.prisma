@@ -554,3 +554,36 @@ model RolSistema {
   updatedAt           DateTime @updatedAt
 }
 
+// --------------------------------------------------------
+// MÓDULO CONTROL DE LAVADO DE FLOTA
+// --------------------------------------------------------
+
+model ControlLavado {
+  id                 String   @id @default(cuid())
+  fecha              String   // YYYY-MM-DD
+  hora               String   // HH:mm
+  placa              String
+  tipoVehiculo       String   @default("Camioneta") // Motocicleta, Automóvil, Camioneta, Camión, Maquinaria, etc.
+  valor              Float    @default(0)
+  empresa            String   @default("N/A")
+  conductorNombre    String
+  conductorDocumento String?
+  conductorId        String?
+  firmaUrl           String?  // Base64 o URL de firma digital
+  estadoElaboro      Boolean  @default(true)
+  estadoReviso       Boolean  @default(false)
+  estadoAprobo       Boolean  @default(false)
+  observaciones      String?
+  operarioUid        String?  @default("operativo")
+  timestamp          DateTime @default(now())
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([fecha])
+  @@index([placa])
+  @@index([conductorDocumento])
+  @@index([estadoAprobo])
+}
+
+

@@ -21,6 +21,7 @@ import {
   CheckSquare,
   Smartphone,
   Radio,
+  Droplets,
   PanelLeftClose,
   PanelLeftOpen,
   type LucideIcon,
@@ -45,6 +46,7 @@ const ICONS: Record<string, LucideIcon> = {
   graduation: GraduationCap,
   clipboard: ClipboardList,
   check: CheckSquare,
+  droplets: Droplets,
   smartphone: Smartphone,
 };
 

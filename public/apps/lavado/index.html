@@ -9,15 +9,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Lavadero AB">
-    <!-- Favicons -->
-    <link rel="icon" type="image/png" href="../../assets/favicon-96x96.png" sizes="96x96" />
-    <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg" />
-    <link rel="shortcut icon" href="../../assets/favicon.ico" />
-    <link rel="apple-touch-icon" sizes="180x180" href="../../assets/apple-touch-icon.png" />
-    <meta name="apple-mobile-web-app-title" content="TRANS SERVICES A&B" />
-    <link rel="manifest" href="../../assets/site.webmanifest" />
-    <link rel="apple-touch-icon" href="../../assets/logo.png">
-    <link rel="manifest" id="manifest-link">
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <link rel="apple-touch-icon" href="/logo.png" />
     <script src="../shared/auth-bridge.js"></script>
 
     <!-- Fuentes premium -->
@@ -1564,90 +1557,65 @@
         document.getElementById('placa').addEventListener('input', function () { this.value = this.value.toUpperCase(); });
     </script>
 
-    <!-- SUPABASE MODULAR -->
-    <script type="module">
-        const getSupabaseConfig = () => {
-            if (typeof import.meta !== 'undefined' && import.meta.env) {
-                const url = import.meta.env.VITE_SUPABASE_URL
-                const key = import.meta.env.VITE_SUPABASE_ANON_KEY
-                if (url && key) return { url, key }
-            }
-            return {
-                url: 'https://xftllyjjqvozjjmgwomg.supabase.co',
-                key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmdGxseWpqcXZvempqbWd3b21nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjExMTIsImV4cCI6MjA5Mzc5NzExMn0.UURzZOytfoYMrxzpohRams_GcJ3ETsEnNNOaSQqeuu8'
-            }
-        }
+    <!-- MOTOR NATIVO ERP TRANSSERVICES (POSTGRESQL & RAILWAY) -->
+    <script>
+        let allRecords = [];
+        window.currentFilteredRecords = [];
 
-        const { url: SUPABASE_URL, key: SUPABASE_KEY } = getSupabaseConfig()
-
-        const loadScript = (src) => new Promise((resolve) => {
-            if (document.querySelector(`script[src="${src}"]`)) return resolve()
-            const s = document.createElement('script')
-            s.src = src
-            s.onload = resolve
-            document.body.appendChild(s)
-        })
-
-        let supabase = null
-        let currentUser = null
-        let allRecords = []
-        window.currentFilteredRecords = []
-
-        const escapeHTML = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
-
-        async function restoreSession() {
-            try {
-                const { data: { session } } = await supabase.auth.getSession()
-                currentUser = session?.user || null
-            } catch (err) {
-                currentUser = null
-            }
-            supabase.auth.onAuthStateChange((_event, session) => {
-                currentUser = session?.user || null
-            })
-        }
-
-        async function initSupabase() {
-            await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+script')
-            const { createClient } = window.supabase
-            supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
-            await restoreSession()
-            setupRealtimeListener()
-            return supabase
-        }
+        const escapeHTML = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
         // ── STATUS BAR ──
-        const statusBar = document.getElementById('status-bar')
-        const statusText = document.getElementById('status-text')
+        const statusBar = document.getElementById('status-bar');
+        const statusText = document.getElementById('status-text');
 
         function setStatus(online, msg) {
-            statusText.textContent = msg
-            statusBar.className = 'status-bar' + (online ? '' : ' offline')
+            if (statusText) statusText.textContent = msg;
+            if (statusBar) statusBar.className = 'status-bar' + (online ? '' : ' offline');
         }
 
-        initSupabase().then(() => {
-            setStatus(true, 'CONECTADO — SUPABASE')
-        }).catch(err => {
-            setStatus(false, 'ERROR DE CONEXIÓN — REVISE SU RED')
-        })
+        // ── CARGAR REGISTROS DESDE EL ERP ──
+        async function loadRecordsFromERP() {
+            const filtroMes = document.getElementById('filtro-mes')?.value || new Date().toISOString().slice(0, 7);
+            try {
+                const res = await fetch(`/api/apps/lavado?mes=${filtroMes}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    allRecords = data.lavados || [];
+                    const today = new Date().toISOString().split('T')[0];
+                    const todayCount = allRecords.filter(r => r.fecha === today).length;
+                    setStatus(true, `CONECTADO AL ERP — ${todayCount} LAVADO${todayCount !== 1 ? 'S' : ''} HOY`);
+                    if (document.getElementById('view-admin').style.display !== 'none') {
+                        renderTable();
+                    }
+                } else {
+                    setStatus(false, 'SINCRONIZANDO CON EL ERP...');
+                }
+            } catch (err) {
+                console.warn('Modo offline / ERP remoto:', err);
+                setStatus(false, 'MODO LOCAL / OFFLINE ACTIVO');
+            }
+        }
+
+        // Inicializar carga
+        loadRecordsFromERP();
 
         // ── SIGNATURE CANVAS ──
         const canvas = document.getElementById('signature-pad');
-        const ctx = canvas.getContext('2d');
+        const ctx = canvas ? canvas.getContext('2d') : null;
         const sigWrap = document.getElementById('sig-wrap');
         let isDrawing = false;
         let isBlank = true;
 
         function resizeCanvas() {
+            if (!canvas || !canvas.parentElement) return;
             const rect = canvas.parentElement.getBoundingClientRect();
             canvas.width = rect.width;
             canvas.height = 120;
-            // IMPORTANTE: Ahora es transparente para soportar Modo Claro y Oscuro nativamente
             ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
 
         window.addEventListener('resize', resizeCanvas);
-        setTimeout(resizeCanvas, 120);
+        setTimeout(resizeCanvas, 150);
 
         function getPos(e) {
             const rect = canvas.getBoundingClientRect();
@@ -1655,144 +1623,132 @@
             return { x: src.clientX - rect.left, y: src.clientY - rect.top };
         }
 
-        canvas.addEventListener('mousedown', e => {
-            isDrawing = true;
-            sigWrap.classList.add('drawing');
-            const p = getPos(e);
-            ctx.beginPath(); ctx.moveTo(p.x, p.y);
-            ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 2.5; /* Trazo de firma en dorado */
-            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-        });
-        canvas.addEventListener('mousemove', e => {
-            if (!isDrawing) return;
-            const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); isBlank = false;
-        });
-        canvas.addEventListener('mouseup', () => { isDrawing = false; sigWrap.classList.remove('drawing'); });
-        canvas.addEventListener('mouseout', () => { isDrawing = false; sigWrap.classList.remove('drawing'); });
+        if (canvas) {
+            canvas.addEventListener('mousedown', e => {
+                isDrawing = true;
+                if (sigWrap) sigWrap.classList.add('drawing');
+                const p = getPos(e);
+                ctx.beginPath(); ctx.moveTo(p.x, p.y);
+                ctx.strokeStyle = '#0F172A'; ctx.lineWidth = 2.5;
+                ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            });
+            canvas.addEventListener('mousemove', e => {
+                if (!isDrawing) return;
+                const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); isBlank = false;
+            });
+            canvas.addEventListener('mouseup', () => { isDrawing = false; if (sigWrap) sigWrap.classList.remove('drawing'); });
+            canvas.addEventListener('mouseout', () => { isDrawing = false; if (sigWrap) sigWrap.classList.remove('drawing'); });
 
-        canvas.addEventListener('touchstart', e => {
-            e.preventDefault(); isDrawing = true; sigWrap.classList.add('drawing');
-            const p = getPos(e);
-            ctx.beginPath(); ctx.moveTo(p.x, p.y);
-            ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 2.5;
-            ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-        }, { passive: false });
-        canvas.addEventListener('touchmove', e => {
-            if (!isDrawing) return; e.preventDefault();
-            const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); isBlank = false;
-        }, { passive: false });
-        canvas.addEventListener('touchend', e => { e.preventDefault(); isDrawing = false; sigWrap.classList.remove('drawing'); }, { passive: false });
+            canvas.addEventListener('touchstart', e => {
+                e.preventDefault(); isDrawing = true; if (sigWrap) sigWrap.classList.add('drawing');
+                const p = getPos(e);
+                ctx.beginPath(); ctx.moveTo(p.x, p.y);
+                ctx.strokeStyle = '#0F172A'; ctx.lineWidth = 2.5;
+                ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            }, { passive: false });
+            canvas.addEventListener('touchmove', e => {
+                if (!isDrawing) return; e.preventDefault();
+                const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); isBlank = false;
+            }, { passive: false });
+            canvas.addEventListener('touchend', e => { e.preventDefault(); isDrawing = false; if (sigWrap) sigWrap.classList.remove('drawing'); }, { passive: false });
+        }
 
-        document.getElementById('btn-clear-sig').addEventListener('click', () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        document.getElementById('btn-clear-sig')?.addEventListener('click', () => {
+            if (ctx && canvas) ctx.clearRect(0, 0, canvas.width, canvas.height);
             isBlank = true;
         });
 
         // ── PLATE DUPLICATE CHECK ──
         let plateDebounce;
-        document.getElementById('placa').addEventListener('input', function () {
+        document.getElementById('placa')?.addEventListener('input', function () {
             const placa = this.value.toUpperCase().trim();
             clearTimeout(plateDebounce);
-            if (placa.length < 3) { document.getElementById('plate-alert').classList.remove('show'); return; }
+            const alert = document.getElementById('plate-alert');
+            if (placa.length < 3) { if (alert) alert.classList.remove('show'); return; }
             plateDebounce = setTimeout(() => {
                 const today = new Date().toISOString().split('T')[0];
                 const dup = allRecords.find(r => r.placa === placa && r.fecha === today);
-                const alert = document.getElementById('plate-alert');
                 const alertText = document.getElementById('plate-alert-text');
                 if (dup) {
-                    alertText.textContent = `Ya registrada hoy a las ${dup.hora}`;
-                    alert.classList.add('show');
+                    if (alertText) alertText.textContent = `Ya registrada hoy a las ${dup.hora}`;
+                    if (alert) alert.classList.add('show');
                     if (dup.empresa && dup.empresa !== 'N/A') document.getElementById('empresa').value = dup.empresa;
                 } else {
-                    alert.classList.remove('show');
+                    if (alert) alert.classList.remove('show');
                     const prev = allRecords.filter(r => r.placa === placa).sort((a, b) => b.fecha.localeCompare(a.fecha))[0];
                     if (prev && prev.empresa && prev.empresa !== 'N/A') document.getElementById('empresa').value = prev.empresa;
                 }
             }, 250);
         });
 
-        // ── GUARDAR REGISTRO ──
-        document.getElementById('lavado-form').addEventListener('submit', async e => {
+        // ── GUARDAR REGISTRO DIRECTO EN EL ERP ──
+        document.getElementById('lavado-form')?.addEventListener('submit', async e => {
             e.preventDefault();
-            if (!currentUser) { showToast('Debe iniciar sesión para registrar lavados', 'error'); return; }
-            if (isBlank) { showToast('El conductor debe firmar antes de guardar', 'warning'); return; }
+            if (isBlank) { showToast('El conductor o lavador debe firmar antes de guardar', 'warning'); return; }
 
             const btn = document.getElementById('btn-submit');
             btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="margin-right:8px;"></i>GUARDANDO...';
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="margin-right:8px;"></i>GUARDANDO EN ERP...';
 
             try {
                 const firmaDataUrl = canvas.toDataURL('image/png');
+                const session = (typeof window.TransServices !== 'undefined' && window.TransServices.getSession)
+                    ? window.TransServices.getSession()
+                    : null;
+
                 const registro = {
                     fecha: document.getElementById('fecha').value,
                     hora: document.getElementById('hora').value,
-                    placa: document.getElementById('placa').value,
-                    tipo_vehiculo: document.getElementById('tipo').value,
-                    valor: parseFloat(document.getElementById('valor').value),
+                    placa: document.getElementById('placa').value.toUpperCase().trim(),
+                    tipoVehiculo: document.getElementById('tipo').value,
+                    valor: parseFloat(document.getElementById('valor').value) || 0,
                     empresa: document.getElementById('empresa').value.trim() || 'N/A',
-                    conductor: document.getElementById('conductor').value.trim(),
-                    firma_img: firmaDataUrl,
-                    estado_elaboro: true,
-                    estado_reviso: false,
-                    estado_aprobo: false,
-                    timestamp: new Date().toISOString(),
-                    operario_uid: currentUser?.id || 'anonymous'
+                    conductorNombre: document.getElementById('conductor').value.trim(),
+                    conductorDocumento: session?.documento || null,
+                    conductorId: session?.id || null,
+                    firmaUrl: firmaDataUrl,
+                    operarioUid: session?.id || 'patio'
+                };
+
+                const res = await fetch('/api/apps/lavado', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(registro)
+                });
+
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                    throw new Error(data.error || 'No se pudo guardar en el servidor ERP');
                 }
 
-                const { error } = await supabase.from('flota.lavados').insert(registro)
-                if (error) throw error
-
-                showToast('Registro guardado exitosamente', 'success');
+                showToast('✓ Registro guardado exitosamente en el ERP', 'success');
                 document.getElementById('lavado-form').reset();
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (ctx && canvas) ctx.clearRect(0, 0, canvas.width, canvas.height);
                 isBlank = true;
                 const n = new Date();
                 document.getElementById('fecha').value = n.toISOString().split('T')[0];
                 document.getElementById('hora').value = n.toTimeString().slice(0, 5);
-                document.getElementById('plate-alert').classList.remove('show');
+                document.getElementById('plate-alert')?.classList.remove('show');
+
+                // Recargar registros actualizados
+                loadRecordsFromERP();
 
             } catch (err) {
-                if (err.code === 'permission-denied') {
-                    showToast('⛔ ACCESO DENEGADO: No tiene permisos para guardar.', 'error');
-                } else {
-                    showToast('Error al guardar: ' + err.message, 'error');
-                }
+                console.error('Error al guardar:', err);
+                showToast('Error al guardar: ' + err.message, 'error');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up" style="margin-right:8px;"></i>GUARDAR REGISTRO';
             }
         });
 
-        // ── REALTIME LISTENER ──
-        function setupRealtimeListener() {
-            if (!supabase) return
-
-            supabase
-                .channel('flota_lavados')
-                .on('postgres_changes', { event: '*', schema: 'flota', table: 'lavados' }, payload => {
-                    if (payload.eventType === 'INSERT') {
-                        allRecords = [{ id: payload.new.id, ...payload.new }, ...allRecords]
-                    } else if (payload.eventType === 'UPDATE') {
-                        allRecords = allRecords.map(r => r.id === payload.new.id ? { ...r, ...payload.new } : r)
-                    } else if (payload.eventType === 'DELETE') {
-                        allRecords = allRecords.filter(r => r.id !== payload.old.id)
-                    }
-                    if (document.getElementById('view-admin').style.display !== 'none') {
-                        renderTable()
-                    }
-                    const today = new Date().toISOString().split('T')[0]
-                    const todayCount = allRecords.filter(r => r.fecha === today).length
-                    setStatus(true, `EN LÍNEA — ${todayCount} LAVADO${todayCount !== 1 ? 'S' : ''} HOY`)
-                })
-                .subscribe()
-        }
-
         // ── RENDER TABLE ──
         const formatCurrency = v => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(v);
 
         window.renderTable = function () {
             const tbody = document.getElementById('tabla-registros');
-            const filtroMes = document.getElementById('filtro-mes').value;
+            if (!tbody) return;
+            const filtroMes = document.getElementById('filtro-mes')?.value || '';
             const filtered = allRecords.filter(r => r.fecha && r.fecha.startsWith(filtroMes));
             window.currentFilteredRecords = filtered;
 
@@ -1818,31 +1774,30 @@
                     </td>
                     <td>
                         <div class="td-plate">${escapeHTML(r.placa)}</div>
-                        <div class="td-vehicle-type">${escapeHTML(r.tipo_vehiculo)}</div>
+                        <div class="td-vehicle-type">${escapeHTML(r.tipoVehiculo || r.tipo_vehiculo)}</div>
                     </td>
                     <td>
-                        <div class="td-name">${escapeHTML(r.conductor)}</div>
+                        <div class="td-name">${escapeHTML(r.conductorNombre || r.conductor)}</div>
                         <div class="td-company">${escapeHTML(r.empresa)}</div>
                     </td>
                     <td class="td-value">${formatCurrency(r.valor)}</td>
                     <td style="text-align:center;">
-                        ${r.firma_img
-                    ? `<img src="${r.firma_img}" alt="Firma" class="sig-thumb">`
+                        ${(r.firmaUrl || r.firma_img)
+                    ? `<img src="${r.firmaUrl || r.firma_img}" alt="Firma" class="sig-thumb">`
                     : `<span class="no-sig">SIN FIRMA</span>`}
                     </td>
                     <td>
                         <div class="status-group">
-                            <button onclick="cambiarEstado('${escapeHTML(r.id)}','estado_reviso',${!r.estado_reviso})"
-                                class="status-badge ${r.estado_reviso ? 'badge-revisado-on' : 'badge-revisado-off'}">
-                                <i class="fa-solid ${r.estado_reviso ? 'fa-check' : 'fa-eye'}"></i>
-                                ${r.estado_reviso ? 'REVISADO' : 'REVISAR'}
+                            <button onclick="cambiarEstado('${escapeHTML(r.id)}','estadoReviso',${!r.estadoReviso})"
+                                class="status-badge ${r.estadoReviso ? 'badge-revisado-on' : 'badge-revisado-off'}">
+                                <i class="fa-solid ${r.estadoReviso ? 'fa-check' : 'fa-eye'}"></i>
+                                ${r.estadoReviso ? 'REVISADO' : 'REVISAR'}
                             </button>
-                            <button onclick="cambiarEstado('${escapeHTML(r.id)}','estado_aprobo',${!r.estado_aprobo})"
-                                class="status-badge ${r.estado_aprobo ? 'badge-aprobado-on' : 'badge-aprobado-off'}">
-                                <i class="fa-solid ${r.estado_aprobo ? 'fa-check-double' : 'fa-stamp'}"></i>
-                                ${r.estado_aprobo ? 'APROBADO' : 'APROBAR'}
+                            <button onclick="cambiarEstado('${escapeHTML(r.id)}','estadoAprobo',${!r.estadoAprobo})"
+                                class="status-badge ${r.estadoAprobo ? 'badge-aprobado-on' : 'badge-aprobado-off'}">
+                                <i class="fa-solid ${r.estadoAprobo ? 'fa-check-double' : 'fa-stamp'}"></i>
+                                ${r.estadoAprobo ? 'APROBADO' : 'APROBAR'}
                             </button>
-                            <!-- NUEVO BOTÓN ELIMINAR -->
                             <button onclick="confirmarEliminacion('${escapeHTML(r.id)}','${escapeHTML(r.placa)}')" class="status-badge badge-eliminar" title="Eliminar Registro">
                                 <i class="fa-solid fa-trash-can"></i> ELIMINAR
                             </button>
@@ -1852,27 +1807,28 @@
             `).join('');
         };
 
-        // ── ESTADOS Y ELIMINACIÓN ──
+        // ── ESTADOS Y ELIMINACIÓN EN EL ERP ──
         window.cambiarEstado = async (id, campo, valor) => {
-            if (!supabase) return
             try {
-                const updateData = { [campo]: valor }
-                const { error } = await supabase
-                    .from('flota.lavados')
-                    .update(updateData)
-                    .eq('id', id)
-                if (error) throw error
-                showToast(valor ? 'Estado actualizado' : 'Estado revertido', 'info')
+                const res = await fetch('/api/apps/lavado', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, [campo]: valor })
+                });
+                if (res.ok) {
+                    allRecords = allRecords.map(r => r.id === id ? { ...r, [campo]: valor } : r);
+                    renderTable();
+                    showToast(valor ? 'Estado actualizado' : 'Estado revertido', 'info');
+                }
             } catch (err) {
-                showToast('Error al actualizar estado', 'error')
+                showToast('Error al actualizar estado en el ERP', 'error');
             }
         };
 
-        // Lógica del Modal de Eliminación
         let deleteIdPending = null;
         window.confirmarEliminacion = function (id, placa) {
             deleteIdPending = id;
-            document.getElementById('confirm-modal-text').innerHTML = `¿Estás seguro de que deseas eliminar permanentemente el registro de la placa <b>${escapeHTML(placa)}</b>?<br><br>Esta acción no se puede deshacer.`;
+            document.getElementById('confirm-modal-text').innerHTML = `¿Estás seguro de que deseas eliminar el registro de la placa <b>${escapeHTML(placa)}</b> del ERP?`;
             document.getElementById('confirm-modal').style.display = 'flex';
         };
 
@@ -1882,18 +1838,20 @@
         };
 
         window.ejecutarEliminacion = async function () {
-            if (!deleteIdPending || !supabase) return
+            if (!deleteIdPending) return;
             try {
-                const { error } = await supabase
-                    .from('flota.lavados')
-                    .delete()
-                    .eq('id', deleteIdPending)
-                if (error) throw error
-                showToast('Registro eliminado exitosamente', 'success')
+                const res = await fetch(`/api/apps/lavado?id=${deleteIdPending}`, {
+                    method: 'DELETE'
+                });
+                if (res.ok) {
+                    allRecords = allRecords.filter(r => r.id !== deleteIdPending);
+                    renderTable();
+                    showToast('Registro eliminado exitosamente del ERP', 'success');
+                }
             } catch (err) {
-                showToast('Error al eliminar: ' + err.message, 'error')
+                showToast('Error al eliminar: ' + err.message, 'error');
             } finally {
-                closeConfirmModal()
+                closeConfirmModal();
             }
         };
 
@@ -1904,16 +1862,15 @@
             const btnExport = document.querySelector('.btn-export');
             const originalBtnContent = btnExport.innerHTML;
             btnExport.disabled = true;
-            btnExport.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="margin-right:5px;"></i> ESPERE...';
+            btnExport.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="margin-right:5px;"></i> GENERANDO PDF...';
 
             try {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF('l', 'pt', 'a4');
 
-                // 1. Intentar cargar el logo para incrustarlo
                 let logoBase64 = null;
                 try {
-                    const response = await fetch('logo.png');
+                    const response = await fetch('/logo.png');
                     if (response.ok) {
                         const blob = await response.blob();
                         logoBase64 = await new Promise((resolve) => {
@@ -1923,10 +1880,9 @@
                         });
                     }
                 } catch (e) {
-                    console.warn("No se pudo cargar el logo para el PDF");
+                    console.warn("Logo fallback para PDF");
                 }
 
-                // Dimensiones del bloque de encabezado principal
                 const startX = 40;
                 const startY = 40;
                 const width = doc.internal.pageSize.width - 80;
@@ -1939,36 +1895,33 @@
                     day: '2-digit', month: '2-digit', year: 'numeric'
                 }).split(',')[0];
 
-                // 2. Preparar la data de la tabla
                 let totalMes = 0;
                 const tableBody = window.currentFilteredRecords.map(r => {
                     totalMes += r.valor || 0;
                     return [
                         r.fecha,
                         r.hora,
-                        r.tipo_vehiculo,
+                        r.tipoVehiculo || r.tipo_vehiculo || 'Camioneta',
                         r.placa,
                         new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(r.valor),
-                        r.empresa,
-                        r.conductor,
-                        "" // Espacio en blanco para inyectar la firma
+                        r.empresa || 'N/A',
+                        r.conductorNombre || r.conductor,
+                        ""
                     ];
                 });
 
-                // Rellenar filas en blanco para que sean múltiplos de 28
                 const rowsPerPage = 28;
                 const targetRows = Math.max(rowsPerPage, Math.ceil(tableBody.length / rowsPerPage) * rowsPerPage);
                 while (tableBody.length < targetRows) {
                     tableBody.push(['', '', '', '', '', '', '', '']);
                 }
 
-                // 3. Dibujar la tabla
                 doc.autoTable({
                     startY: startY + height + 10,
                     head: [['FECHA', 'HORA', 'TIPO VEHICULO', 'N° PLACA', 'VALOR', 'NOMBRE EMPRESA', 'NOMBRE CONDUCTOR', 'FIRMA']],
                     body: tableBody,
                     theme: 'grid',
-                    margin: { top: startY + height + 10, bottom: 45, left: 40, right: 40 }, // Ajustado bottom margin
+                    margin: { top: startY + height + 10, bottom: 45, left: 40, right: 40 },
                     styles: {
                         font: 'helvetica', fontSize: 7.5, valign: 'middle', halign: 'center',
                         lineColor: [0, 0, 0], lineWidth: 0.5, textColor: [0, 0, 0], minCellHeight: 14, cellPadding: 1.5
@@ -1982,7 +1935,6 @@
                         7: { cellWidth: 90 }
                     },
                     didDrawPage: function (data) {
-                        // ── ENCABEZADO TIPO FÍSICO ──
                         doc.setDrawColor(0, 0, 0);
                         doc.setLineWidth(1);
                         doc.rect(startX, startY, width, height);
@@ -1990,7 +1942,6 @@
                         doc.line(startX + col1W + col2W, startY, startX + col1W + col2W, startY + height);
                         doc.line(startX + col1W, startY + height / 2, startX + width, startY + height / 2);
 
-                        // Celda 1: Logo
                         if (logoBase64) {
                             try {
                                 const imgProps = doc.getImageProperties(logoBase64);
@@ -2012,39 +1963,32 @@
                         doc.setFont("helvetica", "normal"); doc.setFontSize(6);
                         doc.text("NIT 900778421-1", startX + col1W / 2, startY + height - 4, { align: 'center' });
 
-                        // Celda 2: Textos Centrales
                         doc.setFont("helvetica", "bold"); doc.setFontSize(10);
                         doc.text("COOPERATIVA DE TRANSPORTES Y SERVICIOS A&B", startX + col1W + col2W / 2, startY + 22, { align: 'center' });
                         doc.text("PLANILLA DE REGISTRO Y CONTROL LAVADAS", startX + col1W + col2W / 2, startY + 55, { align: 'center' });
 
-                        // Celda 3: Códigos
                         doc.setFont("helvetica", "normal"); doc.setFontSize(8);
-                        doc.text("CODIGO:", startX + col1W + col2W + 5, startY + 15);
+                        doc.text("CODIGO: OP-FOR-04", startX + col1W + col2W + 5, startY + 15);
                         doc.text("VERSION: 01", startX + col1W + col2W + 5, startY + 30);
                         doc.text(fechaHoraGeneracion, startX + col1W + col2W + 5, startY + 62);
 
-                        // ── PIE DE PÁGINA Y TOTALES (Repetido en cada página) ──
-
-                        // Total Recaudado Mensual (Alineado a la derecha sobre la numeración)
                         doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(0, 0, 0);
                         doc.text(`TOTAL RECAUDADO MENSUAL: ${new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(totalMes)}`, doc.internal.pageSize.width - 40, doc.internal.pageSize.height - 28, { align: 'right' });
 
-                        // Paginación
                         doc.setFont("helvetica", "italic"); doc.setFontSize(7); doc.setTextColor(100);
                         doc.text(`Página ${data.pageNumber} de {totalPages}  |  TRANS SERVICES A&B`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 12, { align: 'center' });
                         doc.setTextColor(0);
                     },
                     didDrawCell: function (data) {
-                        // Inyectar firma en la columna 7
                         if (data.section === 'body' && data.column.index === 7) {
                             const rowData = data.row.raw;
-                            // Previene dibujar en filas vacías de relleno
                             if (rowData && rowData[0] !== '') {
                                 const record = window.currentFilteredRecords[data.row.index];
-                                if (record && record.firma_img) {
+                                const firmaSrc = record?.firmaUrl || record?.firma_img;
+                                if (firmaSrc) {
                                     try {
-                                        const iw = 50, ih = 11; // Reducido para encajar en las 28 filas
-                                        doc.addImage(record.firmaImg, 'PNG', data.cell.x + (data.cell.width - iw) / 2, data.cell.y + (data.cell.height - ih) / 2, iw, ih);
+                                        const iw = 50, ih = 11;
+                                        doc.addImage(firmaSrc, 'PNG', data.cell.x + (data.cell.width - iw) / 2, data.cell.y + (data.cell.height - ih) / 2, iw, ih);
                                     } catch (e) { }
                                 }
                             }
@@ -2054,9 +1998,9 @@
 
                 if (typeof doc.putTotalPages === 'function') doc.putTotalPages('{totalPages}');
 
-                const mesExport = document.getElementById('filtro-mes').value;
+                const mesExport = document.getElementById('filtro-mes')?.value || 'consolidado';
                 doc.save(`Planilla_Control_Lavadas_${mesExport}.pdf`);
-                showToast('PDF exportado exitosamente', 'success');
+                showToast('Planilla PDF exportada exitosamente', 'success');
 
             } catch (err) {
                 console.error("Error PDF:", err);
@@ -2070,23 +2014,21 @@
         // ── EXCEL ──
         window.generarExcel = function () {
             if (!window.currentFilteredRecords?.length) { showToast('No hay registros para exportar', 'warning'); return; }
-            const headers = ['Fecha', 'Hora', 'Tipo Vehículo', 'Placa', 'Valor', 'Empresa', 'Conductor', 'Elaborado', 'Revisado', 'Aprobado'];
+            const headers = ['Fecha', 'Hora', 'Tipo Vehículo', 'Placa', 'Valor', 'Empresa', 'Conductor', 'Revisado', 'Aprobado'];
             const rows = window.currentFilteredRecords.map(r => [
-                r.fecha, r.hora, r.tipoVehiculo, r.placa, r.valor,
-                r.empresa, r.conductor,
-                r.estado_elaboro ? 'SÍ' : 'NO',
-                r.estado_reviso ? 'SÍ' : 'NO',
-                r.estado_aprobo ? 'SÍ' : 'NO'
+                r.fecha, r.hora, r.tipoVehiculo || r.tipo_vehiculo || 'Camioneta', r.placa, r.valor,
+                r.empresa || 'N/A', r.conductorNombre || r.conductor,
+                r.estadoReviso ? 'SÍ' : 'NO',
+                r.estadoAprobo ? 'SÍ' : 'NO'
             ]);
             const csv = [headers, ...rows].map(row => row.map(c => `"${c}"`).join(',')).join('\n');
             const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a'); a.href = url;
-            a.download = `Lavadas_${document.getElementById('filtro-mes').value}.csv`;
+            a.download = `Lavadas_${document.getElementById('filtro-mes')?.value || 'mes'}.csv`;
             a.click(); URL.revokeObjectURL(url);
-            showToast('Archivo CSV exportado (ábrelo en Excel)', 'success');
+            showToast('Archivo CSV exportado exitosamente', 'success');
         };
-
     </script>
 </body>
 

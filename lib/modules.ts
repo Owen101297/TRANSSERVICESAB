@@ -48,6 +48,7 @@ export const NAV_GROUPS: ModuleGroup[] = [
       { id: "capacitaciones", label: "Capacitaciones", href: "/capacitaciones", icon: "graduation" },
       { id: "encuestas", label: "Encuestas", href: "/encuestas", icon: "clipboard" },
       { id: "asistencia", label: "Asistencia", href: "/asistencia", icon: "check" },
+      { id: "lavado", label: "Control de Lavado", href: "/lavado", icon: "droplets" },
     ],
   },
   {
