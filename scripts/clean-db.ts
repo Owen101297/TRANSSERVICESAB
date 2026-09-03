@@ -2,7 +2,6 @@ import { PrismaClient } from "@prisma/client";
 import { ITEMS_SGSST } from "../lib/data/sgsst-items";
 import { PASOS_PESV } from "../lib/data/pesv-pasos";
 import { SEED_ROLES } from "../lib/data/roles";
-import { runSupabaseMigration } from "./migrate-from-supabase";
 
 const prisma = new PrismaClient();
 
@@ -99,13 +98,6 @@ async function initBaseCatalogs() {
     }
 
     console.log("✓ Catálogos normativos y contratistas verificados con éxito.");
-
-    // Sincronizar datos históricos de Supabase (Conductores, Asistencias y Viajes)
-    try {
-      await runSupabaseMigration();
-    } catch (migErr) {
-      console.warn("Aviso en sincronización de Supabase:", migErr);
-    }
   } catch (err) {
     console.warn("Aviso al inicializar catálogos (no bloqueante):", err);
   }
