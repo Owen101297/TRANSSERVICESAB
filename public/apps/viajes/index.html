@@ -41,7 +41,7 @@
         </div>
     </div>
 
-    <main class="max-w-xl mx-auto px-4 sm:px-6 mt-4" id="mainContainer" style="display:none" tabindex="-1">
+    <main class="max-w-xl mx-auto px-4 sm:px-6 mt-4 pb-32" id="mainContainer" style="display:none" tabindex="-1">
 
         <div class="flex items-center justify-between mb-4 pt-1">
             <div>
@@ -70,53 +70,67 @@
             <!-- Paso 1: Ruta del Viaje -->
             <div class="form-step">
                 <section class="card-paso">
-                    <h2 class="text-xl font-extrabold text-slate-900 mb-6 flex items-center gap-3 tracking-tight">
+                    <h2 class="text-xl font-extrabold text-slate-900 mb-6 flex items-center gap-3 tracking-tight border-b-2 border-slate-200 pb-3">
                         <div class="p-2.5 bg-[#DBEAFE] rounded-xl border border-[#BFDBFE]"><i data-lucide="map-pin" class="w-5 h-5 text-[#1E40AF]"></i></div>
                         1. Ruta del Viaje
                     </h2>
-                    <div class="space-y-4">
-                        <div class="input-group">
-                            <label for="fecha" class="label">Fecha del viaje</label>
-                            <input type="date" id="fecha" required class="input-moderno">
-                        </div>
-                        <div class="grid grid-cols-2 gap-4">
+                    
+                    <div class="space-y-6">
+                        <!-- Sub-apartado: Datos del Trayecto -->
+                        <div class="p-5 bg-slate-50/60 rounded-2xl border-2 border-slate-300 shadow-sm space-y-4">
+                            <h3 class="text-xs font-black text-[#1E40AF] uppercase tracking-wider flex items-center gap-2">
+                                <i data-lucide="compass" class="w-4 h-4"></i> Datos del Trayecto
+                            </h3>
                             <div class="input-group">
-                                <label for="horaSalida" class="label">Hora de Salida</label>
-                                <input type="time" id="horaSalida" required class="input-moderno">
+                                <label for="fecha" class="label">Fecha del viaje</label>
+                                <input type="date" id="fecha" required class="input-moderno">
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="input-group">
+                                    <label for="horaSalida" class="label">Hora de Salida</label>
+                                    <input type="time" id="horaSalida" required class="input-moderno">
+                                </div>
+                                <div class="input-group">
+                                    <label for="horaLlegada" class="label">Hora de Llegada</label>
+                                    <input type="time" id="horaLlegada" readonly class="input-moderno">
+                                </div>
                             </div>
                             <div class="input-group">
-                                <label for="horaLlegada" class="label">Hora de Llegada</label>
-                                <input type="time" id="horaLlegada" readonly class="input-moderno">
-                            </div>
-                        </div>
-                        <div class="input-group">
-                            <label for="origen" class="label">Origen</label>
-                            <input type="text" id="origen" list="ciudades" placeholder="Ej: Villagarzón" required
-                                class="input-moderno">
-                        </div>
-                        <div class="input-group">
-                            <label for="destino" class="label">Destino</label>
-                            <input type="text" id="destino" list="ciudades" placeholder="Ej: Puerto Asís" required
-                                class="input-moderno">
-                        </div>
-                        <div class="grid grid-cols-3 gap-3 border-t-2 border-slate-200 pt-4">
-                            <div class="input-group">
-                                <label for="kmSalida" class="label">KM Inicial</label>
-                                <input type="number" id="kmSalida" oninput="calcKm()" inputmode="numeric"
-                                    pattern="[0-9]*" placeholder="00000" required class="input-moderno">
-                                <div id="gpsSalidaStatus" class="text-xs mt-1 text-slate-700 font-semibold"></div>
+                                <label for="origen" class="label">Origen</label>
+                                <input type="text" id="origen" list="ciudades" placeholder="Ej: Villagarzón" required
+                                    class="input-moderno">
                             </div>
                             <div class="input-group">
-                                <label for="distanciaEstimada" class="label">KM Recorridos</label>
-                                <input type="number" id="distanciaEstimada" readonly class="input-moderno"
-                                    placeholder="0" inputmode="numeric">
+                                <label for="destino" class="label">Destino</label>
+                                <input type="text" id="destino" list="ciudades" placeholder="Ej: Puerto Asís" required
+                                    class="input-moderno">
                             </div>
-                            <div class="input-group">
-                                <label for="kmLlegada" class="label">KM Final</label>
-                                <input type="number" id="kmLlegada" readonly class="input-moderno" inputmode="numeric"
-                                    placeholder="Pendiente">
-                                <div id="gpsLlegadaStatus" class="text-xs mt-1 text-slate-700 font-semibold"></div>
-                                <p id="kmError" class="text-red-600 text-xs mt-1 hidden font-bold">El KM de llegada no puede ser menor al de salida.</p>
+                        </div>
+
+                        <!-- Sub-apartado: Registro de Kilometraje -->
+                        <div class="p-5 bg-slate-50/60 rounded-2xl border-2 border-slate-300 shadow-sm space-y-4">
+                            <h3 class="text-xs font-black text-[#1E40AF] uppercase tracking-wider flex items-center gap-2">
+                                <i data-lucide="gauge" class="w-4 h-4"></i> Registro de Kilometraje
+                            </h3>
+                            <div class="grid grid-cols-3 gap-3">
+                                <div class="input-group">
+                                    <label for="kmSalida" class="label">KM Inicial</label>
+                                    <input type="number" id="kmSalida" oninput="calcKm()" inputmode="numeric"
+                                        pattern="[0-9]*" placeholder="00000" required class="input-moderno">
+                                    <div id="gpsSalidaStatus" class="text-xs mt-1 text-slate-700 font-semibold"></div>
+                                </div>
+                                <div class="input-group">
+                                    <label for="distanciaEstimada" class="label">KM Recorridos</label>
+                                    <input type="number" id="distanciaEstimada" readonly class="input-moderno"
+                                        placeholder="0" inputmode="numeric">
+                                </div>
+                                <div class="input-group">
+                                    <label for="kmLlegada" class="label">KM Final</label>
+                                    <input type="number" id="kmLlegada" readonly class="input-moderno" inputmode="numeric"
+                                        placeholder="Pendiente">
+                                    <div id="gpsLlegadaStatus" class="text-xs mt-1 text-slate-700 font-semibold"></div>
+                                    <p id="kmError" class="text-red-600 text-xs mt-1 hidden font-bold">El KM de llegada no puede ser menor al de salida.</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -126,13 +140,16 @@
             <!-- Paso 2: Vehículo y Conductor -->
             <div class="form-step hidden">
                 <section class="card-paso">
-                    <h2 class="text-xl font-extrabold text-slate-900 mb-6 flex items-center gap-3 tracking-tight">
+                    <h2 class="text-xl font-extrabold text-slate-900 mb-6 flex items-center gap-3 tracking-tight border-b-2 border-slate-200 pb-3">
                         <div class="p-2.5 bg-[#DBEAFE] rounded-xl border border-[#BFDBFE]"><i data-lucide="truck" class="w-5 h-5 text-[#1E40AF]"></i></div>
                         2. Vehículo y Conductor
                     </h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                        <div class="space-y-4">
-                            <h3 class="text-sm font-extrabold text-slate-900 uppercase tracking-wider">Vehículo</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Sub-apartado: Datos del Vehículo -->
+                        <div class="p-5 bg-slate-50/60 rounded-2xl border-2 border-slate-300 shadow-sm space-y-4">
+                            <h3 class="text-xs font-black text-[#1E40AF] uppercase tracking-wider flex items-center gap-2">
+                                <i data-lucide="truck" class="w-4 h-4"></i> Datos del Vehículo
+                            </h3>
                             <div class="grid grid-cols-2 gap-4">
                                 <div class="input-group">
                                     <label for="vPlaca" class="label">Placa</label>
@@ -164,8 +181,12 @@
                                     class="input-moderno">
                             </div>
                         </div>
-                        <div class="space-y-4">
-                            <h3 class="text-sm font-extrabold text-slate-900 uppercase tracking-wider">Conductor</h3>
+
+                        <!-- Sub-apartado: Datos del Conductor -->
+                        <div class="p-5 bg-slate-50/60 rounded-2xl border-2 border-slate-300 shadow-sm space-y-4">
+                            <h3 class="text-xs font-black text-[#1E40AF] uppercase tracking-wider flex items-center gap-2">
+                                <i data-lucide="user-check" class="w-4 h-4"></i> Datos del Conductor
+                            </h3>
                             <div class="input-group">
                                 <label for="cNombre" class="label">Nombre del Conductor</label>
                                 <input type="text" id="cNombre" placeholder="Nombre Completo" required
@@ -763,12 +784,12 @@
         </div>
 
         <!-- Barra Fija Inferior de Navegación -->
-        <div class="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-xl border-t border-slate-200 z-40 shadow-lg">
-            <div class="max-w-xl mx-auto flex justify-between gap-4">
+        <div class="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-xl border-t-2 border-slate-300 z-50 shadow-2xl">
+            <div class="max-w-xl mx-auto flex items-center justify-between gap-4">
                 <button type="button" id="prevBtn" onclick="nextPrev(-1)"
-                    class="btn btn-secondary w-1/3 shadow-sm">Anterior</button>
+                    class="btn btn-secondary w-1/3 shadow-sm font-extrabold text-slate-900 border-2 border-slate-400">Anterior</button>
                 <button type="button" id="nextBtn" onclick="nextPrev(1)"
-                    class="btn btn-primary w-2/3 shadow-md">Siguiente</button>
+                    class="btn btn-primary flex-1 shadow-lg font-black text-white bg-[#1E40AF] border-2 border-[#1E3A8A]">Siguiente <i class="ml-2 w-4 h-4 inline-block" data-lucide="arrow-right"></i></button>
             </div>
         </div>
 

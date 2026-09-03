@@ -173,33 +173,47 @@
     cursor: not-allowed;
   }
 
-  .btn-primary {
-    background-color: #1E40AF;
+  .btn-primary, #nextBtn {
+    background-color: #1E40AF !important;
     color: #FFFFFF !important;
-    border: 2px solid #1E3A8A;
-    box-shadow: 0 4px 14px rgba(30, 64, 175, 0.3);
+    border: 2px solid #1E3A8A !important;
+    box-shadow: 0 4px 14px rgba(30, 64, 175, 0.35) !important;
+    font-weight: 800 !important;
+    font-size: 16px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 50px !important;
+    border-radius: 14px !important;
+    opacity: 1 !important;
+    visibility: visible !important;
   }
 
-  .btn-primary:hover:not(:disabled) {
-    background-color: #1D4ED8;
-    border-color: #1E40AF;
+  .btn-primary:hover:not(:disabled), #nextBtn:hover:not(:disabled) {
+    background-color: #1D4ED8 !important;
+    border-color: #1E40AF !important;
   }
 
-  .btn-primary:active:not(:disabled) {
-    background-color: #1E3A8A;
+  .btn-primary:active:not(:disabled), #nextBtn:active:not(:disabled) {
+    background-color: #1E3A8A !important;
     transform: scale(0.98);
   }
 
-  .btn-secondary {
-    background-color: #FFFFFF;
+  .btn-secondary, #prevBtn {
+    background-color: #FFFFFF !important;
     color: #0F172A !important;
-    border: 2px solid #94A3B8;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    border: 2px solid #94A3B8 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+    font-weight: 800 !important;
+    font-size: 15px !important;
+    min-height: 50px !important;
+    border-radius: 14px !important;
+    opacity: 1 !important;
   }
 
-  .btn-secondary:hover:not(:disabled) {
-    background-color: #F1F5F9;
-    border-color: #64748B;
+  .btn-secondary:hover:not(:disabled), #prevBtn:hover:not(:disabled) {
+    background-color: #F1F5F9 !important;
+    border-color: #64748B !important;
   }
 
   /* Apple card system (legacy compatible) */

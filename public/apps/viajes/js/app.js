@@ -142,21 +142,27 @@ function updateNavigation(n) {
     const prevBtn = document.getElementById("prevBtn");
     if (!nextBtn || !prevBtn) return;
     
-    prevBtn.style.display = n === 0 ? "none" : "flex";
-    nextBtn.classList.remove('!bg-emerald-600'); 
+    if (n === 0) {
+        prevBtn.style.display = "none";
+        nextBtn.className = "btn btn-primary w-full shadow-xl font-black text-white bg-[#1E40AF] border-2 border-[#1E3A8A] text-base py-3.5";
+    } else {
+        prevBtn.style.display = "inline-flex";
+        prevBtn.className = "btn btn-secondary w-1/3 shadow-sm font-extrabold text-slate-900 border-2 border-slate-400 text-sm py-3.5";
+        nextBtn.className = "btn btn-primary flex-1 shadow-xl font-black text-white bg-[#1E40AF] border-2 border-[#1E3A8A] text-base py-3.5";
+    }
 
     if (n === totalSteps - 1) {
         const condSig = document.getElementById('signatureCanvasConductor');
         const isSigned = condSig ? condSig.getAttribute('data-signed') === 'true' : false;
         const rsk = updateRisk();
-        nextBtn.innerHTML = isSigned ? (rsk.score > 15 ? 'Guardar y Proceder a Firma HSE <i class="ml-2" data-lucide="shield-check"></i>' : 'Registrar Viaje <i class="ml-2" data-lucide="save"></i>') : 'Firma Requerida <i class="ml-2" data-lucide="pen-tool"></i>';
+        nextBtn.innerHTML = isSigned ? (rsk.score > 15 ? 'Guardar y Proceder a Firma HSE <i class="ml-2 w-4 h-4 inline-block" data-lucide="shield-check"></i>' : 'Registrar Viaje <i class="ml-2 w-4 h-4 inline-block" data-lucide="save"></i>') : 'Firma Requerida <i class="ml-2 w-4 h-4 inline-block" data-lucide="pen-tool"></i>';
     } 
     else if (n === 0 && currentTripId && parseFloat(document.getElementById('kmLlegada')?.value) > 0) {
-        nextBtn.innerHTML = 'Finalizar y Cerrar Viaje <i class="ml-2" data-lucide="check-circle"></i>';
-        nextBtn.classList.add('!bg-emerald-600');
+        nextBtn.innerHTML = 'Finalizar y Cerrar Viaje <i class="ml-2 w-4 h-4 inline-block" data-lucide="check-circle"></i>';
+        nextBtn.classList.add('!bg-emerald-600', '!border-emerald-700');
     } 
     else {
-        nextBtn.innerHTML = 'Siguiente <i class="ml-2" data-lucide="arrow-right"></i>';
+        nextBtn.innerHTML = 'Siguiente <i class="ml-2 w-4 h-4 inline-block" data-lucide="arrow-right"></i>';
     }
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
