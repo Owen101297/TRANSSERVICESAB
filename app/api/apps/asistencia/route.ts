@@ -1,86 +1,205 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-async function syncSupabaseIfNeeded() {
+const SUPABASE_URL = "https://xftllyjjqvozjjmgwomg.supabase.co/rest/v1/asistencia?select=*&order=fecha.desc&limit=2000";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmdGxseWpqcXZvempqbWd3b21nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjExMTIsImV4cCI6MjA5Mzc5NzExMn0.UURzZOytfoYMrxzpohRams_GcJ3ETsEnNNOaSQqeuu8";
+
+interface NormalizedAsistencia {
+  id: string;
+  personaId?: string;
+  personaDocumento: string;
+  personaNombre: string;
+  cargo: string;
+  proyecto: string;
+  evento: string;
+  tipoEvento: string;
+  fecha: string; // formato estándar YYYY-MM-DD
+  horaLlegada: string;
+  estado: string;
+  firmaUrl: string | null;
+  fotoUrl: string | null;
+  observaciones?: string | null;
+}
+
+// Normaliza cualquier registro (de Supabase o de Prisma) de forma consistente
+function normalizeRecord(item: any, idx: number): NormalizedAsistencia {
+  let obs: any = {};
+  if (item.observaciones && typeof item.observaciones === "string") {
+    if (item.observaciones.startsWith("{")) {
+      try {
+        obs = JSON.parse(item.observaciones);
+      } catch (e) {}
+    } else {
+      const cargoMatch = item.observaciones.match(/Cargo:\s*([^,]+)/i);
+      const projMatch = item.observaciones.match(/Proyecto:\s*([^,]+)/i);
+      const cedMatch = item.observaciones.match(/C[eé]dula:\s*([^,]+)/i);
+      if (cargoMatch) obs.cargo = cargoMatch[1].trim();
+      if (projMatch) obs.proyecto = projMatch[1].trim();
+      if (cedMatch) obs.cedula = cedMatch[1].trim();
+    }
+  }
+
+  const cedula = (
+    obs.cedula ||
+    item.personaDocumento ||
+    item.conductor_documento ||
+    item.conductorDocumento ||
+    ""
+  )
+    .replace(/[\.\s-]/g, "")
+    .trim();
+
+  const nombre = (
+    item.personaNombre ||
+    item.conductor_nombre ||
+    item.conductorNombre ||
+    obs.nombre ||
+    "PARTICIPANTE"
+  )
+    .trim()
+    .toUpperCase();
+
+  const cargo = (obs.cargo || item.cargo || "CONDUCTOR").toUpperCase();
+  const proyecto = (obs.proyecto || item.proyecto || "TRANS SERVICES A&B").toUpperCase();
+  const firma = obs.firma || item.firmaUrl || item.firma_url || item.firma_base64 || item.signature || null;
+  const actividad = obs.actividad || item.evento || item.tipoEvento || item.tipo_evento || "Capacitación";
+  const tipoEvento = item.tipoEvento || item.tipo_evento || (actividad.toLowerCase().includes("charla") ? "charla_5min" : "capacitacion");
+
+  // Extracción pura de la fecha YYYY-MM-DD sin desfasajes de UTC
+  let dateStr = "";
+  if (item.fecha) {
+    if (typeof item.fecha === "string") {
+      dateStr = item.fecha.slice(0, 10);
+    } else if (item.fecha instanceof Date) {
+      dateStr = item.fecha.toISOString().slice(0, 10);
+    }
+  } else if (item.created_at) {
+    dateStr = new Date(item.created_at).toLocaleDateString("en-CA", {
+      timeZone: "America/Bogota",
+    });
+  }
+
+  if (!dateStr || dateStr.length < 10) {
+    dateStr = "2026-08-21";
+  }
+
+  const horaStr =
+    item.horaLlegada ||
+    item.hora_llegada ||
+    (item.created_at
+      ? new Date(item.created_at).toLocaleTimeString("es-CO", {
+          timeZone: "America/Bogota",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "08:00");
+
+  return {
+    id: item.id ? String(item.id) : `rec_${idx}`,
+    personaId: item.personaId || item.conductor_id || undefined,
+    personaDocumento: cedula || "—",
+    personaNombre: nombre,
+    cargo,
+    proyecto,
+    evento: actividad,
+    tipoEvento,
+    fecha: dateStr,
+    horaLlegada: horaStr,
+    estado: item.estado || "presente",
+    firmaUrl: firma,
+    fotoUrl: item.fotoUrl || item.foto_url || null,
+    observaciones: item.observaciones || null,
+  };
+}
+
+// Obtiene todos los registros desde Supabase
+async function fetchSupabaseRecords(): Promise<NormalizedAsistencia[]> {
   try {
-    const count = await prisma.asistenciaRegistro.count();
-    if (count > 20) return; // Ya está poblada
-
-    const url = "https://xftllyjjqvozjjmgwomg.supabase.co/rest/v1/asistencia?select=*&order=fecha.asc";
-    const key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmdGxseWpqcXZvempqbWd3b21nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjExMTIsImV4cCI6MjA5Mzc5NzExMn0.UURzZOytfoYMrxzpohRams_GcJ3ETsEnNNOaSQqeuu8";
-
-    const res = await fetch(url, {
-      headers: { apikey: key, Authorization: `Bearer ${key}` },
+    const res = await fetch(SUPABASE_URL, {
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+      },
+      next: { revalidate: 10 },
     });
 
-    if (!res.ok) return;
+    if (!res.ok) return [];
     const data = await res.json();
-    if (!Array.isArray(data)) return;
+    if (!Array.isArray(data)) return [];
 
-    for (let i = 0; i < data.length; i++) {
-      const item = data[i];
-      let obs: any = {};
-      try {
-        if (item.observaciones && typeof item.observaciones === "string") {
-          if (item.observaciones.startsWith("{")) {
-            obs = JSON.parse(item.observaciones);
-          } else {
-            const cargoMatch = item.observaciones.match(/Cargo:\s*([^,]+)/i);
-            const projMatch = item.observaciones.match(/Proyecto:\s*([^,]+)/i);
-            if (cargoMatch) obs.cargo = cargoMatch[1].trim();
-            if (projMatch) obs.proyecto = projMatch[1].trim();
-          }
-        }
-      } catch (e) {}
+    return data.map((item, idx) => normalizeRecord(item, idx));
+  } catch (e) {
+    console.warn("Aviso fetch Supabase:", e);
+    return [];
+  }
+}
 
-      const cedula = (obs.cedula || item.conductor_documento || "").replace(/[\.\s-]/g, "").trim();
-      const nombre = (item.conductor_nombre || "PARTICIPANTE").trim().toUpperCase();
-      const cargo = (obs.cargo || item.cargo || "CONDUCTOR").toUpperCase();
-      const proyecto = (obs.proyecto || item.proyecto || "TRANS SERVICES A&B").toUpperCase();
-      const firma = obs.firma || item.firma_url || item.firma_base64 || null;
-      const actividad = obs.actividad || item.tipo_evento || item.evento || "Capacitación";
-      const fechaStr = item.fecha || (item.created_at ? item.created_at.split("T")[0] : "2026-08-21");
-      const horaStr = item.hora_llegada || (item.created_at ? item.created_at.slice(11, 16) : "08:00");
-
-      const [y, m, d] = fechaStr.split("-").map(Number);
-      const fechaCot = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
-
-      const regId = `sup_${item.id || i}`;
+// Sincronización en segundo plano hacia PostgreSQL (Railway)
+async function syncToPrisma(records: NormalizedAsistencia[]) {
+  try {
+    for (const r of records) {
+      const regId = r.id.startsWith("sup_") ? r.id : `sup_${r.id}`;
+      const [y, m, d] = r.fecha.split("-").map(Number);
+      const fechaCot = new Date(Date.UTC(y, m - 1, d, 17, 0, 0));
 
       await prisma.asistenciaRegistro.upsert({
         where: { id: regId },
         update: {
-          personaNombre: nombre,
-          personaDocumento: cedula || null,
-          cargo,
-          proyecto,
-          evento: actividad,
-          tipoEvento: actividad.toLowerCase().includes("charla") ? "charla_5min" : "capacitacion",
-          horaLlegada: horaStr,
+          personaNombre: r.personaNombre,
+          personaDocumento: r.personaDocumento !== "—" ? r.personaDocumento : null,
+          cargo: r.cargo,
+          proyecto: r.proyecto,
+          evento: r.evento,
+          tipoEvento: r.tipoEvento,
+          horaLlegada: r.horaLlegada,
           fecha: fechaCot,
-          estado: item.estado || "presente",
-          firmaUrl: firma,
-          asistio: item.estado !== "ausente",
+          estado: r.estado,
+          firmaUrl: r.firmaUrl,
+          asistio: r.estado !== "ausente",
         },
         create: {
           id: regId,
-          personaId: item.conductor_id || `p_${cedula || i}`,
-          personaNombre: nombre,
-          personaDocumento: cedula || null,
-          cargo,
-          proyecto,
-          evento: actividad,
-          tipoEvento: actividad.toLowerCase().includes("charla") ? "charla_5min" : "capacitacion",
-          horaLlegada: horaStr,
+          personaId: r.personaId || `p_${r.personaDocumento || r.id}`,
+          personaNombre: r.personaNombre,
+          personaDocumento: r.personaDocumento !== "—" ? r.personaDocumento : null,
+          cargo: r.cargo,
+          proyecto: r.proyecto,
+          evento: r.evento,
+          tipoEvento: r.tipoEvento,
+          horaLlegada: r.horaLlegada,
           fecha: fechaCot,
-          estado: item.estado || "presente",
-          firmaUrl: firma,
-          asistio: item.estado !== "ausente",
+          estado: r.estado,
+          firmaUrl: r.firmaUrl,
+          asistio: r.estado !== "ausente",
         },
       }).catch(() => {});
     }
   } catch (e) {
-    console.warn("Aviso sync Supabase:", e);
+    console.warn("Aviso sync Prisma:", e);
+  }
+}
+
+// Obtiene todos los registros combinando Supabase y Prisma de forma resiliente
+async function getAllNormalizedRecords(forceSync = false): Promise<NormalizedAsistencia[]> {
+  const supabaseRecords = await fetchSupabaseRecords();
+
+  if (forceSync && supabaseRecords.length > 0) {
+    syncToPrisma(supabaseRecords).catch(() => {});
+  }
+
+  // Si Supabase trajo datos, usar Supabase como fuente primaria enriquecida
+  if (supabaseRecords.length > 0) {
+    return supabaseRecords;
+  }
+
+  // Fallback a Prisma
+  try {
+    const prismaRecords = await prisma.asistenciaRegistro.findMany({
+      orderBy: { fecha: "desc" },
+    });
+    return prismaRecords.map((item, idx) => normalizeRecord(item, idx));
+  } catch (e) {
+    return [];
   }
 }
 
@@ -92,38 +211,70 @@ export async function GET(req: Request) {
     const tipoEvento = searchParams.get("tipoEvento");
     const cedula = searchParams.get("cedula");
     const datesSummary = searchParams.get("datesSummary");
-    const forceSync = searchParams.get("sync");
+    const forceSync = searchParams.get("sync") === "true";
 
-    if (forceSync === "true") {
-      await syncSupabaseIfNeeded();
-    } else {
-      // Auto-sincronizar de fondo si la base de datos está vacía
-      syncSupabaseIfNeeded().catch(() => {});
+    // 1. Consulta de conductor por cédula para autocompletado en app móvil
+    if (cedula) {
+      const cleanCedula = cedula.replace(/[\.\s-]/g, "").trim();
+      try {
+        const persona = await prisma.persona.findFirst({
+          where: {
+            numeroDocumento: {
+              contains: cleanCedula,
+              mode: "insensitive",
+            },
+          },
+          select: {
+            id: true,
+            nombres: true,
+            apellidos: true,
+            numeroDocumento: true,
+            perfiles: true,
+            telefono: true,
+            contratistaNombre: true,
+          },
+        });
+
+        if (persona) {
+          const cargo =
+            persona.perfiles && persona.perfiles.length > 0
+              ? persona.perfiles[0].toUpperCase()
+              : "CONDUCTOR";
+
+          return NextResponse.json({
+            success: true,
+            persona: {
+              id: persona.id,
+              nombres: persona.nombres,
+              apellidos: persona.apellidos,
+              nombreCompleto: `${persona.nombres} ${persona.apellidos}`.trim(),
+              numeroDocumento: persona.numeroDocumento,
+              cargo,
+              proyecto: persona.contratistaNombre || "TRANS SERVICES A&B",
+              telefono: persona.telefono,
+            },
+          });
+        }
+      } catch (e) {}
+
+      return NextResponse.json({ success: true, persona: null });
     }
 
-    // 1. Resumen de fechas activas para marcar los días en el calendario
-    if (datesSummary === "true") {
-      const allRegs = await prisma.asistenciaRegistro.findMany({
-        select: {
-          fecha: true,
-          proyecto: true,
-        },
-        orderBy: { fecha: "desc" },
-      });
+    const allRecords = await getAllNormalizedRecords(forceSync);
 
+    // 2. Resumen de fechas activas para marcar los días en el calendario
+    if (datesSummary === "true") {
       const summary: Record<string, { total: number; proyectos: string[] }> = {};
-      for (const reg of allRegs) {
+      for (const reg of allRecords) {
         if (reg.fecha) {
-          const cotDateStr = new Date(reg.fecha).toLocaleDateString("en-CA", {
-            timeZone: "America/Bogota",
-          });
-          if (!summary[cotDateStr]) {
-            summary[cotDateStr] = { total: 0, proyectos: [] };
+          const dateKey = reg.fecha; // YYYY-MM-DD directo
+          if (!summary[dateKey]) {
+            summary[dateKey] = { total: 0, proyectos: [] };
           }
-          summary[cotDateStr].total += 1;
+          summary[dateKey].total += 1;
           const p = (reg.proyecto || "OTRO").toUpperCase();
-          if (!summary[cotDateStr].proyectos.includes(p)) {
-            summary[cotDateStr].proyectos.push(p);
+          if (!summary[dateKey].proyectos.includes(p)) {
+            summary[dateKey].proyectos.push(p);
           }
         }
       }
@@ -131,89 +282,39 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: true, datesSummary: summary });
     }
 
-    // 2. Consulta de conductor por cédula para autocompletado en app móvil
-    if (cedula) {
-      const cleanCedula = cedula.replace(/[\.\s-]/g, "").trim();
-      const persona = await prisma.persona.findFirst({
-        where: {
-          numeroDocumento: {
-            contains: cleanCedula,
-            mode: "insensitive",
-          },
-        },
-        select: {
-          id: true,
-          nombres: true,
-          apellidos: true,
-          numeroDocumento: true,
-          perfiles: true,
-          telefono: true,
-          contratistaNombre: true,
-        },
-      });
+    // 3. Filtrado de registros
+    let filtered = allRecords;
 
-      if (!persona) {
-        return NextResponse.json({ success: true, persona: null });
-      }
-
-      const cargo =
-        persona.perfiles && persona.perfiles.length > 0
-          ? persona.perfiles[0].toUpperCase()
-          : "CONDUCTOR";
-
-      return NextResponse.json({
-        success: true,
-        persona: {
-          id: persona.id,
-          nombres: persona.nombres,
-          apellidos: persona.apellidos,
-          nombreCompleto: `${persona.nombres} ${persona.apellidos}`.trim(),
-          numeroDocumento: persona.numeroDocumento,
-          cargo,
-          proyecto: persona.contratistaNombre || "TRANS SERVICES A&B",
-          telefono: persona.telefono,
-        },
-      });
-    }
-
-    // 3. Consulta de registros con filtros precisos
-    const where: any = {};
-
-    // Filtro por Fecha con ajuste de zona horaria Colombia (UTC-5)
     if (fecha) {
-      const [y, m, d] = fecha.split("-").map(Number);
-      // 00:00:00 COT = 05:00:00 UTC
-      const start = new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
-      // 23:59:59.999 COT = 23:59:59.999 UTC día siguiente
-      const end = new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999));
-      where.fecha = { gte: start, lte: end };
+      filtered = filtered.filter((r) => r.fecha === fecha);
     }
 
-    // Filtro flexible por Proyecto
     if (proyecto && proyecto !== "TODOS") {
-      if (proyecto.toUpperCase() === "GT") {
-        where.OR = [
-          { proyecto: { contains: "GT", mode: "insensitive" } },
-          { proyecto: { contains: "TIERRA", mode: "insensitive" } },
-        ];
+      const projUpper = proyecto.toUpperCase();
+      if (projUpper === "GT") {
+        filtered = filtered.filter(
+          (r) =>
+            r.proyecto.toUpperCase().includes("GT") ||
+            r.proyecto.toUpperCase().includes("TIERRA")
+        );
       } else {
-        where.proyecto = { contains: proyecto, mode: "insensitive" };
+        filtered = filtered.filter((r) =>
+          r.proyecto.toUpperCase().includes(projUpper)
+        );
       }
     }
 
-    // Filtro por Tipo de Evento
     if (tipoEvento && tipoEvento !== "TODOS") {
-      where.tipoEvento = { contains: tipoEvento, mode: "insensitive" };
+      filtered = filtered.filter(
+        (r) =>
+          r.tipoEvento.toLowerCase().includes(tipoEvento.toLowerCase()) ||
+          r.evento.toLowerCase().includes(tipoEvento.toLowerCase())
+      );
     }
 
-    const asistencias = await prisma.asistenciaRegistro.findMany({
-      where,
-      orderBy: { fecha: "desc" },
-    });
-
-    return NextResponse.json({ success: true, asistencias });
+    return NextResponse.json({ success: true, asistencias: filtered });
   } catch (error: any) {
-    console.error("Error al obtener asistencias en Railway:", error);
+    console.error("Error al obtener asistencias:", error);
     return NextResponse.json(
       { success: false, error: error.message || "Error al obtener asistencias" },
       { status: 500 }
@@ -256,16 +357,8 @@ export async function POST(req: Request) {
     const ev = evento || tipoEvento || tipo_evento || "Jornada de Capacitación / Charla";
     const tipEv = tipoEvento || tipo_evento || "capacitacion";
 
-    let pId = conductorId;
-
-    if (doc && !pId) {
-      const persona = await prisma.persona.findFirst({
-        where: { numeroDocumento: doc },
-      });
-      if (persona) pId = persona.id;
-    }
-
     const fechaNow = new Date();
+    const fechaStr = fechaNow.toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
     const horaNow = fechaNow.toLocaleTimeString("es-CO", {
       timeZone: "America/Bogota",
       hour: "2-digit",
@@ -273,35 +366,91 @@ export async function POST(req: Request) {
       second: "2-digit",
     });
 
-    const asistencia = await prisma.asistenciaRegistro.create({
-      data: {
-        personaId: pId || "persona-general",
-        personaDocumento: doc || null,
-        personaNombre: nombre,
+    const observacionesJson = JSON.stringify({
+      cedula: doc,
+      nombre,
+      cargo: (cargo || "CONDUCTOR").toUpperCase(),
+      proyecto: (proyecto || "TRANS SERVICES A&B").toUpperCase(),
+      actividad: ev,
+      firma: firm,
+    });
+
+    // Guardar en Supabase para persistencia compartida
+    fetch("https://xftllyjjqvozjjmgwomg.supabase.co/rest/v1/asistencia", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+      },
+      body: JSON.stringify({
+        fecha: fechaStr,
+        hora_llegada: horaNow,
+        conductor_documento: doc,
+        conductor_nombre: nombre,
         cargo: (cargo || "CONDUCTOR").toUpperCase(),
         proyecto: (proyecto || "TRANS SERVICES A&B").toUpperCase(),
-        facilitador: facilitador ? facilitador.toUpperCase() : "COORDINADOR HSEQ",
-        lugar: lugar ? lugar.toUpperCase() : "VILLAGARZÓN",
-        duracionHoras: duracionHoras ? parseFloat(duracionHoras) : 1.0,
-        fecha: fechaNow,
-        horaLlegada: horaNow,
         evento: ev,
-        tipoEvento: tipEv,
+        tipo_evento: tipEv,
+        facilitador: facilitador || "COORDINADOR HSEQ",
+        lugar: lugar || "VILLAGARZÓN",
         estado: estado || "presente",
-        firmaUrl: firm,
-        fotoUrl: fot,
-        observaciones: observaciones || null,
-        asistio: estado !== "ausente",
-      },
-    });
+        firma_url: firm,
+        observaciones: observacionesJson,
+      }),
+    }).catch((e) => console.warn("Aviso POST Supabase:", e));
+
+    // Guardar también en Prisma si está disponible
+    try {
+      let pId = conductorId;
+      if (doc && !pId) {
+        const persona = await prisma.persona.findFirst({
+          where: { numeroDocumento: doc },
+        });
+        if (persona) pId = persona.id;
+      }
+
+      const [y, m, d] = fechaStr.split("-").map(Number);
+      const fechaCot = new Date(Date.UTC(y, m - 1, d, 17, 0, 0));
+
+      await prisma.asistenciaRegistro.create({
+        data: {
+          personaId: pId || "persona-general",
+          personaDocumento: doc || null,
+          personaNombre: nombre,
+          cargo: (cargo || "CONDUCTOR").toUpperCase(),
+          proyecto: (proyecto || "TRANS SERVICES A&B").toUpperCase(),
+          facilitador: facilitador ? facilitador.toUpperCase() : "COORDINADOR HSEQ",
+          lugar: lugar ? lugar.toUpperCase() : "VILLAGARZÓN",
+          duracionHoras: duracionHoras ? parseFloat(duracionHoras) : 1.0,
+          fecha: fechaCot,
+          horaLlegada: horaNow,
+          evento: ev,
+          tipoEvento: tipEv,
+          estado: estado || "presente",
+          firmaUrl: firm,
+          fotoUrl: fot,
+          observaciones: observacionesJson,
+          asistio: estado !== "ausente",
+        },
+      });
+    } catch (e) {
+      console.warn("Aviso POST Prisma:", e);
+    }
 
     return NextResponse.json({
       success: true,
-      message: "Registro de asistencia guardado exitosamente en Railway",
-      asistencia,
+      message: "Registro de asistencia guardado exitosamente",
+      asistencia: {
+        personaNombre: nombre,
+        personaDocumento: doc,
+        fecha: fechaStr,
+        horaLlegada: horaNow,
+        firmaUrl: firm,
+      },
     });
   } catch (error: any) {
-    console.error("Error al registrar asistencia desde App:", error);
+    console.error("Error al registrar asistencia:", error);
     return NextResponse.json(
       { success: false, error: error.message || "Error al registrar asistencia" },
       { status: 500 }

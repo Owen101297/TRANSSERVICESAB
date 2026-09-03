@@ -88,13 +88,14 @@ export default function AsistenciaAdminPage() {
   };
 
   // Cargar registros del día seleccionado
-  const fetchData = async () => {
+  const fetchData = async (forceSync = false) => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
       if (fecha) params.set("fecha", fecha);
       if (proyecto && proyecto !== "TODOS") params.set("proyecto", proyecto);
       if (tipoEvento && tipoEvento !== "TODOS") params.set("tipoEvento", tipoEvento);
+      if (forceSync) params.set("sync", "true");
 
       const res = await fetch(`/api/apps/asistencia?${params.toString()}`);
       if (res.ok) {
@@ -474,7 +475,7 @@ export default function AsistenciaAdminPage() {
 
             <button
               onClick={() => {
-                fetchData();
+                fetchData(true);
                 fetchDatesSummary();
               }}
               disabled={loading}
@@ -813,7 +814,7 @@ export default function AsistenciaAdminPage() {
                                 {r ? r.personaNombre : ""}
                               </td>
                               <td className="border-r border-black px-1.5 text-center font-mono font-bold text-[10px]">
-                                {r ? r.personaDocumento || "—" : ""}
+                                {r ? (r.personaDocumento && r.personaDocumento !== "—" ? r.personaDocumento : "—") : ""}
                               </td>
                               <td className="border-r border-black px-1 text-center uppercase text-[9px]">
                                 {r ? r.cargo || "CONDUCTOR" : ""}
@@ -821,12 +822,13 @@ export default function AsistenciaAdminPage() {
                               <td className="border-r border-black px-1 text-center uppercase font-bold text-[9px]">
                                 {r ? r.proyecto || "TRANS SERVICES" : ""}
                               </td>
-                              <td className="p-1 text-center">
+                              <td className="p-1 text-center align-middle">
                                 {r?.firmaUrl ? (
                                   <img
                                     src={r.firmaUrl}
                                     alt="Firma"
-                                    className="max-h-7 max-w-[110px] mx-auto object-contain"
+                                    className="max-h-7 max-w-[110px] mx-auto object-contain block"
+                                    loading="eager"
                                   />
                                 ) : (
                                   ""
@@ -893,6 +895,12 @@ export default function AsistenciaAdminPage() {
           body {
             background: #ffffff !important;
             color: #000000 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          img {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           .no-print,
           nav,
