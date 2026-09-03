@@ -46,16 +46,32 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const placa = searchParams.get("placa") || undefined;
+    const conductorId = searchParams.get("conductorId") || undefined;
     const tipoEvento = (searchParams.get("tipo") || searchParams.get("tipoEvento")) as TipoEventoGPS | undefined;
     const prioridad = (searchParams.get("prioridad") || searchParams.get("severidad")) as PrioridadEventoGPS | undefined;
+    const rango = (searchParams.get("rango") || "todos") as any;
+    const fechaDesde = searchParams.get("desde") || searchParams.get("fechaDesde") || undefined;
+    const fechaHasta = searchParams.get("hasta") || searchParams.get("fechaHasta") || undefined;
+    
     const limiteParam = searchParams.get("limite");
-    const limite = limiteParam ? parseInt(limiteParam, 10) : 100;
+    const limite = limiteParam ? parseInt(limiteParam, 10) : 20;
 
-    const eventos = await getEventosGPSDb({
+    const pageParam = searchParams.get("page");
+    const page = pageParam ? Math.max(1, parseInt(pageParam, 10)) : 1;
+    const offsetParam = searchParams.get("offset");
+    const offset = offsetParam ? parseInt(offsetParam, 10) : (page - 1) * limite;
+
+    const { getEventosGPSConPaginacionDb } = await import("@/lib/services/gps.service");
+    const { eventos, totalCount } = await getEventosGPSConPaginacionDb({
       placa,
+      conductorId,
       tipoEvento,
       prioridad,
       limite,
+      offset,
+      rango,
+      fechaDesde,
+      fechaHasta,
     });
 
     const resumen = await getResumenAlertasGPSDb();
@@ -63,7 +79,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       status: "online",
       gateway: "Trans Services Telematics Gateway",
-      totalEventos: eventos.length,
+      totalEventos: totalCount,
+      totalCount,
+      page,
+      limite,
+      totalPages: Math.ceil(totalCount / limite) || 1,
       resumen,
       eventos,
       timestamp: new Date().toISOString(),

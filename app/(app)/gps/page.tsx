@@ -1,4 +1,4 @@
-import { getEventosGPSDb, getCalificacionesMensualesDb } from "@/lib/services/gps.service";
+import { getEventosGPSConPaginacionDb, getCalificacionesMensualesDb } from "@/lib/services/gps.service";
 import { getPersonasDb } from "@/lib/services/personas.service";
 import { getVehiculosDb } from "@/lib/services/vehiculos.service";
 import { GpsMonitorClientView } from "@/components/gps/GpsMonitorClientView";
@@ -6,7 +6,7 @@ import { GpsMonitorClientView } from "@/components/gps/GpsMonitorClientView";
 export const dynamic = "force-dynamic";
 
 export default async function GpsMonitorPage() {
-  const eventos = await getEventosGPSDb();
+  const { eventos, totalCount } = await getEventosGPSConPaginacionDb({ limite: 20 });
   const scores = await getCalificacionesMensualesDb();
   const personas = await getPersonasDb();
   const vehiculos = await getVehiculosDb();
@@ -32,6 +32,7 @@ export default async function GpsMonitorPage() {
   return (
     <GpsMonitorClientView
       initialEventos={eventos}
+      initialTotalCount={totalCount}
       initialScores={scores}
       conductores={conductores}
       vehiculos={vehiculosList}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useTransition } from "react";
 import Link from "next/link";
 import {
   Radio,
@@ -21,6 +21,9 @@ import {
   Calendar,
   Sparkles,
   MessageSquare,
+  ChevronLeft,
+  ChevronRight,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   EventoGPS,
@@ -42,61 +45,114 @@ import { QuickAsignacionModal } from "@/components/asignaciones/QuickAsignacionM
 
 interface GpsMonitorClientViewProps {
   initialEventos: EventoGPS[];
+  initialTotalCount?: number;
   initialScores: CalificacionConductorMensual[];
   conductores?: { id: string; nombres: string; apellidos: string; numeroDocumento?: string; contratistaNombre?: string }[];
   vehiculos?: { id: string; placa: string; marca?: string; modelo?: string; contratistaNombre?: string }[];
 }
 
 type TabType = "eventos" | "reincidencias" | "ranking" | "conexion";
+type RangoFecha = "hoy" | "24h" | "7d" | "mes" | "todos" | "personalizado";
 
 export function GpsMonitorClientView({
   initialEventos,
+  initialTotalCount,
   initialScores,
   conductores = [],
   vehiculos = [],
 }: GpsMonitorClientViewProps) {
   const [eventos, setEventos] = useState<EventoGPS[]>(initialEventos);
+  const [totalCount, setTotalCount] = useState<number>(initialTotalCount || initialEventos.length);
   const [scores, setScores] = useState<CalificacionConductorMensual[]>(initialScores);
   const [activeTab, setActiveTab] = useState<TabType>("eventos");
   const [selectedEventoFeedback, setSelectedEventoFeedback] = useState<EventoGPS | null>(null);
   const [quickAssignModalOpen, setQuickAssignModalOpen] = useState(false);
   const [quickAssignPlaca, setQuickAssignPlaca] = useState("");
+  
+  // Filtros de Consulta
   const [filtroPrioridad, setFiltroPrioridad] = useState<string>("todas");
   const [filtroTipo, setFiltroTipo] = useState<string>("todos");
+  const [filtroPlaca, setFiltroPlaca] = useState<string>("todas");
   const [searchTerm, setSearchTerm] = useState("");
+  const [rangoFecha, setRangoFecha] = useState<RangoFecha>("todos");
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
+
+  // Paginación Ligera (20 por defecto)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
   const [mesRanking, setMesRanking] = useState(new Date().toISOString().slice(0, 7));
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string>(new Date().toLocaleTimeString("es-CO"));
 
-  // Función para refrescar datos reales desde el Gateway
-  const refrescarDatosReales = useCallback(async () => {
+  // Función optimizada para consultar eventos con filtros en el backend
+  const fetchEventos = useCallback(async (
+    page: number = 1,
+    size: number = 20,
+    rango: RangoFecha = rangoFecha,
+    placa: string = filtroPlaca,
+    prioridad: string = filtroPrioridad,
+    tipo: string = filtroTipo,
+    desde: string = fechaDesde,
+    hasta: string = fechaHasta
+  ) => {
     setIsRefreshing(true);
     try {
-      const res = await fetch("/api/gps/eventos");
+      const params = new URLSearchParams();
+      params.set("page", String(page));
+      params.set("limite", String(size));
+      if (rango !== "todos") params.set("rango", rango);
+      if (placa !== "todas") params.set("placa", placa);
+      if (prioridad !== "todas") params.set("prioridad", prioridad);
+      if (tipo !== "todos") params.set("tipo", tipo);
+      if (rango === "personalizado") {
+        if (desde) params.set("desde", desde);
+        if (hasta) params.set("hasta", hasta);
+      }
+
+      const res = await fetch(`/api/gps/eventos?${params.toString()}`);
       if (res.ok) {
         const json = await res.json();
         if (json.eventos) {
           setEventos(json.eventos);
+          setTotalCount(json.totalCount || json.totalEventos || json.eventos.length);
+          setCurrentPage(page);
           setLastUpdated(new Date().toLocaleTimeString("es-CO"));
         }
       }
     } catch (err) {
-      console.warn("Error al refrescar eventos GPS:", err);
+      console.warn("Error al consultar eventos GPS:", err);
     } finally {
       setIsRefreshing(false);
     }
-  }, []);
+  }, [rangoFecha, filtroPlaca, filtroPrioridad, filtroTipo, fechaDesde, fechaHasta]);
 
-  // Polling periódico cada 20 segundos para reflejar las ejecuciones de n8n
+  // Refrescar al cambiar filtros principales
+  const handleAplicarFiltros = (nuevoRango?: RangoFecha, nuevaPlaca?: string, nuevaPrioridad?: string, nuevoTipo?: string) => {
+    const r = nuevoRango !== undefined ? nuevoRango : rangoFecha;
+    const p = nuevaPlaca !== undefined ? nuevaPlaca : filtroPlaca;
+    const pr = nuevaPrioridad !== undefined ? nuevaPrioridad : filtroPrioridad;
+    const t = nuevoTipo !== undefined ? nuevoTipo : filtroTipo;
+    
+    if (nuevoRango !== undefined) setRangoFecha(nuevoRango);
+    if (nuevaPlaca !== undefined) setFiltroPlaca(nuevaPlaca);
+    if (nuevaPrioridad !== undefined) setFiltroPrioridad(nuevaPrioridad);
+    if (nuevoTipo !== undefined) setFiltroTipo(nuevoTipo);
+
+    fetchEventos(1, pageSize, r, p, pr, t);
+  };
+
+  // Polling periódico cada 25 segundos para reflejar n8n sin sobrecargar
   useEffect(() => {
     const interval = setInterval(() => {
-      refrescarDatosReales();
-    }, 20000);
+      fetchEventos(currentPage, pageSize);
+    }, 25000);
     return () => clearInterval(interval);
-  }, [refrescarDatosReales]);
+  }, [fetchEventos, currentPage, pageSize]);
 
   // Métricas en tiempo real
-  const totalEventos = eventos.length;
+  const totalEventos = totalCount;
   const criticos = eventos.filter((e) => e.prioridad === "alta").length;
   const pendientes = eventos.filter(
     (e) => e.estadoRetroalimentacion === "pendiente" && e.prioridad !== "baja"
@@ -113,22 +169,18 @@ export function GpsMonitorClientView({
     ([_, evts]) => evts.filter((x) => x.prioridad !== "baja").length >= 2
   );
 
-  // Filtrado de la tabla de eventos
+  // Filtrado local reactivo por búsqueda de texto
   const filteredEventos = eventos.filter((e) => {
-    if (filtroPrioridad !== "todas" && e.prioridad !== filtroPrioridad) return false;
-    if (filtroTipo !== "todos" && e.tipoEvento !== filtroTipo) return false;
-
-    if (searchTerm.trim()) {
-      const q = searchTerm.toLowerCase();
-      const matchPlaca = e.placa.toLowerCase().includes(q);
-      const matchConductor = e.conductorNombre?.toLowerCase().includes(q);
-      const matchDesc = e.descripcion?.toLowerCase().includes(q);
-      const matchUbicacion = e.ubicacion?.toLowerCase().includes(q);
-      return matchPlaca || matchConductor || matchDesc || matchUbicacion;
-    }
-
-    return true;
+    if (!searchTerm.trim()) return true;
+    const q = searchTerm.toLowerCase();
+    const matchPlaca = e.placa.toLowerCase().includes(q);
+    const matchConductor = e.conductorNombre?.toLowerCase().includes(q);
+    const matchDesc = e.descripcion?.toLowerCase().includes(q);
+    const matchUbicacion = e.ubicacion?.toLowerCase().includes(q);
+    return matchPlaca || matchConductor || matchDesc || matchUbicacion;
   });
+
+  const totalPages = Math.ceil(totalCount / pageSize) || 1;
 
   const columns: Column<EventoGPS>[] = [
     {
@@ -139,52 +191,83 @@ export function GpsMonitorClientView({
     {
       header: "Conductor Asignado",
       accessor: "conductorNombre",
-      render: (_v, row) => {
-        const hasConductor = row.conductorId && row.conductorNombre !== "Sin conductor asignado";
-        if (!hasConductor) {
-          return (
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono bg-asphalt-800 text-fog-400 border border-line-600">
-                Sin conductor
-              </span>
+      render: (v, row) => (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-xs text-paper-50">{v || "Sin conductor asignado"}</span>
+            {!v || v === "Sin conductor asignado" ? (
               <button
                 type="button"
                 onClick={() => {
                   setQuickAssignPlaca(row.placa);
                   setQuickAssignModalOpen(true);
                 }}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-signal-amber/15 hover:bg-signal-amber text-signal-amber hover:text-asphalt-950 border border-signal-amber/30 transition-all active:scale-95"
-                title="Asignar conductor a este vehículo"
+                className="inline-flex items-center gap-1 rounded bg-signal-amber/20 hover:bg-signal-amber/30 text-signal-amber border border-signal-amber/40 px-1.5 py-0.5 text-[10px] font-bold font-mono transition-colors active:scale-95"
+                title="Asignar conductor a este vehículo con 1 clic"
               >
-                <Zap size={11} />
-                <span>Asignar</span>
+                <Zap size={11} /> Asignar
               </button>
-            </div>
-          );
-        }
+            ) : null}
+          </div>
+          {row.conductorTelefono ? (
+            <span className="font-mono text-[10px] text-fog-400">Tel: {row.conductorTelefono}</span>
+          ) : (
+            <span className="font-mono text-[10px] text-fog-400/60 italic">Fuente: Asignación ERP</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      header: "Fecha / Hora",
+      accessor: "fechaHora",
+      render: (v) => {
+        const d = new Date(v as string);
         return (
-          <div>
-            <p className="font-semibold text-paper-50 text-xs">
-              {row.conductorNombre}
-            </p>
-            <p className="text-[10px] font-mono text-fog-400">
-              {row.conductorTelefono ? `Tel: ${row.conductorTelefono}` : "Sin teléfono"}
-            </p>
+          <div className="flex flex-col font-mono text-xs">
+            <span className="font-medium text-paper-50">{d.toLocaleDateString("es-CO")}</span>
+            <span className="text-fog-400 text-[11px]">{d.toLocaleTimeString("es-CO")}</span>
           </div>
         );
       },
     },
     {
-      header: "Tipo de Novedad (Satelcopro)",
+      header: "Tipo de Novedad",
       accessor: "tipoEvento",
-      render: (_v, row) => {
-        const conf = TIPO_EVENTO_LABELS[row.tipoEvento] || { label: row.tipoEvento };
+      render: (v, row) => {
+        const tipo = v as TipoEventoGPS;
+        const config = TIPO_EVENTO_LABELS[tipo] || { label: String(tipo), defaultPrioridad: "baja" };
+        
+        let Icon = Radio;
+        let iconColor = "text-fog-400";
+        if (tipo === "exceso_velocidad") {
+          Icon = Gauge;
+          iconColor = "text-alert-red";
+        } else if (tipo === "frenada_brusca") {
+          Icon = OctagonAlert;
+          iconColor = "text-signal-amber";
+        } else if (tipo === "acelerada_brusca") {
+          Icon = Zap;
+          iconColor = "text-signal-amber";
+        } else if (tipo === "panico" || tipo === "desconexion") {
+          Icon = AlertTriangle;
+          iconColor = "text-alert-red";
+        }
+
+        let badgeBg = "bg-asphalt-800 border-line-600";
+        if (row.prioridad === "alta") badgeBg = "bg-alert-red-dim border-alert-red/30";
+        if (row.prioridad === "media") badgeBg = "bg-signal-amber-dim border-signal-amber/30";
+
         return (
-          <div>
-            <span className="font-semibold text-paper-50 text-xs">{conf.label}</span>
-            <p className="text-[11px] text-fog-400 max-w-xs truncate" title={row.descripcion}>
-              {row.descripcion}
-            </p>
+          <div className="flex items-center gap-2">
+            <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border ${badgeBg} ${iconColor}`}>
+              <Icon size={14} />
+            </span>
+            <div className="flex flex-col">
+              <span className="font-semibold text-xs text-paper-50 leading-tight">{config.label}</span>
+              {row.descripcion && (
+                <span className="text-[10px] text-fog-400 line-clamp-1 max-w-[180px]">{row.descripcion}</span>
+              )}
+            </div>
           </div>
         );
       },
@@ -193,109 +276,68 @@ export function GpsMonitorClientView({
       header: "Severidad",
       accessor: "prioridad",
       render: (v) => {
-        const conf = PRIORIDAD_EVENTO_LABELS[v as PrioridadEventoGPS] || {
-          label: v as string,
-          badgeClass: "bg-asphalt-800 text-mist-200 border-line-600",
-        };
+        const p = v as PrioridadEventoGPS;
+        const conf = PRIORIDAD_EVENTO_LABELS[p] || { label: String(p), badgeClass: "bg-asphalt-800 text-fog-400 border-line-600" };
         return (
-          <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-mono border ${conf.badgeClass}`}>
+          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-mono font-bold uppercase tracking-wider border ${conf.badgeClass}`}>
             {conf.label}
           </span>
         );
       },
     },
     {
-      header: "Fecha / Ubicación",
-      accessor: "fechaHora",
-      render: (_v, row) => (
-        <div>
-          <p className="text-xs font-mono text-paper-50">
-            {new Date(row.fechaHora).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })}
-          </p>
-          <p className="text-[10px] text-fog-400 flex items-center gap-1 mt-0.5 truncate max-w-[170px]" title={row.ubicacion}>
-            <MapPin size={10} className="shrink-0" />
-            <span className="truncate">{row.ubicacion || "En ruta"}</span>
-          </p>
-        </div>
-      ),
-    },
-    {
-      header: "Estado PESV",
-      accessor: "estadoRetroalimentacion",
-      render: (v) => {
-        if (v === "enviada_whatsapp") {
-          return (
-            <span className="inline-flex items-center gap-1 rounded bg-ok-green-dim px-2 py-0.5 text-[11px] font-mono font-semibold text-ok-green border border-ok-green/30">
-              <CheckCircle2 size={12} /> Notificado WhatsApp
-            </span>
-          );
-        }
-        if (v === "enviada_correo") {
-          return (
-            <span className="inline-flex items-center gap-1 rounded bg-radar-cyan-dim px-2 py-0.5 text-[11px] font-mono font-semibold text-radar-cyan border border-radar-cyan/30">
-              <CheckCircle2 size={12} /> Notificado Email
-            </span>
-          );
-        }
+      header: "Telemetría (Vel / Km)",
+      accessor: "velocidad",
+      render: (v, row) => {
+        const vel = v as number | undefined;
+        const lim = row.limiteVelocidad;
+        const exceso = vel !== undefined && lim !== undefined && vel > lim;
+
         return (
-          <span className="inline-flex items-center rounded bg-signal-amber-dim px-2 py-0.5 text-[11px] font-mono font-semibold text-signal-amber border border-signal-amber/30">
-            Pendiente
-          </span>
+          <div className="flex flex-col font-mono text-xs">
+            {vel !== undefined ? (
+              <div className="flex items-center gap-1.5">
+                <span className={`font-bold ${exceso ? "text-alert-red" : "text-paper-50"}`}>
+                  {vel} km/h
+                </span>
+                {lim && <span className="text-fog-400 text-[10px]">/ Máx {lim}</span>}
+              </div>
+            ) : (
+              <span className="text-fog-400/60">—</span>
+            )}
+            {row.ubicacion && (
+              <span className="text-[10px] text-fog-400 line-clamp-1 max-w-[160px] flex items-center gap-1">
+                <MapPin size={10} className="shrink-0 text-radar-cyan" />
+                {row.ubicacion}
+              </span>
+            )}
+          </div>
         );
       },
     },
     {
-      header: "Acción",
-      accessor: "id",
-      render: (_v, row) => {
-        // Formatear número de teléfono
-        const rawPhone = row.conductorTelefono?.replace(/[^0-9]/g, "") || "";
-        let phoneFormatted = "";
-        if (rawPhone.length === 10) phoneFormatted = `57${rawPhone}`;
-        else if (rawPhone.length === 12 && rawPhone.startsWith("57")) phoneFormatted = rawPhone;
-
-        const msg = encodeURIComponent(generarMensajeWhatsApp(row));
-        const directWaUrl = phoneFormatted
-          ? `https://api.whatsapp.com/send?phone=${phoneFormatted}&text=${msg}`
-          : `https://api.whatsapp.com/send?text=${msg}`;
+      header: "Gestión HSE",
+      accessor: "estadoRetroalimentacion",
+      render: (v, row) => {
+        const estado = (v || "pendiente") as string;
+        const esGestionado = estado === "completada";
 
         return (
-          <div className="flex items-center gap-1.5">
-            {/* Botón 1-Clic Directo a WhatsApp */}
-            <a
-              href={directWaUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={async (e) => {
-                e.stopPropagation();
-                try {
-                  const res = await marcarRetroalimentacionDb(row.id, "whatsapp");
-                  if (res.success && res.refreshedEventos) {
-                    setEventos(res.refreshedEventos);
-                  }
-                } catch (err) {
-                  console.error(err);
-                }
-              }}
-              className="flex h-7 w-7 items-center justify-center rounded-lg border border-ok-green/40 bg-ok-green/10 text-ok-green hover:bg-ok-green hover:text-asphalt-950 transition-all shadow-xs"
-              title="Abrir WhatsApp con plantilla directa"
-            >
-              <Smartphone size={14} />
-            </a>
-
-            {/* Botón para Abrir Modal y Personalizar */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedEventoFeedback(row);
-              }}
-              className="inline-flex items-center gap-1 rounded-lg border border-line-500 bg-asphalt-800 px-2 py-1 text-xs font-medium text-paper-50 hover:bg-asphalt-700 transition-colors shadow-xs"
-              title="Ver plantilla completa o enviar correo"
-            >
-              <MessageSquare size={12} className="text-signal-amber" />
-              <span>Ver</span>
-            </button>
+          <div className="flex items-center gap-2">
+            {esGestionado ? (
+              <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-mono font-semibold bg-ok-green-dim text-ok-green border border-ok-green/30">
+                <CheckCircle2 size={12} /> Gestionado
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setSelectedEventoFeedback(row)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-line-500 bg-asphalt-800 hover:bg-radar-cyan/15 hover:border-radar-cyan/40 px-2.5 py-1 text-xs font-semibold text-paper-50 hover:text-radar-cyan transition-colors active:scale-95"
+              >
+                <MessageSquare size={13} className="text-radar-cyan" />
+                <span>Notificar</span>
+              </button>
+            )}
           </div>
         );
       },
@@ -304,18 +346,18 @@ export function GpsMonitorClientView({
 
   return (
     <div className="space-y-6">
-      {/* Cabecera Principal con Indicador de Sincronización en Vivo */}
+      {/* Cabecera del Módulo */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-mono text-signal-amber font-semibold uppercase tracking-wider mb-1">
-            <Radio size={16} className="animate-pulse text-signal-amber" />
-            <span>Monitoreo Satelital &amp; Seguridad Vial PESV (Satelcopro / n8n)</span>
+          <div className="flex items-center gap-2 text-xs font-mono text-radar-cyan font-semibold uppercase tracking-wider mb-1">
+            <Radio size={16} className="text-radar-cyan animate-pulse" />
+            <span>Módulo de Telemetría Satelcopro en Vivo</span>
           </div>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold text-paper-50">
-            Telemetría GPS en Vivo
+          <h1 className="font-[family-name:var(--font-display)] text-2xl sm:text-3xl font-bold tracking-tight text-paper-50">
+            Control de Flota, GPS &amp; Scoring de Conductores
           </h1>
-          <p className="mt-1 text-sm text-fog-400">
-            Eventos reales capturados automáticamente desde el workflow de n8n cada 5 minutos.
+          <p className="text-xs sm:text-sm text-fog-400 mt-1 max-w-2xl">
+            Monitoreo en tiempo real de excesos de velocidad, frenadas bruscas y eventos de seguridad vial.
           </p>
         </div>
 
@@ -326,9 +368,9 @@ export function GpsMonitorClientView({
           </span>
           <button
             type="button"
-            onClick={refrescarDatosReales}
+            onClick={() => fetchEventos(currentPage, pageSize)}
             disabled={isRefreshing}
-            className="inline-flex items-center gap-2 rounded-lg border border-line-500 bg-asphalt-900 px-3.5 py-2 text-xs font-semibold text-paper-50 hover:bg-asphalt-800 transition-colors active:scale-95 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-lg border border-line-500 bg-asphalt-900 px-3.5 py-2 text-xs font-semibold text-paper-50 hover:bg-asphalt-800 transition-colors active:scale-95 disabled:opacity-50 shadow-sm"
           >
             <RefreshCw size={14} className={isRefreshing ? "animate-spin text-signal-amber" : "text-radar-cyan"} />
             <span>{isRefreshing ? "Consultando..." : "Actualizar"}</span>
@@ -336,12 +378,12 @@ export function GpsMonitorClientView({
         </div>
       </div>
 
-      {/* Métricas Principales Reales */}
+      {/* Métricas Principales */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl">
-        <StatCard label="Total Novedades" value={totalEventos} accent="cyan" trend="Eventos Satelcopro" />
-        <StatCard label="Eventos Críticos" value={criticos} accent="amber" trend="Velocidad / Pánico" />
+        <StatCard label="Total en Base de Datos" value={totalCount} accent="cyan" trend="Eventos Satelcopro" />
+        <StatCard label="Críticos del Lote" value={criticos} accent="amber" trend="Velocidad / Pánico" />
         <StatCard label="Vehículos Reincidentes" value={placasReincidentes.length} accent="amber" trend="≥ 2 novedades" />
-        <StatCard label="Pendientes Retroalimentación" value={pendientes} accent="green" trend="Por notificar" />
+        <StatCard label="Pendientes Gestión" value={pendientes} accent="green" trend="Por notificar" />
       </div>
 
       {/* Pestañas de Navegación del Módulo GPS */}
@@ -356,10 +398,7 @@ export function GpsMonitorClientView({
           }`}
         >
           <Radio size={16} className={activeTab === "eventos" ? "text-signal-amber" : ""} />
-          <span>Monitor de Eventos en Vivo</span>
-          <span className="ml-1 rounded-full bg-asphalt-950 px-2 py-0.2 text-xs font-mono text-fog-400 border border-line-600">
-            {eventos.length}
-          </span>
+          <span>Monitor de Eventos ({totalCount})</span>
         </button>
 
         <button
@@ -411,66 +450,265 @@ export function GpsMonitorClientView({
       <div className="pt-2">
         {activeTab === "eventos" && (
           <div className="space-y-4">
-            {/* Filtros de la Tabla */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-600 pb-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  value={filtroPrioridad}
-                  onChange={(e) => setFiltroPrioridad(e.target.value)}
-                  className="rounded-lg border border-line-600 bg-asphalt-900 px-3 py-1.5 text-xs text-paper-50 font-mono focus:border-signal-amber focus:outline-none"
-                >
-                  <option value="todas">Todas las severidades</option>
-                  <option value="alta">🔴 Alta / Crítica</option>
-                  <option value="media">🟡 Media</option>
-                  <option value="baja">🔵 Informativa</option>
-                </select>
+            {/* Barra de Filtros Rápida por Rango Temporal */}
+            <div className="bg-asphalt-900 border border-line-600 rounded-xl p-3 space-y-3 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2.5">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs font-mono font-semibold text-fog-400 uppercase tracking-wider mr-1 flex items-center gap-1">
+                    <Calendar size={13} className="text-radar-cyan" /> Rango:
+                  </span>
+                  
+                  <button
+                    type="button"
+                    onClick={() => handleAplicarFiltros("hoy")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-mono transition-all ${
+                      rangoFecha === "hoy"
+                        ? "bg-radar-cyan text-asphalt-950 font-bold shadow-sm"
+                        : "bg-asphalt-800 text-fog-400 hover:text-paper-50 hover:bg-asphalt-700 border border-line-600"
+                    }`}
+                  >
+                    📅 Hoy
+                  </button>
 
-                <select
-                  value={filtroTipo}
-                  onChange={(e) => setFiltroTipo(e.target.value)}
-                  className="rounded-lg border border-line-600 bg-asphalt-900 px-3 py-1.5 text-xs text-paper-50 font-mono focus:border-signal-amber focus:outline-none"
-                >
-                  <option value="todos">Todos los eventos</option>
-                  <option value="exceso_velocidad">Exceso de Velocidad (Overspeed)</option>
-                  <option value="frenada_brusca">Frenada Brusca</option>
-                  <option value="acelerada_brusca">Acelerada Brusca</option>
-                  <option value="giro_brusco">Giro Brusco</option>
-                  <option value="panico">Botón de Pánico / SOS</option>
-                  <option value="desconexion">Desconexión Batería</option>
-                  <option value="ralenti">Ralentí Prolongado</option>
-                  <option value="salida_geocerca">Salida de Geocerca</option>
-                  <option value="otro">Otros eventos</option>
-                </select>
+                  <button
+                    type="button"
+                    onClick={() => handleAplicarFiltros("24h")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-mono transition-all ${
+                      rangoFecha === "24h"
+                        ? "bg-radar-cyan text-asphalt-950 font-bold shadow-sm"
+                        : "bg-asphalt-800 text-fog-400 hover:text-paper-50 hover:bg-asphalt-700 border border-line-600"
+                    }`}
+                  >
+                    ⏱️ Últimas 24h
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAplicarFiltros("7d")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-mono transition-all ${
+                      rangoFecha === "7d"
+                        ? "bg-radar-cyan text-asphalt-950 font-bold shadow-sm"
+                        : "bg-asphalt-800 text-fog-400 hover:text-paper-50 hover:bg-asphalt-700 border border-line-600"
+                    }`}
+                  >
+                    📆 7 Días
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAplicarFiltros("mes")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-mono transition-all ${
+                      rangoFecha === "mes"
+                        ? "bg-radar-cyan text-asphalt-950 font-bold shadow-sm"
+                        : "bg-asphalt-800 text-fog-400 hover:text-paper-50 hover:bg-asphalt-700 border border-line-600"
+                    }`}
+                  >
+                    🗓️ Este Mes
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAplicarFiltros("todos")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-mono transition-all ${
+                      rangoFecha === "todos"
+                        ? "bg-radar-cyan text-asphalt-950 font-bold shadow-sm"
+                        : "bg-asphalt-800 text-fog-400 hover:text-paper-50 hover:bg-asphalt-700 border border-line-600"
+                    }`}
+                  >
+                    🌐 Todo el Historial
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAplicarFiltros("personalizado")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold font-mono transition-all ${
+                      rangoFecha === "personalizado"
+                        ? "bg-radar-cyan text-asphalt-950 font-bold shadow-sm"
+                        : "bg-asphalt-800 text-fog-400 hover:text-paper-50 hover:bg-asphalt-700 border border-line-600"
+                    }`}
+                  >
+                    ⚙️ Personalizado
+                  </button>
+                </div>
+
+                {/* Selector de Placa Rápido */}
+                <div className="flex items-center gap-2">
+                  <select
+                    value={filtroPlaca}
+                    onChange={(e) => handleAplicarFiltros(undefined, e.target.value)}
+                    className="rounded-lg border border-line-600 bg-asphalt-950 px-3 py-1.5 text-xs text-paper-50 font-mono focus:border-radar-cyan focus:outline-none"
+                  >
+                    <option value="todas">Todos los Vehículos ({vehiculos.length})</option>
+                    {vehiculos.map((v) => (
+                      <option key={v.id} value={v.placa}>
+                        {v.placa} ({v.marca || "Vehículo"})
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              <div className="w-full sm:w-64">
-                <input
-                  type="text"
-                  placeholder="Buscar por placa, conductor, tramo..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full rounded-md border border-line-600 bg-asphalt-900 px-3 py-1.5 text-xs text-paper-50 placeholder:text-fog-400 focus:border-signal-amber focus:outline-none"
-                />
+              {/* Rango Personalizado de Fechas (Si aplica) */}
+              {rangoFecha === "personalizado" && (
+                <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-line-600/60 animate-in fade-in">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-fog-400 font-mono">Desde:</span>
+                    <input
+                      type="date"
+                      value={fechaDesde}
+                      onChange={(e) => setFechaDesde(e.target.value)}
+                      className="rounded-lg border border-line-600 bg-asphalt-950 px-2.5 py-1 text-xs text-paper-50 font-mono focus:border-radar-cyan focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-fog-400 font-mono">Hasta:</span>
+                    <input
+                      type="date"
+                      value={fechaHasta}
+                      onChange={(e) => setFechaHasta(e.target.value)}
+                      className="rounded-lg border border-line-600 bg-asphalt-950 px-2.5 py-1 text-xs text-paper-50 font-mono focus:border-radar-cyan focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleAplicarFiltros("personalizado")}
+                    className="px-3 py-1 bg-radar-cyan text-asphalt-950 font-bold rounded-lg text-xs uppercase tracking-wider"
+                  >
+                    Filtrar Rango
+                  </button>
+                </div>
+              )}
+
+              {/* Filtros Secundarios: Severidad, Tipo y Búsqueda */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-line-600/60">
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    value={filtroPrioridad}
+                    onChange={(e) => handleAplicarFiltros(undefined, undefined, e.target.value)}
+                    className="rounded-lg border border-line-600 bg-asphalt-950 px-3 py-1.5 text-xs text-paper-50 font-mono focus:border-signal-amber focus:outline-none"
+                  >
+                    <option value="todas">Todas las severidades</option>
+                    <option value="alta">🔴 Alta / Crítica</option>
+                    <option value="media">🟡 Media</option>
+                    <option value="baja">🔵 Informativa</option>
+                  </select>
+
+                  <select
+                    value={filtroTipo}
+                    onChange={(e) => handleAplicarFiltros(undefined, undefined, undefined, e.target.value)}
+                    className="rounded-lg border border-line-600 bg-asphalt-950 px-3 py-1.5 text-xs text-paper-50 font-mono focus:border-signal-amber focus:outline-none"
+                  >
+                    <option value="todos">Todos los eventos</option>
+                    <option value="exceso_velocidad">Exceso de Velocidad (Overspeed)</option>
+                    <option value="frenada_brusca">Frenada Brusca</option>
+                    <option value="acelerada_brusca">Acelerada Brusca</option>
+                    <option value="giro_brusco">Giro Brusco</option>
+                    <option value="panico">Botón de Pánico / SOS</option>
+                    <option value="desconexion">Desconexión Batería</option>
+                    <option value="ralenti">Ralentí Prolongado</option>
+                    <option value="salida_geocerca">Salida de Geocerca</option>
+                    <option value="otro">Otros eventos</option>
+                  </select>
+                </div>
+
+                <div className="w-full sm:w-64">
+                  <input
+                    type="text"
+                    placeholder="Filtrar por conductor, tramo..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full rounded-md border border-line-600 bg-asphalt-950 px-3 py-1.5 text-xs text-paper-50 placeholder:text-fog-400 focus:border-signal-amber focus:outline-none"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Banner Informativo si no hay eventos aún */}
+            {/* Banner Informativo si no hay eventos */}
             {eventos.length === 0 ? (
               <div className="rounded-xl border border-radar-cyan/30 bg-radar-cyan/10 p-8 text-center space-y-3">
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-radar-cyan/20 text-radar-cyan mx-auto">
                   <Radio size={24} className="animate-pulse" />
                 </div>
                 <h3 className="font-[family-name:var(--font-display)] text-xl font-bold text-paper-50">
-                  Gateway Satelcopro Conectado &amp; Esperando Eventos
+                  No se encontraron eventos con los filtros seleccionados
                 </h3>
                 <p className="text-xs text-fog-400 max-w-md mx-auto">
-                  El webhook <code className="text-radar-cyan font-mono font-bold">/api/gps/eventos</code> está activo. Los eventos registrados por tu flujo de n8n cada 5 minutos aparecerán aquí en tiempo real.
+                  Prueba cambiando el rango temporal o seleccionando &quot;Todo el Historial&quot; para consultar los {totalCount} registros de la base de datos.
                 </p>
+                <button
+                  type="button"
+                  onClick={() => handleAplicarFiltros("todos", "todas", "todas", "todos")}
+                  className="px-4 py-2 bg-radar-cyan text-asphalt-950 font-bold text-xs uppercase tracking-wider rounded-xl shadow-md"
+                >
+                  Restablecer Filtros
+                </button>
               </div>
             ) : (
-              <Card className="p-0 overflow-hidden">
-                <DataTable columns={columns} data={filteredEventos} />
-              </Card>
+              <div className="space-y-3">
+                <Card className="p-0 overflow-hidden">
+                  <DataTable columns={columns} data={filteredEventos} />
+                </Card>
+
+                {/* Barra de Paginación Inteligente */}
+                <div className="bg-asphalt-900 border border-line-600 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2 font-mono text-fog-400">
+                    <span>
+                      Mostrando <strong className="text-paper-50">{(currentPage - 1) * pageSize + 1}</strong> –{" "}
+                      <strong className="text-paper-50">
+                        {Math.min(currentPage * pageSize, totalCount)}
+                      </strong>{" "}
+                      de <strong className="text-radar-cyan">{totalCount}</strong> eventos
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    {/* Selector de Tamaño de Página */}
+                    <div className="flex items-center gap-1.5 font-mono text-fog-400">
+                      <span>Ver:</span>
+                      <select
+                        value={pageSize}
+                        onChange={(e) => {
+                          const newSize = parseInt(e.target.value, 10);
+                          setPageSize(newSize);
+                          fetchEventos(1, newSize);
+                        }}
+                        className="rounded-lg border border-line-600 bg-asphalt-950 px-2.5 py-1 text-xs text-paper-50 font-mono focus:border-radar-cyan focus:outline-none"
+                      >
+                        <option value={20}>20 por página</option>
+                        <option value={50}>50 por página</option>
+                        <option value={100}>100 por página</option>
+                      </select>
+                    </div>
+
+                    {/* Botones de Navegación de Página */}
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => fetchEventos(currentPage - 1, pageSize)}
+                        disabled={currentPage <= 1 || isRefreshing}
+                        className="p-1.5 rounded-lg border border-line-600 bg-asphalt-950 text-paper-50 hover:bg-asphalt-800 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                        title="Página anterior"
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+
+                      <span className="font-mono text-xs text-paper-50 px-2 font-semibold">
+                        {currentPage} / {totalPages}
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => fetchEventos(currentPage + 1, pageSize)}
+                        disabled={currentPage >= totalPages || isRefreshing}
+                        className="p-1.5 rounded-lg border border-line-600 bg-asphalt-950 text-paper-50 hover:bg-asphalt-800 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                        title="Página siguiente"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -488,59 +726,52 @@ export function GpsMonitorClientView({
             </div>
 
             {placasReincidentes.length === 0 ? (
-              <div className="rounded-xl border border-ok-green/30 bg-ok-green/10 p-8 text-center space-y-2">
-                <CheckCircle2 size={24} className="text-ok-green mx-auto" />
-                <h4 className="font-semibold text-paper-50 text-sm">Sin Reincidencias Críticas</h4>
-                <p className="text-xs text-fog-400">
-                  Actualmente ningún vehículo ha acumulado 2 o más novedades de severidad media/alta.
-                </p>
+              <div className="rounded-xl border border-ok-green/30 bg-ok-green-dim/10 p-6 text-center text-xs text-ok-green flex items-center justify-center gap-2">
+                <CheckCircle2 size={16} />
+                <span>Excelente: No hay vehículos con alertas críticas reincidentes en este lote.</span>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {placasReincidentes.map(([placa, evts]) => {
-                  const primerEvento = evts[0];
+                  const conductor = evts.find((x) => x.conductorNombre)?.conductorNombre || "Sin conductor asignado";
+                  const ultEvt = evts[0];
                   return (
-                    <Card key={placa} className="space-y-3">
-                      <div className="flex items-center justify-between border-b border-line-600/70 pb-3">
-                        <div className="flex items-center gap-3">
+                    <Card key={placa} className="space-y-3 border-alert-red/30">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2.5">
                           <PlateTag plate={placa} />
                           <div>
-                            <p className="text-sm font-semibold text-paper-50">
-                              {primerEvento.conductorNombre || "Sin conductor"}
-                            </p>
-                            <p className="text-xs font-mono text-fog-400">
-                              {primerEvento.conductorTelefono || "Sin teléfono"}
-                            </p>
+                            <h4 className="font-bold text-sm text-paper-50">{conductor}</h4>
+                            <span className="text-[10px] font-mono text-fog-400">
+                              {evts.length} novedades detectadas
+                            </span>
                           </div>
                         </div>
-
-                        <span className="rounded-full bg-alert-red-dim px-2.5 py-1 text-xs font-mono font-bold text-alert-red border border-alert-red/30">
-                          {evts.length} Novedades
+                        <span className="rounded-full bg-alert-red-dim text-alert-red font-mono text-[10px] font-bold px-2 py-0.5 border border-alert-red/30">
+                          {evts.length} Alertas
                         </span>
                       </div>
 
-                      <div className="space-y-2">
-                        {evts.map((e) => (
-                          <div
-                            key={e.id}
-                            className="flex items-center justify-between rounded-lg border border-line-600 bg-asphalt-950 p-2.5 text-xs"
-                          >
-                            <div>
-                              <p className="font-semibold text-paper-50">{e.descripcion}</p>
-                              <p className="text-[10px] font-mono text-fog-400">
-                                {new Date(e.fechaHora).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })}
-                              </p>
-                            </div>
+                      <div className="rounded-lg bg-asphalt-950 p-2.5 text-xs font-mono space-y-1 text-fog-400">
+                        <div className="flex justify-between">
+                          <span>Última novedad:</span>
+                          <span className="text-paper-50 font-semibold">{ultEvt.tipoEvento}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Velocidad reg.:</span>
+                          <span className="text-alert-red font-bold">{ultEvt.velocidad || "—"} km/h</span>
+                        </div>
+                      </div>
 
-                            <button
-                              type="button"
-                              onClick={() => setSelectedEventoFeedback(e)}
-                              className="inline-flex items-center gap-1 rounded bg-ok-green-dim px-2 py-1 text-[11px] font-mono font-semibold text-ok-green hover:bg-ok-green hover:text-asphalt-950 transition-colors border border-ok-green/30"
-                            >
-                              <Smartphone size={12} /> WhatsApp
-                            </button>
-                          </div>
-                        ))}
+                      <div className="flex justify-end gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedEventoFeedback(ultEvt)}
+                          className="px-3 py-1.5 rounded-lg bg-radar-cyan hover:bg-radar-cyan/90 text-asphalt-950 font-bold text-xs flex items-center gap-1.5 transition-colors"
+                        >
+                          <Smartphone size={13} />
+                          <span>Retroalimentar Conductor</span>
+                        </button>
                       </div>
                     </Card>
                   );
@@ -551,22 +782,21 @@ export function GpsMonitorClientView({
         )}
 
         {activeTab === "ranking" && (
-          <DriverScoreRanking
-            scores={scores}
-            mesSeleccionado={mesRanking}
-            onCambiarMes={setMesRanking}
-          />
+          <DriverScoreRanking scores={scores} mesSeleccionado={mesRanking} onCambiarMes={setMesRanking} />
         )}
 
         {activeTab === "conexion" && <N8nConnectionGuide />}
       </div>
 
-      {/* Modal de Retroalimentación en 1 Clic */}
+      {/* Modal de Retroalimentación HSE */}
       <RetroalimentacionModal
-        evento={selectedEventoFeedback}
         isOpen={!!selectedEventoFeedback}
+        evento={selectedEventoFeedback}
         onClose={() => setSelectedEventoFeedback(null)}
-        onFeedbackSent={(refreshed) => setEventos(refreshed)}
+        onFeedbackSent={() => {
+          setSelectedEventoFeedback(null);
+          fetchEventos(currentPage, pageSize);
+        }}
       />
 
       {/* Modal de Asignación Rápida 1-Click */}
@@ -580,8 +810,7 @@ export function GpsMonitorClientView({
           setQuickAssignPlaca("");
         }}
         onSuccess={() => {
-          // Refrescar página para sincronizar asignación
-          window.location.reload();
+          fetchEventos(currentPage, pageSize);
         }}
       />
     </div>

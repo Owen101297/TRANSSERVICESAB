@@ -21,7 +21,7 @@ import {
 let inMemoryEventosGPS: EventoGPS[] = [];
 
 /**
- * Consulta todos los eventos GPS reales con filtros
+ * Consulta todos los eventos GPS reales con filtros (compatible con versión previa)
  */
 export async function getEventosGPSDb(filtros?: {
   placa?: string;
@@ -29,22 +29,75 @@ export async function getEventosGPSDb(filtros?: {
   prioridad?: PrioridadEventoGPS;
   tipoEvento?: TipoEventoGPS;
   limite?: number;
+  offset?: number;
+  rango?: "hoy" | "24h" | "7d" | "mes" | "todos" | "personalizado";
+  fechaDesde?: string;
+  fechaHasta?: string;
 }): Promise<EventoGPS[]> {
+  const res = await getEventosGPSConPaginacionDb(filtros);
+  return res.eventos;
+}
+
+/**
+ * Consulta eventos GPS con soporte para paginación y filtros temporales
+ */
+export async function getEventosGPSConPaginacionDb(filtros?: {
+  placa?: string;
+  conductorId?: string;
+  prioridad?: PrioridadEventoGPS | "todas";
+  tipoEvento?: TipoEventoGPS | "todos";
+  limite?: number;
+  offset?: number;
+  rango?: "hoy" | "24h" | "7d" | "mes" | "todos" | "personalizado";
+  fechaDesde?: string;
+  fechaHasta?: string;
+}): Promise<{ eventos: EventoGPS[]; totalCount: number }> {
   try {
     const whereClause: any = {};
     if (filtros?.placa) whereClause.placa = { contains: filtros.placa.trim(), mode: "insensitive" };
     if (filtros?.conductorId) whereClause.conductorId = filtros.conductorId;
-    if (filtros?.prioridad) whereClause.prioridad = filtros.prioridad;
-    if (filtros?.tipoEvento) whereClause.tipoEvento = filtros.tipoEvento;
+    if (filtros?.prioridad && filtros.prioridad !== "todas") whereClause.prioridad = filtros.prioridad;
+    if (filtros?.tipoEvento && filtros.tipoEvento !== "todos") whereClause.tipoEvento = filtros.tipoEvento;
 
-    const dbRecords = await (prisma as any).eventoGPS.findMany({
-      where: whereClause,
-      orderBy: { fechaHora: "desc" },
-      take: filtros?.limite || 100,
-    });
+    // Filtros de fecha inteligente
+    const now = new Date();
+    if (filtros?.rango === "hoy") {
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      whereClause.fechaHora = { gte: startOfDay };
+    } else if (filtros?.rango === "24h") {
+      const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      whereClause.fechaHora = { gte: last24h };
+    } else if (filtros?.rango === "7d") {
+      const last7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      whereClause.fechaHora = { gte: last7d };
+    } else if (filtros?.rango === "mes") {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      whereClause.fechaHora = { gte: startOfMonth };
+    } else if (filtros?.rango === "personalizado" && (filtros.fechaDesde || filtros.fechaHasta)) {
+      whereClause.fechaHora = {};
+      if (filtros.fechaDesde) whereClause.fechaHora.gte = new Date(filtros.fechaDesde);
+      if (filtros.fechaHasta) {
+        const hastaDate = new Date(filtros.fechaHasta);
+        hastaDate.setHours(23, 59, 59, 999);
+        whereClause.fechaHora.lte = hastaDate;
+      }
+    }
+
+    const limit = filtros?.limite !== undefined ? filtros.limite : 20;
+    const skip = filtros?.offset || 0;
+
+    const [totalCount, dbRecords] = await Promise.all([
+      (prisma as any).eventoGPS.count({ where: whereClause }),
+      (prisma as any).eventoGPS.findMany({
+        where: whereClause,
+        orderBy: { fechaHora: "desc" },
+        take: limit,
+        skip: skip,
+      }),
+    ]);
 
     if (Array.isArray(dbRecords)) {
-      return dbRecords.map((r: any) => ({
+      const formatted = dbRecords.map((r: any) => ({
         id: r.id,
         placa: r.placa,
         fechaHora: r.fechaHora ? new Date(r.fechaHora).toISOString() : new Date().toISOString(),
@@ -66,27 +119,15 @@ export async function getEventosGPSDb(filtros?: {
         observacionesGestion: r.observacionesGestion || undefined,
         createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : new Date().toISOString(),
       }));
+
+      return { eventos: formatted, totalCount };
     }
+
+    return { eventos: [], totalCount: 0 };
   } catch (err) {
-    console.warn("Aviso: Consultando fallback en memoria para eventos GPS:", err);
+    console.warn("Aviso: Consultando fallback para eventos GPS:", err);
+    return { eventos: inMemoryEventosGPS.slice(0, 20), totalCount: inMemoryEventosGPS.length };
   }
-
-  // Fallback en memoria
-  let list = [...inMemoryEventosGPS];
-  if (filtros?.placa) {
-    list = list.filter((e) => e.placa.toLowerCase().includes(filtros.placa!.toLowerCase()));
-  }
-  if (filtros?.conductorId) {
-    list = list.filter((e) => e.conductorId === filtros.conductorId);
-  }
-  if (filtros?.prioridad) {
-    list = list.filter((e) => e.prioridad === filtros.prioridad);
-  }
-  if (filtros?.tipoEvento) {
-    list = list.filter((e) => e.tipoEvento === filtros.tipoEvento);
-  }
-
-  return list.sort((a, b) => new Date(b.fechaHora).getTime() - new Date(a.fechaHora).getTime());
 }
 
 /**
