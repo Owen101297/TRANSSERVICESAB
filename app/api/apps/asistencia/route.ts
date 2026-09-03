@@ -1,6 +1,89 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+async function syncSupabaseIfNeeded() {
+  try {
+    const count = await prisma.asistenciaRegistro.count();
+    if (count > 20) return; // Ya está poblada
+
+    const url = "https://xftllyjjqvozjjmgwomg.supabase.co/rest/v1/asistencia?select=*&order=fecha.asc";
+    const key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmdGxseWpqcXZvempqbWd3b21nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjExMTIsImV4cCI6MjA5Mzc5NzExMn0.UURzZOytfoYMrxzpohRams_GcJ3ETsEnNNOaSQqeuu8";
+
+    const res = await fetch(url, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+    });
+
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!Array.isArray(data)) return;
+
+    for (let i = 0; i < data.length; i++) {
+      const item = data[i];
+      let obs: any = {};
+      try {
+        if (item.observaciones && typeof item.observaciones === "string") {
+          if (item.observaciones.startsWith("{")) {
+            obs = JSON.parse(item.observaciones);
+          } else {
+            const cargoMatch = item.observaciones.match(/Cargo:\s*([^,]+)/i);
+            const projMatch = item.observaciones.match(/Proyecto:\s*([^,]+)/i);
+            if (cargoMatch) obs.cargo = cargoMatch[1].trim();
+            if (projMatch) obs.proyecto = projMatch[1].trim();
+          }
+        }
+      } catch (e) {}
+
+      const cedula = (obs.cedula || item.conductor_documento || "").replace(/[\.\s-]/g, "").trim();
+      const nombre = (item.conductor_nombre || "PARTICIPANTE").trim().toUpperCase();
+      const cargo = (obs.cargo || item.cargo || "CONDUCTOR").toUpperCase();
+      const proyecto = (obs.proyecto || item.proyecto || "TRANS SERVICES A&B").toUpperCase();
+      const firma = obs.firma || item.firma_url || item.firma_base64 || null;
+      const actividad = obs.actividad || item.tipo_evento || item.evento || "Capacitación";
+      const fechaStr = item.fecha || (item.created_at ? item.created_at.split("T")[0] : "2026-08-21");
+      const horaStr = item.hora_llegada || (item.created_at ? item.created_at.slice(11, 16) : "08:00");
+
+      const [y, m, d] = fechaStr.split("-").map(Number);
+      const fechaCot = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+
+      const regId = `sup_${item.id || i}`;
+
+      await prisma.asistenciaRegistro.upsert({
+        where: { id: regId },
+        update: {
+          personaNombre: nombre,
+          personaDocumento: cedula || null,
+          cargo,
+          proyecto,
+          evento: actividad,
+          tipoEvento: actividad.toLowerCase().includes("charla") ? "charla_5min" : "capacitacion",
+          horaLlegada: horaStr,
+          fecha: fechaCot,
+          estado: item.estado || "presente",
+          firmaUrl: firma,
+          asistio: item.estado !== "ausente",
+        },
+        create: {
+          id: regId,
+          personaId: item.conductor_id || `p_${cedula || i}`,
+          personaNombre: nombre,
+          personaDocumento: cedula || null,
+          cargo,
+          proyecto,
+          evento: actividad,
+          tipoEvento: actividad.toLowerCase().includes("charla") ? "charla_5min" : "capacitacion",
+          horaLlegada: horaStr,
+          fecha: fechaCot,
+          estado: item.estado || "presente",
+          firmaUrl: firma,
+          asistio: item.estado !== "ausente",
+        },
+      }).catch(() => {});
+    }
+  } catch (e) {
+    console.warn("Aviso sync Supabase:", e);
+  }
+}
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
@@ -9,8 +92,16 @@ export async function GET(req: Request) {
     const tipoEvento = searchParams.get("tipoEvento");
     const cedula = searchParams.get("cedula");
     const datesSummary = searchParams.get("datesSummary");
+    const forceSync = searchParams.get("sync");
 
-    // 1. Resumen de fechas activas para marcar en el calendario
+    if (forceSync === "true") {
+      await syncSupabaseIfNeeded();
+    } else {
+      // Auto-sincronizar de fondo si la base de datos está vacía
+      syncSupabaseIfNeeded().catch(() => {});
+    }
+
+    // 1. Resumen de fechas activas para marcar los días en el calendario
     if (datesSummary === "true") {
       const allRegs = await prisma.asistenciaRegistro.findMany({
         select: {
@@ -23,7 +114,6 @@ export async function GET(req: Request) {
       const summary: Record<string, { total: number; proyectos: string[] }> = {};
       for (const reg of allRegs) {
         if (reg.fecha) {
-          // Convertir fecha UTC a fecha local Colombia YYYY-MM-DD
           const cotDateStr = new Date(reg.fecha).toLocaleDateString("en-CA", {
             timeZone: "America/Bogota",
           });
@@ -93,13 +183,13 @@ export async function GET(req: Request) {
     if (fecha) {
       const [y, m, d] = fecha.split("-").map(Number);
       // 00:00:00 COT = 05:00:00 UTC
-      const start = new Date(Date.UTC(y, m - 1, d, 5, 0, 0, 0));
-      // 23:59:59.999 COT = 04:59:59.999 UTC día siguiente
-      const end = new Date(Date.UTC(y, m - 1, d + 1, 4, 59, 59, 999));
+      const start = new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
+      // 23:59:59.999 COT = 23:59:59.999 UTC día siguiente
+      const end = new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999));
       where.fecha = { gte: start, lte: end };
     }
 
-    // Filtro flexible por Proyecto (Insensible a mayúsculas y variaciones)
+    // Filtro flexible por Proyecto
     if (proyecto && proyecto !== "TODOS") {
       if (proyecto.toUpperCase() === "GT") {
         where.OR = [

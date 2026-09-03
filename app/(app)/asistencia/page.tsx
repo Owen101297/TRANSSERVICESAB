@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { 
-  Calendar, 
+  Calendar as CalendarIcon, 
   Filter, 
   Download, 
   Printer, 
@@ -14,8 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
-  CheckCircle2,
-  Clock
+  CheckCircle2
 } from "lucide-react";
 import { Card, StatCard } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -38,11 +37,10 @@ interface AsistenciaItem {
 }
 
 export default function AsistenciaAdminPage() {
-  const [fecha, setFecha] = useState<string>(() => {
-    const d = new Date();
-    // Default to Colombia local date YYYY-MM-DD
-    return d.toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
-  });
+  const [fecha, setFecha] = useState<string>("2026-08-21"); // Fecha con registros históricos
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date(2026, 7, 1)); // Agosto 2026
+  const [showCalendarDropdown, setShowCalendarDropdown] = useState<boolean>(false);
+  const calendarRef = useRef<HTMLDivElement>(null);
 
   const [proyecto, setProyecto] = useState<string>("TODOS");
   const [tipoEvento, setTipoEvento] = useState<string>("TODOS");
@@ -75,6 +73,13 @@ export default function AsistenciaAdminPage() {
         const json = await res.json();
         if (json.datesSummary) {
           setDatesSummary(json.datesSummary);
+          // Si hay fechas activas y la fecha actual no tiene, seleccionar la más reciente con actividad
+          const dates = Object.keys(json.datesSummary).sort((a, b) => b.localeCompare(a));
+          if (dates.length > 0 && !json.datesSummary[fecha]) {
+            setFecha(dates[0]);
+            const [y, m] = dates[0].split("-").map(Number);
+            setCalendarMonth(new Date(y, m - 1, 1));
+          }
         }
       }
     } catch (e) {
@@ -110,6 +115,17 @@ export default function AsistenciaAdminPage() {
   useEffect(() => {
     fetchData();
   }, [fecha, proyecto, tipoEvento]);
+
+  // Cerrar calendario al hacer clic afuera
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
+        setShowCalendarDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Filtrado por buscador
   const filteredRegistros = useMemo(() => {
@@ -198,12 +214,55 @@ export default function AsistenciaAdminPage() {
     return pages;
   }, [registros]);
 
-  // Fechas activas ordenadas para píldoras de acceso rápido
-  const activeDatesList = useMemo(() => {
-    return Object.entries(datesSummary)
-      .sort((a, b) => b[0].localeCompare(a[0]))
-      .slice(0, 7);
-  }, [datesSummary]);
+  // Generador de días para el calendario mensual con marcadores
+  const calendarDays = useMemo(() => {
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+
+    // 0: Dom, 1: Lun -> ajustado a Lunes = 0
+    let startDayOfWeek = firstDay.getDay() - 1;
+    if (startDayOfWeek === -1) startDayOfWeek = 6;
+
+    const days = [];
+
+    // Relleno días mes anterior
+    const prevMonthLastDay = new Date(year, month, 0).getDate();
+    for (let i = startDayOfWeek - 1; i >= 0; i--) {
+      days.push({
+        day: prevMonthLastDay - i,
+        isCurrentMonth: false,
+        dateStr: "",
+        hasData: false,
+        count: 0,
+      });
+    }
+
+    // Días del mes actual
+    for (let d = 1; d <= lastDay.getDate(); d++) {
+      const mStr = String(month + 1).padStart(2, "0");
+      const dStr = String(d).padStart(2, "0");
+      const dateStr = `${year}-${mStr}-${dStr}`;
+      const data = datesSummary[dateStr];
+
+      days.push({
+        day: d,
+        isCurrentMonth: true,
+        dateStr,
+        hasData: Boolean(data && data.total > 0),
+        count: data ? data.total : 0,
+      });
+    }
+
+    return days;
+  }, [calendarMonth, datesSummary]);
+
+  const monthNames = [
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+  ];
 
   return (
     <div className="space-y-6">
@@ -255,65 +314,126 @@ export default function AsistenciaAdminPage() {
           </div>
         </div>
 
-        {/* Barra de Fechas con Registros Activos (Píldoras Rápidas) */}
-        {activeDatesList.length > 0 && (
-          <div className="flex items-center gap-2 overflow-x-auto pb-1">
-            <span className="text-[11px] font-mono font-bold text-fog-400 uppercase tracking-wider whitespace-nowrap flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5 text-radar-cyan" /> Días con Actividad:
-            </span>
-            <div className="flex items-center gap-1.5">
-              {activeDatesList.map(([dStr, info]) => {
-                const isSelected = fecha === dStr;
-                return (
-                  <button
-                    key={dStr}
-                    onClick={() => {
-                      setFecha(dStr);
-                      setCurrentPage(1);
-                    }}
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all border ${
-                      isSelected
-                        ? "bg-radar-cyan text-asphalt-950 border-radar-cyan shadow-sm"
-                        : "bg-asphalt-900 text-mist-200 border-line-600 hover:border-line-500"
-                    }`}
-                  >
-                    <span>{dStr}</span>
-                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                      isSelected ? "bg-asphalt-950 text-radar-cyan" : "bg-asphalt-800 text-ok-green"
-                    }`}>
-                      {info.total}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Filtros y Selector de Vista */}
+        {/* Filtros y Selector de Fecha con Calendario Popover */}
         <div className="flex flex-wrap items-center justify-between gap-3 bg-asphalt-900 border border-line-600 p-3 rounded-2xl">
           <div className="flex flex-wrap items-center gap-3">
-            {/* Filtro Fecha */}
-            <div className="flex items-center gap-2 bg-asphalt-950 border border-line-600 px-3 py-1.5 rounded-xl">
-              <Calendar className="w-4 h-4 text-radar-cyan" />
-              <input
-                type="date"
-                value={fecha}
-                onChange={(e) => {
-                  setFecha(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="bg-transparent text-xs font-mono text-paper-50 outline-none border-none cursor-pointer"
-              />
-              {datesSummary[fecha] && (
-                <span className="px-1.5 py-0.5 bg-ok-green/20 text-ok-green border border-ok-green/40 text-[10px] font-mono font-black rounded-md">
-                  {datesSummary[fecha].total} reg
-                </span>
+            {/* Selector de Fecha Interactivo con Popover de Días Marcados */}
+            <div className="relative" ref={calendarRef}>
+              <button
+                type="button"
+                onClick={() => setShowCalendarDropdown(!showCalendarDropdown)}
+                className="flex items-center gap-2.5 bg-asphalt-950 border border-line-600 hover:border-radar-cyan px-3.5 py-2 rounded-xl text-xs font-mono font-bold text-paper-50 shadow-sm transition-all"
+              >
+                <CalendarIcon className="w-4 h-4 text-radar-cyan" />
+                <span>{fecha || "Seleccionar Día"}</span>
+                {datesSummary[fecha] ? (
+                  <span className="px-2 py-0.5 bg-ok-green/20 text-ok-green border border-ok-green/40 text-[10px] font-mono font-black rounded-md flex items-center gap-1">
+                    ● {datesSummary[fecha].total} firmas
+                  </span>
+                ) : (
+                  <span className="text-fog-400 text-[10px]">(0 firmas)</span>
+                )}
+              </button>
+
+              {/* Menú Desplegable Calendario con Números Marcados */}
+              {showCalendarDropdown && (
+                <div className="absolute top-full left-0 mt-2 z-50 bg-asphalt-900 border-2 border-line-600 rounded-2xl p-4 shadow-2xl w-80 text-paper-50">
+                  {/* Encabezado Mes / Año */}
+                  <div className="flex items-center justify-between pb-3 border-b border-line-600">
+                    <button
+                      onClick={() =>
+                        setCalendarMonth(
+                          new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1)
+                        )
+                      }
+                      className="p-1 rounded-lg hover:bg-asphalt-800 text-fog-400 hover:text-paper-50"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="text-xs font-bold font-mono uppercase tracking-wider text-paper-50">
+                      {monthNames[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
+                    </span>
+                    <button
+                      onClick={() =>
+                        setCalendarMonth(
+                          new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1)
+                        )
+                      }
+                      className="p-1 rounded-lg hover:bg-asphalt-800 text-fog-400 hover:text-paper-50"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Días de la semana */}
+                  <div className="grid grid-cols-7 gap-1 text-center font-mono text-[10px] font-bold text-fog-400 py-2">
+                    <span>LU</span><span>MA</span><span>MI</span><span>JU</span><span>VI</span><span>SA</span><span>DO</span>
+                  </div>
+
+                  {/* Cuadrícula de Días con Marcadores */}
+                  <div className="grid grid-cols-7 gap-1 text-center text-xs">
+                    {calendarDays.map((dItem, idx) => {
+                      if (!dItem.isCurrentMonth) {
+                        return (
+                          <div key={idx} className="p-1.5 text-fog-400/30 text-[11px] font-mono">
+                            {dItem.day}
+                          </div>
+                        );
+                      }
+
+                      const isSelected = fecha === dItem.dateStr;
+
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setFecha(dItem.dateStr);
+                            setCurrentPage(1);
+                            setShowCalendarDropdown(false);
+                          }}
+                          className={`relative p-1.5 rounded-lg text-xs font-mono font-bold transition-all flex flex-col items-center justify-center ${
+                            isSelected
+                              ? "bg-radar-cyan text-asphalt-950 font-black shadow-md scale-105"
+                              : dItem.hasData
+                              ? "bg-asphalt-800 text-paper-50 border border-ok-green/60 hover:bg-asphalt-700"
+                              : "text-fog-400 hover:bg-asphalt-800 hover:text-paper-50"
+                          }`}
+                          title={dItem.hasData ? `${dItem.count} registros de asistencia` : "Sin registros"}
+                        >
+                          <span>{dItem.day}</span>
+                          {dItem.hasData && !isSelected && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-ok-green absolute bottom-1"></span>
+                          )}
+                          {dItem.hasData && isSelected && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-asphalt-950 absolute bottom-1"></span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-3 pt-2 border-t border-line-600 flex items-center justify-between text-[10px] text-fog-400 font-mono">
+                    <span className="flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-ok-green inline-block"></span> Con actividad
+                    </span>
+                    <button
+                      onClick={() => {
+                        const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
+                        setFecha(today);
+                        setCalendarMonth(new Date());
+                        setShowCalendarDropdown(false);
+                      }}
+                      className="text-radar-cyan hover:underline font-bold"
+                    >
+                      Hoy
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
 
             {/* Filtro Proyecto */}
-            <div className="flex items-center gap-2 bg-asphalt-950 border border-line-600 px-3 py-1.5 rounded-xl">
+            <div className="flex items-center gap-2 bg-asphalt-950 border border-line-600 px-3 py-2 rounded-xl">
               <Filter className="w-4 h-4 text-fog-400" />
               <select
                 value={proyecto}
@@ -333,7 +453,7 @@ export default function AsistenciaAdminPage() {
             </div>
 
             {/* Filtro Tipo Evento */}
-            <div className="flex items-center gap-2 bg-asphalt-950 border border-line-600 px-3 py-1.5 rounded-xl">
+            <div className="flex items-center gap-2 bg-asphalt-950 border border-line-600 px-3 py-2 rounded-xl">
               <select
                 value={tipoEvento}
                 onChange={(e) => {
@@ -358,7 +478,7 @@ export default function AsistenciaAdminPage() {
                 fetchDatesSummary();
               }}
               disabled={loading}
-              className="px-3 py-1.5 bg-asphalt-800 hover:bg-asphalt-700 text-radar-cyan font-bold text-xs rounded-xl border border-line-500 transition-colors flex items-center gap-1.5"
+              className="px-3.5 py-2 bg-asphalt-800 hover:bg-asphalt-700 text-radar-cyan font-bold text-xs rounded-xl border border-line-500 transition-colors flex items-center gap-1.5"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               <span>Actualizar</span>
@@ -451,7 +571,7 @@ export default function AsistenciaAdminPage() {
                           <span>Cargando datos desde Railway...</span>
                         </div>
                       ) : (
-                        `No hay registros de asistencia para el ${fecha}. Selecciona otro día en el calendario o en la barra superior.`
+                        `No hay registros de asistencia para el ${fecha}. Haz clic en el selector de fecha para ver los días marcados con actividad.`
                       )}
                     </td>
                   </tr>
