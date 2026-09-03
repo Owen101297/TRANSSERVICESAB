@@ -8,6 +8,8 @@ export interface RegistroAsistencia {
   evento: string;
   tipoEvento: TipoEvento;
   fecha: string; // ISO
+  horaLlegada?: string;
+  observaciones?: string;
   estado: EstadoAsistencia;
 }
 
