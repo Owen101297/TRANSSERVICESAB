@@ -91,55 +91,57 @@
 }
 
 @layer components {
-  /* Input moderno unificado */
+  /* Input moderno unificado con borde visible y tipografía negra */
   .input-moderno {
     width: 100%;
-    min-height: 46px;
+    min-height: 48px;
     padding: 10px 14px;
     background-color: #FFFFFF;
-    border: 1.5px solid #CBD5E1;
+    border: 2px solid #94A3B8;
     border-radius: 12px;
     font-size: 15px;
-    font-weight: 500;
-    color: #0F172A;
+    font-weight: 600;
+    color: #0F172A !important;
     transition: all var(--ts-transition-fast);
     outline: none;
   }
 
   .input-moderno:hover {
-    border-color: #94A3B8;
+    border-color: #475569;
   }
 
   .input-moderno:focus {
     border-color: #1E40AF;
-    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.2);
+    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.25);
+    background-color: #FFFFFF;
   }
 
   .input-moderno:disabled, .input-moderno:read-only {
     background-color: #F1F5F9;
-    color: #475569;
+    color: #1E293B !important;
+    border-color: #CBD5E1;
   }
 
   .input-moderno::placeholder {
-    color: #94A3B8;
+    color: #64748B;
   }
 
-  /* Card de paso */
+  /* Card de paso con borde bien definido y separación */
   .card-paso {
     background-color: #FFFFFF;
-    border: 1px solid #E2E8F0;
+    border: 2px solid #CBD5E1;
     border-radius: 20px;
-    box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.08);
     padding: 24px;
     margin-bottom: 24px;
   }
 
-  /* Label */
+  /* Label en negro absoluto */
   .label {
     display: block;
-    font-size: 12px;
-    font-weight: 700;
-    color: #0F172A;
+    font-size: 13px;
+    font-weight: 800;
+    color: #0F172A !important;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     margin-bottom: 6px;
@@ -174,12 +176,13 @@
   .btn-primary {
     background-color: #1E40AF;
     color: #FFFFFF !important;
-    border: 1px solid transparent;
-    box-shadow: 0 4px 12px rgba(30, 64, 175, 0.25);
+    border: 2px solid #1E3A8A;
+    box-shadow: 0 4px 14px rgba(30, 64, 175, 0.3);
   }
 
   .btn-primary:hover:not(:disabled) {
     background-color: #1D4ED8;
+    border-color: #1E40AF;
   }
 
   .btn-primary:active:not(:disabled) {
@@ -190,12 +193,13 @@
   .btn-secondary {
     background-color: #FFFFFF;
     color: #0F172A !important;
-    border: 1.5px solid #CBD5E1;
+    border: 2px solid #94A3B8;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   }
 
   .btn-secondary:hover:not(:disabled) {
-    background-color: #F8FAFC;
-    border-color: #94A3B8;
+    background-color: #F1F5F9;
+    border-color: #64748B;
   }
 
   /* Apple card system (legacy compatible) */

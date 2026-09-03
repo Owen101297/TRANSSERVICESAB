@@ -365,12 +365,12 @@ function addControlPoint() {
     if(!container) return;
     const index = container.children.length + 1;
     const div = document.createElement('div');
-    div.className = "p-3 bg-[#F5F7FA] dark:bg-slate-800 rounded-2xl flex items-center gap-3 border border-transparent focus-within:border-blue-200 transition-all group";
+    div.className = "p-3 bg-white rounded-xl flex items-center gap-3 border-2 border-slate-300 shadow-sm transition-all group";
     div.innerHTML = `
-        <span class="font-semibold text-gray-500 w-6 text-center index-number">${index}</span>
-        <input type="text" name="pc_lugar[]" list="ciudades" placeholder="Lugar o peaje" class="input flex-1">
-        <input type="time" name="pc_hora[]" class="input !w-auto !px-2">
-        <button type="button" onclick="removeControlPoint(this)" class="text-red-500 hover:bg-red-50 p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+        <span class="font-extrabold text-slate-900 w-6 text-center index-number">${index}</span>
+        <input type="text" name="pc_lugar[]" list="ciudades" placeholder="Lugar o peaje" class="input-moderno flex-1">
+        <input type="time" name="pc_hora[]" class="input-moderno !w-auto !px-3">
+        <button type="button" onclick="removeControlPoint(this)" class="text-red-600 hover:bg-red-50 p-2 rounded-xl border border-red-200 transition-colors" title="Eliminar punto"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
     `;
     container.appendChild(div);
     if(typeof lucide !== 'undefined') lucide.createIcons();
