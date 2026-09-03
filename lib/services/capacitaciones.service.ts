@@ -114,12 +114,17 @@ export async function getAsistenciasDb(): Promise<RegistroAsistencia[]> {
       id: a.id,
       personaId: a.personaId || `p_${a.id}`,
       personaNombre: a.personaNombre,
+      personaDocumento: a.personaDocumento ?? undefined,
+      cargo: a.cargo ?? undefined,
+      proyecto: a.proyecto ?? undefined,
       evento: a.evento || "Jornada Operativa / Capacitación",
       tipoEvento: (a.tipoEvento as any) || "capacitacion",
       fecha: a.fecha ? a.fecha.toISOString() : new Date().toISOString(),
       estado: (a.estado as EstadoAsistencia) || (a.asistio ? "presente" : "ausente"),
       horaLlegada: a.horaLlegada ?? undefined,
       observaciones: a.observaciones ?? undefined,
+      firmaUrl: a.firmaUrl ?? undefined,
+      fotoUrl: a.fotoUrl ?? undefined,
     }));
   } catch (error) {
     console.warn("Aviso DB Asistencia (usando memoria):", error);

@@ -349,7 +349,7 @@
     </div>
 
     <script type="module">
-        import { asistenciaTable, fechaLocal } from './supabase-client.js'
+        import { getAsistencia, fechaLocal } from './supabase-client.js'
         import { getAdminHeaderHTML } from './components.js'
         import flatpickr from 'https://cdn.jsdelivr.net/npm/flatpickr/+esm'
 
@@ -368,52 +368,7 @@
 
         document.getElementById('page-template').content.querySelector('#template-header').innerHTML = getAdminHeaderHTML()
 
-        // Load dates with attendance data + summary
-        let dateSummary = new Map()
-        async function loadDatesWithData() {
-            try {
-                const { data } = await (await asistenciaTable()).select('fecha, observaciones')
-                if (data) {
-                    const temp = {}
-                    data.forEach(r => {
-                        if (!temp[r.fecha]) temp[r.fecha] = { total: 0, proyectos: {}, actividades: new Set() }
-                        temp[r.fecha].total++
-                        let obs = {}
-                        try { obs = JSON.parse(r.observaciones || '{}') } catch (e) {}
-                        const p = obs.proyecto || 'OTRO'
-                        if (!temp[r.fecha].proyectos[p]) temp[r.fecha].proyectos[p] = 0
-                        temp[r.fecha].proyectos[p]++
-                        if (obs.actividad) temp[r.fecha].actividades.add(obs.actividad)
-                    })
-                    Object.entries(temp).forEach(([fecha, info]) => {
-                        const proj = Object.entries(info.proyectos).map(([k, v]) => `${k}: ${v}`).join(', ')
-                        const acts = [...info.actividades].join(' · ')
-                        dateSummary.set(fecha, `${info.total} registro${info.total !== 1 ? 's' : ''} — ${proj}${acts ? ' | ' + acts : ''}`)
-                    })
-                }
-            } catch (e) {}
-            // Refresh Flatpickr to show markers
-            const prevDate = fp ? fp.selectedDates[0] : null
-            if (fp) fp.destroy()
-            fp = flatpickr($('searchDate'), {
-                defaultDate: prevDate || new Date(),
-                dateFormat: 'Y-m-d',
-                locale: { firstDayOfWeek: 1 },
-                onDayCreate: (dObj, dStr, fp, dayElem) => {
-                    if (dayElem.dateObj) {
-                        const ds = fechaLocal(dayElem.dateObj)
-                        if (dateSummary.has(ds)) {
-                            dayElem.classList.add('has-data')
-                            dayElem.title = dateSummary.get(ds)
-                        }
-                    }
-                },
-                onChange: (selectedDates) => {
-                    if (selectedDates.length) $('loadBtn').click()
-                }
-            })
-        }
-        // Init Flatpickr immediately so native input never shows
+        // Init Flatpickr
         let fp = flatpickr($('searchDate'), {
             defaultDate: new Date(),
             dateFormat: 'Y-m-d',
@@ -422,8 +377,6 @@
                 if (selectedDates.length) $('loadBtn').click()
             }
         })
-        // Then load data asynchronously to add markers
-        loadDatesWithData()
 
         // Sync inputs across pages
         document.addEventListener('input', (e) => {
@@ -456,7 +409,7 @@
         let currentPage = 1
         const PER_PAGE = 25
 
-        // ---- Load Data ----
+        // ---- Load Data (Pure Railway PostgreSQL API) ----
         $('loadBtn').onclick = async () => {
             const fecha = $('searchDate').value
             const filterProject = $('filterProject').value.toUpperCase()
@@ -471,29 +424,30 @@
             $('emptyPrint').classList.add('hidden')
 
             try {
-                const { data: registros, error } = await (await asistenciaTable())
-                    .select('*').eq('fecha', fecha).order('hora_llegada')
-                if (error) throw error
+                const registros = await getAsistencia({ fecha, proyecto: filterProject })
 
-                // Parse and filter in JS (avoids false matches from SQL ilike on JSON text)
                 const seen = new Map()
                 const rawRecords = []
-                if (registros) {
-                    registros.forEach((reg) => {
-                        let obs = {}
-                        try { obs = JSON.parse(reg.observaciones || '{}') } catch (e) {
-                            const m = (reg.conductor_nombre || '').match(/\d+/g)
-                            obs.cedula = m ? m[m.length - 1] : reg.id
-                            obs.cargo = reg.estado || 'CONDUCTOR'
-                            obs.proyecto = filterProject || 'OTRO'
-                        }
-                        const proyecto = (obs.proyecto || 'OTRO').toUpperCase()
-                        if (filterProject && proyecto !== filterProject) return
+                if (registros && registros.length > 0) {
+                    registros.forEach((reg, idx) => {
+                        const proyecto = (reg.proyecto || 'OTRO').toUpperCase()
+                        if (filterProject && filterProject !== 'TODOS' && proyecto !== filterProject) return
 
-                        rawRecords.push({ id: reg.id, nombre: reg.conductor_nombre || '', cedula: obs.cedula || reg.id, cargo: obs.cargo || 'CONDUCTOR', proyecto, firma: obs.firma || '', hora: reg.hora_llegada || '' })
-                        const c = obs.cedula || reg.id
-                        if (c && !seen.has(c)) {
-                            seen.set(c, { nombre: reg.conductor_nombre || '', cedula: c, cargo: obs.cargo || 'CONDUCTOR', proyecto, firma: obs.firma || '' })
+                        const horaStr = reg.horaLlegada || reg.hora_llegada || (reg.fecha ? new Date(reg.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : '')
+                        const item = {
+                            id: reg.id || idx + 1,
+                            nombre: reg.personaNombre || reg.conductor_nombre || 'PARTICIPANTE',
+                            cedula: reg.personaDocumento || reg.conductor_documento || reg.personaId || '—',
+                            cargo: reg.cargo || 'CONDUCTOR',
+                            proyecto: proyecto,
+                            firma: reg.firmaUrl || reg.signature || reg.firma_url || '',
+                            hora: horaStr
+                        }
+                        rawRecords.push(item)
+                        if (item.cedula && item.cedula !== '—' && !seen.has(item.cedula)) {
+                            seen.set(item.cedula, item)
+                        } else if (!seen.has(item.nombre)) {
+                            seen.set(item.nombre, item)
                         }
                     })
                 }
@@ -509,7 +463,7 @@
             } catch (err) {
                 console.error(err)
                 $('errorState').classList.remove('hidden')
-                $('errorMessage').textContent = 'Error al conectar con el servidor.'
+                $('errorMessage').textContent = 'Error al conectar con el servidor de Railway.'
                 toast('Error al cargar datos', 'error')
             } finally {
                 $('loadingState').classList.add('hidden')

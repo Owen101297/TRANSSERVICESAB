@@ -5,11 +5,16 @@ export interface RegistroAsistencia {
   id: string;
   personaId: string;
   personaNombre: string;
+  personaDocumento?: string;
+  cargo?: string;
+  proyecto?: string;
   evento: string;
   tipoEvento: TipoEvento;
   fecha: string; // ISO
   horaLlegada?: string;
   observaciones?: string;
+  firmaUrl?: string;
+  fotoUrl?: string;
   estado: EstadoAsistencia;
 }
 

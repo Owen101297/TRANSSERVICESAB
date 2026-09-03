@@ -498,12 +498,20 @@ model AsistenciaRegistro {
   id                  String   @id @default(cuid())
   capacitacionId      String?
   personaId           String?
+  personaDocumento    String?
   personaNombre       String
+  cargo               String?
+  proyecto            String?
+  facilitador         String?
+  lugar               String?
+  duracionHoras       Float?   @default(1.0)
   asistio             Boolean  @default(true)
   estado              String   @default("presente") // presente, tardanza, ausente
   horaLlegada         String?
   evento              String?  @default("Jornada Operativa / Capacitación")
-  tipoEvento          String   @default("capacitacion") // capacitacion, reunion, turno
+  tipoEvento          String   @default("capacitacion") // capacitacion, reunion, turno, etc.
+  firmaUrl            String?
+  fotoUrl             String?
   observaciones       String?
   fecha               DateTime @default(now())
 
@@ -512,6 +520,8 @@ model AsistenciaRegistro {
 
   @@index([capacitacionId])
   @@index([personaId])
+  @@index([personaDocumento])
+  @@index([proyecto])
   @@index([fecha])
 }
 

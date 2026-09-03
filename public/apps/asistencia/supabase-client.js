@@ -1,149 +1,99 @@
 /**
- * CLIENTE SUPABASE - App Asistencia
+ * CLIENTE API FERROVIARIA / RAILWAY - App Asistencia TH-FOR-03
  * Proyecto: Trans Services A&B
+ * 100% Integrado con PostgreSQL en Railway a través de Next.js API
  */
 
-const getSupabaseConfig = () => {
-  if (typeof import.meta !== 'undefined' && import.meta.env) {
-    const url = import.meta.env.VITE_SUPABASE_URL
-    const key = import.meta.env.VITE_SUPABASE_ANON_KEY
-    if (url && key) return { url, key }
-  }
-  
-  return {
-    url: 'https://xftllyjjqvozjjmgwomg.supabase.co',
-    key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmdGxseWpqcXZvempqbWd3b21nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjExMTIsImV4cCI6MjA5Mzc5NzExMn0.UURzZOytfoYMrxzpohRams_GcJ3ETsEnNNOaSQqeuu8'
-  }
-}
-
-const { url: SUPABASE_URL, key: SUPABASE_KEY } = getSupabaseConfig()
-
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
-
-export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
-
-const ASISTENCIA_TARGETS = [
-  () => supabase.schema('operacion').from('asistencia'),
-  () => supabase.from('asistencia'),
-]
-
-let resolvedTarget = null
-
-export async function asistenciaTable() {
-  if (resolvedTarget) return resolvedTarget()
-  for (const make of ASISTENCIA_TARGETS) {
-    try {
-      const { error } = await make().select('id', { count: 'exact', head: true })
-      if (!error) {
-        resolvedTarget = make
-        return make()
-      }
-    } catch (e) {}
-  }
-  throw new Error('No se pudo acceder a la tabla de asistencia')
-}
-
 export function fechaLocal(d = new Date()) {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const dia = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${dia}`
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dia = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dia}`;
 }
 
 export function horaLocal(d = new Date()) {
-  return d.toTimeString().slice(0, 8)
+  return d.toTimeString().slice(0, 8);
 }
 
-export async function getAsistencia() {
-  const table = await asistenciaTable()
-  const { data, error } = await table
-    .select('*')
-    .order('fecha', { ascending: false })
-
-  if (error) throw error
-  return data || []
+/**
+ * Obtiene todos los registros de asistencia o filtrados por fecha desde Railway
+ */
+export async function getAsistencia(params = {}) {
+  try {
+    const search = new URLSearchParams(params).toString();
+    const res = await fetch(`/api/apps/asistencia?${search}`);
+    if (res.ok) {
+      const json = await res.json();
+      return json.asistencias || [];
+    }
+  } catch (e) {
+    console.warn('Aviso getAsistencia Railway:', e);
+  }
+  return [];
 }
 
 export async function getAsistenciaByFecha(fecha) {
-  const table = await asistenciaTable()
-  const { data, error } = await table
-    .select('*')
-    .eq('fecha', fecha)
-    .order('hora_llegada')
-
-  if (error) throw error
-  return data || []
+  return await getAsistencia({ fecha });
 }
 
 export async function getAsistenciaHoy() {
-  return await getAsistenciaByFecha(fechaLocal())
+  return await getAsistenciaByFecha(fechaLocal());
 }
 
+/**
+ * Crea un registro de asistencia en PostgreSQL (Railway)
+ */
 export async function createAsistencia(registro) {
-  try {
-    const res = await fetch('/api/apps/asistencia', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        conductorNombre: registro.conductor_nombre || registro.personaNombre,
-        conductorDocumento: registro.conductor_documento || registro.numero_documento,
-        evento: registro.evento || registro.tipo_evento,
-        tipoEvento: registro.tipo_evento,
-        estado: registro.estado || 'presente',
-        observaciones: registro.observaciones,
-        signature: registro.firma_url || registro.firma_base64
-      })
-    });
-    if (res.ok) {
-      const json = await res.json();
-      return json.asistencia;
-    }
-  } catch (e) {
-    console.warn('Aviso en createAsistencia local:', e);
+  const res = await fetch('/api/apps/asistencia', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      conductorNombre: registro.conductor_nombre || registro.personaNombre,
+      conductorDocumento: registro.conductor_documento || registro.numero_documento,
+      cargo: registro.cargo,
+      proyecto: registro.proyecto,
+      facilitador: registro.facilitador,
+      lugar: registro.lugar,
+      duracionHoras: registro.duracion_horas || 1.0,
+      evento: registro.evento || registro.tipo_evento,
+      tipoEvento: registro.tipo_evento,
+      estado: registro.estado || 'presente',
+      observaciones: registro.observaciones,
+      signature: registro.firma_url || registro.firma_base64,
+      fotoUrl: registro.foto_url || registro.foto_base64
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Error al guardar en el servidor');
   }
 
-  const table = await asistenciaTable()
-  const { data, error } = await table
-    .insert(registro)
-    .select()
-    .single()
-
-  if (error) throw error
-  return data
+  const json = await res.json();
+  return json.asistencia;
 }
 
-export async function updateAsistencia(id, updates) {
-  const table = await asistenciaTable()
-  const { data, error } = await table
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single()
-
-  if (error) throw error
-  return data
-}
-
-export async function getConductores() {
-  const { data, error } = await supabase
-    .from('conductores')
-    .select('*')
-    .eq('estado', 'activo')
-    .order('nombres')
-  
-  if (error) throw error
-  return data || []
-}
-
+/**
+ * Busca conductor por documento en PostgreSQL (Railway)
+ */
 export async function getConductorByDocumento(numero_documento) {
-  const { data, error } = await supabase
-    .from('conductores')
-    .select('*')
-    .eq('numero_documento', numero_documento)
-    .single()
-  
-  if (error) return null
-  return data
+  if (!numero_documento) return null;
+  try {
+    const res = await fetch(`/api/apps/asistencia?cedula=${encodeURIComponent(numero_documento)}`);
+    if (res.ok) {
+      const json = await res.json();
+      return json.persona || null;
+    }
+  } catch (e) {
+    console.warn('Aviso búsqueda conductor Railway:', e);
+  }
+  return null;
 }
 
-export default supabase
+export default {
+  fechaLocal,
+  horaLocal,
+  getAsistencia,
+  createAsistencia,
+  getConductorByDocumento
+};
