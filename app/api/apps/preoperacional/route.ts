@@ -1,68 +1,69 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { createPreoperacionalDb, getPreoperacionalesDb } from "@/lib/services/preoperacional.service";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    const {
-      conductorId,
-      conductorNombre,
-      conductorDocumento,
-      placa,
-      kilometraje,
-      checklist,
-      conceptHSEQ,
-      signature,
-      observaciones,
-      itemsCriticos,
-    } = body;
-
-    let cId = conductorId;
-    let vId = undefined;
-
-    if (conductorDocumento && !cId) {
-      const persona = await prisma.persona.findUnique({
-        where: { numeroDocumento: conductorDocumento },
-      });
-      if (persona) cId = persona.id;
-    }
-
-    if (placa) {
-      const cleanPlaca = placa.toUpperCase().replace(/[^A-Z0-9]/g, "");
-      const vehiculo = await prisma.vehiculo.findUnique({
-        where: { placa: cleanPlaca },
-      });
-      if (vehiculo) vId = vehiculo.id;
-    }
-
-    // Registrar en inspección preoperacional (y generar novedad si hay falla crítica)
-    const inspeccionData = {
-      conductorId: cId || "conductor-general",
-      conductorNombre: conductorNombre || "Conductor",
-      conductorDocumento: conductorDocumento || "",
-      vehiculoId: vId || "vehiculo-general",
-      placa: (placa || "WGM212").toUpperCase(),
-      fecha: new Date(),
-      kilometraje: kilometraje ? Number(kilometraje) : null,
-      conceptHSEQ: conceptHSEQ || "APTO PARA OPERAR",
-      itemsCriticos: itemsCriticos || [],
-      checklist: checklist || {},
-      signature: signature || null,
-      observaciones: observaciones || null,
-    };
-
-    console.log("✓ Preoperacional recibido para vehículo:", inspeccionData.placa, "Conductor:", inspeccionData.conductorNombre);
+    const result = await createPreoperacionalDb({
+      conductorId: body.conductorId,
+      conductorNombre: body.conductorNombre,
+      conductorDocumento: body.conductorDocumento || body.documento,
+      placa: body.placa,
+      kilometraje: body.kilometraje,
+      checklist: body.checklist || body.checks || {},
+      observaciones: body.observaciones,
+      signature: body.signature || body.firmaConductor,
+      fotoEvidenciaUrl: body.fotoEvidenciaUrl,
+    });
 
     return NextResponse.json({
       success: true,
-      message: "Inspección preoperacional guardada exitosamente en el ERP",
-      data: inspeccionData,
+      message: "Inspección preoperacional guardada exitosamente en PostgreSQL (Railway)",
+      data: result.data,
     });
   } catch (error: any) {
     console.error("Error al registrar preoperacional desde App:", error);
     return NextResponse.json(
       { success: false, error: error.message || "Error al registrar preoperacional" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const rangoFecha = searchParams.get("rangoFecha") as any;
+    const fechaDesde = searchParams.get("fechaDesde") || undefined;
+    const fechaHasta = searchParams.get("fechaHasta") || undefined;
+    const placa = searchParams.get("placa") || undefined;
+    const conductorId = searchParams.get("conductorId") || undefined;
+    const estadoConcepto = searchParams.get("estadoConcepto") || undefined;
+    const busqueda = searchParams.get("busqueda") || undefined;
+    const page = searchParams.get("page") ? parseInt(searchParams.get("page")!, 10) : 1;
+    const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : 25;
+
+    const data = await getPreoperacionalesDb({
+      rangoFecha,
+      fechaDesde,
+      fechaHasta,
+      placa,
+      conductorId,
+      estadoConcepto,
+      busqueda,
+      page,
+      limit,
+    });
+
+    return NextResponse.json({
+      success: true,
+      ...data,
+    });
+  } catch (error: any) {
+    console.error("Error al obtener preoperacionales:", error);
+    return NextResponse.json(
+      { success: false, error: error.message || "Error al consultar preoperacionales" },
       { status: 500 }
     );
   }

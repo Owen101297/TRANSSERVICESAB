@@ -60,7 +60,7 @@ const CATEGORIAS_APPS: AppCategory[] = [
         title: "Preoperacional Diario",
         subtitle: "Checklist técnico-mecánico obligatorio de inicio de turno",
         icon: ClipboardCheck,
-        href: "/apps/preoperacional/index.html",
+        href: "/portal-conductor/preoperacional",
         badge: "Obligatorio",
         gradient: "from-[#FF9500]/20 via-[#FF9500]/5 to-transparent",
         iconColor: "text-[#FF9500]",

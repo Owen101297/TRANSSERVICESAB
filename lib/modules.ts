@@ -44,6 +44,7 @@ export const NAV_GROUPS: ModuleGroup[] = [
     id: "digitalizacion",
     label: "Formularios digitalizados",
     items: [
+      { id: "preoperacionales", label: "Preoperacionales", href: "/hseq/preoperacionales", icon: "clipboard" },
       { id: "capacitaciones", label: "Capacitaciones", href: "/capacitaciones", icon: "graduation" },
       { id: "encuestas", label: "Encuestas", href: "/encuestas", icon: "clipboard" },
       { id: "asistencia", label: "Asistencia", href: "/asistencia", icon: "check" },
