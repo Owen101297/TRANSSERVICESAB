@@ -1,12 +1,447 @@
-<!doctype html>
-<html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Encuesta de Satisfacción - QR para Vehículos</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<!DOCTYPE html>
+<html lang="es" class="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Encuestas y Calidad de Servicio | Trans Services A&B</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="../../favicon.svg" />
+  
+  <!-- CDN Scripts -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#F0F7FF',
+              100: '#E0EFFF',
+              500: '#007AFF',
+              600: '#0062CC',
+              700: '#004DB3',
+            },
+            ios: {
+              bg: '#F8FAFC',
+              card: '#FFFFFF',
+              border: '#E2E8F0',
+              text: '#0F172A',
+              muted: '#64748B',
+              subtle: '#94A3B8',
+              green: '#34C759',
+              red: '#FF3B30',
+              amber: '#FF9500',
+              purple: '#5856D6',
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          boxShadow: {
+            'apple-sm': '0 2px 8px -2px rgba(0, 0, 0, 0.05), 0 1px 4px -1px rgba(0, 0, 0, 0.03)',
+            'apple': '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.03)',
+            'apple-float': '0 20px 40px -15px rgba(0, 0, 0, 0.15)',
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    body {
+      background-color: #F8FAFC;
+      color: #0F172A;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    input, textarea, select {
+      user-select: auto;
+    }
+    .glass-nav {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+    }
+    .glass-floating {
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(226, 232, 240, 0.8);
+    }
+    .squircle {
+      border-radius: 20px;
+    }
+    .squircle-sm {
+      border-radius: 14px;
+    }
+    .star-btn {
+      transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .star-btn:active {
+      transform: scale(1.25);
+    }
+  </style>
+</head>
+<body class="min-h-screen pb-32">
+
+  <!-- TOP APP BAR -->
+  <header class="sticky top-0 z-40 glass-nav transition-all">
+    <div class="max-w-xl mx-auto px-4 h-16 flex items-center justify-between">
+      <button onclick="window.history.back()" class="flex items-center gap-1 text-ios-muted hover:text-ios-text active:scale-95 transition-all text-sm font-semibold p-2 -ml-2 rounded-xl">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+        <span>Volver</span>
+      </button>
+
+      <div class="text-center">
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/80">
+          <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+          PESV & Calidad
+        </span>
+        <h1 class="text-xs font-bold text-ios-text tracking-tight uppercase">Calificación de Servicio</h1>
+      </div>
+
+      <button onclick="toggleQRModal()" class="text-xs font-bold text-brand-500 hover:text-brand-600 transition-colors p-2 -mr-2 flex items-center gap-1">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+        </svg>
+        <span>QR</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- CONTENEDOR PRINCIPAL -->
+  <main class="max-w-xl mx-auto px-4 pt-4 space-y-4">
+
+    <!-- HERO CARD -->
+    <div class="bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-950 p-6 squircle shadow-apple text-white relative overflow-hidden">
+      <div class="relative z-10 space-y-2">
+        <span class="inline-block px-2.5 py-0.5 rounded-md bg-white/10 text-white/90 text-[10px] font-mono uppercase tracking-wider">
+          Trans Services A&B S.A.S
+        </span>
+        <h2 class="text-xl font-extrabold tracking-tight">Tu opinión nos impulsa</h2>
+        <p class="text-xs text-white/70 leading-relaxed max-w-sm">
+          Califica la experiencia de viaje, la puntualidad y la seguridad de nuestro servicio de transporte especial.
+        </p>
+      </div>
+      <div class="absolute -right-6 -bottom-6 w-32 h-32 rounded-full bg-indigo-500/20 blur-2xl pointer-events-none"></div>
+    </div>
+
+    <!-- DATOS DEL VIAJE / VEHÍCULO -->
+    <section class="bg-white p-5 border border-ios-border squircle shadow-apple-sm space-y-3.5">
+      <div class="flex items-center justify-between pb-2.5 border-b border-ios-border">
+        <h3 class="text-xs font-bold text-ios-muted uppercase tracking-wider flex items-center gap-2">
+          <svg class="w-4 h-4 text-ios-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+          </svg>
+          1. Datos del Vehículo
+        </h3>
+        <span class="text-[10px] font-mono text-ios-subtle" id="fecha-display"></span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-[11px] font-bold text-ios-text uppercase mb-1">Placa del Vehículo <span class="text-red-500">*</span></label>
+          <input type="text" id="placa" maxlength="7" placeholder="Ej: WLM849" class="w-full h-11 px-3.5 bg-slate-50 border border-ios-border squircle-sm font-mono text-base font-bold text-ios-text uppercase focus:bg-white focus:border-brand-500 focus:outline-none transition-all placeholder:text-slate-300" />
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-ios-text uppercase mb-1">Conductor / Móvil</label>
+          <input type="text" id="conductorNombre" placeholder="Nombre conductor" class="w-full h-11 px-3.5 bg-slate-50 border border-ios-border squircle-sm text-sm font-medium text-ios-text focus:bg-white focus:border-brand-500 focus:outline-none transition-all placeholder:text-slate-300" />
+        </div>
+      </div>
+    </section>
+
+    <!-- CALIFICACIÓN EN ESTRELLAS -->
+    <section class="bg-white p-5 border border-ios-border squircle shadow-apple-sm space-y-5">
+      <h3 class="text-xs font-bold text-ios-muted uppercase tracking-wider flex items-center gap-2 pb-2.5 border-b border-ios-border">
+        <svg class="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+        </svg>
+        2. Evaluación de Criterios (1 a 5 Estrellas)
+      </h3>
+
+      <!-- 1. Calificación General -->
+      <div class="space-y-1.5">
+        <div class="flex items-center justify-between">
+          <label class="text-xs font-bold text-ios-text">Calificación General del Servicio</label>
+          <span id="label-overall" class="text-xs font-bold text-amber-500 font-mono">5.0 / 5 ⭐</span>
+        </div>
+        <div class="flex items-center justify-between gap-1 p-2 rounded-xl bg-slate-50 border border-ios-border" id="stars-overall">
+          <!-- 5 Estrellas -->
+        </div>
+      </div>
+
+      <!-- 2. Limpieza del Vehículo -->
+      <div class="space-y-1.5">
+        <div class="flex items-center justify-between">
+          <label class="text-xs font-bold text-ios-text">Limpieza y Presentación del Vehículo</label>
+          <span id="label-limpieza" class="text-xs font-bold text-amber-500 font-mono">5.0 / 5 ⭐</span>
+        </div>
+        <div class="flex items-center justify-between gap-1 p-2 rounded-xl bg-slate-50 border border-ios-border" id="stars-limpieza"></div>
+      </div>
+
+      <!-- 3. Atención y Conducción Segura -->
+      <div class="space-y-1.5">
+        <div class="flex items-center justify-between">
+          <label class="text-xs font-bold text-ios-text">Atención del Conductor y Conducción Segura</label>
+          <span id="label-atencion" class="text-xs font-bold text-amber-500 font-mono">5.0 / 5 ⭐</span>
+        </div>
+        <div class="flex items-center justify-between gap-1 p-2 rounded-xl bg-slate-50 border border-ios-border" id="stars-atencion"></div>
+      </div>
+
+      <!-- 4. Puntualidad en el Servicio -->
+      <div class="space-y-1.5">
+        <div class="flex items-center justify-between">
+          <label class="text-xs font-bold text-ios-text">Puntualidad en el Recorrido</label>
+          <span id="label-puntualidad" class="text-xs font-bold text-amber-500 font-mono">5.0 / 5 ⭐</span>
+        </div>
+        <div class="flex items-center justify-between gap-1 p-2 rounded-xl bg-slate-50 border border-ios-border" id="stars-puntualidad"></div>
+      </div>
+
+      <!-- 5. Confort y Seguridad Vial -->
+      <div class="space-y-1.5">
+        <div class="flex items-center justify-between">
+          <label class="text-xs font-bold text-ios-text">Confort y Sensación de Seguridad Vial</label>
+          <span id="label-confort" class="text-xs font-bold text-amber-500 font-mono">5.0 / 5 ⭐</span>
+        </div>
+        <div class="flex items-center justify-between gap-1 p-2 rounded-xl bg-slate-50 border border-ios-border" id="stars-confort"></div>
+      </div>
+
+      <!-- Recomendaría el servicio -->
+      <div class="space-y-2 pt-2 border-t border-slate-100">
+        <label class="block text-xs font-bold text-ios-text">¿Recomendarías nuestros servicios a otras empresas o usuarios?</label>
+        <div class="grid grid-cols-3 gap-2">
+          <button type="button" onclick="setRecomendacion('SI')" id="btn-rec-SI" class="h-10 rounded-xl font-bold text-xs border transition-all bg-emerald-500 text-white border-emerald-600 shadow-sm">
+            👍 Sí, totalmente
+          </button>
+          <button type="button" onclick="setRecomendacion('TAL_VEZ')" id="btn-rec-TAL_VEZ" class="h-10 rounded-xl font-bold text-xs border transition-all bg-white text-slate-700 border-slate-200 hover:bg-slate-50">
+            👌 Tal vez
+          </button>
+          <button type="button" onclick="setRecomendacion('NO')" id="btn-rec-NO" class="h-10 rounded-xl font-bold text-xs border transition-all bg-white text-slate-700 border-slate-200 hover:bg-slate-50">
+            👎 No
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- COMENTARIOS Y DATOS DEL PASAJERO -->
+    <section class="bg-white p-5 border border-ios-border squircle shadow-apple-sm space-y-3.5">
+      <h3 class="text-xs font-bold text-ios-muted uppercase tracking-wider flex items-center gap-2 pb-2.5 border-b border-ios-border">
+        <svg class="w-4 h-4 text-ios-muted" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+        </svg>
+        3. Comentarios y Sugerencias
+      </h3>
+
+      <div>
+        <textarea id="comentarios" rows="3" placeholder="¿Qué podemos mejorar o qué te gustó de tu viaje?" class="w-full p-3.5 bg-slate-50 border border-ios-border squircle-sm text-sm text-ios-text focus:bg-white focus:border-brand-500 focus:outline-none transition-all placeholder:text-slate-300"></textarea>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-[11px] font-bold text-ios-text uppercase mb-1">Nombre (Opcional)</label>
+          <input type="text" id="nombreEncuestado" placeholder="Tu nombre" class="w-full h-11 px-3.5 bg-slate-50 border border-ios-border squircle-sm text-xs font-medium text-ios-text focus:bg-white focus:border-brand-500 focus:outline-none transition-all placeholder:text-slate-300" />
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-ios-text uppercase mb-1">Empresa / Email (Opcional)</label>
+          <input type="text" id="emailEncuestado" placeholder="Empresa o email" class="w-full h-11 px-3.5 bg-slate-50 border border-ios-border squircle-sm text-xs font-medium text-ios-text focus:bg-white focus:border-brand-500 focus:outline-none transition-all placeholder:text-slate-300" />
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- BARRA FLOTANTE DE ENVÍO -->
+  <footer class="fixed bottom-4 left-0 right-0 z-40 px-4 pointer-events-none">
+    <div class="max-w-md mx-auto glass-floating p-2.5 rounded-2xl shadow-apple-float pointer-events-auto flex items-center gap-2">
+      <button type="button" id="btn-enviar" onclick="enviarEncuesta()" class="w-full h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-all">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+        </svg>
+        <span id="btn-enviar-text">Enviar Calificación</span>
+      </button>
+    </div>
+  </footer>
+
+  <!-- MODAL DE GENERADOR QR -->
+  <div id="qrModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div class="bg-white p-6 rounded-3xl max-w-sm w-full text-center space-y-4 shadow-2xl">
+      <h3 class="font-extrabold text-base text-ios-text">Código QR del Vehículo</h3>
+      <p class="text-xs text-ios-muted">Los pasajeros pueden escanear este código con su cámara para calificar directamente.</p>
+      
+      <div id="qrcode-container" class="p-4 bg-slate-50 rounded-2xl border border-slate-200 inline-block mx-auto"></div>
+
+      <div class="flex gap-2">
+        <button type="button" onclick="toggleQRModal()" class="w-full py-2.5 rounded-xl bg-slate-100 font-bold text-xs text-slate-700">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const ratings = {
+      overall: 5,
+      limpieza: 5,
+      atencion: 5,
+      puntualidad: 5,
+      confort: 5
+    };
+    let recomendacion = "SI";
+
+    document.addEventListener("DOMContentLoaded", () => {
+      renderStars("overall");
+      renderStars("limpieza");
+      renderStars("atencion");
+      renderStars("puntualidad");
+      renderStars("confort");
+
+      const now = new Date();
+      document.getElementById("fecha-display").textContent = now.toLocaleDateString("es-CO", {
+        day: "2-digit", month: "short", year: "numeric"
+      });
+
+      // Leer placa desde URL params si existe (?placa=WLM849)
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get("placa")) {
+        document.getElementById("placa").value = urlParams.get("placa").toUpperCase();
+      }
+      if (urlParams.get("conductor")) {
+        document.getElementById("conductorNombre").value = urlParams.get("conductor");
+      }
+    });
+
+    function renderStars(criterio) {
+      const container = document.getElementById(`stars-${criterio}`);
+      if (!container) return;
+      const current = ratings[criterio];
+
+      container.innerHTML = [1, 2, 3, 4, 5].map(num => `
+        <button type="button" onclick="setRating('${criterio}', ${num})" class="star-btn flex-1 py-1.5 rounded-lg flex items-center justify-center transition-all ${
+          num <= current ? 'text-amber-400 bg-amber-50/60' : 'text-slate-300 hover:text-slate-400'
+        }">
+          <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+          </svg>
+        </button>
+      `).join("");
+
+      const label = document.getElementById(`label-${criterio}`);
+      if (label) label.textContent = `${current}.0 / 5 ⭐`;
+    }
+
+    function setRating(criterio, val) {
+      ratings[criterio] = val;
+      renderStars(criterio);
+    }
+
+    function setRecomendacion(val) {
+      recomendacion = val;
+      ['SI', 'TAL_VEZ', 'NO'].forEach(opt => {
+        const btn = document.getElementById(`btn-rec-${opt}`);
+        if (!btn) return;
+        if (opt === val) {
+          btn.className = opt === 'SI'
+            ? "h-10 rounded-xl font-bold text-xs border transition-all bg-emerald-500 text-white border-emerald-600 shadow-sm"
+            : opt === 'TAL_VEZ'
+            ? "h-10 rounded-xl font-bold text-xs border transition-all bg-amber-500 text-white border-amber-600 shadow-sm"
+            : "h-10 rounded-xl font-bold text-xs border transition-all bg-red-500 text-white border-red-600 shadow-sm";
+        } else {
+          btn.className = "h-10 rounded-xl font-bold text-xs border transition-all bg-white text-slate-700 border-slate-200 hover:bg-slate-50";
+        }
+      });
+    }
+
+    function toggleQRModal() {
+      const modal = document.getElementById("qrModal");
+      const isHidden = modal.classList.contains("hidden");
+      if (isHidden) {
+        const placa = document.getElementById("placa").value.trim() || "";
+        const url = `${window.location.origin}/apps/encuesta/index.html${placa ? `?placa=${placa}` : ''}`;
+        const qrContainer = document.getElementById("qrcode-container");
+        qrContainer.innerHTML = "";
+        new QRCode(qrContainer, {
+          text: url,
+          width: 180,
+          height: 180,
+          colorDark: "#0F172A",
+          colorLight: "#FFFFFF",
+          correctLevel: QRCode.CorrectLevel.H
+        });
+        modal.classList.remove("hidden");
+      } else {
+        modal.classList.add("hidden");
+      }
+    }
+
+    async function enviarEncuesta() {
+      const placa = document.getElementById("placa").value.trim().toUpperCase();
+      const conductorNombre = document.getElementById("conductorNombre").value.trim();
+      const comentarios = document.getElementById("comentarios").value.trim();
+      const nombreEncuestado = document.getElementById("nombreEncuestado").value.trim();
+      const emailEncuestado = document.getElementById("emailEncuestado").value.trim();
+
+      const payload = {
+        tipoEncuesta: "satisfaccion_servicio",
+        titulo: "Encuesta de Satisfacción y Calidad de Ruta",
+        placa: placa || null,
+        conductorNombre: conductorNombre || null,
+        calificacionGeneral: ratings.overall,
+        limpiezaVehiculo: ratings.limpieza,
+        atencionConductor: ratings.atencion,
+        puntualidad: ratings.puntualidad,
+        seguridadConfort: ratings.confort,
+        seriaRecomendado: recomendacion,
+        comentarios: comentarios || null,
+        nombreEncuestado: nombreEncuestado || "Pasajero",
+        emailEncuestado: emailEncuestado || null,
+        canal: "qr_movil"
+      };
+
+      const btn = document.getElementById("btn-enviar");
+      const btnText = document.getElementById("btn-enviar-text");
+      btn.disabled = true;
+      btnText.textContent = "Enviando...";
+
+      try {
+        const res = await fetch("/api/apps/encuesta", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          alert("⭐ ¡Muchas gracias por tu calificación! Tu opinión nos ayuda a seguir mejorando cada día.");
+          window.location.reload();
+        } else {
+          throw new Error(data.error || "No se pudo registrar la calificación.");
+        }
+      } catch (err) {
+        console.error("Error al enviar encuesta:", err);
+        // Fallback local
+        const pending = JSON.parse(localStorage.getItem("transservices_pending_encuestas") || "[]");
+        pending.push({ ...payload, timestamp: new Date().toISOString() });
+        localStorage.setItem("transservices_pending_encuestas", JSON.stringify(pending));
+        alert("⭐ Calificación registrada localmente. ¡Muchas gracias!");
+        window.location.reload();
+      } finally {
+        btn.disabled = false;
+        btnText.textContent = "Enviar Calificación";
+      }
+    }
+  </script>
+</body>
 </html>

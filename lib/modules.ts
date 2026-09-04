@@ -46,9 +46,12 @@ export const NAV_GROUPS: ModuleGroup[] = [
     items: [
       { id: "preoperacionales", label: "Preoperacionales", href: "/hseq/preoperacionales", icon: "clipboard" },
       { id: "capacitaciones", label: "Capacitaciones", href: "/capacitaciones", icon: "graduation" },
-      { id: "encuestas", label: "Encuestas", href: "/encuestas", icon: "clipboard" },
-      { id: "asistencia", label: "Asistencia", href: "/asistencia", icon: "check" },
+      { id: "encuestas", label: "Encuestas PESV", href: "/encuestas", icon: "clipboard" },
+      { id: "asistencia", label: "Asistencia Diaria", href: "/asistencia", icon: "check" },
       { id: "lavado", label: "Control de Lavado", href: "/lavado", icon: "droplets" },
+      { id: "aseo", label: "Aseo y Desinfección", href: "/aseo", icon: "sparkles" },
+      { id: "extintores", label: "Extintores", href: "/extintores", icon: "shield" },
+      { id: "botiquines", label: "Botiquines", href: "/botiquines", icon: "heart" },
     ],
   },
   {

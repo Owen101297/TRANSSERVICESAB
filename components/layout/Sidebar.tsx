@@ -22,6 +22,8 @@ import {
   Smartphone,
   Radio,
   Droplets,
+  Sparkles,
+  HeartPulse,
   PanelLeftClose,
   PanelLeftOpen,
   type LucideIcon,
@@ -47,6 +49,8 @@ const ICONS: Record<string, LucideIcon> = {
   clipboard: ClipboardList,
   check: CheckSquare,
   droplets: Droplets,
+  sparkles: Sparkles,
+  heart: HeartPulse,
   smartphone: Smartphone,
 };
 

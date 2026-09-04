@@ -641,5 +641,125 @@ model ControlAseo {
   @@index([estadoAprobo])
 }
 
+// --------------------------------------------------------
+// MÓDULO CONTROL DE INSPECCIÓN DE EXTINTORES (HSEQ-F-034)
+// --------------------------------------------------------
+
+model ControlExtintor {
+  id                      String   @id @default(cuid())
+  fecha                   String   // YYYY-MM-DD
+  hora                    String   // HH:mm
+  placa                   String
+  tipoVehiculo            String   @default("Camioneta")
+  conductorNombre         String
+  conductorDocumento      String?
+  conductorId             String?
+  responsableHseq         String?  @default("Coordinador HSEQ / Conductor")
+  tipoExtintor            String   @default("ABC Polvo Químico Seco") // ABC, Solkaflam, CO2, Agua
+  capacidad               String   @default("10 lbs") // 5 lbs, 10 lbs, 20 lbs, 150 lbs
+  fechaUltimaRecarga      String?  // YYYY-MM-DD
+  fechaVencimientoRecarga String?  // YYYY-MM-DD
+  presionManometro        String   @default("operativa") // operativa, baja, alta
+  checklist               Json     // Array de items evaluados [{ item: string, estado: 'SI'|'NO'|'NA' }]
+  fotosEvidencia          Json?    @default("[]") // Fotos del manómetro, cilindro y tarjeta
+  observaciones           String?
+  firmaConductor          String?  // Base64 o URL
+  firmaInspector          String?  // Base64 o URL
+  conforme                Boolean  @default(true)
+  estadoReviso            Boolean  @default(false)
+  estadoAprobo            Boolean  @default(false)
+  timestamp               DateTime @default(now())
+
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@index([fecha])
+  @@index([placa])
+  @@index([conductorDocumento])
+  @@index([conforme])
+  @@index([fechaVencimientoRecarga])
+  @@index([estadoAprobo])
+}
+
+// --------------------------------------------------------
+// MÓDULO CONTROL DE INSPECCIÓN DE BOTIQUINES (HSEQ-F-035)
+// --------------------------------------------------------
+
+model ControlBotiquin {
+  id                  String   @id @default(cuid())
+  fecha               String   // YYYY-MM-DD
+  hora                String   // HH:mm
+  placa               String
+  tipoVehiculo        String   @default("Camioneta")
+  conductorNombre     String
+  conductorDocumento  String?
+  conductorId         String?
+  responsableHseq     String?  @default("Coordinador HSEQ / Conductor")
+  ubicacionBotiquin   String   @default("Cabina del vehículo")
+  estadoGabinete      String   @default("BUENO") // BUENO, REGULAR, MALO
+  checklist           Json     // Array de 21 items evaluados [{ nombre, req, cantidad, estado, tieneVencimiento, fechaVencimiento, observacion }]
+  fotosEvidencia      Json?    @default("[]") // Fotos de la dotación y fechas
+  observaciones       String?
+  firmaConductor      String?  // Base64 o URL
+  firmaInspector      String?  // Base64 o URL
+  conforme            Boolean  @default(true)
+  itemsVencidosCount  Int      @default(0)
+  itemsFaltantesCount Int      @default(0)
+  estadoReviso        Boolean  @default(false)
+  estadoAprobo        Boolean  @default(false)
+  timestamp           DateTime @default(now())
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([fecha])
+  @@index([placa])
+  @@index([conductorDocumento])
+  @@index([conforme])
+  @@index([estadoAprobo])
+}
+
+// --------------------------------------------------------
+// MÓDULO ENCUESTAS DE RIESGO VIAL (PESV) Y SATISFACCIÓN
+// --------------------------------------------------------
+
+model EncuestaRespuesta {
+  id                  String   @id @default(cuid())
+  tipoEncuesta        String   @default("satisfaccion_servicio") // satisfaccion_servicio, riesgo_vial_pesv, clima_laboral, sgsst
+  titulo              String   @default("Encuesta de Percepción y Satisfacción")
+  fecha               String   // YYYY-MM-DD
+  hora                String   // HH:mm
+  placa               String?
+  tipoVehiculo        String?
+  conductorNombre     String?
+  conductorDocumento  String?
+  nombreEncuestado    String?
+  emailEncuestado     String?
+  empresaCliente      String?  @default("TRANS SERVICES A&B")
+  calificacionGeneral Float?   @default(5.0)
+  limpiezaVehiculo    Float?   @default(5.0)
+  atencionConductor   Float?   @default(5.0)
+  puntualidad         Float?   @default(5.0)
+  seguridadConfort    Float?   @default(5.0)
+  seriaRecomendado    String?  @default("SI") // SI, TAL_VEZ, NO
+  preguntasDetalle    Json?    @default("[]") // Preguntas específicas PESV / Baterías
+  comentarios         String?
+  firma               String?
+  canal               String   @default("qr_movil") // qr_movil, link_web, manual
+  estado              String   @default("completada")
+  timestamp           DateTime @default(now())
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([fecha])
+  @@index([tipoEncuesta])
+  @@index([placa])
+  @@index([conductorNombre])
+}
+
+
+
+
 
 
