@@ -1,8 +1,7 @@
 import { createAsistencia, getConductorByDocumento, fechaLocal, horaLocal } from './supabase-client.js';
 
-// --- ESTADO DE LA SESIÓN ---
+// --- ESTADO LOCAL ---
 let currentEventType = 'Charla 5 Minutos (PESV/HSEQ)';
-let sessionAssistants = [];
 let fotoEvidenciaBase64 = null;
 let isDrawing = false;
 let hasDrawn = false;
@@ -10,26 +9,49 @@ let hasDrawn = false;
 // --- ELEMENTOS DOM ---
 const $ = (id) => document.getElementById(id);
 const canvas = $('signaturePad');
-const ctx = canvas.getContext('2d');
+const ctx = canvas ? canvas.getContext('2d') : null;
 
 // --- INICIALIZACIÓN ---
 document.addEventListener('DOMContentLoaded', () => {
     initClock();
     initCanvas();
-    initSessionStorage();
+    initUrlParams();
     if (typeof lucide !== 'undefined') lucide.createIcons();
 });
 
-// --- RELOJ LOCAL (UTC-5) ---
+// --- LEER PARÁMETROS DE URL (Si el supervisor envía enlace personalizado) ---
+function initUrlParams() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const doc = params.get('doc') || params.get('cedula') || params.get('documento');
+        const tema = params.get('tema') || params.get('actividad');
+        const lugar = params.get('lugar') || params.get('municipio');
+
+        if (doc && $('inpCedula')) {
+            $('inpCedula').value = doc;
+            window.buscarConductorPorCedula(doc);
+        }
+        if (tema && $('inpTema')) {
+            $('inpTema').value = decodeURIComponent(tema);
+        }
+        if (lugar && $('inpLugar')) {
+            $('inpLugar').value = decodeURIComponent(lugar);
+        }
+    } catch (e) {
+        console.warn('Lectura de parámetros URL:', e);
+    }
+}
+
+// --- RELOJ LOCAL (UTC-5 COLOMBIA) ---
 function initClock() {
     function tick() {
         const now = new Date();
         if ($('clockTime')) $('clockTime').textContent = horaLocal(now);
         if ($('clockDate')) {
             $('clockDate').textContent = now.toLocaleDateString('es-CO', {
-                weekday: 'long',
+                weekday: 'short',
                 day: 'numeric',
-                month: 'long',
+                month: 'short',
                 year: 'numeric'
             });
         }
@@ -38,19 +60,20 @@ function initClock() {
     setInterval(tick, 1000);
 }
 
-// --- CANVAS DE FIRMA ---
+// --- CANVAS DE FIRMA DIGITAL ---
 function initCanvas() {
-    if (!canvas) return;
+    if (!canvas || !ctx) return;
 
     function resizeCanvas() {
         const rect = canvas.getBoundingClientRect();
+        if (rect.width === 0) return;
         canvas.width = rect.width * 2;
         canvas.height = rect.height * 2;
         ctx.scale(2, 2);
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.strokeStyle = '#0F172A';
-        ctx.lineWidth = 2.2;
+        ctx.lineWidth = 2.4;
     }
 
     resizeCanvas();
@@ -100,66 +123,57 @@ function initCanvas() {
 }
 
 window.clearSignature = function () {
-    if (!canvas) return;
+    if (!canvas || !ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     hasDrawn = false;
 };
 
-// --- SELECTOR DE TIPO DE EVENTO ---
+// --- SELECTOR DE ACTIVIDAD / PILLS ---
 window.selectEventType = function (el) {
     document.querySelectorAll('.event-pill').forEach(pill => pill.classList.remove('active'));
     el.classList.add('active');
     currentEventType = el.getAttribute('data-type');
-};
-
-// --- TOGGLE DETALLES DEL EVENTO ---
-window.toggleEventDetails = function () {
-    const block = $('eventDetailsBlock');
-    const text = $('toggleText');
-    const icon = $('toggleIcon');
-    if (!block) return;
-
-    if (block.classList.contains('hidden')) {
-        block.classList.remove('hidden');
-        text.textContent = 'Ocultar detalles';
-        if (icon) icon.setAttribute('data-lucide', 'chevron-up');
-    } else {
-        block.classList.add('hidden');
-        text.textContent = 'Editar datos del evento';
-        if (icon) icon.setAttribute('data-lucide', 'chevron-down');
+    
+    // Asignar sugerencia de tema por defecto según el pill
+    if ($('inpTema') && (!$('inpTema').value || $('inpTema').value === 'CHARLA DE SEGURIDAD VIAL Y PESV')) {
+        $('inpTema').value = currentEventType.toUpperCase();
     }
-    if (typeof lucide !== 'undefined') lucide.createIcons();
 };
 
-// --- AUTOCOMPLETADO DE CONDUCTOR POR CÉDULA ---
-let cedulaSearchTimer = null;
+// --- BÚSQUEDA AUTOMÁTICA POR CÉDULA ---
+let searchDebounce = null;
 window.onCedulaInput = function (val) {
-    clearTimeout(cedulaSearchTimer);
+    clearTimeout(searchDebounce);
     if (!val || val.trim().length < 5) return;
-    cedulaSearchTimer = setTimeout(() => {
+    searchDebounce = setTimeout(() => {
         window.buscarConductorPorCedula(val);
-    }, 250);
+    }, 280);
 };
 
 window.buscarConductorPorCedula = async function (cedula) {
     if (!cedula || cedula.trim().length < 5) return;
     const status = $('cedulaSearchStatus');
-    if (status) status.innerHTML = '<i class="animate-spin fas fa-spinner text-blue-600"></i>';
+    if (status) status.innerHTML = '<span class="text-[#1E40AF] font-bold text-[11px] animate-pulse">Buscando...</span>';
 
     try {
-        const conductor = await getConductorByDocumento(cedula.trim());
-        if (conductor) {
-            const nombreCompleto = conductor.nombreCompleto || `${conductor.nombres || ''} ${conductor.apellidos || ''}`.trim();
+        const persona = await getConductorByDocumento(cedula.trim());
+        if (persona) {
+            const nombreCompleto = persona.nombreCompleto || `${persona.nombres || ''} ${persona.apellidos || ''}`.trim();
             if ($('inpNombre') && nombreCompleto) $('inpNombre').value = nombreCompleto;
-            if ($('selCargo') && conductor.cargo) $('selCargo').value = conductor.cargo;
-            if ($('selProyecto') && conductor.proyecto) {
-                const p = (conductor.proyecto || '').toUpperCase();
-                if (p.includes('ICBF')) $('selProyecto').value = 'ICBF';
-                else if (p.includes('GT') || p.includes('TIERRA')) $('selProyecto').value = 'GT';
-                else if (p.includes('HOSPITAL')) $('selProyecto').value = 'HOSPITAL';
-                else $('selProyecto').value = 'OTRO';
+            if ($('selCargo') && persona.cargo) {
+                const c = persona.cargo.toUpperCase();
+                const opt = Array.from($('selCargo').options).find(o => o.value === c || c.includes(o.value));
+                if (opt) $('selCargo').value = opt.value;
             }
-            showToast(`Conductor: ${nombreCompleto}`, 'info');
+            if ($('selProyecto') && persona.proyecto) {
+                const p = (persona.proyecto || '').toUpperCase();
+                if (p.includes('GT') || p.includes('TIERRA')) $('selProyecto').value = 'GRAN TIERRA (GT)';
+                else if (p.includes('ICBF')) $('selProyecto').value = 'ICBF';
+                else if (p.includes('HOSPITAL')) $('selProyecto').value = 'HOSPITAL';
+                else if (p.includes('CONSORCIO')) $('selProyecto').value = 'CONSORCIO';
+                else $('selProyecto').value = 'TRANS SERVICES A&B';
+            }
+            showToast(`Bienvenido, ${nombreCompleto}`, 'info');
         }
     } catch (e) {
         console.warn('Búsqueda por cédula:', e);
@@ -168,32 +182,84 @@ window.buscarConductorPorCedula = async function (cedula) {
     }
 };
 
-// --- REGISTRAR ASISTENTE INDIVIDUAL ---
-window.handleRegistrarAsistente = async function (e) {
+// --- PROCESAMIENTO DE FOTO / EVIDENCIA ---
+window.previewFotoEvidencia = function (event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    if (file.size > 8 * 1024 * 1024) {
+        showToast('La imagen es muy pesada. Máximo 8MB', 'warning');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+            // Comprimir imagen a resolución móvil óptima (máx 900px)
+            const maxDim = 900;
+            let w = img.width;
+            let h = img.height;
+            if (w > maxDim || h > maxDim) {
+                if (w > h) {
+                    h = Math.round((h * maxDim) / w);
+                    w = maxDim;
+                } else {
+                    w = Math.round((w * maxDim) / h);
+                    h = maxDim;
+                }
+            }
+            const c = document.createElement('canvas');
+            c.width = w;
+            c.height = h;
+            const cx = c.getContext('2d');
+            cx.drawImage(img, 0, 0, w, h);
+            fotoEvidenciaBase64 = c.toDataURL('image/jpeg', 0.82);
+
+            if ($('fotoPreviewImg')) $('fotoPreviewImg').src = fotoEvidenciaBase64;
+            if ($('fotoUploadBox')) $('fotoUploadBox').classList.add('hidden');
+            if ($('fotoPreviewBox')) $('fotoPreviewBox').classList.remove('hidden');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            showToast('✓ Evidencia fotográfica cargada', 'success');
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+};
+
+window.removeFotoEvidencia = function () {
+    fotoEvidenciaBase64 = null;
+    if ($('fotoFile')) $('fotoFile').value = '';
+    if ($('fotoPreviewImg')) $('fotoPreviewImg').src = '';
+    if ($('fotoPreviewBox')) $('fotoPreviewBox').classList.add('hidden');
+    if ($('fotoUploadBox')) $('fotoUploadBox').classList.remove('hidden');
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+};
+
+// --- REGISTRAR ASISTENCIA INDIVIDUAL ---
+window.handleRegistrarAsistenciaIndividual = async function (e) {
     e.preventDefault();
 
     const tema = $('inpTema')?.value?.trim();
-    const facilitador = $('inpFacilitador')?.value?.trim();
-    const lugar = $('inpLugar')?.value?.trim();
     const cedula = $('inpCedula')?.value?.trim();
     const nombre = $('inpNombre')?.value?.trim();
     const cargo = $('selCargo')?.value;
     const proyecto = $('selProyecto')?.value;
+    const lugar = $('inpLugar')?.value?.trim() || 'VILLAGARZÓN';
 
-    if (!tema) return showToast('Por favor ingresa el tema u objetivo de la sesión', 'error');
-    if (!facilitador) return showToast('Por favor ingresa el nombre del facilitador', 'error');
-    if (!cedula) return showToast('Por favor ingresa el número de cédula', 'error');
-    if (!nombre) return showToast('Por favor ingresa el nombre completo', 'error');
-    if (!hasDrawn) return showToast('La firma del asistente es obligatoria', 'error');
+    if (!tema) return showToast('Por favor escribe el tema de la charla', 'error');
+    if (!cedula) return showToast('Por favor ingresa tu número de cédula', 'error');
+    if (!nombre) return showToast('Por favor escribe tu nombre completo', 'error');
+    if (!hasDrawn) return showToast('La firma digital en pantalla es obligatoria', 'error');
 
     const signatureData = canvas.toDataURL('image/png');
-    const submitBtn = $('btnRegistrarAsistente');
+    const submitBtn = $('btnSubmitAsistencia');
     if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Guardando registro...';
+        submitBtn.innerHTML = '<span class="inline-flex items-center gap-2 font-bold animate-pulse">Guardando asistencia...</span>';
     }
 
-    const nuevoRegistro = {
+    const payload = {
         fecha: fechaLocal(),
         hora_llegada: horaLocal(),
         conductor_documento: cedula,
@@ -202,202 +268,76 @@ window.handleRegistrarAsistente = async function (e) {
         proyecto: proyecto,
         evento: `${currentEventType}: ${tema}`,
         tipo_evento: currentEventType,
-        facilitador: facilitador,
+        facilitador: 'COORDINACIÓN HSEQ & PESV',
         lugar: lugar,
         estado: 'presente',
         firma_url: signatureData,
-        firma_base64: signatureData
+        firma_base64: signatureData,
+        foto_url: fotoEvidenciaBase64,
+        foto_base64: fotoEvidenciaBase64
     };
 
     try {
-        await createAsistencia(nuevoRegistro);
+        await createAsistencia(payload);
 
-        // Agregar a la lista de asistentes en sesión
-        sessionAssistants.unshift({
-            id: Date.now(),
-            cedula,
-            nombre,
-            cargo,
-            proyecto,
-            hora: horaLocal().slice(0, 5),
-            firma: signatureData
-        });
+        // Llenar datos de la constancia de éxito
+        if ($('recNombre')) $('recNombre').textContent = nombre;
+        if ($('recCedula')) $('recCedula').textContent = `C.C. ${cedula}`;
+        if ($('recEvento')) $('recEvento').textContent = tema;
+        if ($('recFechaHora')) $('recFechaHora').textContent = `${fechaLocal()} · ${horaLocal().slice(0, 5)}`;
+        if ($('recLugar')) $('recLugar').textContent = lugar;
 
-        saveSessionStorage();
-        renderAssistantsList();
+        // Mostrar pantalla de éxito
+        if ($('asistenciaForm')) $('asistenciaForm').classList.add('hidden');
+        if ($('successScreen')) $('successScreen').classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
 
-        // Mostrar modal de éxito
-        if ($('modalAsistenteNombre')) $('modalAsistenteNombre').textContent = nombre;
-        if ($('successModal')) $('successModal').classList.remove('hidden');
-
-        // Limpiar formulario de asistente
-        $('inpCedula').value = '';
-        $('inpNombre').value = '';
-        window.clearSignature();
-
-        showToast(`Asistencia de ${nombre} registrada con éxito`, 'success');
+        showToast('¡Asistencia firmada y registrada!', 'success');
     } catch (err) {
         console.error('Error al registrar asistencia:', err);
-        showToast('Ocurrió un error al guardar la asistencia. Intenta de nuevo.', 'error');
+        showToast('Error al guardar: ' + (err.message || 'Intenta de nuevo'), 'error');
     } finally {
         if (submitBtn) {
             submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i data-lucide="user-check" class="w-5 h-5 mr-2"></i> Firmar y Registrar Asistencia';
+            submitBtn.innerHTML = '<i data-lucide="check-circle-2" class="w-5 h-5 mr-2"></i> Firmar y Registrar mi Asistencia';
             if (typeof lucide !== 'undefined') lucide.createIcons();
         }
     }
 };
 
-// --- CERRAR MODAL DE ÉXITO ---
-window.closeSuccessModal = function (focusNext) {
-    if ($('successModal')) $('successModal').classList.add('hidden');
-    if (focusNext && $('inpCedula')) {
-        $('inpCedula').focus();
+window.reiniciarFormulario = function () {
+    if ($('asistenciaForm')) {
+        $('asistenciaForm').reset();
+        $('asistenciaForm').classList.remove('hidden');
     }
-};
-
-// --- RENDERIZAR LISTA DE ASISTENTES ---
-function renderAssistantsList() {
-    const count = sessionAssistants.length;
-    if ($('asistentesCount')) $('asistentesCount').textContent = count;
-    if ($('asistentesListCount')) $('asistentesListCount').textContent = count;
-
-    const emptyBox = $('asistentesListEmpty');
-    const container = $('asistentesListContainer');
-
-    if (!container || !emptyBox) return;
-
-    if (count === 0) {
-        emptyBox.classList.remove('hidden');
-        container.classList.add('hidden');
-        container.innerHTML = '';
-        return;
-    }
-
-    emptyBox.classList.add('hidden');
-    container.classList.remove('hidden');
-
-    container.innerHTML = sessionAssistants.map((asistente, idx) => `
-        <div class="p-4 bg-white rounded-2xl border-2 border-slate-200 shadow-sm flex items-center justify-between gap-3 transition-all hover:border-slate-300">
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-[#EFF6FF] text-[#1E40AF] font-black text-xs flex items-center justify-center border border-[#BFDBFE]">
-                    ${count - idx}
-                </div>
-                <div>
-                    <h4 class="text-sm font-extrabold text-slate-900 leading-tight uppercase">${asistente.nombre}</h4>
-                    <p class="text-xs font-semibold text-slate-500 font-mono">CC: ${asistente.cedula} · ${asistente.cargo}</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                <span class="text-[11px] font-bold text-slate-500">${asistente.hora}</span>
-                <img src="${asistente.firma}" alt="Firma" class="h-8 w-16 object-contain bg-slate-50 rounded border border-slate-200 p-0.5">
-            </div>
-        </div>
-    `).join('');
-
+    if ($('successScreen')) $('successScreen').classList.add('hidden');
+    window.clearSignature();
+    window.removeFotoEvidencia();
     if (typeof lucide !== 'undefined') lucide.createIcons();
-}
-
-// --- LIMPIAR LISTA DE SESIÓN ---
-window.limpiarListaSesion = function () {
-    if (confirm('¿Deseas reiniciar la lista de asistentes para una nueva sesión?')) {
-        sessionAssistants = [];
-        saveSessionStorage();
-        renderAssistantsList();
-        showToast('Lista de asistentes reiniciada para una nueva sesión', 'info');
-    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 };
-
-// --- EVIDENCIA FOTOGRÁFICA ---
-window.previewFotoEvidencia = function (e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-        return showToast('La imagen supera el tamaño máximo permitido de 5MB', 'error');
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        fotoEvidenciaBase64 = event.target.result;
-        if ($('fotoPreviewImg')) $('fotoPreviewImg').src = fotoEvidenciaBase64;
-        if ($('fotoPreviewBox')) $('fotoPreviewBox').classList.remove('hidden');
-        showToast('Foto de evidencia cargada correctamente', 'success');
-    };
-    reader.readAsDataURL(file);
-};
-
-window.removeFotoEvidencia = function () {
-    fotoEvidenciaBase64 = null;
-    if ($('fotoFile')) $('fotoFile').value = '';
-    if ($('fotoPreviewBox')) $('fotoPreviewBox').classList.add('hidden');
-    if ($('fotoPreviewImg')) $('fotoPreviewImg').src = '';
-};
-
-// --- FINALIZAR SESIÓN COMPLETA ---
-window.finalizarSesionCompleta = function () {
-    if (sessionAssistants.length === 0) {
-        return showToast('Debes registrar al menos un asistente antes de finalizar la sesión', 'error');
-    }
-
-    const tema = $('inpTema')?.value?.trim() || 'Actividad';
-    const total = sessionAssistants.length;
-
-    if (confirm(`¿Confirmas el cierre del evento "${tema}" con ${total} asistentes registrados?`)) {
-        showToast(`Sesión completada con ${total} firmas. Registros guardados en TH-FOR-03.`, 'success');
-        setTimeout(() => {
-            sessionAssistants = [];
-            saveSessionStorage();
-            renderAssistantsList();
-            window.removeFotoEvidencia();
-            if ($('inpTema')) $('inpTema').value = '';
-        }, 1500);
-    }
-};
-
-// --- LOCAL STORAGE ---
-function saveSessionStorage() {
-    try {
-        localStorage.setItem('trans_asistencia_sesion', JSON.stringify({
-            eventType: currentEventType,
-            tema: $('inpTema')?.value || '',
-            facilitador: $('inpFacilitador')?.value || '',
-            lugar: $('inpLugar')?.value || '',
-            assistants: sessionAssistants
-        }));
-    } catch (e) {}
-}
-
-function initSessionStorage() {
-    try {
-        const data = JSON.parse(localStorage.getItem('trans_asistencia_sesion') || '{}');
-        if (data.assistants && Array.isArray(data.assistants)) {
-            sessionAssistants = data.assistants;
-            renderAssistantsList();
-        }
-        if (data.facilitador && $('inpFacilitador')) $('inpFacilitador').value = data.facilitador;
-        if (data.lugar && $('inpLugar')) $('inpLugar').value = data.lugar;
-    } catch (e) {}
-}
 
 // --- SISTEMA TOAST ---
-function showToast(msg, type = 'success') {
+window.showToast = function (msg, type = 'info', duration = 3500) {
     const container = $('toasts');
     if (!container) return;
 
-    const el = document.createElement('div');
-    const isSuccess = type === 'success';
-    const isError = type === 'error';
-    const bg = isSuccess ? 'bg-emerald-50 border-emerald-300 text-emerald-900' : isError ? 'bg-red-50 border-red-300 text-red-900' : 'bg-blue-50 border-blue-300 text-blue-900';
-    const icon = isSuccess ? 'check-circle text-emerald-600' : isError ? 'alert-triangle text-red-600' : 'info text-blue-600';
+    const colors = {
+        success: 'bg-slate-900 border-emerald-500 text-white',
+        error: 'bg-red-950 border-red-500 text-white',
+        warning: 'bg-amber-950 border-amber-500 text-white',
+        info: 'bg-slate-900 border-blue-500 text-white'
+    };
 
-    el.className = `toast flex items-center gap-2.5 px-4 py-3 rounded-2xl border-2 ${bg} shadow-xl text-xs font-extrabold`;
-    el.innerHTML = `<i class="fas fa-${icon}"></i> <span>${msg}</span>`;
+    const toast = document.createElement('div');
+    toast.className = `toast p-3.5 rounded-2xl border shadow-xl flex items-center gap-2.5 text-xs font-bold ${colors[type] || colors.info}`;
+    toast.innerHTML = `<span>${msg}</span>`;
+    container.appendChild(toast);
 
-    container.appendChild(el);
     setTimeout(() => {
-        el.style.opacity = '0';
-        el.style.transition = 'opacity 0.3s ease';
-        setTimeout(() => el.remove(), 300);
-    }, 4000);
-}
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-10px)';
+        toast.style.transition = 'all 0.25s ease';
+        setTimeout(() => toast.remove(), 250);
+    }, duration);
+};

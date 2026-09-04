@@ -16,139 +16,114 @@
     <link rel="stylesheet" href="/apps/asistencia/styles.css">
 </head>
 
-<body class="bg-slate-50 min-h-screen text-slate-900 font-sans pb-32">
+<body class="bg-slate-50 min-h-screen text-slate-900 font-sans pb-24">
 
     <!-- Notificaciones Toast -->
     <div id="toasts" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-sm"></div>
 
-    <!-- Header Unificado -->
-    <div id="header-container"></div>
-
-    <main class="max-w-xl mx-auto px-4 sm:px-6 mt-4 space-y-6">
-
-        <!-- Título y Encabezado Oficial -->
-        <div class="flex items-center justify-between pt-1">
-            <div>
-                <h1 class="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                    <div class="p-2 bg-[#DBEAFE] rounded-xl border border-[#BFDBFE]">
-                        <i data-lucide="clipboard-check" class="w-5 h-5 text-[#1E40AF]"></i>
-                    </div>
-                    Registro de Asistencia
-                </h1>
-                <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mt-0.5">Formato TH-FOR-03 · SG-SST / PESV</p>
-            </div>
-            <div class="flex items-center gap-2">
-                <a href="/asistencia" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border-2 border-slate-300 text-slate-900 hover:bg-slate-50 text-xs font-extrabold rounded-xl shadow-sm transition-colors">
-                    <i data-lucide="layout-dashboard" class="w-4 h-4 text-[#1E40AF]"></i> Panel Admin
-                </a>
-                <span id="sessionCounterBadge" class="bg-[#EFF6FF] text-[#1E40AF] text-xs font-extrabold px-3 py-1.5 rounded-xl border-2 border-[#BFDBFE] flex items-center gap-1.5 shadow-sm">
-                    <i data-lucide="users" class="w-4 h-4"></i>
-                    <span id="asistentesCount">0</span> Firmas
-                </span>
-            </div>
-        </div>
-
-        <!-- Reloj / Estado de Sesión en Tiempo Real -->
-        <div class="bg-white rounded-2xl p-4 border-2 border-slate-300 shadow-sm flex items-center justify-between">
+    <!-- Header Institucional Trans Services A&B -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-xl mx-auto px-4 py-3 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-[#EFF6FF] text-[#1E40AF] rounded-xl flex items-center justify-center border border-[#BFDBFE]">
-                    <i data-lucide="clock" class="w-5 h-5"></i>
-                </div>
+                <img src="/logo.png" alt="Trans Services A&B" class="w-10 h-10 object-contain rounded-xl border border-slate-200 p-0.5 bg-white shadow-xs">
                 <div>
-                    <p id="clockDate" class="text-xs font-extrabold text-slate-700 capitalize">Cargando fecha...</p>
-                    <p id="clockTime" class="text-xl font-black text-slate-900 tabular-nums tracking-tight">--:--:--</p>
+                    <h1 class="text-sm font-extrabold text-slate-900 leading-tight">Trans Services A&B</h1>
+                    <p class="text-[11px] font-bold text-[#1E40AF]">TH-FOR-03 · SG-SST / PESV</p>
                 </div>
             </div>
             <div class="text-right">
-                <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-bold border border-emerald-200">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-[#1E40AF] text-[11px] font-extrabold border border-blue-200">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Sesión Activa
+                    En Línea
                 </span>
             </div>
         </div>
+    </header>
 
-        <!-- SECCIÓN 1: Datos de la Sesión / Evento -->
-        <section class="card-apple space-y-5">
-            <div class="flex items-center justify-between border-b-2 border-slate-200 pb-3">
-                <h2 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                    <i data-lucide="calendar" class="w-5 h-5 text-[#1E40AF]"></i>
-                    1. Datos de la Actividad
-                </h2>
-                <button type="button" id="btnToggleEventDetails" onclick="toggleEventDetails()" class="text-xs font-bold text-[#1E40AF] hover:underline flex items-center gap-1">
-                    <span id="toggleText">Ocultar detalles</span>
-                    <i data-lucide="chevron-up" id="toggleIcon" class="w-4 h-4"></i>
-                </button>
-            </div>
+    <main class="max-w-xl mx-auto px-4 sm:px-6 mt-4 space-y-5">
 
-            <div id="eventDetailsBlock" class="space-y-4">
-                <!-- Tipo de Evento / Actividad -->
+        <!-- Título y Fecha / Hora Local -->
+        <div class="bg-white rounded-2xl p-4 border-2 border-slate-200 shadow-sm flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-blue-50 text-[#1E40AF] rounded-xl flex items-center justify-center border border-blue-200">
+                    <i data-lucide="clipboard-check" class="w-5 h-5"></i>
+                </div>
                 <div>
-                    <label class="field-label">Tipo de Actividad *</label>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" id="eventPillsContainer">
-                        <div class="event-pill active" data-type="Charla 5 Minutos (PESV/HSEQ)" onclick="selectEventType(this)">
-                            <i data-lucide="shield-alert" class="w-4 h-4 text-[#1E40AF]"></i>
-                            <span>Charla 5 Min</span>
-                        </div>
-                        <div class="event-pill" data-type="Capacitación Técnica" onclick="selectEventType(this)">
-                            <i data-lucide="graduation-cap" class="w-4 h-4"></i>
-                            <span>Capacitación</span>
-                        </div>
-                        <div class="event-pill" data-type="Inducción / Reinducción" onclick="selectEventType(this)">
-                            <i data-lucide="user-plus" class="w-4 h-4"></i>
-                            <span>Inducción</span>
-                        </div>
-                        <div class="event-pill" data-type="Comité (COPASST/Convivencia)" onclick="selectEventType(this)">
-                            <i data-lucide="users" class="w-4 h-4"></i>
-                            <span>Comité</span>
-                        </div>
-                        <div class="event-pill" data-type="Reunión Operativa" onclick="selectEventType(this)">
-                            <i data-lucide="briefcase" class="w-4 h-4"></i>
-                            <span>Reunión</span>
-                        </div>
-                        <div class="event-pill" data-type="Entrega de Dotación / EPP" onclick="selectEventType(this)">
-                            <i data-lucide="hard-hat" class="w-4 h-4"></i>
-                            <span>Entrega EPP</span>
-                        </div>
-                    </div>
+                    <h2 class="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Planilla de Asistencia</h2>
+                    <p id="clockDate" class="text-xs font-bold text-slate-700 capitalize">Cargando fecha...</p>
+                </div>
+            </div>
+            <div class="text-right">
+                <span id="clockTime" class="text-lg font-black text-slate-900 tabular-nums">--:--:--</span>
+            </div>
+        </div>
+
+        <!-- FORMULARIO INDIVIDUAL DE ASISTENCIA -->
+        <form id="asistenciaForm" onsubmit="handleRegistrarAsistenciaIndividual(event)" class="space-y-5">
+
+            <!-- SECCIÓN 1: Actividad / Tema de Capacitación -->
+            <section class="card-apple space-y-4">
+                <div class="border-b border-slate-200 pb-2.5">
+                    <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                        <i data-lucide="shield-alert" class="w-4 h-4 text-[#1E40AF]"></i>
+                        1. Tema de la Charla o Capacitación
+                    </h3>
+                    <p class="text-[11px] text-slate-500 font-medium">Selecciona la actividad divulgada por la empresa</p>
                 </div>
 
-                <!-- Tema / Objetivo -->
+                <!-- Selector Rápido de Actividad -->
+                <div class="grid grid-cols-2 gap-2" id="eventPillsContainer">
+                    <button type="button" class="event-pill active" data-type="Charla 5 Minutos (PESV/HSEQ)" onclick="selectEventType(this)">
+                        <i data-lucide="shield-check" class="w-4 h-4 text-[#1E40AF]"></i>
+                        <span>Charla 5 Min</span>
+                    </button>
+                    <button type="button" class="event-pill" data-type="Pausas Activas y Fatiga" onclick="selectEventType(this)">
+                        <i data-lucide="activity" class="w-4 h-4"></i>
+                        <span>Pausas / Fatiga</span>
+                    </button>
+                    <button type="button" class="event-pill" data-type="Manejo Defensivo y Seguridad Vial" onclick="selectEventType(this)">
+                        <i data-lucide="navigation" class="w-4 h-4"></i>
+                        <span>Manejo Defensivo</span>
+                    </button>
+                    <button type="button" class="event-pill" data-type="Inspección Preoperacional" onclick="selectEventType(this)">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i>
+                        <span>Preoperacional</span>
+                    </button>
+                    <button type="button" class="event-pill" data-type="Divulgación Políticas SG-SST/PESV" onclick="selectEventType(this)">
+                        <i data-lucide="book-open" class="w-4 h-4"></i>
+                        <span>Políticas PESV</span>
+                    </button>
+                    <button type="button" class="event-pill" data-type="Inducción / Capacitación Técnica" onclick="selectEventType(this)">
+                        <i data-lucide="graduation-cap" class="w-4 h-4"></i>
+                        <span>Capacitación</span>
+                    </button>
+                </div>
+
+                <!-- Detalle del Tema -->
                 <div>
-                    <label for="inpTema" class="field-label">Tema / Objetivo de la Sesión *</label>
-                    <input type="text" id="inpTema" list="temasSugeridos" class="input-moderno uppercase" placeholder="Ej: MANEJO DEFENSIVO Y CONDICIONES CLIMÁTICAS" required>
+                    <label for="inpTema" class="field-label">Tema Específico / Asunto *</label>
+                    <input type="text" id="inpTema" list="temasSugeridos" class="input-moderno uppercase" placeholder="Ej: PREVENCIÓN DE FATIGA EN RUTA Y DISTANCIA DE FRENADO" required value="CHARLA DE SEGURIDAD VIAL Y PESV">
                     <datalist id="temasSugeridos">
-                        <option value="MANEJO DEFENSIVO Y SEGURIDAD VIAL"></option>
-                        <option value="INSPECCIÓN PREOPERACIONAL DE VEHÍCULOS"></option>
-                        <option value="PREVENCIÓN DE FATIGA Y PAUSAS ACTIVAS"></option>
-                        <option value="USO Y CUIDADO DE ELEMENTOS DE PROTECCIÓN PERSONAL (EPP)"></option>
-                        <option value="PROCEDIMIENTO EN CASO DE ACCIDENTES DE TRÁNSITO"></option>
-                        <option value="PLAN DE PREPARACIÓN Y RESPUESTA ANTE EMERGENCIAS"></option>
-                        <option value="SOCIALIZACIÓN DE POLÍTICAS SG-SST Y PESV"></option>
+                        <option value="PREVENCIÓN DE FATIGA Y CONTROL DE MICROSUEÑOS"></option>
+                        <option value="MANEJO DEFENSIVO EN CONDICIONES CLIMÁTICAS ADVERSAS"></option>
+                        <option value="INSPECCIÓN PREOPERACIONAL Y REPORTE DE HALLAZGOS"></option>
+                        <option value="USO DEL CINTURÓN DE SEGURIDAD Y VELOCIDADES MÁXIMAS"></option>
+                        <option value="PROTOCOLOS DE BIOSEGURIDAD Y ASEO VEHICULAR"></option>
+                        <option value="PLAN DE EMERGENCIAS Y USO DE EXTINTORES / BOTIQUÍN"></option>
                     </datalist>
                 </div>
+            </section>
 
-                <!-- Facilitador y Lugar -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label for="inpFacilitador" class="field-label">Facilitador / Responsable *</label>
-                        <input type="text" id="inpFacilitador" class="input-moderno uppercase" placeholder="Nombre de quien dicta" required>
-                    </div>
-                    <div>
-                        <label for="inpLugar" class="field-label">Sede / Lugar *</label>
-                        <input type="text" id="inpLugar" class="input-moderno uppercase" placeholder="Ej: Patio Villagarzón" value="VILLAGARZÓN" required>
-                    </div>
+            <!-- SECCIÓN 2: Datos de Identificación y Ubicación en Ruta -->
+            <section class="card-apple space-y-4">
+                <div class="border-b border-slate-200 pb-2.5">
+                    <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                        <i data-lucide="user-check" class="w-4 h-4 text-[#1E40AF]"></i>
+                        2. Identificación y Ubicación
+                    </h3>
+                    <p class="text-[11px] text-slate-500 font-medium">Ingresa tu cédula para autocompletar tus datos</p>
                 </div>
-            </div>
-        </section>
 
-        <!-- SECCIÓN 2: Captura de Asistente y Firma -->
-        <section class="card-apple space-y-5">
-            <h2 class="text-base font-extrabold text-slate-900 flex items-center gap-2 border-b-2 border-slate-200 pb-3">
-                <i data-lucide="pen-tool" class="w-5 h-5 text-[#1E40AF]"></i>
-                2. Registrar Asistente
-            </h2>
-
-            <form id="asistenteForm" onsubmit="handleRegistrarAsistente(event)" class="space-y-4">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label for="inpCedula" class="field-label">Cédula de Ciudadanía *</label>
@@ -163,133 +138,145 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                        <label for="selCargo" class="field-label">Cargo *</label>
+                        <label for="selCargo" class="field-label">Cargo / Rol *</label>
                         <select id="selCargo" class="input-moderno">
                             <option value="CONDUCTOR">CONDUCTOR</option>
                             <option value="AUXILIAR DE RUTA">AUXILIAR DE RUTA</option>
-                            <option value="SUPERVISOR">SUPERVISOR</option>
+                            <option value="SUPERVISOR DE OPERACIONES">SUPERVISOR DE OPERACIONES</option>
                             <option value="COORDINADOR OPERATIVO">COORDINADOR OPERATIVO</option>
-                            <option value="MECÁNICO">MECÁNICO</option>
-                            <option value="ADMINISTRATIVO">ADMINISTRATIVO</option>
-                            <option value="CONTRATISTA">CONTRATISTA</option>
+                            <option value="MECÁNICO / MANTENIMIENTO">MECÁNICO / MANTENIMIENTO</option>
+                            <option value="ADMINISTRATIVO / OFICINA">ADMINISTRATIVO / OFICINA</option>
+                            <option value="CONTRATISTA / EXTERNO">CONTRATISTA / EXTERNO</option>
                         </select>
                     </div>
                     <div>
-                        <label for="selProyecto" class="field-label">Proyecto / Empresa *</label>
+                        <label for="selProyecto" class="field-label">Empresa / Proyecto *</label>
                         <select id="selProyecto" class="input-moderno">
                             <option value="TRANS SERVICES A&B">TRANS SERVICES A&B</option>
-                            <option value="ICBF">ICBF</option>
                             <option value="GRAN TIERRA (GT)">GRAN TIERRA (GT)</option>
+                            <option value="ICBF">ICBF</option>
                             <option value="HOSPITAL">HOSPITAL</option>
                             <option value="CONSORCIO">CONSORCIO</option>
-                            <option value="OTRO">OTRO</option>
+                            <option value="CLIENTE EXTERNO / OTRO">CLIENTE EXTERNO / OTRO</option>
                         </select>
                     </div>
                 </div>
 
-                <!-- Canvas de Firma Digital -->
                 <div>
-                    <div class="flex items-center justify-between mb-1.5">
-                        <label class="field-label mb-0">Firma del Asistente *</label>
-                        <button type="button" onclick="clearSignature()" class="text-xs font-extrabold text-[#1E40AF] hover:underline flex items-center gap-1">
-                            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Limpiar
-                        </button>
-                    </div>
-                    <div class="signature-box h-[160px] overflow-hidden bg-white shadow-sm border-2 border-slate-300 rounded-xl">
-                        <canvas id="signaturePad" class="signature-pad"></canvas>
-                    </div>
-                    <p class="text-[11px] text-slate-700 font-semibold mt-1">Firme dentro del recuadro usando su dedo o lápiz táctil.</p>
+                    <label for="inpLugar" class="field-label">Ubicación / Municipio Actual *</label>
+                    <input type="text" id="inpLugar" list="municipiosSugeridos" class="input-moderno uppercase" placeholder="Ej: VILLAGARZÓN / EN RUTA" value="VILLAGARZÓN" required>
+                    <datalist id="municipiosSugeridos">
+                        <option value="VILLAGARZÓN (PUTUMAYO)"></option>
+                        <option value="MOCOA (PUTUMAYO)"></option>
+                        <option value="PUERTO ASÍS (PUTUMAYO)"></option>
+                        <option value="ORITO (PUTUMAYO)"></option>
+                        <option value="NEIVA (HUILA)"></option>
+                        <option value="PITALITO (HUILA)"></option>
+                        <option value="BOGOTÁ D.C."></option>
+                        <option value="EN RUTA / OPERACIÓN"></option>
+                    </datalist>
+                </div>
+            </section>
+
+            <!-- SECCIÓN 3: Evidencia Fotográfica (PESV / Auditoría) -->
+            <section class="card-apple space-y-3">
+                <div class="border-b border-slate-200 pb-2.5">
+                    <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                        <i data-lucide="camera" class="w-4 h-4 text-[#1E40AF]"></i>
+                        3. Evidencia Fotográfica (Soporte PESV)
+                    </h3>
+                    <p class="text-[11px] text-slate-500 font-medium">Selfie con el vehículo o foto del entorno de la charla (Opcional)</p>
                 </div>
 
-                <!-- Botón de Registro de Asistente -->
-                <button type="submit" id="btnRegistrarAsistente" class="btn-primary w-full py-3.5 text-base font-extrabold shadow-lg">
-                    <i data-lucide="user-check" class="w-5 h-5 mr-2"></i>
-                    Firmar y Registrar Asistencia
-                </button>
-            </form>
-        </section>
+                <div id="fotoUploadBox">
+                    <label for="fotoFile" class="flex flex-col items-center justify-center w-full py-6 border-2 border-slate-300 border-dashed rounded-2xl cursor-pointer bg-slate-50/60 hover:bg-slate-100 transition-all shadow-xs">
+                        <div class="flex flex-col items-center justify-center p-3 text-center">
+                            <i data-lucide="camera-plus" class="w-8 h-8 text-[#1E40AF] mb-1.5"></i>
+                            <p class="text-xs font-extrabold text-slate-900"><span class="text-[#1E40AF] underline">Tomar Selfie o Adjuntar Foto</span></p>
+                            <p class="text-[10px] text-slate-500 font-semibold mt-0.5">Comprueba tu presencia en el lugar</p>
+                        </div>
+                        <input id="fotoFile" type="file" class="hidden" accept="image/*" onchange="previewFotoEvidencia(event)">
+                    </label>
+                </div>
 
-        <!-- SECCIÓN 3: Asistentes Registrados en esta Sesión -->
-        <section class="card-apple space-y-4">
-            <div class="flex items-center justify-between border-b-2 border-slate-200 pb-3">
-                <h2 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                    <i data-lucide="users" class="w-5 h-5 text-[#1E40AF]"></i>
-                    3. Asistentes en esta Sesión (<span id="asistentesListCount">0</span>)
-                </h2>
-                <button type="button" onclick="limpiarListaSesion()" class="text-xs font-bold text-red-600 hover:underline">
-                    Reiniciar lista
-                </button>
-            </div>
-
-            <div id="asistentesListEmpty" class="text-center py-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-300">
-                <i data-lucide="user-x" class="w-10 h-10 text-slate-400 mx-auto mb-2"></i>
-                <p class="text-sm font-extrabold text-slate-700">Aún no hay asistentes registrados en esta sesión.</p>
-                <p class="text-xs text-slate-500 font-semibold mt-0.5">Diligencia el formulario de arriba para agregar firmas a la lista.</p>
-            </div>
-
-            <div id="asistentesListContainer" class="space-y-3 hidden">
-                <!-- Se llena dinámicamente -->
-            </div>
-        </section>
-
-        <!-- SECCIÓN 4: Evidencia Fotográfica y Cierre de Sesión -->
-        <section class="card-apple space-y-4">
-            <h2 class="text-base font-extrabold text-slate-900 flex items-center gap-2 border-b-2 border-slate-200 pb-3">
-                <i data-lucide="camera" class="w-5 h-5 text-[#1E40AF]"></i>
-                4. Evidencia Fotográfica de la Actividad
-            </h2>
-
-            <div>
-                <label for="fotoFile" class="flex flex-col items-center justify-center w-full h-36 border-2 border-slate-300 border-dashed rounded-2xl cursor-pointer bg-white hover:bg-slate-50 transition-all shadow-sm">
-                    <div class="flex flex-col items-center justify-center p-4 text-center">
-                        <i data-lucide="image-plus" class="w-8 h-8 text-[#1E40AF] mb-2"></i>
-                        <p class="text-xs font-extrabold text-slate-900"><span class="text-[#1E40AF] underline">Tomar foto o subir archivo</span></p>
-                        <p class="text-[10px] text-slate-500 font-semibold mt-0.5">Foto grupal o de la charla (Máx. 5MB)</p>
-                    </div>
-                    <input id="fotoFile" type="file" class="hidden" accept="image/*" onchange="previewFotoEvidencia(event)">
-                </label>
-
-                <div id="fotoPreviewBox" class="hidden mt-3 relative group">
-                    <img id="fotoPreviewImg" src="" alt="Evidencia" class="w-full h-48 rounded-xl object-cover border-2 border-slate-300 shadow-sm">
-                    <button type="button" onclick="removeFotoEvidencia()" class="absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-full shadow-md hover:bg-red-700">
-                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                <div id="fotoPreviewBox" class="hidden relative group">
+                    <img id="fotoPreviewImg" src="" alt="Evidencia de Asistencia" class="w-full h-44 rounded-xl object-cover border-2 border-slate-300 shadow-sm">
+                    <button type="button" onclick="removeFotoEvidencia()" class="absolute top-2 right-2 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-full shadow-md flex items-center gap-1">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Cambiar Foto
                     </button>
                 </div>
+            </section>
+
+            <!-- SECCIÓN 4: Firma Digital -->
+            <section class="card-apple space-y-3">
+                <div class="flex items-center justify-between border-b border-slate-200 pb-2.5">
+                    <div>
+                        <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                            <i data-lucide="pen-tool" class="w-4 h-4 text-[#1E40AF]"></i>
+                            4. Firma Digital del Asistente *
+                        </h3>
+                        <p class="text-[11px] text-slate-500 font-medium">Dibuja tu firma con el dedo en el recuadro</p>
+                    </div>
+                    <button type="button" onclick="clearSignature()" class="text-xs font-extrabold text-[#1E40AF] hover:underline flex items-center gap-1">
+                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Limpiar
+                    </button>
+                </div>
+
+                <div class="signature-box h-[150px] overflow-hidden bg-white shadow-xs border-2 border-slate-300 rounded-xl">
+                    <canvas id="signaturePad" class="signature-pad"></canvas>
+                </div>
+            </section>
+
+            <!-- Botón de Envío Principal -->
+            <button type="submit" id="btnSubmitAsistencia" class="btn-primary w-full py-4 text-base font-black shadow-lg">
+                <i data-lucide="check-circle-2" class="w-5 h-5 mr-2"></i>
+                Firmar y Registrar mi Asistencia
+            </button>
+        </form>
+
+        <!-- PANTALLA DE ÉXITO Y CONSTANCIA (Oculta por defecto) -->
+        <section id="successScreen" class="hidden card-apple text-center space-y-4 py-8">
+            <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto border-2 border-emerald-200 shadow-sm">
+                <i data-lucide="check" class="w-9 h-9"></i>
+            </div>
+            <div>
+                <h3 class="text-xl font-extrabold text-slate-900">¡Asistencia Registrada con Éxito!</h3>
+                <p class="text-xs text-slate-500 font-semibold mt-1">Formato Oficial TH-FOR-03 · Trans Services A&B</p>
             </div>
 
-            <!-- Botón Finalizar Todo el Evento -->
-            <div class="pt-4 border-t-2 border-slate-200">
-                <button type="button" onclick="finalizarSesionCompleta()" id="btnFinalizarSesion" class="btn-primary w-full py-4 text-base font-black shadow-xl">
-                    <i data-lucide="check-circle" class="w-5 h-5 mr-2"></i>
-                    Finalizar Sesión y Guardar TH-FOR-03
+            <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-left text-xs space-y-2 max-w-sm mx-auto">
+                <div class="flex justify-between">
+                    <span class="text-slate-500 font-bold">Participante:</span>
+                    <span id="recNombre" class="font-extrabold text-slate-900 uppercase"></span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-500 font-bold">Documento:</span>
+                    <span id="recCedula" class="font-mono font-bold text-slate-900"></span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-500 font-bold">Actividad:</span>
+                    <span id="recEvento" class="font-bold text-[#1E40AF]"></span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-500 font-bold">Fecha y Hora:</span>
+                    <span id="recFechaHora" class="font-mono text-slate-700"></span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-500 font-bold">Ubicación:</span>
+                    <span id="recLugar" class="font-bold text-slate-900"></span>
+                </div>
+            </div>
+
+            <div class="pt-2">
+                <button type="button" onclick="reiniciarFormulario()" class="btn-secondary w-full py-3 text-xs font-extrabold">
+                    <i data-lucide="user-plus" class="w-4 h-4 mr-1.5"></i> Registrar Otra Asistencia
                 </button>
             </div>
         </section>
 
     </main>
-
-    <!-- Modal de Confirmación de Asistencia -->
-    <div id="successModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden z-[120] flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl border-2 border-slate-200">
-            <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3 border border-emerald-200">
-                <i data-lucide="check" class="w-8 h-8"></i>
-            </div>
-            <h3 class="text-xl font-extrabold text-slate-900">¡Asistencia Firmada!</h3>
-            <p id="modalAsistenteNombre" class="text-sm font-bold text-[#1E40AF] mt-1 uppercase"></p>
-            <p class="text-xs text-slate-600 font-semibold mt-1">Registrado en formato <span class="font-bold text-slate-900">TH-FOR-03</span>.</p>
-
-            <div class="flex flex-col gap-2 mt-6">
-                <button type="button" onclick="closeSuccessModal(true)" class="btn-primary w-full py-3 text-sm font-extrabold">
-                    <i data-lucide="user-plus" class="w-4 h-4 mr-1.5"></i> Registrar Siguiente Persona
-                </button>
-                <button type="button" onclick="closeSuccessModal(false)" class="btn-secondary w-full py-2.5 text-xs font-bold">
-                    Ver Lista de Asistentes
-                </button>
-            </div>
-        </div>
-    </div>
 
     <!-- Script Principal -->
     <script type="module" src="/apps/asistencia/app.js"></script>
