@@ -396,26 +396,29 @@ model InspeccionPreoperacional {
 // --------------------------------------------------------
 
 model HallazgoHseq {
-  id                  String   @id @default(cuid())
-  origen              String   // preoperacional, inspeccion, incidente, accidente
+  id                  String    @id @default(cuid())
+  origen              String    // preoperacional, inspeccion, incidente, accidente, auditoria
   titulo              String
   descripcion         String
-  severidad           String   @default("media") // baja, media, alta, critica
-  estado              String   @default("abierto") // abierto, en_proceso, cerrado
+  severidad           String    @default("media") // baja, media, alta, critica
+  estado              String    @default("abierto") // abierto, en_proceso, cerrado
   vehiculoId          String?
   placa               String?
   conductorId         String?
   conductorNombre     String?
   responsable         String
-  fechaReporte        DateTime @default(now())
-  fechaCierre         DateTime?
+  fotosEvidencia      String[]  @default([])
   accionCorrectiva    String?
+  responsableCierre   String?
+  fechaReporte        DateTime  @default(now())
+  fechaCierre         DateTime?
 
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   @@index([estado])
   @@index([severidad])
+  @@index([placa])
   @@index([fechaReporte])
 }
 
@@ -758,8 +761,38 @@ model EncuestaRespuesta {
   @@index([conductorNombre])
 }
 
+// --------------------------------------------------------
+// MÓDULO BÓVEDA DOCUMENTAL DIGITAL
+// --------------------------------------------------------
 
+model DocumentoDigital {
+  id                String    @id @default(cuid())
+  nombre            String
+  categoria         String    // vehiculo, persona, contratista, corporativo, hseq_pesv
+  tipoDocumento     String    // soat, rtm, poliza, tarjeta_operacion, licencia, emo, rut, camara_comercio, otro
+  
+  // Vinculación
+  entidadTipo       String    // vehiculo, persona, contratista, empresa
+  entidadId         String?
+  entidadNombre     String?   // Placa, Nombre del conductor o Razón Social
+  
+  // Metadatos y archivo
+  archivoUrl        String    // URL o ruta del documento (PDF, JPG, PNG o base64)
+  tamanoBytes       Int?
+  mimeType          String?   // application/pdf, image/jpeg, etc.
+  
+  // Fechas y vigencia
+  fechaExpedicion   DateTime?
+  fechaVencimiento  DateTime?
+  diasAvisoVencer   Int       @default(30)
+  estado            String    @default("vigente") // vigente, por_vencer, vencido, sin_vencimiento
+  
+  notas             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-
-
-
+  @@index([categoria])
+  @@index([tipoDocumento])
+  @@index([fechaVencimiento])
+  @@index([entidadNombre])
+}

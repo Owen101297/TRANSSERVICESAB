@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { SEED_HALLAZGOS, getHallazgoById as getSeedHallazgoById } from "@/lib/data/hallazgos";
 import { Hallazgo, OrigenHallazgo, SeveridadHallazgo, EstadoHallazgo } from "@/lib/types/hseq";
 
 let localHallazgosState: Hallazgo[] = [];
@@ -12,34 +11,36 @@ let localHallazgosState: Hallazgo[] = [];
  */
 export async function getHallazgosDb(): Promise<Hallazgo[]> {
   try {
-    if (!process.env.DATABASE_URL) {
-      return localHallazgosState;
+    if (process.env.DATABASE_URL) {
+      const dbHallazgos = await prisma.hallazgoHseq.findMany({
+        orderBy: { fechaReporte: "desc" },
+      });
+
+      if (Array.isArray(dbHallazgos)) {
+        return dbHallazgos.map((h) => ({
+          id: h.id,
+          origen: (h.origen as OrigenHallazgo) || "inspeccion",
+          titulo: h.titulo,
+          descripcion: h.descripcion,
+          severidad: (h.severidad as SeveridadHallazgo) || "media",
+          estado: (h.estado as EstadoHallazgo) || "abierto",
+          vehiculoId: h.vehiculoId ?? undefined,
+          placa: h.placa ?? undefined,
+          conductorId: h.conductorId ?? undefined,
+          conductorNombre: h.conductorNombre ?? undefined,
+          responsable: h.responsable,
+          fechaReporte: h.fechaReporte ? h.fechaReporte.toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+          fechaCierre: h.fechaCierre ? h.fechaCierre.toISOString().split("T")[0] : undefined,
+          accionCorrectiva: h.accionCorrectiva ?? undefined,
+          fotosEvidencia: h.fotosEvidencia || [],
+        }));
+      }
     }
-
-    const dbHallazgos = await (prisma as any).hallazgoHseq.findMany({
-      orderBy: { fechaReporte: "desc" },
-    });
-
-    return dbHallazgos.map((h: any) => ({
-      id: h.id,
-      origen: h.origen as OrigenHallazgo,
-      titulo: h.titulo,
-      descripcion: h.descripcion,
-      severidad: h.severidad as SeveridadHallazgo,
-      estado: h.estado as EstadoHallazgo,
-      vehiculoId: h.vehiculoId ?? undefined,
-      placa: h.placa ?? undefined,
-      conductorId: h.conductorId ?? undefined,
-      conductorNombre: h.conductorNombre ?? undefined,
-      responsable: h.responsable,
-      fechaReporte: h.fechaReporte.toISOString().split("T")[0],
-      fechaCierre: h.fechaCierre ? h.fechaCierre.toISOString().split("T")[0] : undefined,
-      accionCorrectiva: h.accionCorrectiva ?? undefined,
-    }));
   } catch (error) {
-    console.warn("Aviso DB HSEQ (usando fallback local):", error);
-    return localHallazgosState;
+    console.warn("Aviso de consulta HSEQ (usando fallback local):", error);
   }
+
+  return localHallazgosState;
 }
 
 /**
@@ -47,37 +48,36 @@ export async function getHallazgosDb(): Promise<Hallazgo[]> {
  */
 export async function getHallazgoByIdDb(id: string): Promise<Hallazgo | undefined> {
   try {
-    if (!process.env.DATABASE_URL) {
-      return localHallazgosState.find((h) => h.id === id) || getSeedHallazgoById(id);
+    if (process.env.DATABASE_URL) {
+      const h = await prisma.hallazgoHseq.findUnique({
+        where: { id },
+      });
+
+      if (h) {
+        return {
+          id: h.id,
+          origen: (h.origen as OrigenHallazgo) || "inspeccion",
+          titulo: h.titulo,
+          descripcion: h.descripcion,
+          severidad: (h.severidad as SeveridadHallazgo) || "media",
+          estado: (h.estado as EstadoHallazgo) || "abierto",
+          vehiculoId: h.vehiculoId ?? undefined,
+          placa: h.placa ?? undefined,
+          conductorId: h.conductorId ?? undefined,
+          conductorNombre: h.conductorNombre ?? undefined,
+          responsable: h.responsable,
+          fechaReporte: h.fechaReporte ? h.fechaReporte.toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+          fechaCierre: h.fechaCierre ? h.fechaCierre.toISOString().split("T")[0] : undefined,
+          accionCorrectiva: h.accionCorrectiva ?? undefined,
+          fotosEvidencia: h.fotosEvidencia || [],
+        };
+      }
     }
-
-    const h = await (prisma as any).hallazgoHseq.findUnique({
-      where: { id },
-    });
-
-    if (!h) {
-      return localHallazgosState.find((hallazgo) => hallazgo.id === id) || getSeedHallazgoById(id);
-    }
-
-    return {
-      id: h.id,
-      origen: h.origen as OrigenHallazgo,
-      titulo: h.titulo,
-      descripcion: h.descripcion,
-      severidad: h.severidad as SeveridadHallazgo,
-      estado: h.estado as EstadoHallazgo,
-      vehiculoId: h.vehiculoId ?? undefined,
-      placa: h.placa ?? undefined,
-      conductorId: h.conductorId ?? undefined,
-      conductorNombre: h.conductorNombre ?? undefined,
-      responsable: h.responsable,
-      fechaReporte: h.fechaReporte.toISOString().split("T")[0],
-      fechaCierre: h.fechaCierre ? h.fechaCierre.toISOString().split("T")[0] : undefined,
-      accionCorrectiva: h.accionCorrectiva ?? undefined,
-    };
   } catch (error) {
-    return localHallazgosState.find((h) => h.id === id) || getSeedHallazgoById(id);
+    console.warn("Aviso búsqueda Hallazgo por ID:", error);
   }
+
+  return localHallazgosState.find((h) => h.id === id);
 }
 
 /**
@@ -88,12 +88,12 @@ export async function createHallazgoAction(
 ): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const origen = (formData.get("origen") as OrigenHallazgo) || "inspeccion";
-    const titulo = formData.get("titulo") as string;
-    const descripcion = formData.get("descripcion") as string;
+    const titulo = (formData.get("titulo") as string)?.trim() || "Hallazgo Reportado";
+    const descripcion = (formData.get("descripcion") as string)?.trim() || "";
     const severidad = (formData.get("severidad") as SeveridadHallazgo) || "media";
-    const responsable = formData.get("responsable") as string;
-    const placa = (formData.get("placa") as string) || undefined;
-    const accionCorrectiva = (formData.get("accionCorrectiva") as string) || undefined;
+    const responsable = (formData.get("responsable") as string)?.trim() || "Coordinador HSEQ";
+    const placa = ((formData.get("placa") as string) || "").trim().toUpperCase() || undefined;
+    const accionCorrectiva = ((formData.get("accionCorrectiva") as string) || "").trim() || undefined;
 
     const newId = `h_${Date.now()}`;
     const newHallazgo: Hallazgo = {
@@ -107,11 +107,12 @@ export async function createHallazgoAction(
       responsable,
       fechaReporte: new Date().toISOString().split("T")[0],
       accionCorrectiva,
+      fotosEvidencia: [],
     };
 
     if (process.env.DATABASE_URL) {
       try {
-        const created = await (prisma as any).hallazgoHseq.create({
+        const created = await prisma.hallazgoHseq.create({
           data: {
             origen,
             titulo,
@@ -131,6 +132,7 @@ export async function createHallazgoAction(
 
     localHallazgosState.unshift(newHallazgo);
     revalidatePath("/hseq");
+    revalidatePath("/dashboard");
 
     return { success: true, id: newHallazgo.id };
   } catch (error: any) {
@@ -144,7 +146,8 @@ export async function createHallazgoAction(
 export async function updateHallazgoAction(
   id: string,
   estado: EstadoHallazgo,
-  accionCorrectiva?: string
+  accionCorrectiva?: string,
+  responsableCierre?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const index = localHallazgosState.findIndex((h) => h.id === id);
@@ -160,11 +163,12 @@ export async function updateHallazgoAction(
 
     if (process.env.DATABASE_URL) {
       try {
-        await (prisma as any).hallazgoHseq.update({
+        await prisma.hallazgoHseq.update({
           where: { id },
           data: {
             estado,
             accionCorrectiva: accionCorrectiva || undefined,
+            responsableCierre: responsableCierre || undefined,
             fechaCierre: estado === "cerrado" ? new Date() : undefined,
           },
         });
@@ -175,6 +179,7 @@ export async function updateHallazgoAction(
 
     revalidatePath(`/hseq/${id}`);
     revalidatePath("/hseq");
+    revalidatePath("/dashboard");
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || "Error al actualizar hallazgo." };
