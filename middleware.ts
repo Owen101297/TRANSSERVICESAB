@@ -5,12 +5,14 @@ import { decodeSession, AUTH_COOKIE_NAME } from "@/lib/session";
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // 1. Ignorar endpoints de API, healthcheck, assets y archivos estáticos
+  // 1. Ignorar endpoints de API, healthcheck, assets, aplicaciones públicas y archivos estáticos
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api/") ||
     pathname.startsWith("/assets") ||
-    pathname.startsWith("/apps/shared") ||
+    pathname.startsWith("/apps") ||
+    pathname === "/asistir" ||
+    pathname === "/asistencia/registro" ||
     pathname.includes(".")
   ) {
     return NextResponse.next();
