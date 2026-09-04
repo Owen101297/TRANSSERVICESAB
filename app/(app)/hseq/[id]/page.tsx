@@ -33,12 +33,19 @@ function formatFecha(iso?: string) {
   return new Date(iso).toLocaleString("es-CO", { day: "2-digit", month: "long", hour: "2-digit", minute: "2-digit" });
 }
 
-export default async function HallazgoDetailPage({
-  params,
-}: {
+export default async function HallazgoDetailPage(props: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  let id = "";
+  try {
+    const resolved = await props.params;
+    id = resolved?.id || "";
+  } catch (e) {
+    console.warn("Aviso resolviendo params:", e);
+  }
+
+  if (!id) notFound();
+
   const hallazgo = await getHallazgoByIdDb(id);
   if (!hallazgo) notFound();
 

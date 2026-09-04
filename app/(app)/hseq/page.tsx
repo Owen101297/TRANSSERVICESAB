@@ -15,13 +15,13 @@ import { DataTable, Column } from "@/components/ui/DataTable";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PlateTag } from "@/components/ui/PlateTag";
 
-const ESTADO_TO_STATUS: Record<EstadoHallazgo, "activo" | "pendiente" | "cerrado"> = {
+const ESTADO_TO_STATUS: Record<string, "activo" | "pendiente" | "cerrado"> = {
   abierto: "pendiente",
   en_proceso: "pendiente",
   cerrado: "cerrado",
 };
 
-const SEVERIDAD_TO_STATUS: Record<SeveridadHallazgo, "activo" | "pendiente" | "critico"> = {
+const SEVERIDAD_TO_STATUS: Record<string, "activo" | "pendiente" | "critico"> = {
   baja: "activo",
   media: "pendiente",
   alta: "pendiente",
@@ -34,64 +34,88 @@ const columns: Column<Hallazgo>[] = [
     accessor: "titulo",
     render: (v, row) => (
       <Link href={`/hseq/${row.id}`} className="font-semibold text-slate-900 hover:text-sky-600 transition-colors">
-        {v as string}
+        {String(v || "Hallazgo")}
       </Link>
     ),
   },
   {
     header: "Origen",
     accessor: "origen",
-    render: (v) => <span className="text-xs font-medium text-slate-600">{ORIGEN_LABELS[v as Hallazgo["origen"]]}</span>,
+    render: (v) => {
+      const orig = (v as Hallazgo["origen"]) || "inspeccion";
+      const label = ORIGEN_LABELS[orig] || String(v || "Inspección");
+      return <span className="text-xs font-medium text-slate-600">{label}</span>;
+    },
   },
   {
     header: "Vehículo",
     accessor: "placa",
-    render: (v) => (v ? <PlateTag plate={v as string} /> : <span className="text-slate-400 font-mono text-xs">—</span>),
+    render: (v) => (v ? <PlateTag plate={String(v)} /> : <span className="text-slate-400 font-mono text-xs">—</span>),
   },
   {
     header: "Severidad",
     accessor: "severidad",
-    render: (v) => (
-      <StatusBadge status={SEVERIDAD_TO_STATUS[v as SeveridadHallazgo]}>
-        {SEVERIDAD_LABELS[v as SeveridadHallazgo]}
-      </StatusBadge>
-    ),
+    render: (v) => {
+      const sev = (v as SeveridadHallazgo) || "media";
+      const status = SEVERIDAD_TO_STATUS[sev] || "pendiente";
+      const label = SEVERIDAD_LABELS[sev] || String(v || "Media");
+      return <StatusBadge status={status}>{label}</StatusBadge>;
+    },
   },
   {
     header: "Responsable Asignado",
     accessor: "responsable",
-    render: (v) => <span className="text-xs text-slate-700 font-medium">{v as string}</span>,
+    render: (v) => <span className="text-xs text-slate-700 font-medium">{String(v || "HSEQ")}</span>,
   },
   {
     header: "Fecha Reporte",
     accessor: "fechaReporte",
-    render: (v) => <span className="text-xs font-mono text-slate-500">{v as string}</span>,
+    render: (v) => <span className="text-xs font-mono text-slate-500">{String(v || "—")}</span>,
   },
   {
     header: "Estado",
     accessor: "estado",
-    render: (v) => (
-      <StatusBadge status={ESTADO_TO_STATUS[v as EstadoHallazgo]}>
-        {ESTADO_HALLAZGO_LABELS[v as EstadoHallazgo]}
-      </StatusBadge>
-    ),
+    render: (v) => {
+      const est = (v as EstadoHallazgo) || "abierto";
+      const status = ESTADO_TO_STATUS[est] || "pendiente";
+      const label = ESTADO_HALLAZGO_LABELS[est] || String(v || "Abierto");
+      return <StatusBadge status={status}>{label}</StatusBadge>;
+    },
   },
 ];
 
 export const dynamic = "force-dynamic";
 
-export default async function HSEQPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ estado?: string }>;
+export default async function HSEQPage(props: {
+  searchParams?: Promise<{ estado?: string }>;
 }) {
-  const { estado } = await searchParams;
-  const tab = estado ?? "todos";
+  let tab = "todos";
+  try {
+    if (props.searchParams) {
+      const resolved = await props.searchParams;
+      if (resolved && resolved.estado) {
+        tab = resolved.estado;
+      }
+    }
+  } catch (e) {
+    console.warn("Aviso resolviendo searchParams en HSEQ:", e);
+    tab = "todos";
+  }
 
-  const allHallazgos = await getHallazgosDb();
-  const abiertos = allHallazgos.filter((h) => h.estado !== "cerrado");
-  const cerrados = allHallazgos.filter((h) => h.estado === "cerrado");
-  const criticos = allHallazgos.filter((h) => h.severidad === "critica" && h.estado !== "cerrado");
+  let allHallazgos: Hallazgo[] = [];
+  try {
+    const res = await getHallazgosDb();
+    if (Array.isArray(res)) {
+      allHallazgos = res;
+    }
+  } catch (e) {
+    console.error("Error cargando hallazgos HSEQ:", e);
+    allHallazgos = [];
+  }
+
+  const abiertos = allHallazgos.filter((h) => h?.estado !== "cerrado");
+  const cerrados = allHallazgos.filter((h) => h?.estado === "cerrado");
+  const criticos = allHallazgos.filter((h) => h?.severidad === "critica" && h?.estado !== "cerrado");
 
   const dataPorTab: Record<string, Hallazgo[]> = {
     todos: allHallazgos,
@@ -99,6 +123,8 @@ export default async function HSEQPage({
     criticos,
     cerrados,
   };
+
+  const displayData = dataPorTab[tab] ?? allHallazgos;
 
   return (
     <div className="space-y-6">
@@ -213,7 +239,7 @@ export default async function HSEQPage({
       <Card className="p-0 overflow-hidden shadow-apple-sm">
         <DataTable
           columns={columns}
-          data={dataPorTab[tab] ?? allHallazgos}
+          data={displayData}
           emptyMessage="No se encontraron hallazgos registrados en esta categoría."
         />
       </Card>
