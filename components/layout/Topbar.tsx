@@ -39,27 +39,27 @@ export function Topbar({
   };
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b border-line-600 bg-asphalt-950 px-4 sm:px-6">
+    <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200/80 bg-white/80 backdrop-blur-xl px-4 sm:px-6 sticky top-0 z-30">
       <div className="flex items-center gap-3 w-full max-w-lg">
         {onToggleSidebar && (
           <button
             onClick={onToggleSidebar}
-            className="rounded-md p-2 text-fog-400 hover:bg-asphalt-800 hover:text-paper-50 transition-colors"
+            className="rounded-xl p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
             title={isSidebarCollapsed ? "Expandir menú lateral" : "Ocultar menú lateral"}
           >
             {isSidebarCollapsed ? (
-              <PanelLeftOpen size={18} className="text-signal-amber" />
+              <PanelLeftOpen size={18} className="text-amber-600" />
             ) : (
               <PanelLeftClose size={18} />
             )}
           </button>
         )}
 
-        <div className="flex w-full items-center gap-2 rounded-md border border-line-600 bg-asphalt-900 px-3 py-2">
-          <Search size={16} className="text-fog-400 shrink-0" />
+        <div className="flex w-full items-center gap-2.5 rounded-xl border border-slate-200/80 bg-slate-50 px-3.5 py-2 transition-all focus-within:bg-white focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10">
+          <Search size={15} className="text-slate-400 shrink-0" />
           <input
-            placeholder="Buscar personas, vehículos, placas..."
-            className="w-full bg-transparent text-sm text-paper-50 placeholder:text-fog-400 focus:outline-none"
+            placeholder="Buscar personas, vehículos, placas o reportes..."
+            className="w-full bg-transparent text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
           />
         </div>
       </div>
@@ -67,24 +67,24 @@ export function Topbar({
       <div className="flex items-center gap-3">
         <button
           aria-label="Notificaciones"
-          className="relative rounded-md p-2 text-fog-400 hover:bg-asphalt-800 hover:text-paper-50 transition-colors"
+          className="relative rounded-xl p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 transition-colors"
         >
           <Bell size={18} />
-          <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-alert-red" />
+          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />
         </button>
 
-        <div className="flex items-center gap-2 pl-2 border-l border-line-600">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-asphalt-700 font-[family-name:var(--font-display)] text-sm font-bold text-radar-cyan border border-line-600">
+        <div className="flex items-center gap-2.5 pl-3 border-l border-slate-200/80">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-900 font-sans text-xs font-extrabold text-white shadow-xs">
             {userName.charAt(0)}
           </div>
-          <span className="text-sm text-paper-50 hidden sm:inline-block font-medium truncate max-w-[140px]">
+          <span className="text-xs sm:text-sm text-slate-900 hidden sm:inline-block font-bold truncate max-w-[140px]">
             {userName}
           </span>
 
           <button
             onClick={handleLogout}
             title="Cerrar sesión"
-            className="p-2 rounded-lg text-fog-400 hover:text-alert-red hover:bg-asphalt-800 transition-colors ml-1"
+            className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors ml-0.5"
           >
             <LogOut size={16} />
           </button>

@@ -73,37 +73,35 @@ export function DataTable<T extends { id: string | number }>({
   }
 
   return (
-    <div className={`overflow-hidden rounded-xl border border-line-600 bg-asphalt-900 ${className}`}>
+    <div className={`overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-apple-sm ${className}`}>
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-left text-xs">
           <thead>
-            <tr className="border-b border-line-600 bg-asphalt-950/80">
-              {columns.map((col) => (
+            <tr className="border-b border-slate-200/80 bg-slate-50/80">
+              {columns.map((col, idx) => (
                 <th
-                  key={String(col.accessor)}
-                  className="px-4 py-3 font-mono text-[11px] font-medium uppercase tracking-wider text-fog-400"
+                  key={String(col.accessor) + idx}
+                  className={`px-4 py-3.5 font-mono text-[11px] font-bold uppercase tracking-wider text-slate-500 ${col.className || ""}`}
                 >
                   {col.header}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-line-600/60">
+          <tbody className="divide-y divide-slate-100 text-slate-800">
             {data.map((row, i) => (
               <tr
                 key={row.id}
-                className={`hover:bg-asphalt-800/60 transition-colors ${
-                  i % 2 === 0 ? "bg-asphalt-900" : "bg-asphalt-900/60"
-                }`}
+                className="hover:bg-slate-50/80 transition-colors"
               >
-                {columns.map((col) => (
+                {columns.map((col, idx) => (
                   <td
-                    key={String(col.accessor)}
-                    className={`px-4 py-3 text-mist-200 ${col.className ?? ""}`}
+                    key={String(col.accessor) + idx}
+                    className={`px-4 py-3.5 align-middle ${col.className || ""}`}
                   >
                     {col.render
                       ? col.render(row[col.accessor], row)
-                      : String(row[col.accessor] ?? "—")}
+                      : (row[col.accessor] as React.ReactNode)}
                   </td>
                 ))}
               </tr>
@@ -114,4 +112,3 @@ export function DataTable<T extends { id: string | number }>({
     </div>
   );
 }
-

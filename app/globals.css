@@ -1,37 +1,41 @@
-@import url("https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap");
 @import "tailwindcss";
 
 /*
-  A&B OS — Design Tokens
-  Dirección: centro de mando de operación y seguridad vial, 24/7.
-  Base tipo asfalto nocturno + señalización vial reflectante.
+  TRANS SERVICES A&B — Apple Light Luxury Design Tokens
+  Paleta ejecutiva: Fondos blancos y slate ultra suave, tipografía oscura de máximo contraste,
+  sombras difuminadas y microinteracciones de cristal.
 */
 :root {
-  --color-asphalt-950: #0b0e12;
-  --color-asphalt-900: #11151b;
-  --color-asphalt-800: #191f27;
-  --color-asphalt-700: #232b36;
-  --color-line-600: #384357;
-  --color-line-500: #4a5872;
-  --color-fog-400: #7c8a9e;
-  --color-mist-200: #c3ccd8;
-  --color-paper-50: #eef2f6;
+  /* Fondos principales */
+  --color-asphalt-950: #F8FAFC; /* Fondo global: Slate 50 */
+  --color-asphalt-900: #FFFFFF; /* Tarjetas y contenedores: Blanco puro */
+  --color-asphalt-800: #F1F5F9; /* Fondos secundarios: Slate 100 */
+  --color-asphalt-700: #E2E8F0; /* Separadores y bordes suaves */
+  --color-line-600: #E2E8F0;    /* Líneas divisorias */
+  --color-line-500: #CBD5E1;    /* Bordes activos */
+  
+  /* Tipografía */
+  --color-fog-400: #64748B;     /* Texto secundario y metadatos: Slate 500 */
+  --color-mist-200: #334155;    /* Texto medio: Slate 700 */
+  --color-paper-50: #0F172A;    /* Texto principal negro de alto contraste: Slate 900 */
 
-  --color-signal-amber: #f2a63d;
-  --color-signal-amber-dim: #4a3a1f;
-  --color-radar-cyan: #34c9c2;
-  --color-radar-cyan-dim: #17393a;
-  --color-alert-red: #e2554f;
-  --color-alert-red-dim: #45211f;
-  --color-ok-green: #5cb87a;
-  --color-ok-green-dim: #223a2b;
+  /* Acentos de estado Apple */
+  --color-signal-amber: #D97706;
+  --color-signal-amber-dim: #FEF3C7;
+  --color-radar-cyan: #0284C7;
+  --color-radar-cyan-dim: #E0F2FE;
+  --color-alert-red: #DC2626;
+  --color-alert-red-dim: #FEE2E2;
+  --color-ok-green: #16A34A;
+  --color-ok-green-dim: #DCFCE7;
 
-  --background: var(--color-asphalt-950);
-  --foreground: var(--color-paper-50);
+  --background: #F8FAFC;
+  --foreground: #0F172A;
 
-  --font-display: "Big Shoulders Display", system-ui, sans-serif;
-  --font-body: "IBM Plex Sans", system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-display: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-body: "Plus Jakarta Sans", "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
 @theme inline {
@@ -66,9 +70,42 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Motivo de firma: línea de ruta punteada — usado en divisores y conectores */
+/* Sombras suaves Apple */
+.shadow-apple-sm {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+.shadow-apple {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.04), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+}
+.shadow-apple-lg {
+  box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.06), 0 10px 15px -5px rgba(0, 0, 0, 0.03);
+}
+
+/* Squircle Apple */
+.squircle { border-radius: 20px; }
+.squircle-sm { border-radius: 14px; }
+.squircle-lg { border-radius: 28px; }
+
+/* Efectos de Cristal */
+.glass-nav {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.85);
+}
+
+.glass-floating {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.12);
+}
+
+/* Divisores sutiles */
 .route-line {
   background-image: repeating-linear-gradient(
     to bottom,

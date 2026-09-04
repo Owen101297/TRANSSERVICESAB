@@ -1,19 +1,21 @@
+import React from "react";
+
 type Status = "activo" | "pendiente" | "critico" | "cerrado" | "info";
 
 const STYLES: Record<Status, string> = {
-  activo: "bg-ok-green-dim text-ok-green border-ok-green/30",
-  pendiente: "bg-signal-amber-dim text-signal-amber border-signal-amber/30",
-  critico: "bg-alert-red-dim text-alert-red border-alert-red/30",
-  cerrado: "bg-asphalt-700 text-fog-400 border-line-600",
-  info: "bg-radar-cyan-dim text-radar-cyan border-radar-cyan/30",
+  activo: "bg-emerald-50 text-emerald-700 border-emerald-200/80",
+  pendiente: "bg-amber-50 text-amber-800 border-amber-200/80",
+  critico: "bg-rose-50 text-rose-700 border-rose-200/80",
+  cerrado: "bg-slate-100 text-slate-600 border-slate-200/80",
+  info: "bg-sky-50 text-sky-700 border-sky-200/80",
 };
 
 const DOT: Record<Status, string> = {
-  activo: "bg-ok-green",
-  pendiente: "bg-signal-amber",
-  critico: "bg-alert-red",
-  cerrado: "bg-fog-400",
-  info: "bg-radar-cyan",
+  activo: "bg-emerald-500",
+  pendiente: "bg-amber-500",
+  critico: "bg-rose-500",
+  cerrado: "bg-slate-400",
+  info: "bg-sky-500",
 };
 
 export function StatusBadge({
@@ -25,7 +27,7 @@ export function StatusBadge({
 }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${STYLES[status]}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold tracking-tight ${STYLES[status]}`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${DOT[status]}`} />
       {children}
