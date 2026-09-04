@@ -18,6 +18,9 @@ import {
 } from "lucide-react";
 import { Card, StatCard } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { TableSkeleton } from "@/components/ui/TableSkeleton";
 
 interface AsistenciaItem {
   id: string;
@@ -46,11 +49,13 @@ export default function AsistenciaAdminPage() {
   const [tipoEvento, setTipoEvento] = useState<string>("TODOS");
   const [registros, setRegistros] = useState<AsistenciaItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"tabla" | "formato">("tabla");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [signatureModal, setSignatureModal] = useState<string | null>(null);
   const [datesSummary, setDatesSummary] = useState<Record<string, { total: number; proyectos: string[] }>>({});
+
 
   // Metadatos sincronizados para el formato legal imprimible TH-FOR-03
   const [formatoMeta, setFormatoMeta] = useState({
@@ -90,6 +95,7 @@ export default function AsistenciaAdminPage() {
   // Cargar registros del día seleccionado
   const fetchData = async (forceSync = false) => {
     setLoading(true);
+    setError(null);
     try {
       const params = new URLSearchParams();
       if (fecha) params.set("fecha", fecha);
@@ -98,16 +104,22 @@ export default function AsistenciaAdminPage() {
       if (forceSync) params.set("sync", "true");
 
       const res = await fetch(`/api/apps/asistencia?${params.toString()}`);
-      if (res.ok) {
-        const json = await res.json();
-        setRegistros(json.asistencias || []);
+      if (!res.ok) {
+        throw new Error(`Error en el servidor (${res.status})`);
       }
-    } catch (e) {
+      const json = await res.json();
+      if (json.error) {
+        throw new Error(json.error);
+      }
+      setRegistros(json.asistencias || []);
+    } catch (e: any) {
       console.error("Error cargando asistencias:", e);
+      setError(e.message || "Error al conectar con la base de datos.");
     } finally {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     fetchDatesSummary();
@@ -547,104 +559,129 @@ export default function AsistenciaAdminPage() {
             </div>
           </div>
 
-          {/* Tabla */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-asphalt-950 text-fog-400 font-mono text-[11px] uppercase tracking-wider border-b border-line-600">
-                <tr>
-                  <th className="px-4 py-3 w-12 text-center">#</th>
-                  <th className="px-4 py-3">Nombre y Apellidos</th>
-                  <th className="px-4 py-3">Cédula</th>
-                  <th className="px-4 py-3">Cargo</th>
-                  <th className="px-4 py-3">Proyecto</th>
-                  <th className="px-4 py-3">Hora</th>
-                  <th className="px-4 py-3 text-center">Firma</th>
-                  <th className="px-4 py-3 text-center">Estado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line-600/50 text-mist-200 font-[family-name:var(--font-body)]">
-                {paginatedRegistros.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="py-12 text-center text-fog-400">
-                      {loading ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <RefreshCw className="w-4 h-4 animate-spin text-radar-cyan" />
-                          <span>Cargando datos desde Railway...</span>
-                        </div>
-                      ) : (
-                        `No hay registros de asistencia para el ${fecha}. Haz clic en el selector de fecha para ver los días marcados con actividad.`
-                      )}
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedRegistros.map((r, idx) => {
-                    const rowNum = (currentPage - 1) * PAGE_SIZE + idx + 1;
-                    return (
-                      <tr key={r.id || idx} className="hover:bg-asphalt-800/50 transition-colors">
-                        <td className="px-4 py-3 text-center font-mono text-fog-400 text-[11px]">{rowNum}</td>
-                        <td className="px-4 py-3 font-medium text-paper-50 uppercase">{r.personaNombre}</td>
-                        <td className="px-4 py-3 font-mono font-bold text-paper-50">{r.personaDocumento || "—"}</td>
-                        <td className="px-4 py-3">
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-asphalt-950 border border-line-600 text-mist-200 uppercase">
-                            {r.cargo || "CONDUCTOR"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-asphalt-800 border border-line-500 text-radar-cyan uppercase">
-                            {r.proyecto || "TRANS SERVICES"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 font-mono text-xs text-mist-200">{r.horaLlegada || "—"}</td>
-                        <td className="px-4 py-3 text-center">
-                          {r.firmaUrl ? (
-                            <button
-                              onClick={() => setSignatureModal(r.firmaUrl!)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-asphalt-950 border border-line-600 rounded-lg text-[11px] font-mono text-radar-cyan hover:border-radar-cyan transition-colors"
-                              title="Ver firma digital"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                              <span>Firma</span>
-                            </button>
-                          ) : (
-                            <span className="text-fog-400 text-xs">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <StatusBadge status={r.estado === "ausente" ? "critico" : "activo"}>
-                            {r.estado === "ausente" ? "Ausente" : "Presente"}
-                          </StatusBadge>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Paginador */}
-          {totalPages > 1 && (
-            <div className="p-4 border-t border-line-600 bg-asphalt-950/40 flex items-center justify-between">
-              <span className="text-xs text-fog-400 font-mono">
-                Página {currentPage} de {totalPages}
-              </span>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-3 py-1.5 rounded-lg border border-line-600 bg-asphalt-900 text-xs font-bold text-paper-50 disabled:opacity-30 hover:bg-asphalt-800"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="px-3 py-1.5 rounded-lg border border-line-600 bg-asphalt-900 text-xs font-bold text-paper-50 disabled:opacity-30 hover:bg-asphalt-800"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
+          {/* Contenido / Estados */}
+          {error ? (
+            <div className="p-6">
+              <ErrorState
+                title="No se pudieron cargar los registros de asistencia"
+                message={error}
+                onRetry={() => fetchData(true)}
+              />
             </div>
+          ) : loading ? (
+            <div className="p-4">
+              <TableSkeleton rows={8} columns={8} />
+            </div>
+          ) : paginatedRegistros.length === 0 ? (
+            <div className="p-6">
+              <EmptyState
+                icon={Search}
+                title="No hay registros de asistencia"
+                description={
+                  searchQuery || proyecto !== "TODOS" || tipoEvento !== "TODOS"
+                    ? `No se encontraron registros que coincidan con la búsqueda para el día ${fecha}.`
+                    : `No se registraron firmas ni asistencias para el día ${fecha}. Prueba seleccionando otra fecha en el calendario.`
+                }
+                actionLabel={
+                  searchQuery || proyecto !== "TODOS" || tipoEvento !== "TODOS"
+                    ? "Restablecer Filtros"
+                    : "Sincronizar Datos"
+                }
+                onAction={() => {
+                  if (searchQuery || proyecto !== "TODOS" || tipoEvento !== "TODOS") {
+                    setSearchQuery("");
+                    setProyecto("TODOS");
+                    setTipoEvento("TODOS");
+                  } else {
+                    fetchData(true);
+                  }
+                }}
+              />
+            </div>
+          ) : (
+            <>
+              {/* Tabla */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-asphalt-950 text-fog-400 font-mono text-[11px] uppercase tracking-wider border-b border-line-600">
+                    <tr>
+                      <th className="px-4 py-3 w-12 text-center">#</th>
+                      <th className="px-4 py-3">Nombre y Apellidos</th>
+                      <th className="px-4 py-3">Cédula</th>
+                      <th className="px-4 py-3">Cargo</th>
+                      <th className="px-4 py-3">Proyecto</th>
+                      <th className="px-4 py-3">Hora</th>
+                      <th className="px-4 py-3 text-center">Firma</th>
+                      <th className="px-4 py-3 text-center">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line-600/50 text-mist-200 font-[family-name:var(--font-body)]">
+                    {paginatedRegistros.map((r, idx) => {
+                      const rowNum = (currentPage - 1) * PAGE_SIZE + idx + 1;
+                      return (
+                        <tr key={r.id || idx} className="hover:bg-asphalt-800/50 transition-colors">
+                          <td className="px-4 py-3 text-center font-mono text-fog-400 text-[11px]">{rowNum}</td>
+                          <td className="px-4 py-3 font-medium text-paper-50 uppercase">{r.personaNombre}</td>
+                          <td className="px-4 py-3 font-mono font-bold text-paper-50">{r.personaDocumento || "—"}</td>
+                          <td className="px-4 py-3">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-asphalt-950 border border-line-600 text-mist-200 uppercase">
+                              {r.cargo || "CONDUCTOR"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-asphalt-800 border border-line-500 text-radar-cyan uppercase">
+                              {r.proyecto || "TRANS SERVICES"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-mono text-xs text-mist-200">{r.horaLlegada || "—"}</td>
+                          <td className="px-4 py-3 text-center">
+                            {r.firmaUrl ? (
+                              <button
+                                onClick={() => setSignatureModal(r.firmaUrl!)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-radar-cyan/10 hover:bg-radar-cyan/20 text-radar-cyan font-bold rounded-lg border border-radar-cyan/30 transition-colors"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                <span>Ver Firma</span>
+                              </button>
+                            ) : (
+                              <span className="text-fog-400 font-mono text-[11px]">Sin firma</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <StatusBadge status={r.estado === "presente" ? "activo" : "inactivo"} />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Paginación */}
+              {totalPages > 1 && (
+                <div className="p-4 border-t border-line-600 bg-asphalt-950/40 flex items-center justify-between">
+                  <span className="text-xs text-fog-400 font-mono">
+                    Página {currentPage} de {totalPages}
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1.5 rounded-lg border border-line-600 bg-asphalt-900 text-xs font-bold text-paper-50 disabled:opacity-30 hover:bg-asphalt-800"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1.5 rounded-lg border border-line-600 bg-asphalt-900 text-xs font-bold text-paper-50 disabled:opacity-30 hover:bg-asphalt-800"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </Card>
       )}

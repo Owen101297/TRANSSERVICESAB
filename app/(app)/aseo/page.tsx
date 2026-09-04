@@ -23,6 +23,10 @@ import {
 import { Card, StatCard } from "@/components/ui/Card";
 import { PlateTag } from "@/components/ui/PlateTag";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { TableSkeleton } from "@/components/ui/TableSkeleton";
+import { CardSkeleton } from "@/components/ui/CardSkeleton";
 
 interface ChecklistItem {
   item: string;
@@ -54,6 +58,7 @@ interface AseoRecord {
 export default function AseoDesinfeccionPage() {
   const [registros, setRegistros] = useState<AseoRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedMes, setSelectedMes] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -78,22 +83,29 @@ export default function AseoDesinfeccionPage() {
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       let url = `/api/apps/aseo?mes=${selectedMes}`;
       const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        setRegistros(data.registros || []);
-        if (data.stats) {
-          setStats(data.stats);
-        }
+      if (!res.ok) {
+        throw new Error(`Error en el servidor (${res.status})`);
       }
-    } catch (err) {
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || "No se pudieron obtener los registros de aseo.");
+      }
+      setRegistros(data.registros || []);
+      if (data.stats) {
+        setStats(data.stats);
+      }
+    } catch (err: any) {
       console.error("Error al cargar registros de aseo:", err);
+      setError(err.message || "Error al conectar con la base de datos.");
     } finally {
       setLoading(false);
     }
   }, [selectedMes]);
+
 
   useEffect(() => {
     loadData();
@@ -312,34 +324,52 @@ export default function AseoDesinfeccionPage() {
         </div>
       </div>
 
-      {/* ── TABLA DE INSPECCIONES (Oculto en Impresión) ── */}
-      <Card className="p-0 overflow-hidden border-line-600 bg-asphalt-900 print:hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left">
-            <thead className="bg-asphalt-950 text-fog-400 uppercase font-mono text-[11px] border-b border-line-600">
-              <tr>
-                <th className="p-3.5">Fecha / Hora</th>
-                <th className="p-3.5">Vehículo</th>
-                <th className="p-3.5">Conductor</th>
-                <th className="p-3.5 text-center">Kilometraje</th>
-                <th className="p-3.5 text-center">Estado Conformidad</th>
-                <th className="p-3.5 text-center">Evidencias</th>
-                <th className="p-3.5 text-center">Firma</th>
-                <th className="p-3.5 text-center">Auditoría HSEQ</th>
-                <th className="p-3.5 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line-600">
-              {filteredRegistros.length === 0 ? (
+      {/* ── CONTENIDO PRINCIPAL / TABLA DE INSPECCIONES (Oculto en Impresión) ── */}
+      {error ? (
+        <ErrorState
+          title="No se pudieron cargar las inspecciones de aseo"
+          message={error}
+          onRetry={loadData}
+        />
+      ) : loading ? (
+        <TableSkeleton rows={6} columns={8} />
+      ) : filteredRegistros.length === 0 ? (
+        <EmptyState
+          title="No hay inspecciones de aseo en este período"
+          description={
+            searchQuery || filterConforme !== "todos"
+              ? `No se encontraron resultados con los filtros actuales. Prueba limpiando la búsqueda o cambiando el mes (${selectedMes}).`
+              : `Aún no se han registrado inspecciones de orden, aseo y desinfección en el mes de ${selectedMes}.`
+          }
+          actionLabel={searchQuery || filterConforme !== "todos" ? "Restablecer Filtros" : "Actualizar Datos"}
+          onAction={() => {
+            if (searchQuery || filterConforme !== "todos") {
+              setSearchQuery("");
+              setFilterConforme("todos");
+            } else {
+              loadData();
+            }
+          }}
+        />
+      ) : (
+        <Card className="p-0 overflow-hidden border-line-600 bg-asphalt-900 print:hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-asphalt-950 text-fog-400 uppercase font-mono text-[11px] border-b border-line-600">
                 <tr>
-                  <td colSpan={9} className="p-8 text-center text-fog-400">
-                    {loading
-                      ? "Cargando inspecciones de aseo..."
-                      : "No se encontraron registros de aseo y desinfección en este período."}
-                  </td>
+                  <th className="p-3.5">Fecha / Hora</th>
+                  <th className="p-3.5">Vehículo</th>
+                  <th className="p-3.5">Conductor</th>
+                  <th className="p-3.5 text-center">Kilometraje</th>
+                  <th className="p-3.5 text-center">Estado Conformidad</th>
+                  <th className="p-3.5 text-center">Evidencias</th>
+                  <th className="p-3.5 text-center">Firma</th>
+                  <th className="p-3.5 text-center">Auditoría HSEQ</th>
+                  <th className="p-3.5 text-right">Acciones</th>
                 </tr>
-              ) : (
-                filteredRegistros.map((reg) => (
+              </thead>
+              <tbody className="divide-y divide-line-600">
+                {filteredRegistros.map((reg) => (
                   <tr key={reg.id} className="hover:bg-asphalt-800/60 transition-colors group">
                     <td className="p-3.5 font-mono text-mist-200">
                       <div>{reg.fecha}</div>
@@ -428,12 +458,13 @@ export default function AseoDesinfeccionPage() {
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
 
       {/* ── MODAL: VER CHECKLIST DETALLADO, FOTOS & FIRMA (Oculto en Impresión) ── */}
       {selectedRecord && (

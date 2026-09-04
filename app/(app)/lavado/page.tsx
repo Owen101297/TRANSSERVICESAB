@@ -23,6 +23,9 @@ import {
 import { Card, StatCard } from "@/components/ui/Card";
 import { PlateTag } from "@/components/ui/PlateTag";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { TableSkeleton } from "@/components/ui/TableSkeleton";
 
 interface LavadoRecord {
   id: string;
@@ -51,6 +54,7 @@ export default function ControlLavadosPage() {
 
   const [records, setRecords] = useState<LavadoRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchPlaca, setSearchPlaca] = useState("");
   const [filterAprobado, setFilterAprobado] = useState<string>("todos");
   const [stats, setStats] = useState({
@@ -75,21 +79,28 @@ export default function ControlLavadosPage() {
   // ── Cargar Registros ──
   const loadRecords = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch(`/api/apps/lavado?mes=${selectedMonth}`);
-      if (res.ok) {
-        const data = await res.json();
-        setRecords(data.lavados || []);
-        if (data.stats) {
-          setStats(data.stats);
-        }
+      if (!res.ok) {
+        throw new Error(`Error en el servidor (${res.status})`);
       }
-    } catch (err) {
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || "No se pudieron obtener los registros de lavado.");
+      }
+      setRecords(data.lavados || []);
+      if (data.stats) {
+        setStats(data.stats);
+      }
+    } catch (err: any) {
       console.error("Error al cargar registros de lavado:", err);
+      setError(err.message || "Error al conectar con la base de datos.");
     } finally {
       setLoading(false);
     }
   }, [selectedMonth]);
+
 
   useEffect(() => {
     loadRecords();
@@ -316,37 +327,56 @@ export default function ControlLavadosPage() {
           </div>
         </div>
 
-        {/* Tabla */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-line-600 bg-asphalt-950/60 font-mono text-[11px] uppercase tracking-wider text-fog-400">
-                <th className="py-3 px-4">Fecha / Hora</th>
-                <th className="py-3 px-4">Placa & Tipo</th>
-                <th className="py-3 px-4">Conductor & Cédula</th>
-                <th className="py-3 px-4">Empresa</th>
-                <th className="py-3 px-4 text-right">Valor</th>
-                <th className="py-3 px-4 text-center">Firma Digital</th>
-                <th className="py-3 px-4 text-center">Auditoría / Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line-600/40 text-xs">
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="py-12 text-center text-fog-400 font-mono">
-                    <RefreshCw size={20} className="animate-spin mx-auto mb-2 text-signal-amber" />
-                    Cargando registros de lavado...
-                  </td>
+        {/* Tabla / Estados */}
+        {error ? (
+          <div className="p-6">
+            <ErrorState
+              title="No se pudieron cargar los registros de lavado"
+              message={error}
+              onRetry={loadRecords}
+            />
+          </div>
+        ) : loading ? (
+          <div className="p-4">
+            <TableSkeleton rows={6} columns={7} />
+          </div>
+        ) : filteredRecords.length === 0 ? (
+          <div className="p-6">
+            <EmptyState
+              icon={Droplets}
+              title="No hay registros de lavado para este período"
+              description={
+                searchPlaca || filterAprobado !== "todos"
+                  ? `No se encontraron resultados con los filtros aplicados. Prueba limpiando la búsqueda o cambiando el mes (${selectedMonth}).`
+                  : `Aún no se han registrado lavados vehiculares en el mes de ${selectedMonth}.`
+              }
+              actionLabel={searchPlaca || filterAprobado !== "todos" ? "Restablecer Filtros" : "Actualizar Registros"}
+              onAction={() => {
+                if (searchPlaca || filterAprobado !== "todos") {
+                  setSearchPlaca("");
+                  setFilterAprobado("todos");
+                } else {
+                  loadRecords();
+                }
+              }}
+            />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-line-600 bg-asphalt-950/60 font-mono text-[11px] uppercase tracking-wider text-fog-400">
+                  <th className="py-3 px-4">Fecha / Hora</th>
+                  <th className="py-3 px-4">Placa & Tipo</th>
+                  <th className="py-3 px-4">Conductor & Cédula</th>
+                  <th className="py-3 px-4">Empresa</th>
+                  <th className="py-3 px-4 text-right">Valor</th>
+                  <th className="py-3 px-4 text-center">Firma Digital</th>
+                  <th className="py-3 px-4 text-center">Auditoría / Acciones</th>
                 </tr>
-              ) : filteredRecords.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-12 text-center text-fog-400 font-mono">
-                    <Droplets size={24} className="mx-auto mb-2 opacity-30" />
-                    No se encontraron lavados para el período {selectedMonth}.
-                  </td>
-                </tr>
-              ) : (
-                filteredRecords.map((r) => (
+              </thead>
+              <tbody className="divide-y divide-line-600/40 text-xs">
+                {filteredRecords.map((r) => (
                   <tr key={r.id} className="hover:bg-asphalt-800/40 transition-colors">
                     <td className="py-3 px-4 font-mono">
                       <div className="text-paper-50 font-bold">{r.fecha}</div>
@@ -432,11 +462,12 @@ export default function ControlLavadosPage() {
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
       </Card>
 
       {/* ── FORMATO IMPRIMIBLE OFICIAL DE LAVADAS (Visible en Impresión / PDF) ── */}

@@ -25,6 +25,9 @@ import {
 } from "lucide-react";
 import { Card, StatCard } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { CardSkeleton } from "@/components/ui/CardSkeleton";
 import {
   Capacitacion,
   TIPO_CAPACITACION_LABELS,
@@ -34,6 +37,7 @@ import {
 export default function CapacitacionesPage() {
   const [capacitaciones, setCapacitaciones] = useState<Capacitacion[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"todas" | "pesv" | "sg-sst">("todas");
   const [searchQuery, setSearchQuery] = useState("");
   const [stats, setStats] = useState({
@@ -52,21 +56,28 @@ export default function CapacitacionesPage() {
 
   const loadCapacitaciones = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/capacitaciones");
-      if (res.ok) {
-        const data = await res.json();
-        setCapacitaciones(data.capacitaciones || []);
-        if (data.stats) {
-          setStats(data.stats);
-        }
+      if (!res.ok) {
+        throw new Error(`Error en el servidor (${res.status})`);
       }
-    } catch (err) {
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || "No se pudieron obtener las capacitaciones.");
+      }
+      setCapacitaciones(data.capacitaciones || []);
+      if (data.stats) {
+        setStats(data.stats);
+      }
+    } catch (err: any) {
       console.error("Error al cargar capacitaciones:", err);
+      setError(err.message || "Error al conectar con el servidor.");
     } finally {
       setLoading(false);
     }
   }, []);
+
 
   useEffect(() => {
     loadCapacitaciones();
@@ -214,24 +225,47 @@ export default function CapacitacionesPage() {
         </div>
       </div>
 
-      {/* ── LISTADO DE CAPACITACIONES (Oculto en Impresión) ── */}
-      <div className="grid grid-cols-1 gap-4 print:hidden">
-        {filteredCapacitaciones.length === 0 ? (
-          <Card className="p-12 text-center border-line-600 bg-asphalt-900/50">
-            <GraduationCap size={40} className="mx-auto text-fog-400 mb-3 opacity-40" />
-            <h3 className="font-bold text-paper-50 text-base">No hay capacitaciones programadas</h3>
-            <p className="text-xs text-fog-400 mt-1 max-w-sm mx-auto">
-              Comienza programando una charla semanal de seguridad vial o una capacitación formal para tus conductores.
-            </p>
-            <Link href="/capacitaciones/nueva" className="mt-4 inline-block">
-              <Button variant="primary" size="sm">
-                <Plus size={14} /> Programar la Primera Charla
-              </Button>
-            </Link>
-          </Card>
-        ) : (
-          filteredCapacitaciones.map((cap) => {
+      {/* ── LISTADO DE CAPACITACIONES / ESTADOS (Oculto en Impresión) ── */}
+      {error ? (
+        <ErrorState
+          title="No se pudieron cargar las capacitaciones"
+          message={error}
+          onRetry={loadCapacitaciones}
+        />
+      ) : loading ? (
+        <div className="space-y-4">
+          <div className="h-28 rounded-2xl border border-line-600 bg-asphalt-900 animate-pulse p-5" />
+          <div className="h-28 rounded-2xl border border-line-600 bg-asphalt-900 animate-pulse p-5" />
+          <div className="h-28 rounded-2xl border border-line-600 bg-asphalt-900 animate-pulse p-5" />
+        </div>
+      ) : filteredCapacitaciones.length === 0 ? (
+        <EmptyState
+          icon={GraduationCap}
+          title="No se encontraron capacitaciones"
+          description={
+            searchQuery || activeTab !== "todas"
+              ? "No hay capacitaciones que coincidan con los criterios de búsqueda o filtro seleccionados."
+              : "Aún no se han programado capacitaciones ni charlas de inducción SG-SST o PESV."
+          }
+          actionLabel={
+            searchQuery || activeTab !== "todas"
+              ? "Restablecer Filtros"
+              : "Programar Primera Charla"
+          }
+          onAction={() => {
+            if (searchQuery || activeTab !== "todas") {
+              setSearchQuery("");
+              setActiveTab("todas");
+            } else {
+              window.location.href = "/capacitaciones/nueva";
+            }
+          }}
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 print:hidden">
+          {filteredCapacitaciones.map((cap) => {
             const asistentes = cap.asistencias?.length || cap.asistentesReales || 0;
+
             const porcentaje = cap.asistentesEsperados > 0 ? Math.min(100, Math.round((asistentes / cap.asistentesEsperados) * 100)) : 100;
 
             return (
@@ -343,9 +377,10 @@ export default function CapacitacionesPage() {
                 </div>
               </Card>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
+      )}
+
 
       {/* ── MODAL: VER ASISTENCIAS & EVIDENCIAS FOTOGRÁFICAS (Oculto en Impresión) ── */}
       {selectedCapacitacion && (

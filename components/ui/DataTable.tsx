@@ -1,3 +1,11 @@
+"use client";
+
+import React from "react";
+import { TableSkeleton } from "./TableSkeleton";
+import { ErrorState } from "./ErrorState";
+import { EmptyState } from "./EmptyState";
+import { Inbox } from "lucide-react";
+
 export interface Column<T> {
   header: string | React.ReactNode;
   accessor: keyof T;
@@ -5,45 +13,86 @@ export interface Column<T> {
   className?: string;
 }
 
+export interface DataTableProps<T extends { id: string | number }> {
+  columns: Column<T>[];
+  data: T[];
+  loading?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
+  emptyMessage?: string;
+  emptyTitle?: string;
+  emptyActionLabel?: string;
+  onEmptyAction?: () => void;
+  className?: string;
+}
+
 export function DataTable<T extends { id: string | number }>({
   columns,
   data,
-  emptyMessage = "No hay registros para mostrar.",
-}: {
-  columns: Column<T>[];
-  data: T[];
-  emptyMessage?: string;
-}) {
+  loading = false,
+  error = null,
+  onRetry,
+  emptyMessage = "No se encontraron registros para mostrar con los filtros actuales.",
+  emptyTitle = "No hay registros disponibles",
+  emptyActionLabel,
+  onEmptyAction,
+  className = "",
+}: DataTableProps<T>) {
+  if (loading) {
+    return (
+      <TableSkeleton
+        rows={6}
+        columns={columns.length}
+        className={className}
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <ErrorState
+        title="Error al cargar la tabla"
+        message={error}
+        onRetry={onRetry}
+        className={className}
+      />
+    );
+  }
+
+  if (!data || data.length === 0) {
+    return (
+      <EmptyState
+        icon={Inbox}
+        title={emptyTitle}
+        description={emptyMessage}
+        actionLabel={emptyActionLabel}
+        onAction={onEmptyAction}
+        className={className}
+      />
+    );
+  }
+
   return (
-    <div className="overflow-hidden rounded-lg border border-line-600">
-      <table className="w-full text-left text-sm">
-        <thead>
-          <tr className="border-b border-line-600 bg-asphalt-800">
-            {columns.map((col) => (
-              <th
-                key={String(col.accessor)}
-                className="px-4 py-3 font-mono text-[11px] font-medium uppercase tracking-wider text-fog-400"
-              >
-                {col.header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {data.length === 0 ? (
-            <tr>
-              <td
-                colSpan={columns.length}
-                className="px-4 py-8 text-center text-sm text-fog-400"
-              >
-                {emptyMessage}
-              </td>
+    <div className={`overflow-hidden rounded-xl border border-line-600 bg-asphalt-900 ${className}`}>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-line-600 bg-asphalt-950/80">
+              {columns.map((col) => (
+                <th
+                  key={String(col.accessor)}
+                  className="px-4 py-3 font-mono text-[11px] font-medium uppercase tracking-wider text-fog-400"
+                >
+                  {col.header}
+                </th>
+              ))}
             </tr>
-          ) : (
-            data.map((row, i) => (
+          </thead>
+          <tbody className="divide-y divide-line-600/60">
+            {data.map((row, i) => (
               <tr
                 key={row.id}
-                className={`border-b border-line-600/60 last:border-0 hover:bg-asphalt-800/60 ${
+                className={`hover:bg-asphalt-800/60 transition-colors ${
                   i % 2 === 0 ? "bg-asphalt-900" : "bg-asphalt-900/60"
                 }`}
               >
@@ -58,10 +107,11 @@ export function DataTable<T extends { id: string | number }>({
                   </td>
                 ))}
               </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
+
