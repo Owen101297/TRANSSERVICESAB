@@ -3,7 +3,7 @@
  * Provee funcionamiento instantáneo (0ms) y disponibilidad 100% offline para el Portal y Apps Satélite.
  */
 
-const CACHE_NAME = "transservices-v1.2";
+const CACHE_NAME = "transservices-v1.3";
 
 const STATIC_ASSETS = [
   "/",
@@ -36,14 +36,15 @@ self.addEventListener("install", (event) => {
   self.skipWaiting();
 });
 
-// 2. Activación: Limpieza de cachés antiguas
+// 2. Activación: Limpieza de versiones obsoletas
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
+    caches.keys().then((cacheNames) => {
       return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
+        cacheNames.map((cache) => {
+          if (cache !== CACHE_NAME) {
+            console.log("Service Worker: Limpiando caché antigua:", cache);
+            return caches.delete(cache);
           }
         })
       );
@@ -52,11 +53,18 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// 3. Interceptación: Stale-While-Revalidate para navegación rápida sin internet
+// 3. Interceptación: Stale-While-Revalidate seguro
 self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url);
+  const reqUrl = event.request.url;
 
-  // No interceptar peticiones de API POST/PATCH/DELETE
+  // Filtrar estrictamente solo protocolos HTTP/HTTPS (ignorar chrome-extension, blob, etc.)
+  if (!reqUrl.startsWith("http://") && !reqUrl.startsWith("https://")) {
+    return;
+  }
+
+  const url = new URL(reqUrl);
+
+  // No interceptar peticiones de API o métodos que muten datos
   if (event.request.method !== "GET" || url.pathname.startsWith("/api/")) {
     return;
   }
@@ -67,9 +75,9 @@ self.addEventListener("fetch", (event) => {
         // Devolver respuesta en caché y revalidar en segundo plano si hay red
         fetch(event.request)
           .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
+            if (networkResponse && networkResponse.status === 200 && (reqUrl.startsWith("http://") || reqUrl.startsWith("https://"))) {
               caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, networkResponse);
+                cache.put(event.request, networkResponse).catch(() => {});
               });
             }
           })
@@ -84,9 +92,11 @@ self.addEventListener("fetch", (event) => {
             return networkResponse;
           }
           const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
+          if (reqUrl.startsWith("http://") || reqUrl.startsWith("https://")) {
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache).catch(() => {});
+            });
+          }
           return networkResponse;
         })
         .catch(() => {

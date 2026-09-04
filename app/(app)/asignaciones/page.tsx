@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
 import { getAsignacionesDb } from "@/lib/services/asignaciones.service";
 import { getPersonasDb } from "@/lib/services/personas.service";
 import { getVehiculosDb } from "@/lib/services/vehiculos.service";
@@ -9,13 +8,13 @@ import {
   ESTADO_ASIGNACION_LABELS,
   EstadoAsignacion,
 } from "@/lib/types/asignacion";
-import { Button } from "@/components/ui/Button";
 import { Card, StatCard } from "@/components/ui/Card";
 import { DataTable, Column } from "@/components/ui/DataTable";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PlateTag } from "@/components/ui/PlateTag";
 import { TurnoTag } from "@/components/ui/TurnoTag";
 import { evaluarAptitudConductor } from "@/lib/types/persona";
+import { formatFecha } from "@/lib/utils/formatters";
 
 const ESTADO_TO_STATUS: Record<EstadoAsignacion, "activo" | "pendiente" | "cerrado"> = {
   activa: "activo",
@@ -23,24 +22,26 @@ const ESTADO_TO_STATUS: Record<EstadoAsignacion, "activo" | "pendiente" | "cerra
   finalizada: "cerrado",
 };
 
-function formatFecha(iso?: string) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("es-CO");
-}
-
 export const dynamic = "force-dynamic";
 
-export default async function AsignacionesPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ estado?: string }>;
+export default async function AsignacionesPage(props: {
+  searchParams?: Promise<{ estado?: string }>;
 }) {
-  const { estado } = await searchParams;
-  const tab = (estado as EstadoAsignacion) ?? "activa";
+  let tab: EstadoAsignacion = "activa";
+  try {
+    if (props.searchParams) {
+      const resolved = await props.searchParams;
+      if (resolved && resolved.estado) {
+        tab = resolved.estado as EstadoAsignacion;
+      }
+    }
+  } catch {
+    tab = "activa";
+  }
 
-  const allAsignaciones = await getAsignacionesDb();
-  const allPersonas = await getPersonasDb();
-  const allVehiculos = await getVehiculosDb();
+  const allAsignaciones = (await getAsignacionesDb()) || [];
+  const allPersonas = (await getPersonasDb()) || [];
+  const allVehiculos = (await getVehiculosDb()) || [];
 
   const activas = allAsignaciones.filter((a) => a.estado === "activa");
   const programadas = allAsignaciones.filter((a) => a.estado === "programada");
@@ -63,8 +64,8 @@ export default async function AsignacionesPage({
       header: "Conductor",
       accessor: "conductorNombre",
       render: (v, row) => (
-        <Link href={`/personas/${row.conductorId}`} className="hover:text-radar-cyan font-medium">
-          {v as string}
+        <Link href={`/personas/${row.conductorId}`} className="hover:text-sky-600 font-semibold text-slate-900">
+          {String(v || "Conductor")}
         </Link>
       ),
     },
@@ -73,20 +74,21 @@ export default async function AsignacionesPage({
       accessor: "placa",
       render: (v, row) => (
         <Link href={`/flota/${row.vehiculoId}`}>
-          <PlateTag plate={v as string} />
+          <PlateTag plate={String(v || "")} />
         </Link>
       ),
     },
     {
       header: "Contratista",
       accessor: "contratistaNombre",
+      render: (v) => <span className="text-xs text-slate-600">{String(v || "—")}</span>,
     },
     {
       header: "Tipo",
       accessor: "tipoAsignacion",
       render: (v, row) =>
         v === "fija" ? (
-          <span className="text-mist-200">Fija</span>
+          <span className="text-xs font-medium text-slate-700">Fija</span>
         ) : (
           row.turno && <TurnoTag turno={row.turno} />
         ),
@@ -96,7 +98,7 @@ export default async function AsignacionesPage({
       accessor: "conductorId",
       render: (v) => {
         const persona = allPersonas.find((p) => p.id === v);
-        if (!persona) return <span className="text-fog-400">—</span>;
+        if (!persona) return <span className="text-slate-400">—</span>;
         const aptitud = evaluarAptitudConductor(persona);
         if (aptitud.nivel === "optimo") {
           return <StatusBadge status="activo">Al día</StatusBadge>;
@@ -111,7 +113,7 @@ export default async function AsignacionesPage({
       header: "Vigencia",
       accessor: "fechaInicio",
       render: (v, row) => (
-        <span className="font-[family-name:var(--font-mono)] text-xs">
+        <span className="font-[family-name:var(--font-mono)] text-xs text-slate-600">
           {formatFecha(v as string)} → {formatFecha(row.fechaFin)}
         </span>
       ),
@@ -119,11 +121,14 @@ export default async function AsignacionesPage({
     {
       header: "Estado",
       accessor: "estado",
-      render: (v) => (
-        <StatusBadge status={ESTADO_TO_STATUS[v as EstadoAsignacion]}>
-          {ESTADO_ASIGNACION_LABELS[v as EstadoAsignacion]}
-        </StatusBadge>
-      ),
+      render: (v) => {
+        const est = (v as EstadoAsignacion) || "activa";
+        return (
+          <StatusBadge status={ESTADO_TO_STATUS[est] || "pendiente"}>
+            {ESTADO_ASIGNACION_LABELS[est] || String(v)}
+          </StatusBadge>
+        );
+      },
     },
   ];
 
@@ -149,10 +154,10 @@ export default async function AsignacionesPage({
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold text-paper-50">
+          <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold text-slate-900">
             Asignaciones
           </h1>
-          <p className="mt-1 text-sm text-fog-400">
+          <p className="mt-1 text-sm text-slate-500">
             Conductor ↔ Vehículo ↔ Contratista. Asignación inmediata y control de flota.
           </p>
         </div>
@@ -168,32 +173,32 @@ export default async function AsignacionesPage({
         <StatCard label="En historial" value={finalizadas.length} accent="cyan" />
       </div>
 
-      <div className="flex gap-1 border-b border-line-600">
+      <div className="flex gap-1 border-b border-slate-200/80">
         {tabs.map((t) => (
           <Link
             key={t.key}
             href={`/asignaciones?estado=${t.key}`}
-            className={`border-b-2 px-4 py-2 text-sm transition-colors ${
+            className={`border-b-2 px-4 py-2 text-xs sm:text-sm transition-colors ${
               tab === t.key
-                ? "border-signal-amber text-paper-50 font-medium"
-                : "border-transparent text-fog-400 hover:text-mist-200"
+                ? "border-sky-600 text-sky-600 font-bold"
+                : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
-            {t.label} <span className="text-xs text-fog-400">({t.count})</span>
+            {t.label} <span className="text-xs text-slate-400">({t.count})</span>
           </Link>
         ))}
       </div>
 
-      <Card className="p-0 overflow-hidden">
+      <Card className="p-0 overflow-hidden shadow-apple-sm">
         <DataTable
           columns={columns}
-          data={dataPorTab[tab]}
+          data={dataPorTab[tab] || activas}
           emptyMessage="No hay asignaciones en este estado."
         />
       </Card>
 
-      <p className="text-xs text-fog-400">
-        Datos de ejemplo (seed) — pendiente conectar a base de datos real.
+      <p className="text-xs text-slate-400 font-medium">
+        Control de turnos y asignaciones de vehículos en tiempo real.
       </p>
     </div>
   );

@@ -11,6 +11,7 @@ import { DataTable, Column } from "@/components/ui/DataTable";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PlateTag } from "@/components/ui/PlateTag";
 import { FuecTrigger } from "@/components/operacion/FuecTrigger";
+import { formatFechaHora } from "@/lib/utils/formatters";
 
 function mapEstadoToStatus(estado?: string): "activo" | "pendiente" | "cerrado" | "critico" {
   const e = (estado || "").toLowerCase();
@@ -34,36 +35,13 @@ function getEstadoLabel(estado?: string): string {
   return mapped[estado.toLowerCase()] || estado;
 }
 
-function formatFechaHora(iso?: string | Date, horaSalida?: string | null) {
-  if (!iso) return horaSalida || "—";
-  try {
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return horaSalida || "—";
-    const dateStr = d.toLocaleDateString("es-CO", {
-      timeZone: "America/Bogota",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-    const timeStr = horaSalida || d.toLocaleTimeString("es-CO", {
-      timeZone: "America/Bogota",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-    return `${dateStr} · ${timeStr}`;
-  } catch {
-    return horaSalida || "—";
-  }
-}
-
 const columns: Column<Viaje>[] = [
   {
     header: "Conductor",
     accessor: "conductorNombre",
     render: (v, row) => (
-      <Link href={`/personas/${row.conductorId}`} className="hover:text-radar-cyan font-medium">
-        {v as string}
+      <Link href={`/personas/${row.conductorId}`} className="hover:text-sky-600 font-semibold text-slate-900">
+        {String(v || "Conductor")}
       </Link>
     ),
   },
@@ -72,7 +50,7 @@ const columns: Column<Viaje>[] = [
     accessor: "placa",
     render: (v, row) => (
       <Link href={`/flota/${row.vehiculoId}`}>
-        <PlateTag plate={v as string} />
+        <PlateTag plate={String(v || "")} />
       </Link>
     ),
   },
@@ -80,8 +58,8 @@ const columns: Column<Viaje>[] = [
     header: "Ruta",
     accessor: "origen",
     render: (v, row) => (
-      <span>
-        {v as string} → {row.destino}
+      <span className="font-medium text-slate-700">
+        {String(v || "Origen")} → {String(row.destino || "Destino")}
       </span>
     ),
   },
@@ -89,15 +67,15 @@ const columns: Column<Viaje>[] = [
     header: "Salida",
     accessor: "fechaSalida",
     render: (v, row) => (
-      <span className="font-[family-name:var(--font-mono)] text-xs text-mist-200">
-        {formatFechaHora(v as string, row.horaSalida)}
+      <span className="font-[family-name:var(--font-mono)] text-xs text-slate-600">
+        {formatFechaHora(v as string)}
       </span>
     ),
   },
   {
     header: "Duración est.",
     accessor: "duracionEstimadaHoras",
-    render: (v) => <span>{v as number}h</span>,
+    render: (v) => <span className="font-mono text-xs">{String(v ?? "—")}h</span>,
   },
   {
     header: "Novedades",
@@ -105,9 +83,9 @@ const columns: Column<Viaje>[] = [
     render: (v) => {
       const n = (v as Viaje["novedades"])?.length || 0;
       return n > 0 ? (
-        <span className="text-signal-amber font-bold">{n}</span>
+        <span className="text-amber-600 font-bold">{n}</span>
       ) : (
-        <span className="text-fog-400">—</span>
+        <span className="text-slate-400">—</span>
       );
     },
   },
@@ -126,30 +104,37 @@ const columns: Column<Viaje>[] = [
 
 export const dynamic = "force-dynamic";
 
-export default async function OperacionPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ estado?: string }>;
+export default async function OperacionPage(props: {
+  searchParams?: Promise<{ estado?: string }>;
 }) {
-  const { estado } = await searchParams;
-  const tab = (estado as EstadoViaje) ?? "en_curso";
+  let tab: EstadoViaje = "en_curso";
+  try {
+    if (props.searchParams) {
+      const resolved = await props.searchParams;
+      if (resolved && resolved.estado) {
+        tab = resolved.estado as EstadoViaje;
+      }
+    }
+  } catch {
+    tab = "en_curso";
+  }
 
-  const allViajes = await getViajesDb();
-  const fuecs = await getFuecsDb();
-  const contratos = await getContratosTransporteDb();
-  const vehiculos = await getVehiculosDb();
-  const personas = await getPersonasDb();
+  const allViajes = (await getViajesDb()) || [];
+  const fuecs = (await getFuecsDb()) || [];
+  const contratos = (await getContratosTransporteDb()) || [];
+  const vehiculos = (await getVehiculosDb()) || [];
+  const personas = (await getPersonasDb()) || [];
 
   const enCurso = allViajes.filter((v) => {
-    const e = (v.estado || "").toLowerCase();
+    const e = (v?.estado || "").toLowerCase();
     return e !== "finalizado" && e !== "completado" && e !== "programado";
   });
   const programados = allViajes.filter((v) => {
-    const e = (v.estado || "").toLowerCase();
+    const e = (v?.estado || "").toLowerCase();
     return e === "programado";
   });
   const finalizados = allViajes.filter((v) => {
-    const e = (v.estado || "").toLowerCase();
+    const e = (v?.estado || "").toLowerCase();
     return e === "finalizado" || e === "completado";
   });
 
@@ -167,12 +152,12 @@ export default async function OperacionPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold text-paper-50">
+          <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold text-slate-900">
             Operación · Viajes & FUECs
           </h1>
-          <p className="mt-1 text-sm text-fog-400">
+          <p className="mt-1 text-sm text-slate-500">
             Gestión de rutas intermunicipales, novedades en carretera y extractos de contrato.
           </p>
         </div>
@@ -184,7 +169,7 @@ export default async function OperacionPage({
             conductores={personas}
           />
           <Link href="/operacion/nuevo">
-            <Button variant="primary">
+            <Button variant="primary" className="shadow-apple-sm">
               <Plus size={16} /> Registrar viaje
             </Button>
           </Link>
@@ -197,34 +182,33 @@ export default async function OperacionPage({
         <StatCard label="En historial" value={finalizados.length} accent="cyan" />
       </div>
 
-      <div className="flex gap-1 border-b border-line-600">
+      <div className="flex gap-1 border-b border-slate-200/80">
         {tabs.map((t) => (
           <Link
             key={t.key}
             href={`/operacion?estado=${t.key}`}
-            className={`border-b-2 px-4 py-2 text-sm transition-colors ${
+            className={`border-b-2 px-4 py-2 text-xs sm:text-sm transition-colors ${
               tab === t.key
-                ? "border-signal-amber text-paper-50 font-medium"
-                : "border-transparent text-fog-400 hover:text-mist-200"
+                ? "border-sky-600 text-sky-600 font-bold"
+                : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
-            {t.label} <span className="text-xs text-fog-400">({t.count})</span>
+            {t.label} <span className="text-xs text-slate-400">({t.count})</span>
           </Link>
         ))}
       </div>
 
-      <Card className="p-0 overflow-hidden">
+      <Card className="p-0 overflow-hidden shadow-apple-sm">
         <DataTable
           columns={columns}
-          data={dataPorTab[tab] ?? []}
+          data={dataPorTab[tab] ?? enCurso}
           emptyMessage="No hay viajes en este estado."
         />
       </Card>
 
-      <p className="text-xs text-fog-400">
+      <p className="text-xs text-slate-400 font-medium">
         Trazabilidad de servicios especiales, control de tiempos de viaje y soporte FUEC oficial.
       </p>
     </div>
   );
 }
-
