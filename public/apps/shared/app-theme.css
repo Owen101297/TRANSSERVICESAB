@@ -42,6 +42,7 @@ html {
 body {
   min-height: 100vh;
   line-height: 1.5;
+  -webkit-user-select: none;
   user-select: none;
   background-color: var(--color-bg);
   color: var(--color-text);
@@ -50,6 +51,7 @@ body {
 input, textarea, select {
   font-family: inherit;
   font-size: inherit;
+  -webkit-user-select: auto;
   user-select: auto;
 }
 
@@ -61,15 +63,15 @@ input, textarea, select {
 /* ── BARRA FLOTANTE / GLASSMORPHISM ── */
 .glass-nav {
   background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(226, 232, 240, 0.8);
 }
 
 .glass-floating {
   background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
   border: 1px solid rgba(226, 232, 240, 0.85);
   box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.12), 0 0 1px 1px rgba(0, 0, 0, 0.05);
 }

@@ -2,7 +2,8 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HSEQ-F-034 | Inspección de Extintores - Trans Services A&B</title>
   <link rel="icon" type="image/png" href="/brand/logo.png">
   <link rel="apple-touch-icon" href="/brand/logo.png">
   <link rel="stylesheet" href="../shared/app-theme.css">
@@ -18,14 +19,20 @@
       background-color: #F8FAFC;
       color: #0F172A;
       -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    input, textarea, select {
+      -webkit-user-select: auto;
+      user-select: auto;
     }
     .font-mono {
       font-family: 'JetBrains Mono', monospace;
     }
     .apple-glass {
       background: rgba(255, 255, 255, 0.85);
-      backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
+      backdrop-filter: blur(20px);
     }
     .apple-card {
       background: #FFFFFF;
@@ -75,7 +82,7 @@
   <!-- Header Estilo Apple Glass -->
   <header class="sticky top-0 z-40 apple-glass border-b border-slate-200/80 px-4 py-3 flex items-center justify-between shadow-xs">
     <div class="flex items-center gap-3">
-      <a href="/portal-conductor" class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 active:scale-95 flex items-center justify-center text-slate-700 transition-all">
+      <a href="/portal-conductor" aria-label="Volver al portal" title="Volver al portal" class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 active:scale-95 flex items-center justify-center text-slate-700 transition-all">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
       </a>
       <div>
@@ -112,12 +119,12 @@
 
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block text-[11px] font-semibold text-slate-500 mb-1">Placa Vehículo *</label>
-          <input type="text" id="inputPlaca" placeholder="EJ: NSY352" uppercase class="apple-input w-full px-3 py-2 text-xs font-mono font-bold text-[#0F172A] uppercase">
+          <label for="inputPlaca" class="block text-[11px] font-semibold text-slate-500 mb-1">Placa Vehículo *</label>
+          <input type="text" id="inputPlaca" aria-label="Placa del Vehículo" title="Placa del Vehículo" placeholder="EJ: NSY352" class="apple-input w-full px-3 py-2 text-xs font-mono font-bold text-[#0F172A] uppercase">
         </div>
         <div>
-          <label class="block text-[11px] font-semibold text-slate-500 mb-1">Tipo de Vehículo</label>
-          <select id="selectTipoVehiculo" class="apple-input w-full px-3 py-2 text-xs text-[#0F172A]">
+          <label for="selectTipoVehiculo" class="block text-[11px] font-semibold text-slate-500 mb-1">Tipo de Vehículo</label>
+          <select id="selectTipoVehiculo" aria-label="Tipo de Vehículo" title="Tipo de Vehículo" class="apple-input w-full px-3 py-2 text-xs text-[#0F172A]">
             <option value="Camioneta">Camioneta</option>
             <option value="Microbús">Microbús</option>
             <option value="Buseta">Buseta</option>
@@ -129,18 +136,18 @@
       </div>
 
       <div>
-        <label class="block text-[11px] font-semibold text-slate-500 mb-1">Conductor / Operador *</label>
-        <input type="text" id="inputConductor" placeholder="Nombre completo del conductor" class="apple-input w-full px-3 py-2 text-xs text-[#0F172A] font-medium">
+        <label for="inputConductor" class="block text-[11px] font-semibold text-slate-500 mb-1">Conductor / Operador *</label>
+        <input type="text" id="inputConductor" aria-label="Nombre del Conductor" title="Nombre del Conductor" placeholder="Nombre completo del conductor" class="apple-input w-full px-3 py-2 text-xs text-[#0F172A] font-medium">
       </div>
 
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block text-[11px] font-semibold text-slate-500 mb-1">Cédula Conductor</label>
-          <input type="text" id="inputDocumento" placeholder="Número de C.C." class="apple-input w-full px-3 py-2 text-xs font-mono text-[#0F172A]">
+          <label for="inputDocumento" class="block text-[11px] font-semibold text-slate-500 mb-1">Cédula Conductor</label>
+          <input type="text" id="inputDocumento" aria-label="Cédula del Conductor" title="Cédula del Conductor" placeholder="Número de C.C." class="apple-input w-full px-3 py-2 text-xs font-mono text-[#0F172A]">
         </div>
         <div>
-          <label class="block text-[11px] font-semibold text-slate-500 mb-1">Fecha Inspección</label>
-          <input type="date" id="inputFecha" class="apple-input w-full px-3 py-2 text-xs font-mono text-[#0F172A]">
+          <label for="inputFecha" class="block text-[11px] font-semibold text-slate-500 mb-1">Fecha Inspección</label>
+          <input type="date" id="inputFecha" aria-label="Fecha de Inspección" title="Fecha de Inspección" class="apple-input w-full px-3 py-2 text-xs font-mono text-[#0F172A]">
         </div>
       </div>
     </div>
@@ -159,8 +166,8 @@
 
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block text-[11px] font-semibold text-slate-500 mb-1">Tipo de Extintor</label>
-          <select id="selectTipoExtintor" class="apple-input w-full px-3 py-2 text-xs text-[#0F172A]">
+          <label for="selectTipoExtintor" class="block text-[11px] font-semibold text-slate-500 mb-1">Tipo de Extintor</label>
+          <select id="selectTipoExtintor" aria-label="Tipo de Extintor" title="Tipo de Extintor" class="apple-input w-full px-3 py-2 text-xs text-[#0F172A]">
             <option value="ABC Polvo Químico Seco">ABC (Polvo Químico)</option>
             <option value="Solkaflam 123">Solkaflam (Agente Limpio)</option>
             <option value="CO2 Dióxido de Carbono">CO2 (Dióxido de Carbono)</option>
@@ -168,8 +175,8 @@
           </select>
         </div>
         <div>
-          <label class="block text-[11px] font-semibold text-slate-500 mb-1">Capacidad</label>
-          <select id="selectCapacidad" class="apple-input w-full px-3 py-2 text-xs text-[#0F172A]">
+          <label for="selectCapacidad" class="block text-[11px] font-semibold text-slate-500 mb-1">Capacidad</label>
+          <select id="selectCapacidad" aria-label="Capacidad del Extintor" title="Capacidad del Extintor" class="apple-input w-full px-3 py-2 text-xs text-[#0F172A]">
             <option value="5 lbs">5 lbs</option>
             <option value="10 lbs" selected>10 lbs</option>
             <option value="20 lbs">20 lbs</option>
@@ -180,12 +187,12 @@
 
       <div class="grid grid-cols-2 gap-3">
         <div>
-          <label class="block text-[11px] font-semibold text-slate-500 mb-1">Última Recarga</label>
-          <input type="date" id="inputFechaUltimaRecarga" class="apple-input w-full px-3 py-2 text-xs font-mono text-[#0F172A]">
+          <label for="inputFechaUltimaRecarga" class="block text-[11px] font-semibold text-slate-500 mb-1">Última Recarga</label>
+          <input type="date" id="inputFechaUltimaRecarga" aria-label="Fecha de Última Recarga" title="Fecha de Última Recarga" placeholder="Última recarga" class="apple-input w-full px-3 py-2 text-xs font-mono text-[#0F172A]">
         </div>
         <div>
-          <label class="block text-[11px] font-semibold text-slate-500 mb-1">Próximo Vencimiento *</label>
-          <input type="date" id="inputFechaVencimiento" class="apple-input w-full px-3 py-2 text-xs font-mono text-[#0F172A]">
+          <label for="inputFechaVencimiento" class="block text-[11px] font-semibold text-slate-500 mb-1">Próximo Vencimiento *</label>
+          <input type="date" id="inputFechaVencimiento" aria-label="Próximo Vencimiento" title="Próximo Vencimiento" placeholder="Próximo vencimiento" class="apple-input w-full px-3 py-2 text-xs font-mono text-[#0F172A]">
         </div>
       </div>
 

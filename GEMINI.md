@@ -17,4 +17,3 @@ Toda modificación, expansión funcional o nueva característica debe acatar est
    - **A. Estado de Carga (*Loading / Skeleton State*)**: Emplear esqueletos visuales con pulso suave (`<TableSkeleton />`, `<CardSkeleton />` o `animate-pulse`) que preserven la altura y columnas del layout, evitando saltos bruscos (*Cumulative Layout Shift - CLS*).
    - **B. Estado de Error (*Error & Retry State*)**: Mostrar mensajes de error claros, contextualizados y amigables con un botón de acción rápida **"Reintentar"** (`onRetry`) que vuelva a ejecutar la consulta sin requerir refrescar la página.
    - **C. Estado de Contenido Vacío (*Empty State*)**: Cuando no existan registros o los filtros no devuelvan resultados, mostrar un componente `<EmptyState />` con ícono representativo, texto explicativo y un botón de acción principal (*Call to Action*, ej: "Limpiar filtros", "Registrar nueva inspección", etc.).
-

@@ -2,7 +2,7 @@
 <html lang="es" class="light">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HSEQ-F-035 | Inspección de Botiquín - Trans Services A&B</title>
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -64,21 +64,23 @@
       color: #0F172A;
       -webkit-font-smoothing: antialiased;
       -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none;
       user-select: none;
     }
     input, textarea, select {
+      -webkit-user-select: auto;
       user-select: auto;
     }
     .glass-nav {
       background: rgba(255, 255, 255, 0.85);
-      backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
+      backdrop-filter: blur(20px);
       border-bottom: 1px solid rgba(226, 232, 240, 0.8);
     }
     .glass-floating {
       background: rgba(255, 255, 255, 0.92);
-      backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
+      backdrop-filter: blur(20px);
       border: 1px solid rgba(226, 232, 240, 0.8);
     }
     .squircle {
@@ -164,8 +166,8 @@
         </div>
 
         <div>
-          <label class="block text-[11px] font-bold text-ios-text uppercase mb-1">Tipo de Vehículo</label>
-          <select id="tipoVehiculo" class="w-full h-11 px-3.5 bg-slate-50 border border-ios-border squircle-sm text-sm font-medium text-ios-text focus:bg-white focus:border-brand-500 focus:outline-none transition-all">
+          <label for="tipoVehiculo" class="block text-[11px] font-bold text-ios-text uppercase mb-1">Tipo de Vehículo</label>
+          <select id="tipoVehiculo" aria-label="Tipo de Vehículo" title="Tipo de Vehículo" class="w-full h-11 px-3.5 bg-slate-50 border border-ios-border squircle-sm text-sm font-medium text-ios-text focus:bg-white focus:border-brand-500 focus:outline-none transition-all">
             <option value="Camioneta Duster 4x4">Camioneta Duster 4x4</option>
             <option value="Camioneta Hilux 4x4">Camioneta Hilux 4x4</option>
             <option value="Microbús Master">Microbús Master</option>
@@ -176,23 +178,23 @@
         </div>
 
         <div>
-          <label class="block text-[11px] font-bold text-ios-text uppercase mb-1">Nombre del Conductor / Inspector <span class="text-red-500">*</span></label>
-          <input type="text" id="conductorNombre" placeholder="Nombre completo" class="w-full h-11 px-3.5 bg-slate-50 border border-ios-border squircle-sm text-sm font-medium text-ios-text focus:bg-white focus:border-brand-500 focus:outline-none transition-all placeholder:text-slate-300" />
+          <label for="conductorNombre" class="block text-[11px] font-bold text-ios-text uppercase mb-1">Nombre del Conductor / Inspector <span class="text-red-500">*</span></label>
+          <input type="text" id="conductorNombre" aria-label="Nombre del Conductor o Inspector" title="Nombre del Conductor o Inspector" placeholder="Nombre completo" class="w-full h-11 px-3.5 bg-slate-50 border border-ios-border squircle-sm text-sm font-medium text-ios-text focus:bg-white focus:border-brand-500 focus:outline-none transition-all placeholder:text-slate-300" />
         </div>
 
         <div>
-          <label class="block text-[11px] font-bold text-ios-text uppercase mb-1">Cédula / Documento</label>
-          <input type="text" id="conductorDocumento" placeholder="Número de cédula" class="w-full h-11 px-3.5 bg-slate-50 border border-ios-border squircle-sm font-mono text-sm font-medium text-ios-text focus:bg-white focus:border-brand-500 focus:outline-none transition-all placeholder:text-slate-300" />
+          <label for="conductorDocumento" class="block text-[11px] font-bold text-ios-text uppercase mb-1">Cédula / Documento</label>
+          <input type="text" id="conductorDocumento" aria-label="Cédula o Documento" title="Cédula o Documento" placeholder="Número de cédula" class="w-full h-11 px-3.5 bg-slate-50 border border-ios-border squircle-sm font-mono text-sm font-medium text-ios-text focus:bg-white focus:border-brand-500 focus:outline-none transition-all placeholder:text-slate-300" />
         </div>
 
         <div>
-          <label class="block text-[11px] font-bold text-ios-text uppercase mb-1">Ubicación del Botiquín</label>
-          <input type="text" id="ubicacionBotiquin" value="Cabina del vehículo" class="w-full h-11 px-3.5 bg-slate-50 border border-ios-border squircle-sm text-sm font-medium text-ios-text focus:bg-white focus:border-brand-500 focus:outline-none transition-all" />
+          <label for="ubicacionBotiquin" class="block text-[11px] font-bold text-ios-text uppercase mb-1">Ubicación del Botiquín</label>
+          <input type="text" id="ubicacionBotiquin" aria-label="Ubicación del Botiquín" title="Ubicación del Botiquín" placeholder="Ubicación del botiquín" value="Cabina del vehículo" class="w-full h-11 px-3.5 bg-slate-50 border border-ios-border squircle-sm text-sm font-medium text-ios-text focus:bg-white focus:border-brand-500 focus:outline-none transition-all" />
         </div>
 
         <div>
-          <label class="block text-[11px] font-bold text-ios-text uppercase mb-1">Estado del Maletín / Gabinete</label>
-          <select id="estadoGabinete" onchange="actualizarResumen()" class="w-full h-11 px-3.5 bg-slate-50 border border-ios-border squircle-sm text-sm font-medium text-ios-text focus:bg-white focus:border-brand-500 focus:outline-none transition-all">
+          <label for="estadoGabinete" class="block text-[11px] font-bold text-ios-text uppercase mb-1">Estado del Maletín / Gabinete</label>
+          <select id="estadoGabinete" aria-label="Estado del Maletín o Gabinete" title="Estado del Maletín o Gabinete" onchange="actualizarResumen()" class="w-full h-11 px-3.5 bg-slate-50 border border-ios-border squircle-sm text-sm font-medium text-ios-text focus:bg-white focus:border-brand-500 focus:outline-none transition-all">
             <option value="BUENO">Bueno (Limpio y hermético)</option>
             <option value="REGULAR">Regular (Presenta desgaste leve)</option>
             <option value="MALO">Malo (Roto, sucio o sin cierre)</option>

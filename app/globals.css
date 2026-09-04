@@ -92,15 +92,15 @@ body {
 /* Efectos de Cristal */
 .glass-nav {
   background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(226, 232, 240, 0.85);
 }
 
 .glass-floating {
   background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
   border: 1px solid rgba(226, 232, 240, 0.85);
   box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.12);
 }

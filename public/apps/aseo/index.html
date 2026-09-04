@@ -3,7 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HSEQ-F-097 | Inspección de Aseo y Desinfección - Trans Services A&B</title>
     <link rel="icon" type="image/png" href="/brand/logo.png">
     <link rel="apple-touch-icon" href="/brand/logo.png">
     <link rel="stylesheet" href="../shared/app-theme.css">
@@ -62,12 +63,19 @@
             color: #0F172A;
             -webkit-font-smoothing: antialiased;
             -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        input, textarea, select {
+            -webkit-user-select: auto;
+            user-select: auto;
         }
 
         .glass-nav {
             background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
+            backdrop-filter: blur(20px);
             border-bottom: 1px solid rgba(226, 232, 240, 0.8);
         }
 
@@ -171,8 +179,8 @@
                                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-mono font-bold text-slate-900 uppercase focus:border-teal-500 focus:bg-white focus:outline-none transition-all" />
                         </div>
                         <div>
-                            <label class="block text-[11px] font-mono font-bold text-slate-500 uppercase mb-1">Tipo de Vehículo</label>
-                            <select id="input-tipo"
+                            <label for="input-tipo" class="block text-[11px] font-mono font-bold text-slate-500 uppercase mb-1">Tipo de Vehículo</label>
+                            <select id="input-tipo" aria-label="Tipo de Vehículo" title="Tipo de Vehículo"
                                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-900 focus:border-teal-500 focus:bg-white focus:outline-none transition-all">
                                 <option value="Camioneta">Camioneta (Doble Cabina)</option>
                                 <option value="Automóvil">Automóvil / Sedán</option>
@@ -185,13 +193,13 @@
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-[11px] font-mono font-bold text-slate-500 uppercase mb-1">Fecha Inspección</label>
-                            <input type="date" id="input-fecha" required
+                            <label for="input-fecha" class="block text-[11px] font-mono font-bold text-slate-500 uppercase mb-1">Fecha Inspección</label>
+                            <input type="date" id="input-fecha" required aria-label="Fecha de Inspección" title="Fecha de Inspección" placeholder="Fecha de inspección"
                                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 focus:border-teal-500 focus:outline-none" />
                         </div>
                         <div>
-                            <label class="block text-[11px] font-mono font-bold text-slate-500 uppercase mb-1">Kilometraje Actual</label>
-                            <input type="number" id="input-km" placeholder="Ej. 145000"
+                            <label for="input-km" class="block text-[11px] font-mono font-bold text-slate-500 uppercase mb-1">Kilometraje Actual</label>
+                            <input type="number" id="input-km" aria-label="Kilometraje Actual" title="Kilometraje Actual" placeholder="Ej. 145000"
                                 class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 focus:border-teal-500 focus:outline-none" />
                         </div>
                     </div>
@@ -391,7 +399,7 @@
         <table style="width: 100%; text-align: center; font-size: 7.5px; margin-top: 15px;">
             <tr>
                 <td style="width: 45%; border-top: 1px solid black; padding-top: 4px;">
-                    <img id="pdf-firma-conductor" src="" style="height: 30px; max-width: 110px; margin: 0 auto 2px auto; display: block;" />
+                    <img id="pdf-firma-conductor" alt="Firma del Conductor" title="Firma del Conductor" src="" style="height: 30px; max-width: 110px; margin: 0 auto 2px auto; display: block;" />
                     <strong id="pdf-firma-conductor-name">Firma del Conductor</strong><br>
                     <span>Conductor / Responsable</span>
                 </td>
