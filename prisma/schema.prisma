@@ -606,4 +606,39 @@ model ControlLavado {
   @@index([estadoAprobo])
 }
 
+// --------------------------------------------------------
+// MÓDULO CONTROL DE ASEO Y DESINFECCIÓN VEHICULAR (HSEQ-F-097)
+// --------------------------------------------------------
+
+model ControlAseo {
+  id                 String   @id @default(cuid())
+  fecha              String   // YYYY-MM-DD
+  hora               String   // HH:mm
+  placa              String
+  tipoVehiculo       String   @default("Camioneta")
+  conductorNombre    String
+  conductorDocumento String?
+  conductorId        String?
+  responsableHseq    String?  @default("Coordinador HSEQ / Conductor")
+  kilometraje        Int?     @default(0)
+  checklist          Json     // Array de items evaluados [{ item: string, estado: 'SI'|'NO'|'NA' }]
+  observaciones      String?
+  firmaConductor     String?  // Base64 o URL firma del conductor
+  firmaInspector     String?  // Base64 o URL firma del inspector HSEQ
+  conforme           Boolean  @default(true)
+  estadoReviso       Boolean  @default(false)
+  estadoAprobo       Boolean  @default(false)
+  timestamp          DateTime @default(now())
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([fecha])
+  @@index([placa])
+  @@index([conductorDocumento])
+  @@index([conforme])
+  @@index([estadoAprobo])
+}
+
+
 
