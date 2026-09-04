@@ -651,6 +651,24 @@
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
+        /* Utility classes for template & actions */
+        .icon-blue { color: #0284C7; }
+        .icon-green { color: #059669; }
+        .mb-12 { margin-bottom: 12px; }
+        .mb-0 { margin-bottom: 0; }
+        .hidden-view { display: none; }
+        .color-green { color: #059669; }
+        .filter-period-box { display: flex; align-items: center; gap: 8px; }
+        .filter-period-label { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); }
+        .filter-month-input { padding: 6px 10px; width: auto; border-radius: 12px; font-family: var(--font-mono); }
+        .actions-group { display: flex; gap: 8px; }
+        .btn-action-pdf { color: #0284C7; }
+        .btn-action-excel { color: #059669; }
+        .table-responsive { overflow-x: auto; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .table-empty-cell { text-align: center; padding: 30px; color: var(--text-muted); }
     </style>
 </head>
 
@@ -699,7 +717,7 @@
     <main id="view-registro">
         <div class="view-header">
             <div class="view-badge">
-                <i class="fa-solid fa-droplet" style="color:#0284C7;"></i>
+                <i class="fa-solid fa-droplet icon-blue"></i>
                 FORMULARIO DIGITALIZADO
             </div>
             <h1 class="view-title">Registro de Lavado</h1>
@@ -754,7 +772,7 @@
                 <!-- 03. Liquidación y Conductor -->
                 <div class="form-section">
                     <div class="section-tag">03 • Liquidación y Conductor</div>
-                    <div class="field-box" style="margin-bottom: 12px;">
+                    <div class="field-box mb-12">
                         <label class="field-label">Valor del Servicio ($ COP)</label>
                         <div class="value-wrapper">
                             <span>$</span>
@@ -776,7 +794,7 @@
                 <!-- 04. Firma Digital -->
                 <div class="form-section">
                     <div class="sig-tools">
-                        <div class="section-tag" style="margin-bottom:0;">04 • Firma del Conductor *</div>
+                        <div class="section-tag mb-0">04 • Firma del Conductor *</div>
                         <button type="button" class="btn-clear-sig" id="btn-clear-sig">
                             <i class="fa-solid fa-eraser"></i> Borrar
                         </button>
@@ -799,10 +817,10 @@
     <!-- ═══════════════════════════════════════════ -->
     <!-- VISTA ADMIN / HISTORIAL (APPLE LIGHT) -->
     <!-- ═══════════════════════════════════════════ -->
-    <main id="view-admin" style="display:none;">
+    <main id="view-admin" class="hidden-view">
         <div class="view-header">
             <div class="view-badge">
-                <i class="fa-solid fa-chart-pie" style="color:#059669;"></i>
+                <i class="fa-solid fa-chart-pie icon-green"></i>
                 CONSOLIDADO & AUDITORÍA
             </div>
             <h1 class="view-title">Historial de Lavados</h1>
@@ -817,7 +835,7 @@
             </div>
             <div class="kpi-box">
                 <div class="kpi-title">Valor Recaudado</div>
-                <div class="kpi-number" id="stat-total" style="color:#059669;">$ 0</div>
+                <div class="kpi-number color-green" id="stat-total">$ 0</div>
             </div>
             <div class="kpi-box">
                 <div class="kpi-title">Promedio / Lavado</div>
@@ -827,15 +845,15 @@
 
         <!-- Barra de Acciones -->
         <div class="admin-bar">
-            <div style="display:flex; align-items:center; gap:8px;">
-                <label style="font-size:0.75rem; font-weight:700; color:var(--text-muted);">PERÍODO:</label>
-                <input type="month" id="filtro-mes" class="field-input" style="padding:6px 10px; width:auto; border-radius:12px; font-family:var(--font-mono);">
+            <div class="filter-period-box">
+                <label for="filtro-mes" class="filter-period-label">PERÍODO:</label>
+                <input type="text" id="filtro-mes" pattern="[0-9]{4}-[0-9]{2}" placeholder="AAAA-MM" title="Formato Período: AAAA-MM" class="field-input filter-month-input">
             </div>
-            <div style="display:flex; gap:8px;">
-                <button onclick="generarPDF()" class="btn-action-pill" style="color:#0284C7;">
+            <div class="actions-group">
+                <button onclick="generarPDF()" class="btn-action-pill btn-action-pdf">
                     <i class="fa-solid fa-file-pdf"></i> Planilla PDF
                 </button>
-                <button onclick="generarExcel()" class="btn-action-pill" style="color:#059669;">
+                <button onclick="generarExcel()" class="btn-action-pill btn-action-excel">
                     <i class="fa-solid fa-file-excel"></i> Excel (CSV)
                 </button>
             </div>
@@ -843,21 +861,21 @@
 
         <!-- Tabla -->
         <div class="table-card">
-            <div style="overflow-x:auto;">
+            <div class="table-responsive">
                 <table>
                     <thead>
                         <tr>
                             <th>Fecha / Hora</th>
                             <th>Placa</th>
                             <th>Conductor / Empresa</th>
-                            <th style="text-align:right;">Valor</th>
-                            <th style="text-align:center;">Firma</th>
-                            <th style="text-align:center;">Estado</th>
+                            <th class="text-right">Valor</th>
+                            <th class="text-center">Firma</th>
+                            <th class="text-center">Estado</th>
                         </tr>
                     </thead>
                     <tbody id="tabla-registros">
                         <tr>
-                            <td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">
+                            <td colspan="6" class="table-empty-cell">
                                 Cargando registros del ERP...
                             </td>
                         </tr>

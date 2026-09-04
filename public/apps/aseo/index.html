@@ -83,7 +83,7 @@
             border-radius: 22px;
         }
 
-        /* Plantilla PDF oculta */
+        /* Plantilla PDF oculta y estructurada */
         #pdf-template {
             width: 210mm;
             min-height: 297mm;
@@ -95,6 +95,31 @@
             color: black;
             font-family: 'Inter', sans-serif;
         }
+
+        .pdf-header-box { border: 2px solid black; margin-bottom: 8px; }
+        .pdf-header-table { width: 100%; border-collapse: collapse; text-align: center; }
+        .pdf-header-left { width: 25%; border-right: 1px solid black; padding: 4px; }
+        .pdf-header-center { width: 50%; border-right: 1px solid black; padding: 4px; }
+        .pdf-header-right { width: 25%; padding: 4px; font-size: 7.5px; text-align: left; }
+        .pdf-sub-bar { background-color: #f1f5f9; border-top: 1px solid black; padding: 4px; font-size: 8px; }
+        .pdf-table-checklist { width: 100%; border-collapse: collapse; font-size: 7px; margin-bottom: 8px; }
+        .pdf-th-head { background-color: #e2e8f0; }
+        .pdf-th-num { border: 1px solid black; padding: 2px; width: 20px; text-align: center; }
+        .pdf-th-desc { border: 1px solid black; padding: 2px; text-align: left; }
+        .pdf-th-check { border: 1px solid black; padding: 2px; width: 30px; text-align: center; }
+        .pdf-section-box { border: 1px solid black; padding: 4px; font-size: 7.5px; margin-bottom: 8px; }
+        .pdf-obs-box { border: 1px solid black; padding: 4px; font-size: 7.5px; margin-bottom: 12px; }
+        .pdf-photos-grid { display: flex; gap: 8px; margin-top: 4px; justify-content: center; flex-wrap: wrap; }
+        .pdf-signatures-table { width: 100%; text-align: center; font-size: 7.5px; margin-top: 15px; }
+        .pdf-sig-cell { width: 45%; border-top: 1px solid black; padding-top: 4px; }
+        .pdf-sig-spacer { width: 10%; }
+        .pdf-sig-img { height: 30px; max-width: 110px; margin: 0 auto 2px auto; display: block; }
+        .pdf-sig-space { height: 30px; }
+        .pdf-brand-title { font-size: 11px; }
+        .pdf-brand-sub { font-size: 8px; }
+        .pdf-brand-muted { font-size: 7px; color: #555555; }
+        .pdf-title-sub { font-size: 7.5px; font-weight: bold; }
+        .pdf-title-main { font-size: 10px; }
     </style>
 </head>
 
@@ -250,7 +275,7 @@
                     <label class="w-full py-4 rounded-2xl bg-teal-50 hover:bg-teal-100 border-2 border-dashed border-teal-300 text-teal-800 text-xs font-bold flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-colors">
                         <i data-lucide="camera-plus" class="w-6 h-6 text-teal-600"></i>
                         <span>Tomar Foto con Cámara o Cargar Galería</span>
-                        <input type="file" id="camera-input" accept="image/*" capture="environment" multiple onchange="handlePhotoUpload(event)" class="hidden" />
+                        <input type="file" id="camera-input" accept="image/*" multiple onchange="handlePhotoUpload(event)" class="hidden" />
                     </label>
 
                     <!-- Galería de Miniaturas -->
@@ -334,19 +359,19 @@
     <!-- PLANTILLA OCULTA PARA PDF OFICIAL HSEQ-F-097 CON FOTOS -->
     <!-- ════════════════════════════════════════════════════════════ -->
     <div id="pdf-template">
-        <div style="border: 2px solid black; margin-bottom: 8px;">
-            <table style="width: 100%; border-collapse: collapse; text-align: center;">
+        <div class="pdf-header-box">
+            <table class="pdf-header-table">
                 <tr>
-                    <td style="width: 25%; border-right: 1px solid black; padding: 4px;">
-                        <strong style="font-size: 11px;">TRANS SERVICES A&B</strong><br>
-                        <span style="font-size: 8px;">NIT: 900778421-1</span><br>
-                        <span style="font-size: 7px; color: #555;">COOPERATIVA DE TRANSPORTE</span>
+                    <td class="pdf-header-left">
+                        <strong class="pdf-brand-title">TRANS SERVICES A&B</strong><br>
+                        <span class="pdf-brand-sub">NIT: 900778421-1</span><br>
+                        <span class="pdf-brand-muted">COOPERATIVA DE TRANSPORTE</span>
                     </td>
-                    <td style="width: 50%; border-right: 1px solid black; padding: 4px;">
-                        <span style="font-size: 7.5px; font-weight: bold;">SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO & PESV</span><br>
-                        <strong style="font-size: 10px;">INSPECCIÓN DE ORDEN, ASEO Y DESINFECCIÓN VEHICULAR</strong>
+                    <td class="pdf-header-center">
+                        <span class="pdf-title-sub">SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO & PESV</span><br>
+                        <strong class="pdf-title-main">INSPECCIÓN DE ORDEN, ASEO Y DESINFECCIÓN VEHICULAR</strong>
                     </td>
-                    <td style="width: 25%; padding: 4px; font-size: 7.5px; text-align: left;">
+                    <td class="pdf-header-right">
                         <strong>CÓDIGO:</strong> HSEQ-F-097<br>
                         <strong>VERSIÓN:</strong> 03<br>
                         <strong>FECHA:</strong> <span id="pdf-fecha">—</span>
@@ -354,8 +379,8 @@
                 </tr>
             </table>
 
-            <div style="background-color: #f1f5f9; border-top: 1px solid black; padding: 4px; font-size: 8px;">
-                <table style="width: 100%;">
+            <div class="pdf-sub-bar">
+                <table class="w-full">
                     <tr>
                         <td><strong>PLACA:</strong> <span id="pdf-placa">—</span></td>
                         <td><strong>VEHÍCULO:</strong> <span id="pdf-tipo">—</span></td>
@@ -369,14 +394,14 @@
             </div>
         </div>
 
-        <table style="width: 100%; border-collapse: collapse; font-size: 7px; margin-bottom: 8px;">
+        <table class="pdf-table-checklist">
             <thead>
-                <tr style="background-color: #e2e8f0;">
-                    <th style="border: 1px solid black; padding: 2px; width: 20px; text-align: center;">N°</th>
-                    <th style="border: 1px solid black; padding: 2px; text-align: left;">CARACTERÍSTICA A INSPECCIONAR</th>
-                    <th style="border: 1px solid black; padding: 2px; width: 30px; text-align: center;">SI</th>
-                    <th style="border: 1px solid black; padding: 2px; width: 30px; text-align: center;">NO</th>
-                    <th style="border: 1px solid black; padding: 2px; width: 30px; text-align: center;">N/A</th>
+                <tr class="pdf-th-head">
+                    <th class="pdf-th-num">N°</th>
+                    <th class="pdf-th-desc">CARACTERÍSTICA A INSPECCIONAR</th>
+                    <th class="pdf-th-check">SI</th>
+                    <th class="pdf-th-check">NO</th>
+                    <th class="pdf-th-check">N/A</th>
                 </tr>
             </thead>
             <tbody id="pdf-checklist-body">
@@ -385,27 +410,27 @@
         </table>
 
         <!-- Registro Fotográfico en PDF -->
-        <div style="border: 1px solid black; padding: 4px; font-size: 7.5px; margin-bottom: 8px;">
+        <div class="pdf-section-box">
             <strong>EVIDENCIAS FOTOGRÁFICAS DE LIMPIEZA Y DESINFECCIÓN:</strong>
-            <div id="pdf-photos-container" style="display: flex; gap: 8px; margin-top: 4px; justify-content: center; flex-wrap: wrap;">
+            <div id="pdf-photos-container" class="pdf-photos-grid">
                 <!-- Fotos insertadas dinámicamente -->
             </div>
         </div>
 
-        <div style="border: 1px solid black; padding: 4px; font-size: 7.5px; margin-bottom: 12px;">
+        <div class="pdf-obs-box">
             <strong>OBSERVACIONES:</strong> <span id="pdf-obs">Ninguna</span>
         </div>
 
-        <table style="width: 100%; text-align: center; font-size: 7.5px; margin-top: 15px;">
+        <table class="pdf-signatures-table">
             <tr>
-                <td style="width: 45%; border-top: 1px solid black; padding-top: 4px;">
-                    <img id="pdf-firma-conductor" alt="Firma del Conductor" title="Firma del Conductor" src="" style="height: 30px; max-width: 110px; margin: 0 auto 2px auto; display: block;" />
+                <td class="pdf-sig-cell">
+                    <img id="pdf-firma-conductor" alt="Firma del Conductor" title="Firma del Conductor" src="" class="pdf-sig-img" />
                     <strong id="pdf-firma-conductor-name">Firma del Conductor</strong><br>
                     <span>Conductor / Responsable</span>
                 </td>
-                <td style="width: 10%;"></td>
-                <td style="width: 45%; border-top: 1px solid black; padding-top: 4px;">
-                    <div style="height: 30px;"></div>
+                <td class="pdf-sig-spacer"></td>
+                <td class="pdf-sig-cell">
+                    <div class="pdf-sig-space"></div>
                     <strong>COORDINACIÓN HSEQ & PESV</strong><br>
                     <span>Trans Services A&B</span>
                 </td>
