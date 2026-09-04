@@ -130,7 +130,7 @@ export default async function DashboardPage() {
             <span>Centro de Mando Operacional 360°</span>
           </div>
           <h1 className="font-[family-name:var(--font-display)] text-2xl sm:text-3xl font-bold tracking-tight text-paper-50">
-            Trans Services Cooperativa A&amp;B
+            Trans Services A&amp;B
           </h1>
           <p className="text-xs sm:text-sm text-fog-400 mt-0.5">
             Monitoreo en tiempo real de flota, conductores, seguridad vial PESV y cumplimiento normativo.

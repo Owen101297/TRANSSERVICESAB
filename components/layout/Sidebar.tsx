@@ -82,7 +82,7 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
                 TRANS SERVICES
               </span>
               <span className="text-[10px] font-mono text-signal-amber font-semibold tracking-wider truncate">
-                COOPERATIVA A&amp;B
+                A&amp;B
               </span>
             </div>
           )}

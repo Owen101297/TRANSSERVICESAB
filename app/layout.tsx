@@ -7,8 +7,8 @@ import "./globals.css";
 // con acceso normal a internet — es un cambio de una línea.
 
 export const metadata: Metadata = {
-  title: "A&B OS | Trans Services Cooperativa A&B",
-  description: "Sistema operativo empresarial & Portal del Conductor — TRANSSERVICES A&B",
+  title: "TRANS SERVICES A&B",
+  description: "Sistema de Gestión Empresarial & Portal del Conductor — TRANS SERVICES A&B",
   icons: {
     icon: [
       { url: "/brand/logo.png", type: "image/png" },

@@ -84,7 +84,7 @@ function LoginForm() {
             <ShieldCheck className="text-radar-cyan" size={26} />
           </div>
           <h1 className="font-[family-name:var(--font-display)] text-2xl font-black text-paper-50 uppercase tracking-wide">
-            TRANS SERVICES COOPERATIVA A&B
+            TRANS SERVICES A&B
           </h1>
           <p className="text-xs text-mist-200 mt-1 uppercase tracking-widest font-mono">
             SISTEMA INTEGRAL DE TRANSPORTE & GESTIÓN
