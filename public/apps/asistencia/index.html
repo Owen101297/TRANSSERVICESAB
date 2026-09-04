@@ -8,11 +8,12 @@
     <title>Registro de Asistencia TH-FOR-03 | Trans Services A&B</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <link rel="icon" type="image/png" href="../../assets/favicon-96x96.png" sizes="96x96" />
-    <link rel="icon" type="image/svg+xml" href="../../assets/favicon.svg" />
-    <link rel="shortcut icon" href="../../assets/favicon.ico" />
-    <link rel="apple-touch-icon" sizes="180x180" href="../../assets/apple-touch-icon.png" />
-    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/png" href="/assets/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
+    <link rel="shortcut icon" href="/assets/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png" />
+    <link rel="stylesheet" href="/apps/shared/app-theme.css">
+    <link rel="stylesheet" href="/apps/asistencia/styles.css">
 </head>
 
 <body class="bg-slate-50 min-h-screen text-slate-900 font-sans pb-32">
@@ -247,7 +248,7 @@
                         <p class="text-xs font-extrabold text-slate-900"><span class="text-[#1E40AF] underline">Tomar foto o subir archivo</span></p>
                         <p class="text-[10px] text-slate-500 font-semibold mt-0.5">Foto grupal o de la charla (Máx. 5MB)</p>
                     </div>
-                    <input id="fotoFile" type="file" class="hidden" accept="image/*" capture="environment" onchange="previewFotoEvidencia(event)">
+                    <input id="fotoFile" type="file" class="hidden" accept="image/*" onchange="previewFotoEvidencia(event)">
                 </label>
 
                 <div id="fotoPreviewBox" class="hidden mt-3 relative group">
@@ -291,7 +292,7 @@
     </div>
 
     <!-- Script Principal -->
-    <script type="module" src="app.js"></script>
+    <script type="module" src="/apps/asistencia/app.js"></script>
 </body>
 
 </html>
