@@ -60,7 +60,7 @@ export function DataTable<T extends { id: string | number }>({
   if (!data || data.length === 0) {
     return (
       <EmptyState
-        icon={Inbox}
+        icon={<Inbox size={26} className="text-slate-600" />}
         title={emptyTitle}
         description={emptyMessage}
         actionLabel={emptyActionLabel}
