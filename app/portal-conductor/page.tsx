@@ -185,6 +185,11 @@ export default function PortalConductorMobilePage() {
   const [vehicleFeedback, setVehicleFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
   useEffect(() => {
+    // 0. Registrar Service Worker para PWA Offline
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
+
     // 1. Obtener sesión de API /api/auth/me o localStorage
     fetch("/api/auth/me")
       .then((res) => (res.ok ? res.json() : null))

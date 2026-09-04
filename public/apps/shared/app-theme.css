@@ -1,0 +1,98 @@
+/* ==========================================================================
+   TRANS SERVICES A&B — Standalone Mobile & App Theme (Zero CDN Dependency)
+   Optimizado para máxima velocidad y funcionamiento 100% offline.
+   ========================================================================== */
+
+:root {
+  --color-bg: #F8FAFC;
+  --color-card: #FFFFFF;
+  --color-border: #E2E8F0;
+  --color-border-hover: #CBD5E1;
+  --color-text: #0F172A;
+  --color-muted: #64748B;
+  --color-subtle: #94A3B8;
+  
+  --color-brand: #007AFF;
+  --color-brand-hover: #0062CC;
+  --color-green: #34C759;
+  --color-red: #FF3B30;
+  --color-amber: #FF9500;
+  --color-teal: #30B0C7;
+  --color-indigo: #5856D6;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Plus Jakarta Sans", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "JetBrains Mono", SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-family: var(--font-sans);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  font-size: 14px;
+}
+
+body {
+  min-height: 100vh;
+  line-height: 1.5;
+  user-select: none;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+input, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+  user-select: auto;
+}
+
+/* ── CONTENEDOR & SQUIRCLE UTILITIES ── */
+.squircle { border-radius: 20px; }
+.squircle-sm { border-radius: 14px; }
+.squircle-lg { border-radius: 28px; }
+
+/* ── BARRA FLOTANTE / GLASSMORPHISM ── */
+.glass-nav {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.glass-floating {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.12), 0 0 1px 1px rgba(0, 0, 0, 0.05);
+}
+
+/* ── SOMBRAS APPLE ── */
+.shadow-apple-sm { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02); }
+.shadow-apple { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.04), 0 8px 10px -6px rgba(0, 0, 0, 0.02); }
+.shadow-apple-lg { box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.07), 0 10px 15px -5px rgba(0, 0, 0, 0.03); }
+
+/* ── BOTONES & ESTADOS INTERACTIVOS ── */
+button, a {
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+}
+
+button:active, a:active {
+  transform: scale(0.98);
+}
+
+/* ── IMPRESIÓN OFICIAL ── */
+@media print {
+  .no-print, header, footer, .glass-floating { display: none !important; }
+  body { background: white !important; color: black !important; padding: 0 !important; }
+  #printable-area { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; border: none !important; }
+}
