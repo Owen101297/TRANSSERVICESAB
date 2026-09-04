@@ -385,7 +385,9 @@ export async function updatePersonaAction(
 
     const licenciaVencimiento = formData.get("licenciaVencimiento") as string;
     const emoVigencia = formData.get("emoVigencia") as string;
-    const conceptoMedico = formData.get("conceptoMedico") as ConceptoMedico;
+    const perfil = formData.get("perfil") as PerfilPersona;
+    const perfiles: PerfilPersona[] = perfil ? [perfil] : [];
+    const pin = (formData.get("pin") as string)?.trim();
 
     // Actualizar estado local
     const index = localPersonsState.findIndex((p) => p.id === id);
@@ -398,6 +400,7 @@ export async function updatePersonaAction(
         telefono: telefono || prev.telefono,
         email: email || prev.email,
         estado: estado || prev.estado,
+        perfiles: perfiles.length > 0 ? perfiles : prev.perfiles,
         contratistaId: contratistaId !== undefined ? (contratistaId || undefined) : prev.contratistaId,
         contratistaNombre: contratistaNombre !== undefined ? (contratistaNombre || undefined) : prev.contratistaNombre,
         fotoIniciales: computeInitials(nombres || prev.nombres, apellidos || prev.apellidos),
@@ -443,6 +446,8 @@ export async function updatePersonaAction(
             telefono: telefono || undefined,
             email: email || undefined,
             estado: estado || undefined,
+            perfiles: perfiles.length > 0 ? perfiles : undefined,
+            pin: pin || undefined,
             contratistaId: contratistaId !== undefined ? (contratistaId || null) : undefined,
             contratistaNombre: contratistaNombre !== undefined ? (contratistaNombre || null) : undefined,
             fotoIniciales: nombres && apellidos ? computeInitials(nombres, apellidos) : undefined,
@@ -455,6 +460,7 @@ export async function updatePersonaAction(
 
     revalidatePath(`/personas/${id}`);
     revalidatePath("/personas");
+    revalidatePath("/administracion");
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message || "Error al actualizar información." };

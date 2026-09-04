@@ -1,13 +1,21 @@
 "use client";
 
 import { useState, useEffect, useTransition } from "react";
-import { X, Save, AlertCircle } from "lucide-react";
+import { X, Save, AlertCircle, Shield, Key } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { FormSection, TextField, SelectField } from "@/components/ui/FormField";
-import { Persona, EstadoPersona, ConceptoMedico } from "@/lib/types/persona";
+import { Persona, EstadoPersona, ConceptoMedico, PerfilPersona } from "@/lib/types/persona";
 import { Contratista } from "@/lib/types/contratista";
 import { updatePersonaAction } from "@/lib/services/personas.service";
 import { getContratistasDb } from "@/lib/services/contratistas.service";
+
+const PERFIL_OPTIONS = [
+  { value: "conductor", label: "Conductor (Portal Conductor / Apps)" },
+  { value: "hseq", label: "HSEQ (Seguridad, PESV, SG-SST)" },
+  { value: "supervisor", label: "Supervisor / Coordinador Operativo" },
+  { value: "administrativo", label: "Administrativo (Acceso Total ERP)" },
+  { value: "empleado", label: "Empleado General" },
+];
 
 const ESTADO_OPTIONS = [
   { value: "activo", label: "Activo" },
@@ -49,16 +57,20 @@ export function EditPersonaModal({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [contratistas, setContratistas] = useState<Contratista[]>([]);
+  const [selectedPerfil, setSelectedPerfil] = useState<string>(
+    persona.perfiles[0] || "conductor"
+  );
 
   useEffect(() => {
     if (isOpen) {
       getContratistasDb().then((data) => setContratistas(data || []));
+      setSelectedPerfil(persona.perfiles[0] || "conductor");
     }
-  }, [isOpen]);
+  }, [isOpen, persona.perfiles]);
 
   if (!isOpen) return null;
 
-  const esConductor = persona.perfiles.includes("conductor");
+  const esConductor = selectedPerfil === "conductor";
 
   const contratistaOptions = [
     { value: "", label: "Flota Propia / Cooperativa A&B" },
@@ -95,7 +107,7 @@ export function EditPersonaModal({
         <div className="flex items-center justify-between border-b border-line-600 pb-4">
           <div>
             <h2 className="font-[family-name:var(--font-display)] text-2xl font-bold text-paper-50">
-              Editar información
+              Editar información del usuario
             </h2>
             <p className="mt-0.5 text-xs text-fog-400">
               {persona.nombres} {persona.apellidos} — {persona.tipoDocumento} {persona.numeroDocumento}
@@ -119,11 +131,42 @@ export function EditPersonaModal({
 
         {savedSuccess && (
           <div className="mt-4 rounded-lg border border-ok-green/40 bg-ok-green-dim/40 p-3 text-xs text-ok-green">
-            ¡Información actualizada con éxito!
+            ¡Información y Rol actualizados con éxito!
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-6 max-h-[70vh] overflow-y-auto pr-1">
+          {/* SECCIÓN DE ROL Y ACCESO */}
+          <FormSection title="Rol del Sistema & Credenciales">
+            <div>
+              <label className="block text-xs font-mono font-bold text-fog-400 uppercase mb-1 flex items-center gap-1.5">
+                <Shield size={13} className="text-signal-amber" />
+                Perfil / Rol de Acceso *
+              </label>
+              <select
+                name="perfil"
+                value={selectedPerfil}
+                onChange={(e) => setSelectedPerfil(e.target.value)}
+                className="w-full bg-asphalt-950 border border-line-600 rounded-xl px-3.5 py-2.5 text-paper-50 text-sm font-semibold focus:border-signal-amber focus:outline-none"
+              >
+                {PERFIL_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <TextField
+              label="PIN / Contraseña de Acceso"
+              name="pin"
+              defaultValue={persona.pin || "1234"}
+              placeholder="Ej. 1234 o contraseña segura"
+              helperText="Clave utilizada para ingresar al sistema o portal móvil."
+            />
+          </FormSection>
+
+          {/* DATOS BÁSICOS */}
           <FormSection title="Datos Básicos y Contacto">
             <TextField label="Nombres" name="nombres" defaultValue={persona.nombres} required />
             <TextField label="Apellidos" name="apellidos" defaultValue={persona.apellidos} required />
