@@ -622,6 +622,7 @@ model ControlAseo {
   responsableHseq    String?  @default("Coordinador HSEQ / Conductor")
   kilometraje        Int?     @default(0)
   checklist          Json     // Array de items evaluados [{ item: string, estado: 'SI'|'NO'|'NA' }]
+  fotosEvidencia     Json?    @default("[]") // Lista de fotos de evidencia en Base64 / URL
   observaciones      String?
   firmaConductor     String?  // Base64 o URL firma del conductor
   firmaInspector     String?  // Base64 o URL firma del inspector HSEQ

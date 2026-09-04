@@ -41,6 +41,7 @@ interface AseoRecord {
   responsableHseq?: string | null;
   kilometraje?: number | null;
   checklist: ChecklistItem[];
+  fotosEvidencia?: string[] | null;
   observaciones?: string | null;
   firmaConductor?: string | null;
   firmaInspector?: string | null;
@@ -70,6 +71,7 @@ export default function AseoDesinfeccionPage() {
 
   // Modal para ver detalle del checklist
   const [selectedRecord, setSelectedRecord] = useState<AseoRecord | null>(null);
+  const [selectedPreviewImage, setSelectedPreviewImage] = useState<string | null>(null);
 
   // Formato Físico Imprimible HSEQ-F-097
   const [printRecord, setPrintRecord] = useState<AseoRecord | null>(null);
@@ -321,6 +323,7 @@ export default function AseoDesinfeccionPage() {
                 <th className="p-3.5">Conductor</th>
                 <th className="p-3.5 text-center">Kilometraje</th>
                 <th className="p-3.5 text-center">Estado Conformidad</th>
+                <th className="p-3.5 text-center">Evidencias</th>
                 <th className="p-3.5 text-center">Firma</th>
                 <th className="p-3.5 text-center">Auditoría HSEQ</th>
                 <th className="p-3.5 text-right">Acciones</th>
@@ -329,7 +332,7 @@ export default function AseoDesinfeccionPage() {
             <tbody className="divide-y divide-line-600">
               {filteredRegistros.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-fog-400">
+                  <td colSpan={9} className="p-8 text-center text-fog-400">
                     {loading
                       ? "Cargando inspecciones de aseo..."
                       : "No se encontraron registros de aseo y desinfección en este período."}
@@ -367,6 +370,15 @@ export default function AseoDesinfeccionPage() {
                       >
                         {reg.conforme ? "CONFORME" : "NO CONFORME"}
                       </span>
+                    </td>
+                    <td className="p-3.5 text-center">
+                      {Array.isArray(reg.fotosEvidencia) && reg.fotosEvidencia.length > 0 ? (
+                        <span className="text-[10px] font-mono text-radar-cyan font-bold bg-radar-cyan/10 border border-radar-cyan/30 px-2 py-0.5 rounded">
+                          📷 {reg.fotosEvidencia.length} fotos
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-fog-400 font-mono">Sin fotos</span>
+                      )}
                     </td>
                     <td className="p-3.5 text-center">
                       {reg.firmaConductor ? (
@@ -423,16 +435,16 @@ export default function AseoDesinfeccionPage() {
         </div>
       </Card>
 
-      {/* ── MODAL: VER CHECKLIST DETALLADO & FIRMA (Oculto en Impresión) ── */}
+      {/* ── MODAL: VER CHECKLIST DETALLADO, FOTOS & FIRMA (Oculto en Impresión) ── */}
       {selectedRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn print:hidden">
-          <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl border border-line-600 bg-asphalt-900 shadow-2xl overflow-hidden">
+          <div className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl border border-line-600 bg-asphalt-900 shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between border-b border-line-600 p-5 bg-asphalt-950/60">
               <div className="flex items-center gap-3">
                 <PlateTag plate={selectedRecord.placa} />
                 <div>
                   <h3 className="font-bold text-paper-50 text-base">
-                    Inspección de Aseo y Desinfección
+                    Inspección de Aseo y Desinfección (24 Ítems Oficiales)
                   </h3>
                   <p className="text-xs text-fog-400">
                     {selectedRecord.fecha} · {selectedRecord.hora} · Conductor: {selectedRecord.conductorNombre}
@@ -441,26 +453,61 @@ export default function AseoDesinfeccionPage() {
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedRecord(null)}
+                onClick={() => {
+                  setSelectedRecord(null);
+                  setSelectedPreviewImage(null);
+                }}
                 className="text-fog-400 hover:text-paper-50 p-2 rounded-lg hover:bg-asphalt-800"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <div className="p-5 overflow-y-auto flex-1 space-y-4">
-              {/* Checklist evaluado */}
+            <div className="p-5 overflow-y-auto flex-1 space-y-5">
+              {/* Galería de Evidencias Fotográficas */}
+              {Array.isArray(selectedRecord.fotosEvidencia) && selectedRecord.fotosEvidencia.length > 0 && (
+                <div className="border border-line-600 rounded-xl p-4 bg-asphalt-950">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-xs font-mono font-bold uppercase text-radar-cyan flex items-center gap-1.5">
+                      <span>📸 Evidencias Fotográficas ({selectedRecord.fotosEvidencia.length})</span>
+                    </h4>
+                    <span className="text-[10px] text-fog-400">Clic en una foto para ampliar</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {selectedRecord.fotosEvidencia.map((foto, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => setSelectedPreviewImage(foto)}
+                        className="group relative cursor-pointer aspect-video rounded-lg overflow-hidden border border-line-600 bg-black/40 hover:border-radar-cyan transition-all"
+                      >
+                        <img
+                          src={foto}
+                          alt={`Evidencia ${idx + 1}`}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        />
+                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <Eye size={18} className="text-white" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Checklist evaluado (24 items) */}
               <div className="border border-line-600 rounded-xl overflow-hidden">
                 <table className="w-full text-xs text-left">
                   <thead className="bg-asphalt-950 text-fog-400 uppercase font-mono text-[11px] border-b border-line-600">
                     <tr>
-                      <th className="p-2.5">Ítem / Componente Evaluado</th>
-                      <th className="p-2.5 text-center w-24">Resultado</th>
+                      <th className="p-2.5 w-10 text-center">N°</th>
+                      <th className="p-2.5">Ítem / Componente Evaluado (HSEQ-F-097)</th>
+                      <th className="p-2.5 text-center w-28">Resultado</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line-600 bg-asphalt-900/60">
                     {selectedRecord.checklist?.map((item, i) => (
                       <tr key={i} className="hover:bg-asphalt-800/40">
+                        <td className="p-2.5 text-center font-mono text-fog-400 font-bold">{i + 1}</td>
                         <td className="p-2.5 text-mist-200">{item.item}</td>
                         <td className="p-2.5 text-center">
                           <span
@@ -544,12 +591,37 @@ export default function AseoDesinfeccionPage() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setSelectedRecord(null)}
+                  onClick={() => {
+                    setSelectedRecord(null);
+                    setSelectedPreviewImage(null);
+                  }}
                 >
                   Cerrar
                 </Button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── LIGHTBOX / VISOR DE FOTO COMPLETA ── */}
+      {selectedPreviewImage && (
+        <div
+          onClick={() => setSelectedPreviewImage(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md cursor-pointer animate-fadeIn"
+        >
+          <div className="relative max-w-4xl max-h-[85vh] rounded-2xl overflow-hidden border border-line-600 bg-asphalt-950 shadow-2xl">
+            <img
+              src={selectedPreviewImage}
+              alt="Evidencia Ampliada"
+              className="w-full h-full max-h-[80vh] object-contain"
+            />
+            <button
+              onClick={() => setSelectedPreviewImage(null)}
+              className="absolute top-3 right-3 p-2 bg-black/60 rounded-full text-white hover:bg-black/90 transition-colors"
+            >
+              <X size={20} />
+            </button>
           </div>
         </div>
       )}
@@ -597,12 +669,12 @@ export default function AseoDesinfeccionPage() {
             </div>
           </div>
 
-          {/* Tabla de Checklist Imprimible */}
+          {/* Tabla de Checklist Imprimible (24 items) */}
           <table className="w-full border-collapse border border-black text-[9px]">
             <thead>
               <tr className="bg-gray-200">
                 <th className="border border-black p-1 text-center w-8">N°</th>
-                <th className="border border-black p-1 text-left">ÍTEM / CRITERIO DE ASEO Y BIOSEGURIDAD</th>
+                <th className="border border-black p-1 text-left">ÍTEM / CRITERIO DE ASEO Y BIOSEGURIDAD (HSEQ-F-097)</th>
                 <th className="border border-black p-1 text-center w-16">SI</th>
                 <th className="border border-black p-1 text-center w-16">NO</th>
                 <th className="border border-black p-1 text-center w-16">N/A</th>
@@ -610,7 +682,7 @@ export default function AseoDesinfeccionPage() {
             </thead>
             <tbody>
               {printRecord.checklist?.map((item, idx) => (
-                <tr key={idx} className="h-6">
+                <tr key={idx} className="h-5">
                   <td className="border border-black p-1 text-center font-bold">{idx + 1}</td>
                   <td className="border border-black p-1">{item.item}</td>
                   <td className="border border-black p-1 text-center font-bold">
@@ -627,6 +699,20 @@ export default function AseoDesinfeccionPage() {
             </tbody>
           </table>
 
+          {/* Galería de Fotos en Impresión */}
+          {Array.isArray(printRecord.fotosEvidencia) && printRecord.fotosEvidencia.length > 0 && (
+            <div className="border border-black p-2 mt-2">
+              <div className="font-bold text-[9px] uppercase mb-1">EVIDENCIAS FOTOGRÁFICAS ADJUNTAS:</div>
+              <div className="grid grid-cols-4 gap-2">
+                {printRecord.fotosEvidencia.map((foto, idx) => (
+                  <div key={idx} className="border border-black p-0.5">
+                    <img src={foto} alt={`Foto ${idx + 1}`} className="w-full h-16 object-cover" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Observaciones */}
           {printRecord.observaciones && (
             <div className="border border-black p-2 mt-2 text-[10px]">
@@ -635,7 +721,7 @@ export default function AseoDesinfeccionPage() {
           )}
 
           {/* Firmas de Cierre */}
-          <div className="grid grid-cols-2 gap-8 mt-12 text-[10px]">
+          <div className="grid grid-cols-2 gap-8 mt-10 text-[10px]">
             <div className="border-t border-black pt-2 text-center">
               {printRecord.firmaConductor ? (
                 <img
@@ -664,3 +750,4 @@ export default function AseoDesinfeccionPage() {
     </div>
   );
 }
+

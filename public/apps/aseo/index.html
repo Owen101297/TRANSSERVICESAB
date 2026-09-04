@@ -47,11 +47,6 @@
                         'apple-sm': '0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02)',
                         'apple': '0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.03)',
                         'apple-lg': '0 12px 32px -4px rgba(15, 23, 42, 0.08), 0 4px 12px -2px rgba(15, 23, 42, 0.03)',
-                    },
-                    borderRadius: {
-                        'ios': '20px',
-                        'ios-lg': '26px',
-                        'ios-xl': '32px',
                     }
                 }
             }
@@ -78,20 +73,11 @@
             border-radius: 22px;
         }
 
-        /* Ocultar scrollbar pero mantener scroll */
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-
         /* Plantilla PDF oculta */
         #pdf-template {
             width: 210mm;
             min-height: 297mm;
-            padding: 12mm;
+            padding: 10mm;
             background: white;
             position: absolute;
             left: -9999px;
@@ -114,7 +100,7 @@
             </a>
 
             <div class="text-center">
-                <h1 class="text-sm font-extrabold text-slate-900 tracking-tight">Aseo & Desinfección</h1>
+                <h1 class="text-sm font-extrabold text-slate-900 tracking-tight">Inspección de Orden y Aseo</h1>
                 <p class="text-[10px] font-mono text-slate-400 font-semibold">FORMATO HSEQ-F-097</p>
             </div>
 
@@ -161,7 +147,7 @@
                 </div>
                 <div class="text-right">
                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-teal-50 text-teal-700 border border-teal-200">
-                        Semanal
+                        HSEQ-F-097
                     </span>
                 </div>
             </div>
@@ -209,37 +195,76 @@
                     </div>
                 </div>
 
-                <!-- 02. Checklist de Aseo y Desinfección -->
+                <!-- 02. Checklist de Aseo y Desinfección (24 ÍTEMS OFICIALES) -->
+                <div class="bg-white squircle p-5 border border-slate-200/80 shadow-apple space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+                        <div>
+                            <div class="text-xs font-mono font-bold uppercase text-slate-400 tracking-wider flex items-center gap-2">
+                                <i data-lucide="check-square" class="w-4 h-4 text-teal-600"></i>
+                                <span>02 · Características a Inspeccionar</span>
+                            </div>
+                            <p class="text-[11px] text-slate-500 mt-0.5">24 Criterios de Limpieza, Bioseguridad y Orden</p>
+                        </div>
+                        <div class="flex gap-1.5">
+                            <button type="button" onclick="setAllChecklist('SI')"
+                                class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold uppercase hover:bg-emerald-100 transition-colors">
+                                Todos SI
+                            </button>
+                            <button type="button" onclick="setAllChecklist('NA')"
+                                class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-bold uppercase hover:bg-slate-200 transition-colors">
+                                Todos N/A
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="checklist-container" class="space-y-2.5">
+                        <!-- Generado dinámicamente con los 24 ítems oficiales -->
+                    </div>
+                </div>
+
+                <!-- 03. Registro de Evidencias Fotográficas (CÁMARA / GALERÍA) -->
                 <div class="bg-white squircle p-5 border border-slate-200/80 shadow-apple space-y-4">
                     <div class="flex items-center justify-between">
                         <div class="text-xs font-mono font-bold uppercase text-slate-400 tracking-wider flex items-center gap-2">
-                            <i data-lucide="check-square" class="w-4 h-4 text-teal-600"></i>
-                            <span>02 · Criterios de Aseo & Bioseguridad</span>
+                            <i data-lucide="camera" class="w-4 h-4 text-teal-600"></i>
+                            <span>03 · Evidencias Fotográficas *</span>
                         </div>
-                        <span class="text-[10px] font-mono text-slate-400 font-bold">9 ÍTEMS</span>
+                        <span id="photo-count-badge" class="text-[10px] font-mono text-slate-400 font-bold">0 fotos</span>
                     </div>
 
-                    <div id="checklist-container" class="space-y-3">
-                        <!-- Generado dinámicamente por JS -->
+                    <p class="text-xs text-slate-500">
+                        Adjunta fotos de la limpieza interior (cabina, cojinería), exterior y kit/extintor para respaldo de auditoría.
+                    </p>
+
+                    <!-- Botón de Captura / Selección de Fotos -->
+                    <label class="w-full py-4 rounded-2xl bg-teal-50 hover:bg-teal-100 border-2 border-dashed border-teal-300 text-teal-800 text-xs font-bold flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-colors">
+                        <i data-lucide="camera-plus" class="w-6 h-6 text-teal-600"></i>
+                        <span>Tomar Foto con Cámara o Cargar Galería</span>
+                        <input type="file" id="camera-input" accept="image/*" capture="environment" multiple onchange="handlePhotoUpload(event)" class="hidden" />
+                    </label>
+
+                    <!-- Galería de Miniaturas -->
+                    <div id="photo-preview-grid" class="grid grid-cols-3 gap-2.5 pt-1">
+                        <!-- Miniaturas insertadas dinámicamente -->
                     </div>
                 </div>
 
-                <!-- 03. Observaciones Adicionales -->
+                <!-- 04. Observaciones Adicionales -->
                 <div class="bg-white squircle p-5 border border-slate-200/80 shadow-apple space-y-3">
                     <div class="text-xs font-mono font-bold uppercase text-slate-400 tracking-wider flex items-center gap-2">
                         <i data-lucide="message-square" class="w-4 h-4 text-teal-600"></i>
-                        <span>03 · Observaciones / Hallazgos</span>
+                        <span>04 · Observaciones / Hallazgos</span>
                     </div>
-                    <textarea id="input-obs" rows="2" placeholder="Describe cualquier novedad de limpieza o desinfección (opcional)..."
+                    <textarea id="input-obs" rows="2" placeholder="Describe cualquier novedad de limpieza o estado del vehículo (opcional)..."
                         class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-900 focus:border-teal-500 focus:bg-white focus:outline-none leading-relaxed transition-all"></textarea>
                 </div>
 
-                <!-- 04. Firma Digital del Conductor -->
-                <div class="bg-white squircle p-5 border border-slate-200/80 shadow-apple space-y-3">
+                <!-- 05. Firmas Digitales -->
+                <div class="bg-white squircle p-5 border border-slate-200/80 shadow-apple space-y-4">
                     <div class="flex items-center justify-between">
                         <div class="text-xs font-mono font-bold uppercase text-slate-400 tracking-wider flex items-center gap-2">
                             <i data-lucide="pen-tool" class="w-4 h-4 text-teal-600"></i>
-                            <span>04 · Firma del Conductor *</span>
+                            <span>05 · Firma del Conductor / Responsable *</span>
                         </div>
                         <button type="button" onclick="clearSignature()"
                             class="text-[11px] font-bold text-red-500 hover:text-red-700 transition-colors">
@@ -259,7 +284,7 @@
                 <button type="submit" id="btn-submit"
                     class="w-full py-4 rounded-2xl bg-slate-900 hover:bg-black text-white font-extrabold text-sm shadow-apple-lg transition-all flex items-center justify-center gap-2 active:scale-[0.99]">
                     <i data-lucide="check-circle-2" class="w-5 h-5 text-teal-400"></i>
-                    <span id="btn-submit-text">Guardar Inspección de Aseo</span>
+                    <span id="btn-submit-text">Guardar Inspección y Evidencias</span>
                 </button>
             </form>
         </section>
@@ -268,7 +293,6 @@
         <!-- TAB 2: HISTORIAL DE INSPECCIONES (OFFLINE + POSTGRESQL) -->
         <!-- ════════════════════════════════════════════════════════════ -->
         <section id="tab-historial" class="space-y-4 hidden">
-            <!-- Filtro de Búsqueda -->
             <div class="bg-white squircle p-4 border border-slate-200/80 shadow-apple flex items-center justify-between gap-3">
                 <div class="relative flex-1">
                     <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
@@ -297,22 +321,22 @@
     </div>
 
     <!-- ════════════════════════════════════════════════════════════ -->
-    <!-- PLANTILLA OCULTA PARA PDF (HSEQ-F-097) -->
+    <!-- PLANTILLA OCULTA PARA PDF OFICIAL HSEQ-F-097 CON FOTOS -->
     <!-- ════════════════════════════════════════════════════════════ -->
     <div id="pdf-template">
-        <div style="border: 2px solid black; margin-bottom: 15px;">
+        <div style="border: 2px solid black; margin-bottom: 8px;">
             <table style="width: 100%; border-collapse: collapse; text-align: center;">
                 <tr>
-                    <td style="width: 25%; border-right: 1px solid black; padding: 6px;">
-                        <strong style="font-size: 13px;">TRANS SERVICES A&B</strong><br>
+                    <td style="width: 25%; border-right: 1px solid black; padding: 4px;">
+                        <strong style="font-size: 11px;">TRANS SERVICES A&B</strong><br>
                         <span style="font-size: 8px;">NIT: 900778421-1</span><br>
                         <span style="font-size: 7px; color: #555;">COOPERATIVA DE TRANSPORTE</span>
                     </td>
-                    <td style="width: 50%; border-right: 1px solid black; padding: 6px;">
-                        <span style="font-size: 8px; font-weight: bold;">SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO & PESV</span><br>
-                        <strong style="font-size: 11px;">INSPECCIÓN DE ORDEN, ASEO Y DESINFECCIÓN VEHICULAR</strong>
+                    <td style="width: 50%; border-right: 1px solid black; padding: 4px;">
+                        <span style="font-size: 7.5px; font-weight: bold;">SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO & PESV</span><br>
+                        <strong style="font-size: 10px;">INSPECCIÓN DE ORDEN, ASEO Y DESINFECCIÓN VEHICULAR</strong>
                     </td>
-                    <td style="width: 25%; padding: 6px; font-size: 8px; text-align: left;">
+                    <td style="width: 25%; padding: 4px; font-size: 7.5px; text-align: left;">
                         <strong>CÓDIGO:</strong> HSEQ-F-097<br>
                         <strong>VERSIÓN:</strong> 03<br>
                         <strong>FECHA:</strong> <span id="pdf-fecha">—</span>
@@ -320,7 +344,7 @@
                 </tr>
             </table>
 
-            <div style="background-color: #f1f5f9; border-top: 1px solid black; padding: 6px; font-size: 9px;">
+            <div style="background-color: #f1f5f9; border-top: 1px solid black; padding: 4px; font-size: 8px;">
                 <table style="width: 100%;">
                     <tr>
                         <td><strong>PLACA:</strong> <span id="pdf-placa">—</span></td>
@@ -335,35 +359,43 @@
             </div>
         </div>
 
-        <table style="width: 100%; border-collapse: collapse; font-size: 8.5px; margin-bottom: 12px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 7px; margin-bottom: 8px;">
             <thead>
                 <tr style="background-color: #e2e8f0;">
-                    <th style="border: 1px solid black; padding: 4px; width: 30px; text-align: center;">N°</th>
-                    <th style="border: 1px solid black; padding: 4px; text-align: left;">CRITERIO DE LIMPIEZA Y BIOSEGURIDAD</th>
-                    <th style="border: 1px solid black; padding: 4px; width: 45px; text-align: center;">SI</th>
-                    <th style="border: 1px solid black; padding: 4px; width: 45px; text-align: center;">NO</th>
-                    <th style="border: 1px solid black; padding: 4px; width: 45px; text-align: center;">N/A</th>
+                    <th style="border: 1px solid black; padding: 2px; width: 20px; text-align: center;">N°</th>
+                    <th style="border: 1px solid black; padding: 2px; text-align: left;">CARACTERÍSTICA A INSPECCIONAR</th>
+                    <th style="border: 1px solid black; padding: 2px; width: 30px; text-align: center;">SI</th>
+                    <th style="border: 1px solid black; padding: 2px; width: 30px; text-align: center;">NO</th>
+                    <th style="border: 1px solid black; padding: 2px; width: 30px; text-align: center;">N/A</th>
                 </tr>
             </thead>
             <tbody id="pdf-checklist-body">
-                <!-- Filas renderizadas dinámicamente -->
+                <!-- 24 Filas renderizadas -->
             </tbody>
         </table>
 
-        <div style="border: 1px solid black; padding: 6px; font-size: 8.5px; margin-bottom: 25px;">
+        <!-- Registro Fotográfico en PDF -->
+        <div style="border: 1px solid black; padding: 4px; font-size: 7.5px; margin-bottom: 8px;">
+            <strong>EVIDENCIAS FOTOGRÁFICAS DE LIMPIEZA Y DESINFECCIÓN:</strong>
+            <div id="pdf-photos-container" style="display: flex; gap: 8px; margin-top: 4px; justify-content: center; flex-wrap: wrap;">
+                <!-- Fotos insertadas dinámicamente -->
+            </div>
+        </div>
+
+        <div style="border: 1px solid black; padding: 4px; font-size: 7.5px; margin-bottom: 12px;">
             <strong>OBSERVACIONES:</strong> <span id="pdf-obs">Ninguna</span>
         </div>
 
-        <table style="width: 100%; text-align: center; font-size: 8.5px; margin-top: 35px;">
+        <table style="width: 100%; text-align: center; font-size: 7.5px; margin-top: 15px;">
             <tr>
-                <td style="width: 45%; border-top: 1px solid black; padding-top: 5px;">
-                    <img id="pdf-firma-conductor" src="" style="height: 35px; max-width: 120px; margin: 0 auto 3px auto; display: block;" />
+                <td style="width: 45%; border-top: 1px solid black; padding-top: 4px;">
+                    <img id="pdf-firma-conductor" src="" style="height: 30px; max-width: 110px; margin: 0 auto 2px auto; display: block;" />
                     <strong id="pdf-firma-conductor-name">Firma del Conductor</strong><br>
-                    <span>Conductor / Operador</span>
+                    <span>Conductor / Responsable</span>
                 </td>
                 <td style="width: 10%;"></td>
-                <td style="width: 45%; border-top: 1px solid black; padding-top: 5px;">
-                    <div style="height: 35px;"></div>
+                <td style="width: 45%; border-top: 1px solid black; padding-top: 4px;">
+                    <div style="height: 30px;"></div>
                     <strong>COORDINACIÓN HSEQ & PESV</strong><br>
                     <span>Trans Services A&B</span>
                 </td>
@@ -373,28 +405,44 @@
 
     <!-- ── LÓGICA JAVASCRIPT PRINCIPAL ── -->
     <script>
+        // LOS 24 CRITERIOS OFICIALES DEL FORMATO HSEQ-F-097
         const CHECKLIST_ITEMS = [
-            "Tablero, volante y comandos de mando limpios y desinfectados",
-            "Cojinería y tapicería libre de polvo, manchas y residuos",
-            "Cinturones de seguridad limpios y desinfectados",
-            "Vidrios, panorámico y espejos libres de grasa o suciedad",
-            "Tapetes y piso lavados y sin humedad",
-            "Manijas de puertas y pasamanos desinfectados",
-            "Baúl o compartimento de carga limpio y ordenado",
-            "Caneca de basura o bolsa de residuos disponible y vacía",
-            "Exterior del vehículo libre de barro excesivo o sedimentos"
+            "TARJETA DE PROPIEDAD ORIGINAL",
+            "SOAT ORIGINAL",
+            "SEGURO TODO RIESGO / PÓLIZAS",
+            "CERTIFICADO REVISIÓN TÉCNICO MECÁNICA",
+            "PLACAS VISIBLES Y LEGIBLES",
+            "VIDRIOS COMPLETOS Y EN BUEN ESTADO",
+            "CINTURÓN DE SEGURIDAD EN BUEN ESTADO Y LIMPIO",
+            "PARABRISAS LIMPIO Y EN BUEN ESTADO",
+            "PLUMILLAS EN BUEN ESTADO",
+            "ESPEJOS (INTERIOR Y EXTERIORES) LIMPIOS Y EN BUEN ESTADO",
+            "LUCES Y SISTEMA ELÉCTRICO LIMPIO Y EN BUEN ESTADO",
+            "RINES Y LLANTAS LIMPIOS Y EN BUEN ESTADO",
+            "ESTADO GENERAL DEL VEHÍCULO LIMPIO Y EN BUEN ESTADO",
+            "MOTOR LIMPIO LIBRE DE DERRAMES DE GRASA, COMBUSTIBLE O CABLES",
+            "LAS ÁREAS DE ALMACENAMIENTO SE ENCUENTRAN ORDENADAS Y LIMPIAS",
+            "LOS ESPACIOS DE TRABAJO SON ADECUADOS DENTRO DEL VEHÍCULO",
+            "EL ÁREA DE TRABAJO SE ENCUENTRA LIBRE DE POLVO, ARENA U OBJETOS",
+            "SE ENCUENTRAN ELEMENTOS TIRADOS O REGADOS DENTRO DEL VEHÍCULO",
+            "LOS ELEMENTOS Y HERRAMIENTAS DE TRABAJO SE ENCUENTRAN ORDENADOS EN UN LUGAR ESPECÍFICO (ESCOBA, CONOS, PAÑO, AMBIENTADOR)",
+            "EL PERSONAL USA LOS ELEMENTOS DE PROTECCIÓN (ALCOHOL, TAPABOCAS)",
+            "EL PERSONAL PORTA EL UNIFORME CORRECTAMENTE",
+            "KIT DE CARRETERA",
+            "BOTIQUÍN DE PRIMEROS AUXILIOS",
+            "EXTINTOR EN EL LUGAR CORRECTO, LIMPIO Y EN BUEN ESTADO"
         ];
 
         let checklistState = {};
+        let uploadedPhotos = []; // Array de strings Base64
         let historialData = [];
         let driverSession = null;
 
-        // Signature Canvas
+        // Canvas de Firma
         const sigCanvas = document.getElementById('signature-pad');
         let isDrawing = false;
         let isSigBlank = true;
 
-        // 1. INICIALIZACIÓN
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
             initDate();
@@ -430,28 +478,29 @@
             }
         }
 
+        // Renderizado de los 24 ítems
         function renderChecklist() {
             const container = document.getElementById('checklist-container');
             container.innerHTML = '';
 
             CHECKLIST_ITEMS.forEach((itemText, idx) => {
-                checklistState[idx] = 'SI'; // Por defecto Conforme
+                checklistState[idx] = 'SI';
 
                 const div = document.createElement('div');
                 div.className = 'p-3 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-2';
                 div.innerHTML = `
                     <div class="text-xs font-semibold text-slate-800 leading-snug">
-                        <span class="text-slate-400 font-mono text-[11px] font-bold mr-1">#${idx + 1}</span>
+                        <span class="text-slate-400 font-mono text-[10px] font-bold mr-1">#${idx + 1}</span>
                         ${itemText}
                     </div>
                     <div class="flex items-center gap-1.5 pt-0.5">
                         <button type="button" onclick="setChecklistItem(${idx}, 'SI')" id="btn-chk-${idx}-SI"
                             class="flex-1 py-1.5 rounded-xl text-xs font-bold transition-all bg-emerald-500 text-white shadow-xs">
-                            ✓ Limpio
+                            SI
                         </button>
                         <button type="button" onclick="setChecklistItem(${idx}, 'NO')" id="btn-chk-${idx}-NO"
                             class="flex-1 py-1.5 rounded-xl text-xs font-bold transition-all bg-white text-slate-600 border border-slate-200 hover:bg-slate-100">
-                            ✕ Sucio
+                            NO
                         </button>
                         <button type="button" onclick="setChecklistItem(${idx}, 'NA')" id="btn-chk-${idx}-NA"
                             class="flex-1 py-1.5 rounded-xl text-xs font-bold transition-all bg-white text-slate-600 border border-slate-200 hover:bg-slate-100">
@@ -471,7 +520,7 @@
                 if (btn) {
                     if (s === val) {
                         btn.className = `flex-1 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs ${
-                            s === 'SI' ? 'bg-emerald-500 text-white' : s === 'NO' ? 'bg-red-500 text-white' : 'bg-slate-700 text-white'
+                            s === 'SI' ? 'bg-emerald-500 text-white font-black' : s === 'NO' ? 'bg-red-500 text-white font-black' : 'bg-slate-700 text-white font-black'
                         }`;
                     } else {
                         btn.className = 'flex-1 py-1.5 rounded-xl text-xs font-bold transition-all bg-white text-slate-600 border border-slate-200 hover:bg-slate-100';
@@ -480,7 +529,86 @@
             });
         }
 
-        // 2. CANVAS DE FIRMA DIGITAL
+        function setAllChecklist(val) {
+            CHECKLIST_ITEMS.forEach((_, idx) => {
+                setChecklistItem(idx, val);
+            });
+        }
+
+        // Manejo de Fotos de Evidencia
+        async function handlePhotoUpload(e) {
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (file.type.startsWith('image/')) {
+                    const base64 = await resizeImageToBase64(file);
+                    uploadedPhotos.push(base64);
+                }
+            }
+
+            renderPhotoPreviews();
+            e.target.value = ''; // Reset input
+        }
+
+        function resizeImageToBase64(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (readerEvent) => {
+                    const image = new Image();
+                    image.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const maxDimension = 1024;
+                        let width = image.width;
+                        let height = image.height;
+
+                        if (width > height) {
+                            if (width > maxDimension) {
+                                height = Math.round((height * maxDimension) / width);
+                                width = maxDimension;
+                            }
+                        } else {
+                            if (height > maxDimension) {
+                                width = Math.round((width * maxDimension) / height);
+                                height = maxDimension;
+                            }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(image, 0, 0, width, height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.8));
+                    };
+                    image.src = readerEvent.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function removePhoto(index) {
+            uploadedPhotos.splice(index, 1);
+            renderPhotoPreviews();
+        }
+
+        function renderPhotoPreviews() {
+            const grid = document.getElementById('photo-preview-grid');
+            const badge = document.getElementById('photo-count-badge');
+            badge.textContent = `${uploadedPhotos.length} foto${uploadedPhotos.length === 1 ? '' : 's'}`;
+
+            grid.innerHTML = uploadedPhotos.map((src, idx) => `
+                <div class="relative group rounded-xl overflow-hidden aspect-square border border-slate-200 shadow-sm bg-slate-100">
+                    <img src="${src}" alt="Evidencia" class="w-full h-full object-cover" />
+                    <button type="button" onclick="removePhoto(${idx})"
+                        class="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs shadow-md hover:bg-red-600 transition-colors">
+                        ✕
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // Canvas de Firma
         function initSignaturePad() {
             const rect = sigCanvas.parentElement.getBoundingClientRect();
             sigCanvas.width = rect.width;
@@ -492,7 +620,6 @@
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
 
-            // Eventos Táctiles y Mouse
             const getPos = (e) => {
                 const r = sigCanvas.getBoundingClientRect();
                 const src = e.touches ? e.touches[0] : e;
@@ -532,7 +659,7 @@
             isSigBlank = true;
         }
 
-        // 3. ENVÍO DE FORMULARIO
+        // Envío de Formulario
         async function handleFormSubmit(e) {
             e.preventDefault();
 
@@ -550,7 +677,7 @@
             const btn = document.getElementById('btn-submit');
             const btnText = document.getElementById('btn-submit-text');
             btn.disabled = true;
-            btnText.textContent = 'Guardando Inspección...';
+            btnText.textContent = 'Guardando Inspección y Fotos...';
 
             const checklistArray = CHECKLIST_ITEMS.map((itemText, idx) => ({
                 item: itemText,
@@ -567,6 +694,7 @@
                 conductorId: driverSession?.id || null,
                 kilometraje: parseInt(document.getElementById('input-km').value, 10) || 0,
                 checklist: checklistArray,
+                fotosEvidencia: uploadedPhotos,
                 observaciones: document.getElementById('input-obs').value.trim() || null,
                 firmaConductor: sigCanvas.toDataURL('image/png'),
                 conforme: !checklistArray.some(c => c.estado === 'NO')
@@ -584,33 +712,31 @@
                     throw new Error(data.error || "No se pudo guardar la inspección.");
                 }
 
-                showToast("¡Inspección guardada exitosamente!", "success");
+                showToast("¡Inspección y fotos guardadas exitosamente!", "success");
                 
-                // Guardar en cache local para offline
                 saveLocalRecord(payload);
 
-                // Resetear form
                 clearSignature();
+                uploadedPhotos = [];
+                renderPhotoPreviews();
                 document.getElementById('input-obs').value = '';
                 document.getElementById('input-km').value = '';
 
-                // Refrescar historial
                 fetchHistorial();
                 switchTab('historial');
 
             } catch (err) {
                 console.error(err);
-                // Fallback offline
                 saveLocalRecord(payload);
                 showToast("Guardado localmente (Offline)", "warning");
                 switchTab('historial');
             } finally {
                 btn.disabled = false;
-                btnText.textContent = 'Guardar Inspección de Aseo';
+                btnText.textContent = 'Guardar Inspección y Evidencias';
             }
         }
 
-        // 4. HISTORIAL Y OFFLINE SYNC
+        // Historial y Cache
         function saveLocalRecord(record) {
             try {
                 const local = JSON.parse(localStorage.getItem('ab_aseo_records') || '[]');
@@ -629,7 +755,6 @@
                     historialData = data.registros || [];
                 }
             } catch (e) {
-                console.warn("Offline, cargando local:", e);
                 historialData = JSON.parse(localStorage.getItem('ab_aseo_records') || '[]');
             }
             renderHistorial();
@@ -662,6 +787,7 @@
                             }">
                                 ${r.conforme ? 'CONFORME' : 'NO CONFORME'}
                             </span>
+                            ${r.fotosEvidencia && r.fotosEvidencia.length > 0 ? `<span class="text-[10px] font-mono text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded">📷 ${r.fotosEvidencia.length}</span>` : ''}
                         </div>
                         <div class="text-xs font-bold text-slate-800">${r.conductorNombre || 'Conductor'}</div>
                         <div class="text-[10px] font-mono text-slate-400">${r.fecha} · ${r.hora} · ${r.kilometraje ? r.kilometraje.toLocaleString() + ' km' : ''}</div>
@@ -678,12 +804,12 @@
             lucide.createIcons();
         }
 
-        // 5. GENERACIÓN DE PDF CLIENT-SIDE
+        // Generador de PDF con los 24 ítems y fotos
         async function downloadPDF(id) {
             const record = historialData.find(r => r.id === id);
             if (!record) return;
 
-            showToast("Generando PDF...", "info");
+            showToast("Generando PDF con fotos...", "info");
 
             try {
                 document.getElementById('pdf-fecha').textContent = record.fecha;
@@ -700,15 +826,26 @@
                 const items = Array.isArray(record.checklist) ? record.checklist : [];
                 items.forEach((c, idx) => {
                     tbody.innerHTML += `
-                        <tr style="height: 18px;">
+                        <tr style="height: 14px;">
                             <td style="border: 1px solid black; text-align: center; font-weight: bold;">${idx + 1}</td>
-                            <td style="border: 1px solid black; padding: 3px;">${c.item}</td>
+                            <td style="border: 1px solid black; padding: 2px;">${c.item}</td>
                             <td style="border: 1px solid black; text-align: center; font-weight: bold;">${c.estado === 'SI' ? 'X' : ''}</td>
                             <td style="border: 1px solid black; text-align: center; font-weight: bold;">${c.estado === 'NO' ? 'X' : ''}</td>
                             <td style="border: 1px solid black; text-align: center; font-weight: bold;">${c.estado === 'NA' ? 'X' : ''}</td>
                         </tr>
                     `;
                 });
+
+                // Cargar Fotos en el PDF
+                const photoBox = document.getElementById('pdf-photos-container');
+                photoBox.innerHTML = '';
+                if (record.fotosEvidencia && record.fotosEvidencia.length > 0) {
+                    record.fotosEvidencia.forEach(src => {
+                        photoBox.innerHTML += `<img src="${src}" style="height: 60px; width: 60px; object-fit: cover; border: 1px solid black; border-radius: 4px;" />`;
+                    });
+                } else {
+                    photoBox.innerHTML = '<span style="font-size: 7px; color: #666;">Sin fotografías adjuntas</span>';
+                }
 
                 if (record.firmaConductor) {
                     document.getElementById('pdf-firma-conductor').src = record.firmaConductor;
@@ -721,7 +858,7 @@
                 template.style.left = '0';
                 template.style.top = '0';
 
-                await new Promise(r => setTimeout(r, 200));
+                await new Promise(r => setTimeout(r, 250));
 
                 const canvas = await html2canvas(template, { scale: 2.2, useCORS: true });
                 const imgData = canvas.toDataURL('image/png');
@@ -745,7 +882,6 @@
             }
         }
 
-        // 6. UI HELPERS
         function switchTab(tab) {
             const tabReg = document.getElementById('tab-registro');
             const tabHist = document.getElementById('tab-historial');
