@@ -1,5 +1,3 @@
-"use client";
-
 import React from "react";
 import { TableSkeleton } from "./TableSkeleton";
 import { ErrorState } from "./ErrorState";
