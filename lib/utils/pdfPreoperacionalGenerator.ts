@@ -1,6 +1,6 @@
 // lib/utils/pdfPreoperacionalGenerator.ts
-// Generador Oficial de PDF IMTO-F-010 / HSEQ-FOR-08 para Trans Services A&B
-// Formato profesional de alta densidad en tamaño Carta con los 32 puntos técnicos normativos
+// Generador Oficial de PDF MTO-F-010 (Versión 04) para Trans Services A&B
+// Formato profesional de ingeniería documental SIG HSEQ-PESV en tamaño Carta con 100% de retención de datos
 
 import {
   InspeccionPreoperacionalDto,
@@ -17,32 +17,27 @@ interface PreoperacionalPdfData extends InspeccionPreoperacionalDto {
   conductorVencimiento?: string;
   conductorTelefono?: string;
   turno?: string;
+  ubicacion?: string;
 }
 
 const PALETTE = {
-  primary: [30, 58, 138] as [number, number, number],       // Azul Institucional #1E3A8A
-  primaryDark: [15, 23, 42] as [number, number, number],     // Asphalt 900
-  primaryLight: [239, 246, 255] as [number, number, number], // Azul Hielo #EFF6FF
-  textMain: [15, 23, 42] as [number, number, number],        // Slate 900
-  textMuted: [71, 85, 105] as [number, number, number],      // Slate 600
-  border: [203, 213, 225] as [number, number, number],       // Slate 300
-  borderLight: [226, 232, 240] as [number, number, number],  // Slate 200
-  bgCard: [248, 250, 252] as [number, number, number],       // Slate 50
+  headerGreen: [217, 234, 211] as [number, number, number],   // Verde institucional de sección #D9EAD3
+  headerGreenText: [20, 50, 20] as [number, number, number],  // Verde oscuro texto
+  lineDark: [0, 0, 0] as [number, number, number],            // Línea negra fina formato oficial
+  textBlack: [0, 0, 0] as [number, number, number],           // Texto principal negro
+  textMuted: [70, 70, 70] as [number, number, number],        // Gris técnico
   white: [255, 255, 255] as [number, number, number],
-  green: [22, 163, 74] as [number, number, number],          // OK Green
-  greenBg: [240, 253, 244] as [number, number, number],
-  greenBorder: [187, 247, 208] as [number, number, number],
-  yellow: [202, 138, 4] as [number, number, number],         // Warning Yellow
-  yellowBg: [254, 252, 232] as [number, number, number],
-  yellowBorder: [254, 240, 138] as [number, number, number],
-  red: [220, 38, 38] as [number, number, number],            // Alert Red
-  redBg: [254, 242, 242] as [number, number, number],
-  redBorder: [254, 202, 202] as [number, number, number],
+  greenBg: [198, 239, 206] as [number, number, number],       // Verde Apto #C6EFCE
+  greenText: [0, 97, 0] as [number, number, number],
+  yellowBg: [255, 235, 156] as [number, number, number],      // Amarillo Con Observación #FFEB9C
+  yellowText: [156, 101, 0] as [number, number, number],
+  redBg: [255, 199, 206] as [number, number, number],         // Rojo No Apto #FFC7CE
+  redText: [156, 0, 6] as [number, number, number],
 };
 
 async function loadLogoImage(): Promise<string | null> {
   if (typeof window === "undefined") return null;
-  const urls = ["/logo.png", "./logo.png", "/assets/logo.png"];
+  const urls = ["/logo.png", "./logo.png", "/assets/logo.png", "./assets/logo.png"];
   for (const u of urls) {
     try {
       const resp = await fetch(u);
@@ -64,14 +59,11 @@ async function loadLogoImage(): Promise<string | null> {
 function formatDate(dateStr?: string): string {
   if (!dateStr) return "—";
   try {
-    const d = new Date(dateStr);
-    if (!isNaN(d.getTime())) {
-      return d.toLocaleDateString("es-CO", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      });
-    }
+    const clean = dateStr.split("T")[0];
+    const [y, m, d] = clean.split("-");
+    if (y && m && d) return `${d}/${m}/${y}`;
+    const dt = new Date(dateStr);
+    if (!isNaN(dt.getTime())) return dt.toLocaleDateString("es-CO");
   } catch {
     // fallback
   }
@@ -81,12 +73,9 @@ function formatDate(dateStr?: string): string {
 function formatTime(dateStr?: string): string {
   if (!dateStr) return "—";
   try {
-    const d = new Date(dateStr);
-    if (!isNaN(d.getTime())) {
-      return d.toLocaleTimeString("es-CO", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+    const dt = new Date(dateStr);
+    if (!isNaN(dt.getTime())) {
+      return dt.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
     }
   } catch {
     // fallback
@@ -112,372 +101,351 @@ export async function generatePreoperacionalPDF(data: PreoperacionalPdfData): Pr
   const logoBase64 = await loadLogoImage();
 
   // =========================================================
-  // HEADER OFICIAL DEL SISTEMA INTEGRADO DE GESTIÓN (SIG)
+  // ENCABEZADO OFICIAL REPLICADO EXACTO AL FORMATO MTO-F-010
   // =========================================================
-  const headerH = 17;
-  const colLogoW = 34;
+  const headerH = 15;
+  const colLogoW = 38;
   const colDocW = 46;
   const colTitleW = cw - colLogoW - colDocW;
 
-  doc.setDrawColor(...PALETTE.border);
-  doc.setLineWidth(0.35);
+  doc.setDrawColor(...PALETTE.lineDark);
+  doc.setLineWidth(0.25);
   doc.setFillColor(...PALETTE.white);
   doc.rect(m, m, cw, headerH, "FD");
 
-  // Columna 1: Logo
+  // Columna 1: Logo Oficial con texto
   doc.line(m + colLogoW, m, m + colLogoW, m + headerH);
   if (logoBase64) {
     try {
-      doc.addImage(logoBase64, "PNG", m + 2, m + 1.5, colLogoW - 4, headerH - 3);
+      doc.addImage(logoBase64, "PNG", m + 1.5, m + 1, colLogoW - 3, headerH - 3.5);
     } catch {
-      doc.setFontSize(7);
+      doc.setFontSize(7.5);
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(...PALETTE.primary);
-      doc.text("TRANS SERVICES A&B", m + colLogoW / 2, m + headerH / 2, { align: "center" });
+      doc.setTextColor(...PALETTE.textBlack);
+      doc.text("TRANS SERVICES A&B", m + colLogoW / 2, m + 7, { align: "center" });
     }
   } else {
-    doc.setFontSize(7);
+    doc.setFontSize(7.5);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(...PALETTE.primary);
-    doc.text("TRANS SERVICES A&B", m + colLogoW / 2, m + headerH / 2, { align: "center" });
+    doc.setTextColor(...PALETTE.textBlack);
+    doc.text("TRANS SERVICES A&B", m + colLogoW / 2, m + 7, { align: "center" });
   }
-
-  // Columna 2: Títulos Institucionales
-  doc.setFontSize(7.5);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...PALETTE.primaryDark);
-  doc.text("COOPERATIVA DE TRANSPORTES Y SERVICIOS A&B", m + colLogoW + colTitleW / 2, m + 4.5, { align: "center" });
-
-  doc.setFontSize(6);
+  doc.setFontSize(4.8);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...PALETTE.textMuted);
-  doc.text("SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO Y PESV", m + colLogoW + colTitleW / 2, m + 8, { align: "center" });
+  doc.text("COOPERATIVA DE TRANSPORTES Y SERVICIOS A&B", m + colLogoW / 2, m + headerH - 1.5, { align: "center" });
 
-  doc.setFontSize(8.5);
+  // Columna 2: Título Central
+  doc.setFontSize(8.0);
   doc.setFont("helvetica", "bold");
-  doc.setTextColor(...PALETTE.primary);
-  doc.text("INSPECCIÓN PREOPERACIONAL DIARIA DE VEHÍCULOS", m + colLogoW + colTitleW / 2, m + 13.5, { align: "center" });
+  doc.setTextColor(...PALETTE.textBlack);
+  doc.text("INSPECCION PREOPERACIONAL DE VEHÍCULOS", m + colLogoW + colTitleW / 2, m + 6.5, { align: "center" });
+  doc.text("DE SERVICIO ESPECIAL DE PASAJEROS", m + colLogoW + colTitleW / 2, m + 10.0, { align: "center" });
+  doc.setFontSize(5.5);
+  doc.setFont("helvetica", "normal");
+  doc.text("FORMATO OFICIAL PESV / SG-SST", m + colLogoW + colTitleW / 2, m + 13.5, { align: "center" });
 
-  // Columna 3: Control Documental
+  // Columna 3: Control Documental Normativo
   const xDoc = m + colLogoW + colTitleW;
   doc.line(xDoc, m, xDoc, m + headerH);
-
   const docRowH = headerH / 4;
   for (let i = 1; i < 4; i++) {
     doc.line(xDoc, m + docRowH * i, m + cw, m + docRowH * i);
   }
 
-  const renderDocRow = (label: string, val: string, rowIdx: number, color = PALETTE.primaryDark, isBold = true) => {
-    const yRow = m + docRowH * rowIdx;
-    doc.setFontSize(5.2);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(...PALETTE.textMuted);
-    doc.text(label, xDoc + 2, yRow + 3);
+  doc.setFontSize(5.8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...PALETTE.textBlack);
+  doc.text("MTO-F-010", xDoc + colDocW / 2, m + 2.8, { align: "center" });
 
-    doc.setFontSize(5.8);
-    doc.setFont("helvetica", isBold ? "bold" : "normal");
-    doc.setTextColor(...color);
-    doc.text(val, m + cw - 2, yRow + 3, { align: "right" });
-  };
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(5.0);
+  doc.text("Versión: 04", xDoc + colDocW / 2, m + docRowH + 2.6, { align: "center" });
+  doc.text("Fecha: 2025/08/26", xDoc + colDocW / 2, m + docRowH * 2 + 2.6, { align: "center" });
+  doc.text("Página 1 de 1", xDoc + colDocW / 2, m + docRowH * 3 + 2.6, { align: "center" });
 
-  renderDocRow("CÓDIGO:", "IMTO-F-010 / HSEQ-FOR-08", 0, PALETTE.primary, true);
-  renderDocRow("VERSIÓN:", "04", 1, PALETTE.primaryDark, true);
-  renderDocRow("VIGENCIA:", "2026", 2, PALETTE.textMuted, false);
-
-  const conceptText =
-    data.estadoConcepto === "apto"
-      ? "APTO"
-      : data.estadoConcepto === "no_apto"
-      ? "NO APTO"
-      : "APTO C/NOVEDAD";
-  const conceptColor =
-    data.estadoConcepto === "apto"
-      ? PALETTE.green
-      : data.estadoConcepto === "no_apto"
-      ? PALETTE.red
-      : PALETTE.yellow;
-
-  renderDocRow("CONCEPTO:", conceptText, 3, conceptColor, true);
-
-  let y = m + headerH + 2;
+  let y = m + headerH;
 
   // =========================================================
-  // HELPERS
+  // HELPER: ENCABEZADO DE SECCIÓN CON VERDE OFICIAL
   // =========================================================
   function drawSectionHeader(title: string, yPos: number): number {
-    doc.setFillColor(...PALETTE.primary);
-    doc.rect(m, yPos, cw, 4.2, "F");
-    doc.setFontSize(6.2);
+    doc.setFillColor(...PALETTE.headerGreen);
+    doc.setDrawColor(...PALETTE.lineDark);
+    doc.setLineWidth(0.2);
+    doc.rect(m, yPos, cw, 3.8, "FD");
+    doc.setFontSize(5.8);
     doc.setFont("helvetica", "bold");
-    doc.setTextColor(...PALETTE.white);
-    doc.text(title, m + 2.5, yPos + 3.0);
-    return yPos + 4.2;
+    doc.setTextColor(...PALETTE.headerGreenText);
+    doc.text(title, m + cw / 2, yPos + 2.6, { align: "center" });
+    return yPos + 3.8;
   }
 
-  function drawCell(
-    label: string,
-    value: string | number | undefined | null,
-    xPos: number,
-    yPos: number,
-    cellW: number,
-    cellH: number,
-    isHighlight = false
-  ) {
-    doc.setDrawColor(...PALETTE.border);
-    doc.setLineWidth(0.2);
-    doc.setFillColor(...(isHighlight ? PALETTE.primaryLight : PALETTE.white));
+  function drawGridCell(label: string, value: string | undefined, xPos: number, yPos: number, cellW: number, cellH: number, labelW = 0) {
+    doc.setDrawColor(...PALETTE.lineDark);
+    doc.setLineWidth(0.15);
+    doc.setFillColor(...PALETTE.white);
     doc.rect(xPos, yPos, cellW, cellH, "FD");
 
-    doc.setFontSize(4.6);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(...PALETTE.textMuted);
-    doc.text(label.toUpperCase(), xPos + 1.2, yPos + 2.2);
-
-    doc.setFontSize(6.2);
-    doc.setFont("helvetica", isHighlight ? "bold" : "normal");
-    doc.setTextColor(...(isHighlight ? PALETTE.primary : PALETTE.textMain));
-    const valStr = value != null && String(value).trim() !== "" ? String(value) : "—";
-    doc.text(valStr, xPos + 1.2, yPos + cellH - 1.2, { maxWidth: cellW - 2.4 });
-  }
-
-  // =========================================================
-  // SECCIÓN 1: DATOS DEL VEHÍCULO Y DEL CONDUCTOR
-  // =========================================================
-  y = drawSectionHeader("1. INFORMACIÓN DE IDENTIFICACIÓN Y OPERACIÓN", y);
-  const cH = 6.4;
-  const w4 = cw / 4;
-
-  // Fila 1: Placa, Tipo, Modelo/Color, Empresa
-  drawCell("Placa Vehículo", data.placa, m, y, w4, cH, true);
-  drawCell("Tipo Vehículo", data.vehiculoTipo || "Camioneta", m + w4, y, w4, cH);
-  drawCell("Modelo / Color", `${data.vehiculoModelo || "—"} / ${data.vehiculoColor || "—"}`, m + w4 * 2, y, w4, cH);
-  drawCell("Empresa / Proyecto", data.vehiculoEmpresa || "TRANS SERVICES A&B", m + w4 * 3, y, w4, cH);
-  y += cH;
-
-  // Fila 2: Conductor, Cédula, Licencia, Vencimiento
-  drawCell("Nombre Conductor", data.conductorNombre, m, y, w4 * 1.3, cH, true);
-  drawCell("Cédula Ciudadanía", data.conductorDocumento || "—", m + w4 * 1.3, y, w4 * 0.7, cH);
-  drawCell("Licencia Conducción", data.conductorLicencia || "—", m + w4 * 2, y, w4, cH);
-  drawCell("Vencimiento Licencia", formatDate(data.conductorVencimiento), m + w4 * 3, y, w4, cH);
-  y += cH;
-
-  // Fila 3: Fecha, Hora, Odómetro KM, Concepto PESV
-  drawCell("Fecha Inspección", formatDate(data.fecha), m, y, w4, cH);
-  drawCell("Hora Registro", formatTime(data.fecha), m + w4, y, w4, cH);
-  drawCell("Odómetro (KM)", data.kilometraje ? `${data.kilometraje.toLocaleString()} KM` : "—", m + w4 * 2, y, w4, cH, true);
-  drawCell("Estado PESV Paso 14", "INSPECCIÓN VIGENTE", m + w4 * 3, y, w4, cH, true);
-  y += cH + 1.5;
-
-  // =========================================================
-  // SECCIÓN 2: LISTA DE CHEQUEO TÉCNICO DE 32 PUNTOS (2 COLUMNAS)
-  // =========================================================
-  y = drawSectionHeader("2. LISTA DE CHEQUEO TÉCNICO REGAMENTARIO (32 PUNTOS DE CONTROL)", y);
-
-  const colW = (cw - 1.5) / 2;
-  const itemRowH = 4.1;
-
-  // División lógica de las 7 secciones en 2 columnas equilibradas
-  // Columna Izquierda: A (5), B (7), C (7) = 19 ítems
-  // Columna Derecha: D (3), E (6), F (4), G (2) = 15 ítems
-  const leftSections = [
-    PREOPERACIONAL_SECCIONES.parteA,
-    PREOPERACIONAL_SECCIONES.parteB,
-    PREOPERACIONAL_SECCIONES.parteC,
-  ];
-
-  const rightSections = [
-    PREOPERACIONAL_SECCIONES.parteD,
-    PREOPERACIONAL_SECCIONES.parteE,
-    PREOPERACIONAL_SECCIONES.parteF,
-    PREOPERACIONAL_SECCIONES.parteG,
-  ];
-
-  function renderChecklistColumn(
-    sections: (typeof PREOPERACIONAL_SECCIONES)[keyof typeof PREOPERACIONAL_SECCIONES][],
-    startX: number,
-    startY: number
-  ): number {
-    let currY = startY;
-
-    sections.forEach((sec) => {
-      // Sub-encabezado de sección
-      doc.setFillColor(...PALETTE.primaryLight);
-      doc.rect(startX, currY, colW, 3.8, "F");
-      doc.setDrawColor(...PALETTE.border);
-      doc.rect(startX, currY, colW, 3.8);
-
+    if (labelW > 0) {
+      doc.setFillColor(245, 245, 245);
+      doc.rect(xPos, yPos, labelW, cellH, "FD");
       doc.setFontSize(5.0);
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(...PALETTE.primary);
-      doc.text(`${sec.codigo}. ${sec.titulo.toUpperCase()} (${sec.subtitulo})`, startX + 2, currY + 2.6);
-      currY += 3.8;
+      doc.setTextColor(...PALETTE.textBlack);
+      doc.text(label.toUpperCase(), xPos + 1, yPos + cellH / 2 + 1.2);
+
+      doc.setFontSize(5.5);
+      doc.setFont("helvetica", "normal");
+      doc.text(String(value || "—"), xPos + labelW + 1.5, yPos + cellH / 2 + 1.2, { maxWidth: cellW - labelW - 2 });
+    } else {
+      doc.setFontSize(4.6);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...PALETTE.textMuted);
+      doc.text(label.toUpperCase(), xPos + 1, yPos + 2.4);
+
+      doc.setFontSize(5.6);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...PALETTE.textBlack);
+      doc.text(String(value || "—"), xPos + 1, yPos + cellH - 1.2, { maxWidth: cellW - 2 });
+    }
+  }
+
+  // =========================================================
+  // 1. INFORMACIÓN GENERAL Y TRAZABILIDAD
+  // =========================================================
+  y = drawSectionHeader("1. INFORMACIÓN GENERAL DE LA INSPECCIÓN Y VEHÍCULO", y);
+  const rH = 5.0;
+
+  // Fila 1: UBICACIÓN | PLACA | FECHA | HORA
+  const w4 = cw / 4;
+  drawGridCell("UBICACIÓN", data.ubicacion || data.sede || "Villagarzón, Putumayo", m, y, w4 * 1.3, rH, 22);
+  drawGridCell("PLACA", data.placa, m + w4 * 1.3, y, w4 * 0.7, rH, 14);
+  drawGridCell("FECHA", formatDate(data.fecha), m + w4 * 2, y, w4, rH, 14);
+  drawGridCell("HORA", formatTime(data.created_at || data.fecha), m + w4 * 3, y, w4, rH, 12);
+  y += rH;
+
+  // Fila 2: KILOMETRAJE | COMBUSTIBLE | TIPO VEHÍCULO | TURNO
+  drawGridCell("KILOMETRAJE", data.kilometraje ? `${data.kilometraje.toLocaleString("es-CO")} km` : "—", m, y, w4, rH, 22);
+  drawGridCell("NIVEL COMBUSTIBLE", data.nivel_combustible ? `${data.nivel_combustible}%` : "—", m + w4, y, w4, rH, 26);
+  drawGridCell("TIPO VEHÍCULO", data.vehiculoTipo || "Camioneta", m + w4 * 2, y, w4, rH, 20);
+  drawGridCell("TURNO / JORNADA", data.turno || "Día", m + w4 * 3, y, w4, rH, 22);
+  y += rH;
+
+  // Fila 3: CONDUCTOR | CÉDULA / LICENCIA | VENCIMIENTO LICENCIA | TELÉFONO
+  drawGridCell("CONDUCTOR", data.conductor_nombre || "—", m, y, w4 * 1.4, rH, 22);
+  drawGridCell("CÉDULA / LICENCIA", data.conductorLicencia || data.conductor_id || "—", m + w4 * 1.4, y, w4 * 0.9, rH, 26);
+  drawGridCell("VENCE LICENCIA", formatDate(data.conductorVencimiento), m + w4 * 2.3, y, w4 * 0.85, rH, 22);
+  drawGridCell("TELÉFONO", data.conductorTelefono || "—", m + w4 * 3.15, y, w4 * 0.85, rH, 16);
+  y += rH;
+
+  // =========================================================
+  // 2. MATRIZ DE CHEQUEO TÉCNICO (7 SECCIONES EN 2 COLUMNAS)
+  // =========================================================
+  y = drawSectionHeader("2. LISTA DE CHEQUEO TÉCNICO OPERACIONAL (MTO-F-010)", y);
+
+  const colW = (cw - 1.5) / 2;
+  const itemRowH = 3.6;
+
+  // Clasificación de las 7 secciones en 2 columnas balanceadas
+  const colLeftSections = [
+    { key: "parteA", def: PREOPERACIONAL_SECCIONES.parteA, title: "A. PARTE EXTERNA" },
+    { key: "parteB", def: PREOPERACIONAL_SECCIONES.parteB, title: "B. PARTE INTERNA" },
+    { key: "parteC", def: PREOPERACIONAL_SECCIONES.parteC, title: "C. COMPARTIMIENTO DEL MOTOR" }
+  ];
+
+  const colRightSections = [
+    { key: "parteD", def: PREOPERACIONAL_SECCIONES.parteD, title: "D. SEGURIDAD ACTIVA / PASIVA" },
+    { key: "parteE", def: PREOPERACIONAL_SECCIONES.parteE, title: "E. DISPOSITIVOS ÓPTICOS" },
+    { key: "parteF", def: PREOPERACIONAL_SECCIONES.parteF, title: "F. ELEMENTOS PARA EMERGENCIA" },
+    { key: "parteG", def: PREOPERACIONAL_SECCIONES.parteG, title: "G. CONDUCTOR / TEST DE FATIGA" }
+  ];
+
+  function renderChecklistColumn(sections: typeof colLeftSections, startX: number, startY: number): number {
+    let curY = startY;
+
+    sections.forEach((sec) => {
+      // Encabezado de la subsección
+      doc.setFillColor(240, 240, 240);
+      doc.setDrawColor(...PALETTE.lineDark);
+      doc.setLineWidth(0.15);
+      doc.rect(startX, curY, colW, 3.2, "FD");
+
+      doc.setFontSize(4.8);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...PALETTE.textBlack);
+      doc.text(sec.title, startX + 1.2, curY + 2.2);
+
+      // Encabezados C / NC / NA
+      doc.setFontSize(4.3);
+      doc.text("C", startX + colW - 14, curY + 2.2, { align: "center" });
+      doc.text("NC", startX + colW - 8.5, curY + 2.2, { align: "center" });
+      doc.text("NA", startX + colW - 3, curY + 2.2, { align: "center" });
+      curY += 3.2;
 
       // Ítems de la sección
-      sec.items.forEach((it, idx) => {
-        const val: ValorItemChecklist = data.checklist[it.id] || "C";
-        const isAlternate = idx % 2 === 1;
+      sec.def.items.forEach((item) => {
+        const val: ValorItemChecklist = (data.checklist?.[item.id] as ValorItemChecklist) || "C";
+        const isNC = val === "NC";
 
-        doc.setFillColor(...(isAlternate ? PALETTE.bgCard : PALETTE.white));
-        doc.rect(startX, currY, colW, itemRowH, "F");
-        doc.setDrawColor(...PALETTE.borderLight);
-        doc.rect(startX, currY, colW, itemRowH);
+        doc.setFillColor(...(isNC ? [255, 235, 235] : PALETTE.white));
+        doc.rect(startX, curY, colW, itemRowH, "FD");
 
-        // Nombre del ítem
-        doc.setFontSize(4.8);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(...PALETTE.textMain);
-        doc.text(it.nombre, startX + 2, currY + 2.8, { maxWidth: colW - 20 });
+        doc.setFontSize(4.2);
+        doc.setFont("helvetica", isNC ? "bold" : "normal");
+        doc.setTextColor(...(isNC ? [180, 0, 0] : PALETTE.textBlack));
+        
+        const critMark = item.esCritico ? "*" : "";
+        doc.text(`${item.nombre} ${critMark}`, startX + 1, curY + 2.5, { maxWidth: colW - 18 });
 
-        // Badge de Cumplimiento
-        const badgeTxt = val === "C" ? "CUMPLE" : val === "NC" ? "NO CUMPLE" : "N/A";
-        const badgeColor = val === "C" ? PALETTE.green : val === "NC" ? PALETTE.red : PALETTE.textMuted;
-        const badgeBg = val === "C" ? PALETTE.greenBg : val === "NC" ? PALETTE.redBg : PALETTE.bgCard;
-
-        doc.setFillColor(...badgeBg);
-        doc.rect(startX + colW - 16, currY + 0.6, 14.5, itemRowH - 1.2, "F");
-        doc.setDrawColor(...badgeColor);
-        doc.rect(startX + colW - 16, currY + 0.6, 14.5, itemRowH - 1.2);
-
-        doc.setFontSize(4.4);
+        // Casillas C, NC, NA
         doc.setFont("helvetica", "bold");
-        doc.setTextColor(...badgeColor);
-        doc.text(badgeTxt, startX + colW - 8.75, currY + 2.7, { align: "center" });
+        doc.setFontSize(4.5);
+        if (val === "C") {
+          doc.setTextColor(...PALETTE.greenText);
+          doc.text("X", startX + colW - 14, curY + 2.5, { align: "center" });
+        } else if (val === "NC") {
+          doc.setTextColor(...PALETTE.redText);
+          doc.text("X", startX + colW - 8.5, curY + 2.5, { align: "center" });
+        } else {
+          doc.setTextColor(...PALETTE.textMuted);
+          doc.text("X", startX + colW - 3, curY + 2.5, { align: "center" });
+        }
 
-        currY += itemRowH;
+        curY += itemRowH;
       });
-      currY += 0.8;
     });
 
-    return currY;
+    return curY;
   }
 
-  const yColL = renderChecklistColumn(leftSections, m, y);
-  const yColR = renderChecklistColumn(rightSections, m + colW + 1.5, y);
-
-  y = Math.max(yColL, yColR) + 1.0;
+  const yLeft = renderChecklistColumn(colLeftSections, m, y);
+  const yRight = renderChecklistColumn(colRightSections, m + colW + 1.5, y);
+  y = Math.max(yLeft, yRight);
 
   // =========================================================
-  // SECCIÓN 3: NOVEDADES, HALLAZGOS Y OBSERVACIONES
+  // 3. RESULTADO, HALLAZGOS Y OBSERVACIONES
   // =========================================================
-  y = drawSectionHeader("3. REGISTRO DE HALLAZGOS, OBSERVACIONES Y ACCIONES CORRECTIVAS", y);
-  const obsH = 9.0;
-  doc.setDrawColor(...PALETTE.border);
+  y = drawSectionHeader("3. EVALUACIÓN DE CONCEPTO TÉCNICO Y HALLAZGOS", y);
+
+  // Barra de Concepto Técnico
+  const concepto = data.concepto || (data.apto_para_operar ? "apto" : "no_apto");
+  const isApto = concepto === "apto";
+  const isAptoObs = concepto === "apto_con_observacion";
+  const isNoApto = concepto === "no_apto";
+
+  const bannerBg = isNoApto ? PALETTE.redBg : isAptoObs ? PALETTE.yellowBg : PALETTE.greenBg;
+  const bannerText = isNoApto ? PALETTE.redText : isAptoObs ? PALETTE.yellowText : PALETTE.greenText;
+  const bannerLabel = isNoApto
+    ? "NO APTO PARA OPERAR (VEHÍCULO INMOVILIZADO HASTA CORRECCIÓN)"
+    : isAptoObs
+    ? "APTO CON OBSERVACIÓN (REQUIERE MONITOREO Y PLAN DE ACCIÓN)"
+    : "APTO PARA OPERAR (CONDICIONES TÉCNICO-MECÁNICAS Y DE SEGURIDAD ÓPTIMAS)";
+
+  doc.setFillColor(...bannerBg);
+  doc.setDrawColor(...PALETTE.lineDark);
+  doc.rect(m, y, cw, 4.5, "FD");
+  doc.setFontSize(5.8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...bannerText);
+  doc.text(`DICTAMEN TÉCNICO: ${bannerLabel}`, m + cw / 2, y + 3.0, { align: "center" });
+  y += 4.5;
+
+  // Casilla de Observaciones / Hallazgos
+  const obsH = 7.5;
   doc.setFillColor(...PALETTE.white);
+  doc.setDrawColor(...PALETTE.lineDark);
   doc.rect(m, y, cw, obsH, "FD");
 
-  doc.setFontSize(5.4);
+  doc.setFontSize(4.8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...PALETTE.textBlack);
+  doc.text("HALLAZGOS Y OBSERVACIONES:", m + 1.2, y + 2.5);
+
+  doc.setFontSize(5.2);
   doc.setFont("helvetica", "normal");
-  const obsContent =
-    data.descripcionHallazgo ||
-    data.observaciones ||
-    "Vehículo en óptimas condiciones mecánicas y de seguridad. Sin novedades críticas reportadas para la operación.";
-  doc.setTextColor(...(data.descripcionHallazgo ? PALETTE.red : PALETTE.textMuted));
-  doc.text(obsContent, m + 2, y + 3.4, { maxWidth: cw - 4, maxHeight: obsH - 2 });
-  y += obsH + 1.5;
+  const obsText = data.observaciones_generales || data.observaciones || "Sin novedades ni fallas mecánicas reportadas durante la inspección.";
+  doc.text(obsText, m + 36, y + 2.5, { maxWidth: cw - 38, maxHeight: obsH - 2 });
+  y += obsH;
 
   // =========================================================
-  // SECCIÓN 4: CONCEPTO TÉCNICO Y FIRMAS
+  // 4. CONTROL, SUPERVISIÓN Y FIRMAS OFICIALES
   // =========================================================
-  y = drawSectionHeader("4. CONCEPTO TÉCNICO DE APTITUD Y FIRMAS DE RESPONSABILIDAD", y);
+  y = drawSectionHeader("4. CONTROL, SUPERVISIÓN Y FIRMAS DE RESPONSABILIDAD", y);
 
-  const sigW = (cw - 1.5) / 2;
-  const sigH = Math.min(ph - y - 11, 24);
+  const sigW = cw / 2;
+  const sigH = 14.5;
 
-  // 4A. Firma Conductor
-  doc.setFillColor(...PALETTE.bgCard);
-  doc.setDrawColor(...PALETTE.border);
+  // Caja 1: Conductor
+  doc.setFillColor(...PALETTE.white);
   doc.rect(m, y, sigW, sigH, "FD");
 
-  doc.setFillColor(...PALETTE.primaryLight);
-  doc.rect(m, y, sigW, 3.8, "F");
-  doc.setFontSize(5.2);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...PALETTE.primary);
-  doc.text("FIRMA DEL CONDUCTOR RESPONSABLE", m + sigW / 2, y + 2.6, { align: "center" });
-
-  if (data.signature && data.signature.startsWith("data:image")) {
+  if (data.firma_conductor && typeof data.firma_conductor === "string" && data.firma_conductor.startsWith("data:image")) {
     try {
-      doc.addImage(data.signature, "PNG", m + 2, y + 4.2, sigW - 4, sigH - 11);
+      doc.addImage(data.firma_conductor, "PNG", m + 2, y + 1, sigW - 4, sigH - 7);
     } catch {
-      doc.setDrawColor(...PALETTE.textMuted);
-      doc.line(m + 4, y + sigH - 6.5, m + sigW - 4, y + sigH - 6.5);
+      // fallback
     }
-  } else {
-    doc.setDrawColor(...PALETTE.border);
-    doc.setLineDashPattern([1, 1], 0);
-    doc.line(m + 4, y + sigH - 6.5, m + sigW - 4, y + sigH - 6.5);
-    doc.setLineDashPattern([], 0);
   }
+  doc.setDrawColor(...PALETTE.lineDark);
+  doc.line(m + 4, y + sigH - 5.5, m + sigW - 4, y + sigH - 5.5);
 
-  doc.setFontSize(5.2);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...PALETTE.textMain);
-  doc.text(data.conductorNombre.substring(0, 32), m + sigW / 2, y + sigH - 3.8, { align: "center" });
-
-  doc.setFontSize(4.4);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...PALETTE.textMuted);
-  doc.text(
-    `C.C. ${data.conductorDocumento || data.conductorLicencia || "—"} | ${formatDate(data.fecha)} ${formatTime(data.fecha)}`,
-    m + sigW / 2,
-    y + sigH - 1.2,
-    { align: "center" }
-  );
-
-  // 4B. Visto Bueno HSEQ / Supervisor
-  const xH = m + sigW + 1.5;
-  doc.setFillColor(...PALETTE.bgCard);
-  doc.setDrawColor(...PALETTE.border);
-  doc.rect(xH, y, sigW, sigH, "FD");
-
-  doc.setFillColor(...PALETTE.primaryLight);
-  doc.rect(xH, y, sigW, 3.8, "F");
-  doc.setFontSize(5.2);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...PALETTE.primary);
-  doc.text("VISTO BUENO HSEQ / SUPERVISOR DE PATIO", xH + sigW / 2, y + 2.6, { align: "center" });
-
-  // Concepto destacado en la caja HSEQ
-  doc.setFillColor(...conceptBg(data.estadoConcepto));
-  doc.rect(xH + 6, y + 6, sigW - 12, 6, "F");
-  doc.setDrawColor(...conceptColor);
-  doc.rect(xH + 6, y + 6, sigW - 12, 6);
-
-  doc.setFontSize(6.5);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...conceptColor);
-  doc.text(`CONCEPTO FINAL: ${conceptText}`, xH + sigW / 2, y + 10.2, { align: "center" });
-
-  doc.setFontSize(5.2);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...PALETTE.textMain);
-  doc.text("Coordinación HSEQ & Operaciones", xH + sigW / 2, y + sigH - 3.8, { align: "center" });
-
-  doc.setFontSize(4.4);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...PALETTE.textMuted);
-  doc.text("Validación Digital Automática PESV · Resolución 40595/2022", xH + sigW / 2, y + sigH - 1.2, { align: "center" });
-
-  // =========================================================
-  // FOOTER LEGAL
-  // =========================================================
   doc.setFontSize(4.8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...PALETTE.textBlack);
+  doc.text("NOMBRE Y FIRMA CONDUCTOR QUE REALIZA LA INSPECCION", m + sigW / 2, y + sigH - 3.2, { align: "center" });
+  doc.setFontSize(4.2);
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(...PALETTE.textMuted);
-  doc.text("COOPERATIVA DE TRANSPORTES Y SERVICIOS A&B · NIT 900778421-1 · Villagarzón, Putumayo", m, ph - 3.5);
-  doc.text("Formato oficial de cumplimiento según Ley 527 de 1999 y Resolución 40595 de 2022 (PESV)", pw / 2, ph - 3.5, { align: "center" });
-  doc.text(`Expedido: ${new Date().toLocaleString("es-CO")}`, pw - m, ph - 3.5, { align: "right" });
+  doc.text(data.conductor_nombre || "Conductor Responsable", m + sigW / 2, y + sigH - 1.2, { align: "center" });
 
-  // Guardar archivo
-  const cleanPlaca = (data.placa || "VEHICULO").replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  // Caja 2: Vo.Bo. Supervisor / Ingeniero HS
+  doc.setFillColor(...PALETTE.white);
+  doc.rect(m + sigW, y, sigW, sigH, "FD");
+
+  if (data.firma_supervisor && typeof data.firma_supervisor === "string" && data.firma_supervisor.startsWith("data:image")) {
+    try {
+      doc.addImage(data.firma_supervisor, "PNG", m + sigW + 2, y + 1, sigW - 4, sigH - 7);
+    } catch {
+      // fallback
+    }
+  }
+  doc.setDrawColor(...PALETTE.lineDark);
+  doc.line(m + sigW + 4, y + sigH - 5.5, m + cw - 4, y + sigH - 5.5);
+
+  doc.setFontSize(4.8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...PALETTE.textBlack);
+  doc.text("Vo.Bo. INGENIERO HS / LyT (SUPERVISOR HSEQ)", m + sigW + sigW / 2, y + sigH - 3.2, { align: "center" });
+  doc.setFontSize(4.2);
+  doc.setFont("helvetica", "normal");
+  doc.text(data.supervisor_nombre || "Trans Services A&B S.A.S.", m + sigW + sigW / 2, y + sigH - 1.2, { align: "center" });
+  y += sigH;
+
+  // =========================================================
+  // NOTA NORMATIVA Y PIE INSTITUCIONAL
+  // =========================================================
+  doc.setFillColor(248, 248, 248);
+  doc.rect(m, y, cw, 4.5, "FD");
+  doc.setFontSize(4.2);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...PALETTE.textBlack);
+  doc.text("El Supervisor debe verificar diariamente que el formato esté totalmente diligenciado y conforme a la Resolución 40595 de 2022 (PESV).", m + cw / 2, y + 2.8, { align: "center" });
+  y += 4.5;
+
+  doc.setFontSize(4.6);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...PALETTE.textBlack);
+  doc.text('"COOPERATIVA DE TRANSPORTES Y SERVICIOS A&B"', m + 2, ph - 2.5);
+  doc.setFont("helvetica", "normal");
+  doc.text("Villagarzon Putumayo · transserviceshseq.ab@gmail.com", pw / 2, ph - 2.5, { align: "center" });
+  doc.text("MTO-F-010 V04", pw - m - 2, ph - 2.5, { align: "right" });
+
+  // =========================================================
+  // DESCARGA AUTOMÁTICA DEL PDF
+  // =========================================================
+  const cleanPlaca = (data.placa || "SIN_PLACA").replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
   const cleanFecha = (data.fecha || new Date().toISOString().split("T")[0]).replace(/[^0-9]/g, "");
-  const fileName = `IMTO-F-010_${cleanPlaca}_${cleanFecha}.pdf`;
+  const fileName = `MTO-F-010_${cleanPlaca}_${cleanFecha}.pdf`;
 
   doc.save(fileName);
-}
-
-function conceptBg(estado: string): [number, number, number] {
-  if (estado === "apto") return PALETTE.greenBg;
-  if (estado === "no_apto") return PALETTE.redBg;
-  return PALETTE.yellowBg;
 }
