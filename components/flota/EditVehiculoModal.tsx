@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { X, Save, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { FormSection, TextField, SelectField } from "@/components/ui/FormField";
 import { Vehiculo, EstadoVehiculo, ServicioVehiculo } from "@/lib/types/vehiculo";
 import { updateVehiculoAction } from "@/lib/services/vehiculos.service";
+import { getContratistasDb } from "@/lib/services/contratistas.service";
+import { Contratista } from "@/lib/types/contratista";
 
 const ESTADO_OPTIONS = [
   { value: "activo", label: "Activo" },
@@ -33,6 +35,21 @@ export function EditVehiculoModal({
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [contratistas, setContratistas] = useState<Contratista[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      getContratistasDb().then((data) => setContratistas(data || []));
+    }
+  }, [isOpen]);
+
+  const contratistaOptions = [
+    { value: "", label: "Flota Propia / Sin Contratista" },
+    ...contratistas.map((c) => ({
+      value: c.id,
+      label: `${c.nombre} (NIT: ${c.nit})`,
+    })),
+  ];
 
   if (!isOpen) return null;
 
@@ -107,6 +124,12 @@ export function EditVehiculoModal({
               name="servicio"
               defaultValue={vehiculo.servicio}
               options={SERVICIO_OPTIONS}
+            />
+            <SelectField
+              label="Contratista / Empresa"
+              name="contratistaId"
+              defaultValue={vehiculo.contratistaId}
+              options={contratistaOptions}
               wrapperClassName="sm:col-span-2"
             />
           </FormSection>

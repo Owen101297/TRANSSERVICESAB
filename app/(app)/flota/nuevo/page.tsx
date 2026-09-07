@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, AlertCircle } from "lucide-react";
@@ -8,6 +8,8 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { FormSection, TextField, SelectField } from "@/components/ui/FormField";
 import { createVehiculoAction } from "@/lib/services/vehiculos.service";
+import { getContratistasDb } from "@/lib/services/contratistas.service";
+import { Contratista } from "@/lib/types/contratista";
 
 const TIPO_OPTIONS = [
   { value: "bus", label: "Bus" },
@@ -24,18 +26,23 @@ const SERVICIO_OPTIONS = [
   { value: "turismo", label: "Turismo" },
 ];
 
-const CONTRATISTA_OPTIONS = [
-  { value: "c1", label: "Contratista 1" },
-  { value: "c2", label: "Contratista 2 (rotación 12h/24h)" },
-  { value: "c3", label: "Contratista 3" },
-  { value: "c4", label: "Contratista 4" },
-  { value: "c5", label: "Contratista 5" },
-];
-
 export default function NuevoVehiculoPage() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [contratistas, setContratistas] = useState<Contratista[]>([]);
+
+  useEffect(() => {
+    getContratistasDb().then((data) => setContratistas(data || []));
+  }, []);
+
+  const contratistaOptions = [
+    { value: "", label: "Seleccionar contratista..." },
+    ...contratistas.map((c) => ({
+      value: c.id,
+      label: `${c.nombre} (NIT: ${c.nit})`,
+    })),
+  ];
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -98,10 +105,10 @@ export default function NuevoVehiculoPage() {
 
           <FormSection title="Operación">
             <SelectField
-              label="Contratista"
+              label="Contratista / Empresa"
               name="contratistaId"
               required
-              options={CONTRATISTA_OPTIONS}
+              options={contratistaOptions}
             />
             <SelectField
               label="Tipo de servicio"
