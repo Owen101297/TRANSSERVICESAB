@@ -15,6 +15,7 @@ import {
   HelpCircle,
   Camera,
   PenTool,
+  ExternalLink,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -45,8 +46,8 @@ export default function NuevaCapacitacionPage() {
   const [objetivo, setObjetivo] = useState("");
   const [asistentesEsperados, setAsistentesEsperados] = useState("10");
 
-  // Material State
-  const [materialTipo, setMaterialTipo] = useState<"texto" | "video" | "pdf">("texto");
+  // Material State (Google Form como opción por defecto e integrada)
+  const [materialTipo, setMaterialTipo] = useState<"google_form" | "texto" | "video" | "pdf">("google_form");
   const [materialUrl, setMaterialUrl] = useState("");
   const [materialContenido, setMaterialContenido] = useState("");
 
@@ -55,18 +56,7 @@ export default function NuevaCapacitacionPage() {
   const [requiereFirma, setRequiereFirma] = useState(true);
 
   // Preguntas State
-  const [preguntas, setPreguntas] = useState<PreguntaForm[]>([
-    {
-      id: 1,
-      pregunta: "¿Cuál es la recomendación principal de esta charla de seguridad?",
-      opciones: [
-        "Mantener distancia de seguridad y respetar límites",
-        "Aumentar la velocidad en tramos rectos",
-        "No realizar inspección preoperacional",
-      ],
-      respuestaCorrecta: 0,
-    },
-  ]);
+  const [preguntas, setPreguntas] = useState<PreguntaForm[]>([]);
 
   const handleTipoChange = (newTipo: string) => {
     setTipo(newTipo);
@@ -341,31 +331,62 @@ export default function NuevaCapacitacionPage() {
                 El conductor podrá ver este contenido en su celular antes de firmar la asistencia.
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setMaterialTipo("google_form")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 ${
+                  materialTipo === "google_form"
+                    ? "bg-emerald-500 text-asphalt-950 border-emerald-500 shadow"
+                    : "bg-asphalt-950 text-fog-400 border-line-600 hover:text-paper-50"
+                }`}
+              >
+                <ExternalLink size={13} /> Google Form / Nube
+              </button>
               <button
                 type="button"
                 onClick={() => setMaterialTipo("texto")}
-                className={`px-3 py-1 rounded-lg text-xs font-bold border transition-colors ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 ${
                   materialTipo === "texto"
-                    ? "bg-signal-amber text-asphalt-950 border-signal-amber"
-                    : "bg-asphalt-950 text-fog-400 border-line-600"
+                    ? "bg-signal-amber text-asphalt-950 border-signal-amber shadow"
+                    : "bg-asphalt-950 text-fog-400 border-line-600 hover:text-paper-50"
                 }`}
               >
-                <FileText size={13} className="inline mr-1" /> Texto
+                <FileText size={13} /> Texto Directo
               </button>
               <button
                 type="button"
                 onClick={() => setMaterialTipo("video")}
-                className={`px-3 py-1 rounded-lg text-xs font-bold border transition-colors ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors flex items-center gap-1.5 ${
                   materialTipo === "video"
-                    ? "bg-radar-cyan text-asphalt-950 border-radar-cyan"
-                    : "bg-asphalt-950 text-fog-400 border-line-600"
+                    ? "bg-radar-cyan text-asphalt-950 border-radar-cyan shadow"
+                    : "bg-asphalt-950 text-fog-400 border-line-600 hover:text-paper-50"
                 }`}
               >
-                <Video size={13} className="inline mr-1" /> Video (YouTube)
+                <Video size={13} /> Video (YouTube)
               </button>
             </div>
           </div>
+
+          {materialTipo === "google_form" && (
+            <div className="p-4 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 space-y-3">
+              <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+                <ExternalLink size={15} />
+                <span>Enlace a Google Form / Material en la Nube</span>
+              </div>
+              <p className="text-xs text-fog-400">
+                Pega la URL de tu formulario de Google (ej: <code className="text-emerald-300">https://forms.gle/...</code> o <code className="text-emerald-300">https://docs.google.com/forms/...</code>). El participante responderá las preguntas en Google Forms y registrará su firma legal en el ERP.
+              </p>
+              <input
+                type="url"
+                required
+                placeholder="https://forms.gle/abcdef123456..."
+                value={materialUrl}
+                onChange={(e) => setMaterialUrl(e.target.value)}
+                className="w-full bg-asphalt-950 border border-emerald-500/50 focus:border-emerald-400 rounded-xl px-3.5 py-2.5 text-paper-50 text-sm font-mono focus:outline-none"
+              />
+            </div>
+          )}
 
           {materialTipo === "video" && (
             <div>
@@ -384,11 +405,11 @@ export default function NuevaCapacitacionPage() {
 
           <div>
             <label className="block text-xs font-mono font-bold text-fog-400 uppercase mb-1">
-              Puntos Clave y Recomendaciones para el Conductor
+              Instrucciones / Puntos Clave para el Conductor (Opcional)
             </label>
             <textarea
-              rows={4}
-              placeholder="1. Antes de iniciar la marcha, ajuste espejos retrovisores y verifique puntos ciegos.&#10;2. En caso de lluvia o lodo, reduzca la velocidad en un 50%.&#10;3. Mantenga siempre las luces encendidas en corredores petroleros..."
+              rows={3}
+              placeholder="Instrucciones adicionales o recomendaciones para los conductores..."
               value={materialContenido}
               onChange={(e) => setMaterialContenido(e.target.value)}
               className="w-full bg-asphalt-950 border border-line-600 rounded-xl p-3 text-paper-50 text-sm focus:border-signal-amber focus:outline-none leading-relaxed"
@@ -401,10 +422,12 @@ export default function NuevaCapacitacionPage() {
           <div className="border-b border-line-600 pb-3 flex items-center justify-between">
             <div>
               <h2 className="font-[family-name:var(--font-display)] text-lg font-bold text-paper-50 uppercase tracking-wide">
-                03 · Validación de Comprensión (Evaluación Rápida)
+                03 · Validación de Comprensión (Evaluación)
               </h2>
               <p className="text-xs text-fog-400">
-                Preguntas de selección múltiple para verificar que el conductor leyó y comprendió el tema.
+                {materialTipo === "google_form"
+                  ? "Las preguntas se responden en tu Google Form. Si deseas agregar preguntas adicionales en el ERP, puedes añadirlas aquí."
+                  : "Preguntas de selección múltiple para verificar que el conductor leyó y comprendió el tema."}
               </p>
             </div>
             <Button
@@ -414,9 +437,16 @@ export default function NuevaCapacitacionPage() {
               onClick={addPregunta}
               className="text-xs flex items-center gap-1 text-signal-amber border-signal-amber/30"
             >
-              <Plus size={14} /> Agregar Pregunta
+              <Plus size={14} /> Agregar Pregunta ERP
             </Button>
           </div>
+
+          {materialTipo === "google_form" && preguntas.length === 0 && (
+            <div className="p-4 rounded-xl bg-asphalt-950/60 border border-line-600 text-center text-xs text-fog-400 space-y-1">
+              <span className="text-emerald-400 font-bold block">✓ Evaluación gestionada externamente con Google Forms</span>
+              <span>El enlace de tu Google Form se incluirá automáticamente en la difusión por WhatsApp y en el portal de asistencia.</span>
+            </div>
+          )}
 
           <div className="space-y-4">
             {preguntas.map((p, pIdx) => (

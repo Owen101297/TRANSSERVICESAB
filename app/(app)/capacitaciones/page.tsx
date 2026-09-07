@@ -22,6 +22,9 @@ import {
   ChevronRight,
   AlertTriangle,
   Award,
+  Share2,
+  Copy,
+  Check,
 } from "lucide-react";
 import { Card, StatCard } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -40,6 +43,7 @@ export default function CapacitacionesPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"todas" | "pesv" | "sg-sst">("todas");
   const [searchQuery, setSearchQuery] = useState("");
+  const [copiedCapId, setCopiedCapId] = useState<string | null>(null);
   const [stats, setStats] = useState({
     totalCount: 0,
     totalPesv: 0,
@@ -99,6 +103,40 @@ export default function CapacitacionesPage() {
     setTimeout(() => {
       window.print();
     }, 150);
+  };
+
+  const handleShareWhatsApp = (cap: Capacitacion) => {
+    const fechaStr = new Date(cap.fecha).toLocaleDateString("es-CO", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    });
+
+    const linkForms = cap.materialUrl
+      ? `\n📝 *1. Ver Material y Responder Evaluación:*\n👉 ${cap.materialUrl}\n`
+      : "";
+
+    const linkFirma = `\n✍️ *${cap.materialUrl ? "2. " : ""}Registrar Asistencia Legal (TH-FOR-03):*\n👉 https://erp.transservicesab.com/asistir?tema=${encodeURIComponent(cap.nombre)}`;
+
+    const mensaje = 
+`🎓 *TRANS SERVICES S.A.S. - CAPACITACIÓN & EVALUACIÓN*
+📋 *Tema:* ${cap.nombre}
+⏱️ *Duración:* ${cap.duracionHoras}h (${Math.round(cap.duracionHoras * 60)} min)
+📅 *Fecha:* ${fechaStr}
+${cap.objetivo ? `🎯 *Objetivo:* ${cap.objetivo}\n` : ""}${linkForms}${linkFirma}
+
+_Cumplimiento Normativo PESV Res. 40595/2022 y SG-SST Dec. 1072_`;
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, "_blank");
+  };
+
+  const handleCopyLink = (cap: Capacitacion) => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      const link = `https://erp.transservicesab.com/asistir?tema=${encodeURIComponent(cap.nombre)}`;
+      navigator.clipboard.writeText(link);
+      setCopiedCapId(cap.id);
+      setTimeout(() => setCopiedCapId(null), 2500);
+    }
   };
 
   return (
@@ -353,6 +391,32 @@ export default function CapacitacionesPage() {
                       </div>
                     </div>
 
+                    {/* Botón WhatsApp */}
+                    <button
+                      type="button"
+                      onClick={() => handleShareWhatsApp(cap)}
+                      className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow transition-all flex items-center gap-1.5 hover:scale-105 active:scale-95"
+                      title="Compartir material y asistencia por WhatsApp"
+                    >
+                      <Share2 size={13} />
+                      <span>WhatsApp</span>
+                    </button>
+
+                    {/* Botón Copiar Enlace */}
+                    <button
+                      type="button"
+                      onClick={() => handleCopyLink(cap)}
+                      className={`px-3 py-1.5 rounded-xl border text-xs font-mono font-bold transition-all flex items-center gap-1.5 ${
+                        copiedCapId === cap.id
+                          ? "bg-ok-green/20 text-ok-green border-ok-green"
+                          : "bg-asphalt-950 hover:bg-asphalt-800 text-mist-200 border-line-600 hover:border-radar-cyan"
+                      }`}
+                      title="Copiar enlace de asistencia"
+                    >
+                      {copiedCapId === cap.id ? <Check size={13} className="text-ok-green" /> : <Copy size={13} className="text-radar-cyan" />}
+                      <span>{copiedCapId === cap.id ? "¡Copiado!" : "Copiar Link"}</span>
+                    </button>
+
                     <Button
                       variant="outline"
                       size="sm"
@@ -360,7 +424,7 @@ export default function CapacitacionesPage() {
                       className="text-xs flex items-center gap-1.5 hover:bg-asphalt-800"
                     >
                       <Camera size={13} className="text-radar-cyan" />
-                      <span>Ver Asistencias ({asistentes})</span>
+                      <span>Asistencias ({asistentes})</span>
                     </Button>
 
                     <Button
@@ -371,7 +435,7 @@ export default function CapacitacionesPage() {
                       title="Imprimir Planilla Oficial TH-FOR-04"
                     >
                       <Printer size={13} />
-                      <span>Planilla PDF</span>
+                      <span>PDF</span>
                     </Button>
                   </div>
                 </div>

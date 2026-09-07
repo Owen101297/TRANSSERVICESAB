@@ -44,7 +44,7 @@ export interface Capacitacion {
   facilitador?: string | null;
   objetivo?: string | null;
   lugar?: string | null;
-  materialTipo: "texto" | "video" | "pdf" | "presentacion";
+  materialTipo: "google_form" | "texto" | "video" | "pdf" | "presentacion";
   materialUrl?: string | null;
   materialContenido?: string | null;
   preguntas?: PreguntaEvaluacion[];

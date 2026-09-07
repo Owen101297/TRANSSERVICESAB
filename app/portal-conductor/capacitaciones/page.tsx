@@ -17,6 +17,7 @@ import {
   Award,
   RefreshCw,
   RotateCcw,
+  ExternalLink,
 } from "lucide-react";
 import { Capacitacion, PreguntaEvaluacion } from "@/lib/types/capacitacion";
 
@@ -25,13 +26,19 @@ export default function PortalCapacitacionesPage() {
   const [loading, setLoading] = useState(true);
   const [selectedCap, setSelectedCap] = useState<Capacitacion | null>(null);
 
-  // Sesión del Conductor
+  // Sesión del Conductor / Participante
   const [driverSession, setDriverSession] = useState<{
     id?: string;
     nombre?: string;
     documento?: string;
     placa?: string;
   } | null>(null);
+
+  // Datos del Participante (Para conductores propios o externos/contratistas)
+  const [participantNombre, setParticipantNombre] = useState("");
+  const [participantDocumento, setParticipantDocumento] = useState("");
+  const [participantCargo, setParticipantCargo] = useState("Conductor");
+  const [participantProyecto, setParticipantProyecto] = useState("TRANS SERVICES");
 
   // Form State para la Asistencia
   const [respuestas, setRespuestas] = useState<Record<number, number>>({});
@@ -56,9 +63,15 @@ export default function PortalCapacitacionesPage() {
     try {
       const stored = localStorage.getItem("ab_driver_session");
       if (stored) {
-        setDriverSession(JSON.parse(stored));
+        const session = JSON.parse(stored);
+        setDriverSession(session);
+        if (session.nombre) setParticipantNombre(session.nombre);
+        if (session.documento) setParticipantDocumento(session.documento);
       } else if (typeof window !== "undefined" && (window as any).TransServices?.getSession) {
-        setDriverSession((window as any).TransServices.getSession());
+        const session = (window as any).TransServices.getSession();
+        setDriverSession(session);
+        if (session.nombre) setParticipantNombre(session.nombre);
+        if (session.documento) setParticipantDocumento(session.documento);
       }
     } catch (e) {
       console.warn("No active session:", e);
@@ -222,6 +235,12 @@ export default function PortalCapacitacionesPage() {
       return;
     }
 
+    const finalNombre = (participantNombre || driverSession?.nombre || "").trim();
+    if (!finalNombre) {
+      alert("Por favor ingresa tu Nombre y Apellidos.");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const firmaDataUrl = sigCanvasRef.current?.toDataURL("image/png") || null;
@@ -240,10 +259,10 @@ export default function PortalCapacitacionesPage() {
       const payload = {
         capacitacionId: selectedCap.id,
         personaId: driverSession?.id || null,
-        personaDocumento: driverSession?.documento || null,
-        personaNombre: driverSession?.nombre || "Conductor Operativo",
-        cargo: "Conductor",
-        proyecto: "Operación General",
+        personaDocumento: participantDocumento || driverSession?.documento || null,
+        personaNombre: finalNombre,
+        cargo: participantCargo || "Conductor",
+        proyecto: participantProyecto || "TRANS SERVICES",
         firmaUrl: firmaDataUrl,
         fotoUrl: selfieBase64, // Selfie
         calificacion,
@@ -437,15 +456,43 @@ export default function PortalCapacitacionesPage() {
                   )}
                 </div>
 
-                {/* 01. MATERIAL DIDÁCTICO (VIDEO O TEXTO) */}
+                {/* 01. MATERIAL DIDÁCTICO (GOOGLE FORM, VIDEO O TEXTO) */}
                 <div className="bg-white rounded-[26px] p-5 border border-slate-200/80 shadow-sm space-y-3">
                   <div className="text-xs font-mono font-bold uppercase text-slate-400 tracking-wide flex items-center gap-2">
                     <FileText size={14} className="text-blue-600" />
-                    <span>01 • Material de Estudio & Recomendaciones</span>
+                    <span>01 • Material de Estudio & Evaluación</span>
                   </div>
 
-                  {/* Video si aplica */}
-                  {selectedCap.materialUrl && (
+                  {/* Tarjeta Google Form si aplica */}
+                  {(selectedCap.materialTipo === "google_form" || (selectedCap.materialUrl && (selectedCap.materialUrl.includes("forms") || selectedCap.materialUrl.includes("docs.google.com")))) && selectedCap.materialUrl && (
+                    <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-sm shrink-0">
+                          <ExternalLink size={20} />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-emerald-950 leading-tight">
+                            Evaluación & Material en Google Forms
+                          </h4>
+                          <p className="text-xs text-emerald-800 mt-0.5">
+                            Por favor abre el formulario oficial para estudiar el tema y responder la evaluación.
+                          </p>
+                        </div>
+                      </div>
+                      <a
+                        href={selectedCap.materialUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99]"
+                      >
+                        <span>Abrir Formulario de Google</span>
+                        <ExternalLink size={14} />
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Video si aplica (no google form) */}
+                  {selectedCap.materialUrl && !selectedCap.materialUrl.includes("forms") && !selectedCap.materialUrl.includes("docs.google.com") && selectedCap.materialTipo !== "google_form" && (
                     <div className="rounded-2xl overflow-hidden bg-black aspect-video">
                       {selectedCap.materialUrl.includes("youtube.com") || selectedCap.materialUrl.includes("youtu.be") ? (
                         <iframe
@@ -471,7 +518,7 @@ export default function PortalCapacitacionesPage() {
                     </div>
                   )}
 
-                  {/* Puntos clave */}
+                  {/* Puntos clave / Instrucciones */}
                   {selectedCap.materialContenido && (
                     <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 text-xs text-slate-800 leading-relaxed whitespace-pre-line font-medium">
                       {selectedCap.materialContenido}
@@ -524,6 +571,69 @@ export default function PortalCapacitacionesPage() {
                     </div>
                   </div>
                 )}
+
+                {/* DATOS DEL PARTICIPANTE */}
+                <div className="bg-white rounded-[26px] p-5 border border-slate-200/80 shadow-sm space-y-3">
+                  <div className="text-xs font-mono font-bold uppercase text-slate-400 tracking-wide flex items-center gap-2">
+                    <ShieldCheck size={14} className="text-emerald-600" />
+                    <span>Datos del Participante (Conductor / Tercero)</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-mono font-bold text-slate-500 uppercase mb-1">
+                        Cédula / Documento
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ej. 1122334455"
+                        value={participantDocumento}
+                        onChange={(e) => setParticipantDocumento(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-900 outline-none focus:border-slate-800"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-mono font-bold text-slate-500 uppercase mb-1">
+                        Nombre Completo *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Nombres y Apellidos"
+                        value={participantNombre}
+                        onChange={(e) => setParticipantNombre(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none focus:border-slate-800"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-mono font-bold text-slate-500 uppercase mb-1">
+                        Cargo
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ej. Conductor / Contratista / Mecánico"
+                        value={participantCargo}
+                        onChange={(e) => setParticipantCargo(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none focus:border-slate-800"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-mono font-bold text-slate-500 uppercase mb-1">
+                        Empresa / Proyecto
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Ej. TRANS SERVICES / ICBF / Gran Tierra"
+                        value={participantProyecto}
+                        onChange={(e) => setParticipantProyecto(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 outline-none focus:border-slate-800"
+                      />
+                    </div>
+                  </div>
+                </div>
 
                 {/* 03. EVIDENCIA FOTOGRÁFICA (SELFIE CON CÁMARA) */}
                 {selectedCap.requiereSelfie && (
