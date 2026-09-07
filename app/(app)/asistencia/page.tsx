@@ -14,13 +14,33 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
-  CheckCircle2
+  CheckCircle2,
+  Share2,
+  Copy,
+  Check,
+  Radio,
+  Sparkles,
+  Save,
+  MapPin,
+  MessageSquare
 } from "lucide-react";
 import { Card, StatCard } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
+
+const PRESET_TEMAS = [
+  "CHARLA 5 MINUTOS: PREVENCIÓN DE FATIGA Y CONTROL DE MICROSUEÑOS",
+  "CHARLA 5 MINUTOS: INSPECCIÓN PREOPERACIONAL Y CONDICIONES DEL VEHÍCULO",
+  "CAPACITACIÓN: MANEJO DEFENSIVO Y DISTANCIAS DE SEGURIDAD VIAL",
+  "CAPACITACIÓN: ACTUACIÓN ANTE ACCIDENTES Y PRIMEROS AUXILIOS VIALES",
+  "CHARLA 5 MINUTOS: LÍMITES DE VELOCIDAD Y CONDICIONES CLIMÁTICAS",
+  "SOCIALIZACIÓN: POLÍTICA DE NO ALCOHOL, DROGAS Y TABAQUISMO",
+  "CAPACITACIÓN: ATENCIÓN AL USUARIO Y SERVICIO EN TRANSPORTE ESPECIAL",
+  "CHARLA 5 MINUTOS: USO OBLIGATORIO DE ELEMENTOS DE PROTECCIÓN Y CINTURÓN",
+  "OTRO (PERSONALIZADO)",
+];
 
 interface AsistenciaItem {
   id: string;
@@ -56,6 +76,13 @@ export default function AsistenciaAdminPage() {
   const [signatureModal, setSignatureModal] = useState<string | null>(null);
   const [datesSummary, setDatesSummary] = useState<Record<string, { total: number; proyectos: string[] }>>({});
 
+  // Control y Divulgación del Tema Activo del Día
+  const [temaActivo, setTemaActivo] = useState<string>("CHARLA 5 MINUTOS: PREVENCIÓN DE FATIGA Y CONTROL DE MICROSUEÑOS");
+  const [lugarActivo, setLugarActivo] = useState<string>("VILLAGARZÓN (PUTUMAYO)");
+  const [selectedPreset, setSelectedPreset] = useState<string>("CHARLA 5 MINUTOS: PREVENCIÓN DE FATIGA Y CONTROL DE MICROSUEÑOS");
+  const [savingConfig, setSavingConfig] = useState<boolean>(false);
+  const [configSavedFeedback, setConfigSavedFeedback] = useState<boolean>(false);
+  const [copiedLinkFeedback, setCopiedLinkFeedback] = useState<boolean>(false);
 
   // Metadatos sincronizados para el formato legal imprimible TH-FOR-03
   const [formatoMeta, setFormatoMeta] = useState({
@@ -120,9 +147,93 @@ export default function AsistenciaAdminPage() {
     }
   };
 
+  // Cargar configuración activa del servidor
+  const fetchConfig = async () => {
+    try {
+      const res = await fetch("/api/apps/asistencia/config");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.config) {
+          if (json.config.tema) {
+            setTemaActivo(json.config.tema);
+            if (PRESET_TEMAS.includes(json.config.tema)) {
+              setSelectedPreset(json.config.tema);
+            } else {
+              setSelectedPreset("OTRO (PERSONALIZADO)");
+            }
+          }
+          if (json.config.lugar) {
+            setLugarActivo(json.config.lugar);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Aviso configuración activa:", e);
+    }
+  };
+
+  // Guardar configuración activa
+  const handleSaveConfig = async (nuevoTema?: string, nuevoLugar?: string) => {
+    const temaToSave = (nuevoTema || temaActivo || "").trim().toUpperCase();
+    const lugarToSave = (nuevoLugar || lugarActivo || "").trim().toUpperCase();
+    if (!temaToSave) return;
+
+    setSavingConfig(true);
+    try {
+      const res = await fetch("/api/apps/asistencia/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tema: temaToSave,
+          lugar: lugarToSave,
+        }),
+      });
+      if (res.ok) {
+        setConfigSavedFeedback(true);
+        setTimeout(() => setConfigSavedFeedback(false), 3000);
+      }
+    } catch (e) {
+      console.error("Error al guardar tema activo:", e);
+    } finally {
+      setSavingConfig(false);
+    }
+  };
+
+  // Compartir por WhatsApp con texto oficial
+  const handleShareWhatsApp = () => {
+    const fechaActual = new Date().toLocaleDateString("es-CO", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const mensaje = 
+`🚚 *TRANS SERVICES S.A.S. - REGISTRO DE ASISTENCIA DIARIA*
+📋 *Tema:* ${temaActivo}
+📍 *Lugar / Base:* ${lugarActivo}
+📅 *Fecha:* ${fechaActual}
+
+Estimado equipo de trabajo y conductores en ruta, por favor ingresar al siguiente enlace oficial para registrar su asistencia, selfie y firma digital:
+👉 https://erp.transservicesab.com/asistir
+
+_Cumplimiento SG-SST y PESV Res. 40595/2022_`;
+
+    window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, "_blank");
+  };
+
+  // Copiar Enlace Corto
+  const handleCopyLink = () => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText("https://erp.transservicesab.com/asistir");
+      setCopiedLinkFeedback(true);
+      setTimeout(() => setCopiedLinkFeedback(false), 2500);
+    }
+  };
 
   useEffect(() => {
     fetchDatesSummary();
+    fetchConfig();
   }, []);
 
   useEffect(() => {
@@ -324,6 +435,181 @@ export default function AsistenciaAdminPage() {
               <Printer className="w-4 h-4 text-radar-cyan" />
               <span>Imprimir / PDF</span>
             </button>
+          </div>
+        </div>
+
+        {/* ============================================================ */}
+        {/* CARD EJECUTIVA: CONTROL Y DIVULGACIÓN DE LA CHARLA DEL DÍA   */}
+        {/* ============================================================ */}
+        <div className="bg-asphalt-900 border border-radar-cyan/30 p-5 rounded-2xl shadow-xl relative overflow-hidden space-y-4">
+          {/* Subtle decorative glow */}
+          <div className="absolute top-0 right-0 w-96 h-28 bg-gradient-to-l from-radar-cyan/10 via-emerald-500/5 to-transparent pointer-events-none rounded-tr-2xl" />
+
+          {/* Encabezado de la Tarjeta */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
+            <div className="flex items-center gap-3">
+              <span className="p-2.5 bg-asphalt-950 border border-radar-cyan/40 rounded-xl text-radar-cyan flex items-center justify-center shadow-inner">
+                <Radio className="w-5 h-5 animate-pulse text-radar-cyan" />
+              </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm sm:text-base font-bold text-paper-50 tracking-wide font-[family-name:var(--font-display)]">
+                    Control y Divulgación de la Charla del Día
+                  </h2>
+                  <span className="px-2 py-0.5 bg-ok-green/15 text-ok-green border border-ok-green/30 text-[10px] font-mono font-bold rounded-full flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-ok-green animate-ping inline-block"></span>
+                    Sincronizado en Vivo
+                  </span>
+                </div>
+                <p className="text-xs text-fog-400 mt-0.5">
+                  El tema guardado aquí se cargará automáticamente a todos los conductores y personal que abran el enlace sin necesidad de escribir parámetros.
+                </p>
+              </div>
+            </div>
+
+            {/* Acciones Rápidas: WhatsApp y Copiar */}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleShareWhatsApp}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
+                title="Abrir WhatsApp con mensaje oficial pre-diligenciado"
+              >
+                <Share2 className="w-4 h-4" />
+                <span>Enviar por WhatsApp</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 border font-mono font-bold text-xs rounded-xl shadow-sm transition-all ${
+                  copiedLinkFeedback
+                    ? "bg-ok-green/20 text-ok-green border-ok-green"
+                    : "bg-asphalt-950 hover:bg-asphalt-800 text-mist-200 border-line-500 hover:border-radar-cyan"
+                }`}
+                title="Copiar enlace corto oficial"
+              >
+                {copiedLinkFeedback ? <Check className="w-4 h-4 text-ok-green" /> : <Copy className="w-4 h-4 text-radar-cyan" />}
+                <span>{copiedLinkFeedback ? "¡Enlace Copiado!" : "Copiar Enlace"}</span>
+              </button>
+
+              <a
+                href="/asistir"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-2 bg-asphalt-950 hover:bg-asphalt-800 text-fog-400 hover:text-radar-cyan border border-line-600 font-mono text-xs rounded-xl transition-colors"
+                title="Abrir vista móvil de prueba"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Probar</span>
+              </a>
+            </div>
+          </div>
+
+          {/* Formulario de Configuración del Tema */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 pt-1 border-t border-line-600/80">
+            {/* Selector de Temas Frecuentes / Preset */}
+            <div className="lg:col-span-4 space-y-1">
+              <label className="text-[11px] font-mono font-bold text-fog-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-signal-amber" />
+                Temas Frecuentes (PESV / SST)
+              </label>
+              <select
+                value={selectedPreset}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedPreset(val);
+                  if (val !== "OTRO (PERSONALIZADO)") {
+                    setTemaActivo(val);
+                    handleSaveConfig(val, lugarActivo);
+                  }
+                }}
+                className="w-full bg-asphalt-950 border border-line-600 focus:border-radar-cyan text-paper-50 rounded-xl px-3 py-2 text-xs font-mono font-medium outline-none transition-colors"
+              >
+                {PRESET_TEMAS.map((pt, i) => (
+                  <option key={i} value={pt} className="bg-asphalt-900 text-paper-50">
+                    {pt}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Input Editable de Tema */}
+            <div className="lg:col-span-5 space-y-1">
+              <label className="text-[11px] font-mono font-bold text-fog-400 uppercase tracking-wider flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-radar-cyan" />
+                Tema Activo a Transmitir
+              </label>
+              <input
+                type="text"
+                value={temaActivo}
+                onChange={(e) => {
+                  setTemaActivo(e.target.value.toUpperCase());
+                  setSelectedPreset("OTRO (PERSONALIZADO)");
+                }}
+                placeholder="ESCRIBA EL TEMA DE LA CHARLA..."
+                className="w-full bg-asphalt-950 border border-line-600 focus:border-radar-cyan text-paper-50 font-mono font-bold text-xs rounded-xl px-3 py-2 outline-none transition-colors uppercase tracking-wide placeholder:text-fog-400/40"
+              />
+            </div>
+
+            {/* Input de Base / Lugar */}
+            <div className="lg:col-span-2 space-y-1">
+              <label className="text-[11px] font-mono font-bold text-fog-400 uppercase tracking-wider flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-ok-green" />
+                Lugar / Base
+              </label>
+              <input
+                type="text"
+                value={lugarActivo}
+                onChange={(e) => setLugarActivo(e.target.value.toUpperCase())}
+                placeholder="MUNICIPIO / BASE..."
+                className="w-full bg-asphalt-950 border border-line-600 focus:border-radar-cyan text-paper-50 font-mono text-xs rounded-xl px-3 py-2 outline-none transition-colors uppercase tracking-wide"
+              />
+            </div>
+
+            {/* Botón Guardar Cambios */}
+            <div className="lg:col-span-1 flex items-end">
+              <button
+                type="button"
+                onClick={() => handleSaveConfig()}
+                disabled={savingConfig}
+                className={`w-full py-2 px-3 font-bold text-xs rounded-xl shadow transition-all flex items-center justify-center gap-1.5 ${
+                  configSavedFeedback
+                    ? "bg-ok-green text-asphalt-950"
+                    : "bg-radar-cyan hover:bg-cyan-400 text-asphalt-950"
+                } disabled:opacity-50`}
+                title="Guardar y actualizar tema para todos los enlaces"
+              >
+                {configSavedFeedback ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span>¡Listo!</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    <span>{savingConfig ? "..." : "Guardar"}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Enlace Permanente y Estado */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-line-600/50 text-[11px] font-mono text-fog-400">
+            <div className="flex items-center gap-2">
+              <span className="text-mist-200 font-bold">Enlace Único Oficial:</span>
+              <code 
+                onClick={handleCopyLink}
+                className="px-2 py-0.5 bg-asphalt-950 hover:bg-asphalt-800 border border-line-600 hover:border-radar-cyan text-radar-cyan rounded-md cursor-pointer transition-colors"
+                title="Hacer clic para copiar enlace corto"
+              >
+                https://erp.transservicesab.com/asistir
+              </code>
+            </div>
+            <span className="text-fog-400/80 italic">
+              * Compatible con teléfonos Android / iOS, toma de selfie y firma táctil en ruta.
+            </span>
           </div>
         </div>
 

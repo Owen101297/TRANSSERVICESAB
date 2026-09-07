@@ -18,8 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 });
 
-// --- LEER PARÁMETROS DE URL (Para enlaces personalizados desde WhatsApp o ERP) ---
-function initUrlParams() {
+// --- LEER PARÁMETROS DE URL Y CONFIGURACIÓN ACTIVA DEL DÍA ---
+async function initUrlParams() {
     try {
         const params = new URLSearchParams(window.location.search);
         const doc = params.get('doc') || params.get('cedula') || params.get('documento');
@@ -39,6 +39,27 @@ function initUrlParams() {
 
         if (lugar && $('inpLugar')) {
             $('inpLugar').value = decodeURIComponent(lugar).toUpperCase();
+        }
+
+        // Si no se pasó un tema o lugar por URL, consultar el tema activo del día centralizado en el ERP
+        if (!tema || !lugar) {
+            try {
+                const res = await fetch('/api/apps/asistencia/config');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success && data.config) {
+                        if (!tema && data.config.tema) {
+                            if ($('displayTema')) $('displayTema').textContent = data.config.tema;
+                            if ($('inpTema')) $('inpTema').value = data.config.tema;
+                        }
+                        if (!lugar && data.config.lugar && $('inpLugar') && !$('inpLugar').value) {
+                            $('inpLugar').value = data.config.lugar;
+                        }
+                    }
+                }
+            } catch (err) {
+                console.log('Carga de configuración activa del día:', err);
+            }
         }
     } catch (e) {
         console.warn('Lectura de parámetros URL:', e);
