@@ -26,6 +26,7 @@ import {
   PREOPERACIONAL_SECCIONES,
   TOTAL_ITEMS_PREOPERACIONAL,
 } from "@/lib/types/preoperacional";
+import { generatePreoperacionalPDF } from "@/lib/utils/pdfPreoperacionalGenerator";
 import { PlateTag } from "@/components/ui/PlateTag";
 import { DataTable, Column } from "@/components/ui/DataTable";
 import { Card } from "@/components/ui/Card";
@@ -55,6 +56,27 @@ export function PreoperacionalAdminClientView({
 
   // Inspección Seleccionada para Modal de Detalle
   const [selectedInspection, setSelectedInspection] = useState<InspeccionPreoperacionalDto | null>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  // Descargar PDF Oficial IMTO-F-010
+  const handleDownloadPDF = async (ins: InspeccionPreoperacionalDto) => {
+    try {
+      setIsGeneratingPdf(true);
+      const veh = vehiculos.find((v) => v.placa === ins.placa);
+      await generatePreoperacionalPDF({
+        ...ins,
+        vehiculoTipo: veh?.tipo || "Camioneta",
+        vehiculoModelo: veh?.modelo || "—",
+        vehiculoColor: veh?.color || "—",
+        vehiculoEmpresa: veh?.empresa || "TRANS SERVICES A&B",
+      });
+    } catch (err) {
+      console.error("Error al generar PDF preoperacional:", err);
+      alert("No se pudo generar el PDF. Verifique que los datos estén completos.");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
 
   // Filtrado reactivo en memoria / fetch
   const filteredItems = items.filter((item) => {
@@ -202,14 +224,25 @@ export function PreoperacionalAdminClientView({
       header: "Acciones",
       accessor: "id",
       render: (_, row) => (
-        <button
-          type="button"
-          onClick={() => setSelectedInspection(row)}
-          className="px-2.5 py-1 rounded-lg bg-asphalt-800 hover:bg-asphalt-700 text-radar-cyan border border-line-600 text-xs font-bold flex items-center gap-1.5 transition-colors"
-        >
-          <Eye size={13} />
-          <span>Ver 32 Puntos</span>
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setSelectedInspection(row)}
+            className="px-2.5 py-1 rounded-lg bg-asphalt-800 hover:bg-asphalt-700 text-radar-cyan border border-line-600 text-xs font-bold flex items-center gap-1.5 transition-colors"
+          >
+            <Eye size={13} />
+            <span>Ver 32 Puntos</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleDownloadPDF(row)}
+            disabled={isGeneratingPdf}
+            className="p-1 rounded-lg bg-asphalt-800 hover:bg-asphalt-700 text-ok-green border border-line-600 text-xs font-bold transition-colors disabled:opacity-50"
+            title="Descargar PDF Oficial (IMTO-F-010)"
+          >
+            <Download size={13} />
+          </button>
+        </div>
       ),
     },
   ];
@@ -342,9 +375,19 @@ export function PreoperacionalAdminClientView({
               <div className="flex items-center gap-2">
                 <button
                   type="button"
+                  onClick={() => handleDownloadPDF(selectedInspection)}
+                  disabled={isGeneratingPdf}
+                  className="px-3 py-1.5 rounded-lg border border-ok-green/40 bg-ok-green-dim hover:bg-ok-green/20 text-ok-green font-bold text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                  title="Descargar Formato Oficial PDF Carta (IMTO-F-010 / HSEQ-FOR-08)"
+                >
+                  <Download size={14} />
+                  <span>Descargar PDF</span>
+                </button>
+                <button
+                  type="button"
                   onClick={handlePrint}
                   className="p-1.5 rounded-lg border border-line-600 bg-asphalt-900 text-paper-50 hover:bg-asphalt-800"
-                  title="Imprimir / Guardar PDF"
+                  title="Imprimir"
                 >
                   <Printer size={16} />
                 </button>

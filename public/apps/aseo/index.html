@@ -20,8 +20,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 
     <!-- PDF Generation Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="./js/pdf-generator.js"></script>
 
     <script>
         tailwind.config = {
@@ -839,81 +839,19 @@
             lucide.createIcons();
         }
 
-        // Generador de PDF con los 24 ítems y fotos
+        // Generador de PDF oficial HSEQ-F-097 con los 24 ítems y fotos
         async function downloadPDF(id) {
             const record = historialData.find(r => r.id === id);
             if (!record) return;
 
-            showToast("Generando PDF con fotos...", "info");
+            showToast("Generando PDF oficial HSEQ-F-097...", "info");
 
             try {
-                document.getElementById('pdf-fecha').textContent = record.fecha;
-                document.getElementById('pdf-hora').textContent = record.hora;
-                document.getElementById('pdf-placa').textContent = record.placa;
-                document.getElementById('pdf-tipo').textContent = record.tipoVehiculo || 'Camioneta';
-                document.getElementById('pdf-km').textContent = record.kilometraje?.toLocaleString() || '—';
-                document.getElementById('pdf-conductor').textContent = record.conductorNombre || '—';
-                document.getElementById('pdf-firma-conductor-name').textContent = record.conductorNombre || 'Conductor';
-                document.getElementById('pdf-obs').textContent = record.observaciones || 'Ninguna';
-
-                const tbody = document.getElementById('pdf-checklist-body');
-                tbody.innerHTML = '';
-                const items = Array.isArray(record.checklist) ? record.checklist : [];
-                items.forEach((c, idx) => {
-                    tbody.innerHTML += `
-                        <tr style="height: 14px;">
-                            <td style="border: 1px solid black; text-align: center; font-weight: bold;">${idx + 1}</td>
-                            <td style="border: 1px solid black; padding: 2px;">${c.item}</td>
-                            <td style="border: 1px solid black; text-align: center; font-weight: bold;">${c.estado === 'SI' ? 'X' : ''}</td>
-                            <td style="border: 1px solid black; text-align: center; font-weight: bold;">${c.estado === 'NO' ? 'X' : ''}</td>
-                            <td style="border: 1px solid black; text-align: center; font-weight: bold;">${c.estado === 'NA' ? 'X' : ''}</td>
-                        </tr>
-                    `;
-                });
-
-                // Cargar Fotos en el PDF
-                const photoBox = document.getElementById('pdf-photos-container');
-                photoBox.innerHTML = '';
-                if (record.fotosEvidencia && record.fotosEvidencia.length > 0) {
-                    record.fotosEvidencia.forEach(src => {
-                        photoBox.innerHTML += `<img src="${src}" style="height: 60px; width: 60px; object-fit: cover; border: 1px solid black; border-radius: 4px;" />`;
-                    });
-                } else {
-                    photoBox.innerHTML = '<span style="font-size: 7px; color: #666;">Sin fotografías adjuntas</span>';
-                }
-
-                if (record.firmaConductor) {
-                    document.getElementById('pdf-firma-conductor').src = record.firmaConductor;
-                    document.getElementById('pdf-firma-conductor').style.display = 'block';
-                } else {
-                    document.getElementById('pdf-firma-conductor').style.display = 'none';
-                }
-
-                const template = document.getElementById('pdf-template');
-                template.style.left = '0';
-                template.style.top = '0';
-
-                await new Promise(r => setTimeout(r, 250));
-
-                const canvas = await html2canvas(template, { scale: 2.2, useCORS: true });
-                const imgData = canvas.toDataURL('image/png');
-
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF('p', 'mm', 'a4');
-                const pdfWidth = pdf.internal.pageSize.getWidth();
-                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
-                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-                pdf.save(`HSEQ-F-097_${record.placa}_${record.fecha}.pdf`);
-
-                template.style.left = '-9999px';
-                template.style.top = '-9999px';
-
+                await generateAseoPDFReport(record);
                 showToast("PDF descargado exitosamente", "success");
-
             } catch (e) {
                 console.error(e);
-                showToast("Error al generar PDF", "error");
+                showToast("Error al generar PDF: " + (e.message || ""), "error");
             }
         }
 

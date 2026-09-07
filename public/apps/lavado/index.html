@@ -16,7 +16,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="./js/pdf-generator.js"></script>
 
     <style>
         :root {
@@ -1146,101 +1146,22 @@
             `).join('');
         };
 
-        // ── EXPORTAR PDF ──
+        // ── EXPORTAR PDF OFICIAL OP-FOR-02 ──
         window.generarPDF = async function () {
             if (!window.currentFilteredRecords?.length) { showToast('No hay registros para exportar', 'warning'); return; }
             showToast('Generando Planilla Oficial PDF...', 'info');
 
             try {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF('l', 'pt', 'a4');
-
-                let logoBase64 = null;
-                try {
-                    const response = await fetch('/logo.png');
-                    if (response.ok) {
-                        const blob = await response.blob();
-                        logoBase64 = await new Promise((resolve) => {
-                            const reader = new FileReader();
-                            reader.onloadend = () => resolve(reader.result);
-                            reader.readAsDataURL(blob);
-                        });
-                    }
-                } catch (e) { }
-
-                const startX = 40, startY = 40, width = doc.internal.pageSize.width - 80, height = 70;
-                const col1W = 160, col3W = 120, col2W = width - col1W - col3W;
-                const fechaGen = new Date().toLocaleDateString('es-CO');
-
-                let totalMes = 0;
-                const tableBody = window.currentFilteredRecords.map(r => {
-                    totalMes += r.valor || 0;
-                    return [
-                        r.fecha, r.hora, r.tipoVehiculo || r.tipo_vehiculo || 'Camioneta', r.placa,
-                        new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(r.valor),
-                        r.empresa || 'N/A', r.conductorNombre || r.conductor, ""
-                    ];
-                });
-
-                while (tableBody.length < 28) tableBody.push(['', '', '', '', '', '', '', '']);
-
-                doc.autoTable({
-                    startY: startY + height + 10,
-                    head: [['FECHA', 'HORA', 'TIPO VEHICULO', 'N° PLACA', 'VALOR', 'NOMBRE EMPRESA', 'NOMBRE CONDUCTOR', 'FIRMA']],
-                    body: tableBody,
-                    theme: 'grid',
-                    margin: { top: startY + height + 10, bottom: 45, left: 40, right: 40 },
-                    styles: { font: 'helvetica', fontSize: 7.5, valign: 'middle', halign: 'center', minCellHeight: 14 },
-                    headStyles: { fillColor: [245, 245, 245], textColor: [0, 0, 0], fontStyle: 'bold' },
-                    columnStyles: { 5: { cellWidth: 100 }, 6: { cellWidth: 100 }, 7: { cellWidth: 90 } },
-                    didDrawPage: function (data) {
-                        doc.setDrawColor(0, 0, 0); doc.setLineWidth(1);
-                        doc.rect(startX, startY, width, height);
-                        doc.line(startX + col1W, startY, startX + col1W, startY + height);
-                        doc.line(startX + col1W + col2W, startY, startX + col1W + col2W, startY + height);
-                        doc.line(startX + col1W, startY + height / 2, startX + width, startY + height / 2);
-
-                        if (logoBase64) {
-                            try {
-                                const imgProps = doc.getImageProperties(logoBase64);
-                                doc.addImage(logoBase64, imgProps.fileType, startX + (col1W - 45) / 2, startY + 5, 45, (imgProps.height * 45) / imgProps.width);
-                            } catch (e) { }
-                        }
-                        doc.setFont("helvetica", "bold"); doc.setFontSize(7);
-                        doc.text("TRANS SERVICES A & B", startX + col1W / 2, startY + height - 12, { align: 'center' });
-                        doc.setFont("helvetica", "normal"); doc.setFontSize(6);
-                        doc.text("NIT 900778421-1", startX + col1W / 2, startY + height - 4, { align: 'center' });
-
-                        doc.setFont("helvetica", "bold"); doc.setFontSize(10);
-                        doc.text("COOPERATIVA DE TRANSPORTES Y SERVICIOS A&B", startX + col1W + col2W / 2, startY + 22, { align: 'center' });
-                        doc.text("PLANILLA DE REGISTRO Y CONTROL LAVADAS", startX + col1W + col2W / 2, startY + 55, { align: 'center' });
-
-                        doc.setFont("helvetica", "normal"); doc.setFontSize(8);
-                        doc.text("CODIGO: OP-FOR-04", startX + col1W + col2W + 5, startY + 15);
-                        doc.text("VERSION: 01", startX + col1W + col2W + 5, startY + 30);
-                        doc.text(fechaGen, startX + col1W + col2W + 5, startY + 62);
-
-                        doc.setFont("helvetica", "bold"); doc.setFontSize(9);
-                        doc.text(`TOTAL RECAUDADO: ${formatCurrency(totalMes)}`, doc.internal.pageSize.width - 40, doc.internal.pageSize.height - 25, { align: 'right' });
-                    },
-                    didDrawCell: function (data) {
-                        if (data.section === 'body' && data.column.index === 7 && data.row.raw && data.row.raw[0] !== '') {
-                            const record = window.currentFilteredRecords[data.row.index];
-                            const firmaSrc = record?.firmaUrl || record?.firma_img;
-                            if (firmaSrc) {
-                                try {
-                                    doc.addImage(firmaSrc, 'PNG', data.cell.x + (data.cell.width - 50) / 2, data.cell.y + (data.cell.height - 11) / 2, 50, 11);
-                                } catch (e) { }
-                            }
-                        }
-                    }
-                });
-
                 const mesExport = document.getElementById('filtro-mes')?.value || 'consolidado';
-                doc.save(`Planilla_Control_Lavadas_${mesExport}.pdf`);
-                showToast('Planilla PDF descargada', 'success');
+                if (typeof window.generateLavadoPlanillaReport === 'function') {
+                    await window.generateLavadoPlanillaReport(window.currentFilteredRecords, mesExport);
+                    showToast('Planilla PDF descargada exitosamente', 'success');
+                } else {
+                    throw new Error('Generador no disponible');
+                }
             } catch (err) {
-                showToast("Error al exportar PDF", "error");
+                console.error(err);
+                showToast("Error al exportar PDF: " + err.message, "error");
             }
         };
 

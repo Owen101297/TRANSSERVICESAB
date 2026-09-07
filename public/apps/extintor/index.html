@@ -9,7 +9,8 @@
   <link rel="stylesheet" href="../shared/app-theme.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="../shared/vendor/signature_pad.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="./js/pdf-generator.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -676,82 +677,57 @@
       }
     }
 
-    // Generar PDF
-    function generarPDF() {
-      const placa = document.getElementById('inputPlaca').value.trim().toUpperCase() || 'PLACA';
-      const conductor = document.getElementById('inputConductor').value.trim() || 'CONDUCTOR';
+    // GENERACIÓN Y DESCARGA OFICIAL DE PDF HSEQ-F-034
+    async function generarPDF() {
+      const placa = document.getElementById('inputPlaca').value.trim().toUpperCase() || 'VEHICULO';
+      const conductor = document.getElementById('inputConductor').value.trim() || 'Conductor / Operador';
       const documento = document.getElementById('inputDocumento').value.trim() || '—';
       const tipoVehiculo = document.getElementById('selectTipoVehiculo').value;
       const tipoExtintor = document.getElementById('selectTipoExtintor').value;
       const capacidad = document.getElementById('selectCapacidad').value;
-      const fecha = document.getElementById('inputFecha').value;
-      const fechaVencimiento = document.getElementById('inputFechaVencimiento').value || '—';
+      const fecha = document.getElementById('inputFecha').value || new Date().toISOString().split('T')[0];
+      const fechaUltimaRecarga = document.getElementById('inputFechaUltimaRecarga').value || null;
+      const fechaVencimiento = document.getElementById('inputFechaVencimiento').value || null;
       const observaciones = document.getElementById('inputObservaciones').value.trim();
+      const firmaUrl = hasSignature ? canvas.toDataURL('image/png') : null;
 
-      document.getElementById('pdfFechaHeader').innerHTML = `<strong>FECHA:</strong> ${fecha}`;
-      document.getElementById('pdfPlaca').textContent = placa;
-      document.getElementById('pdfTipoVehiculo').textContent = tipoVehiculo;
-      document.getElementById('pdfConductor').textContent = conductor;
-      document.getElementById('pdfDocumento').textContent = documento;
-      document.getElementById('pdfTipoExtintor').textContent = tipoExtintor;
-      document.getElementById('pdfCapacidad').textContent = capacidad;
-      document.getElementById('pdfVencimiento').textContent = fechaVencimiento;
-      document.getElementById('pdfPresion').textContent = presionActual.toUpperCase();
-      document.getElementById('pdfObservaciones').textContent = observaciones || 'Sin observaciones.';
-      document.getElementById('pdfConductorFirma').textContent = conductor;
+      const checklistFormatted = CRITERIOS_EXTINTOR.map(crit => ({
+        id: crit.id,
+        item: crit.item,
+        estado: checklistData[crit.id] || 'SI'
+      }));
 
-      const pdfCheckBody = document.getElementById('pdfChecklistBody');
-      pdfCheckBody.innerHTML = '';
-      CRITERIOS_EXTINTOR.forEach((crit, idx) => {
-        const est = checklistData[crit.id] || 'SI';
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td class="border border-black p-1 text-center font-bold">${idx + 1}</td>
-          <td class="border border-black p-1">${crit.item}</td>
-          <td class="border border-black p-1 text-center font-bold">${est === 'SI' ? 'X' : ''}</td>
-          <td class="border border-black p-1 text-center font-bold">${est === 'NO' ? 'X' : ''}</td>
-          <td class="border border-black p-1 text-center font-bold">${est === 'NA' ? 'X' : ''}</td>
-        `;
-        pdfCheckBody.appendChild(row);
-      });
+      let isConforme = true;
+      if (presionActual !== 'operativa') isConforme = false;
+      if (checklistFormatted.some(c => c.estado === 'NO')) isConforme = false;
 
-      const photoGrid = document.getElementById('pdfPhotosGrid');
-      photoGrid.innerHTML = '';
-      if (fotosList.length > 0) {
-        document.getElementById('pdfPhotosContainer').style.display = 'block';
-        fotosList.slice(0, 3).forEach(foto => {
-          const img = document.createElement('img');
-          img.src = foto;
-          img.className = 'w-full h-16 object-cover border border-black p-0.5';
-          photoGrid.appendChild(img);
-        });
-      } else {
-        document.getElementById('pdfPhotosContainer').style.display = 'none';
-      }
-
-      const firmaBox = document.getElementById('pdfFirmaContainer');
-      firmaBox.innerHTML = '';
-      if (hasSignature) {
-        const imgFirma = document.createElement('img');
-        imgFirma.src = canvas.toDataURL('image/png');
-        imgFirma.className = 'h-10 max-w-[120px] object-contain mx-auto';
-        firmaBox.appendChild(imgFirma);
-      }
-
-      const printable = document.getElementById('printableForm');
-      printable.classList.remove('hidden');
-
-      const opt = {
-        margin: 6,
-        filename: `HSEQ-F-034_Extintor_${placa}_${fecha}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }
+      const now = new Date();
+      const payload = {
+        fecha,
+        hora: now.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }),
+        placa,
+        tipoVehiculo,
+        conductorNombre: conductor,
+        conductorDocumento: documento,
+        tipoExtintor,
+        capacidad,
+        fechaUltimaRecarga,
+        fechaVencimientoRecarga: fechaVencimiento,
+        presionManometro: presionActual,
+        checklist: checklistFormatted,
+        fotosEvidencia: fotosList,
+        observaciones,
+        firmaConductor: firmaUrl,
+        firmaInspector: firmaUrl,
+        conforme: isConforme,
+        estadoAprobo: false
       };
 
-      html2pdf().set(opt).from(printable).save().then(() => {
-        printable.classList.add('hidden');
-      });
+      if (typeof window.generateExtintorPDFReport === 'function') {
+        await window.generateExtintorPDFReport(payload);
+      } else {
+        alert('Generador PDF no disponible. Por favor recargue la página.');
+      }
     }
 
     window.addEventListener('load', () => {

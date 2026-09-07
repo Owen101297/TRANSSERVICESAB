@@ -19,6 +19,8 @@ import {
   Sparkles,
   Car,
   AlertTriangle,
+  FileDown,
+  FileText,
 } from "lucide-react";
 import { Card, StatCard } from "@/components/ui/Card";
 import { PlateTag } from "@/components/ui/PlateTag";
@@ -26,6 +28,10 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
+import {
+  generateLavadoPlanillaPDF,
+  generateLavadoComprobantePDF,
+} from "@/lib/utils/pdfLavadoGenerator";
 
 interface LavadoRecord {
   id: string;
@@ -75,6 +81,29 @@ export default function ControlLavadosPage() {
   // Modal para confirmar eliminación
   const [deletePending, setDeletePending] = useState<LavadoRecord | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+
+  // ── Descargar Planilla Consolidada PDF ──
+  const handleDownloadPlanillaPDF = async () => {
+    if (filteredRecords.length === 0) return;
+    setGeneratingPdf(true);
+    try {
+      await generateLavadoPlanillaPDF(filteredRecords, selectedMonth);
+    } catch (err) {
+      console.error("Error al generar Planilla PDF:", err);
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
+
+  // ── Descargar Comprobante Individual PDF ──
+  const handleDownloadComprobante = async (record: LavadoRecord) => {
+    try {
+      await generateLavadoComprobantePDF(record);
+    } catch (err) {
+      console.error("Error al generar Comprobante PDF:", err);
+    }
+  };
 
   // ── Cargar Registros ──
   const loadRecords = useCallback(async () => {
@@ -245,6 +274,18 @@ export default function ControlLavadosPage() {
           <Button
             variant="outline"
             size="sm"
+            onClick={handleDownloadPlanillaPDF}
+            disabled={generatingPdf || filteredRecords.length === 0}
+            className="flex items-center gap-1.5 text-xs text-signal-amber hover:bg-signal-amber/10 border-signal-amber/40 shadow-sm"
+            title="Descargar Planilla Oficial Consolidada OP-FOR-02 en PDF (Carta Horizontal)"
+          >
+            <FileDown size={14} className={generatingPdf ? "animate-bounce" : ""} />
+            <span>{generatingPdf ? "Generando..." : "Descargar Planilla PDF"}</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleExportCSV}
             className="flex items-center gap-1.5 text-xs text-ok-green hover:bg-ok-green/10 border-ok-green/30"
           >
@@ -259,7 +300,7 @@ export default function ControlLavadosPage() {
             className="flex items-center gap-1.5 text-xs text-radar-cyan hover:bg-radar-cyan/10 border-radar-cyan/30"
           >
             <Printer size={14} />
-            <span>Imprimir Planilla</span>
+            <span>Imprimir</span>
           </Button>
         </div>
       </div>
@@ -450,6 +491,16 @@ export default function ControlLavadosPage() {
                           {r.estadoAprobo ? "✓ APROBADO" : "APROBAR"}
                         </button>
 
+                        {/* Botón Comprobante PDF */}
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadComprobante(r)}
+                          className="p-1 rounded text-fog-400 hover:text-signal-amber hover:bg-signal-amber/10 transition-colors"
+                          title="Descargar Comprobante Individual PDF (OP-FOR-02)"
+                        >
+                          <FileText size={14} />
+                        </button>
+
                         {/* Botón Eliminar */}
                         <button
                           type="button"
@@ -484,20 +535,20 @@ export default function ControlLavadosPage() {
         <div className="border-2 border-black w-full mb-3 flex items-stretch">
           <div className="w-48 border-r-2 border-black p-2 flex flex-col items-center justify-center text-center">
             <img src="/logo.png" alt="Logo" className="h-10 w-auto mb-1 object-contain" />
-            <span className="font-bold text-[10px] leading-none block">TRANS SERVICES A&amp;B</span>
-            <span className="text-[8px] font-mono block">NIT 900778421-1</span>
+            <span className="font-bold text-[10px] leading-none block">TRANS SERVICES A&amp;B S.A.S.</span>
+            <span className="text-[8px] font-mono block">NIT 901.621.579-2</span>
           </div>
           <div className="flex-1 border-r-2 border-black p-2 flex flex-col items-center justify-center text-center">
             <span className="font-bold text-xs uppercase tracking-tight">
-              COOPERATIVA DE TRANSPORTES Y SERVICIOS A&amp;B
+              TRANS SERVICES A&amp;B S.A.S.
             </span>
             <h2 className="font-bold text-sm uppercase tracking-wider mt-0.5">
               PLANILLA DE REGISTRO Y CONTROL LAVADAS
             </h2>
           </div>
           <div className="w-36 p-1.5 flex flex-col justify-center text-[8px] font-mono leading-tight">
-            <div><strong>CÓDIGO:</strong> OP-FOR-04</div>
-            <div><strong>VERSIÓN:</strong> 01</div>
+            <div><strong>CÓDIGO:</strong> OP-FOR-02</div>
+            <div><strong>VERSIÓN:</strong> 03</div>
             <div><strong>MES:</strong> {selectedMonth}</div>
             <div><strong>FECHA:</strong> {new Date().toLocaleDateString("es-CO")}</div>
           </div>

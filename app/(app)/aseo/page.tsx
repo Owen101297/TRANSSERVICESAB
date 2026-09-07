@@ -19,6 +19,7 @@ import {
   Car,
   AlertTriangle,
   Award,
+  FileDown,
 } from "lucide-react";
 import { Card, StatCard } from "@/components/ui/Card";
 import { PlateTag } from "@/components/ui/PlateTag";
@@ -27,6 +28,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
 import { CardSkeleton } from "@/components/ui/CardSkeleton";
+import { generateAseoPDF } from "@/lib/utils/pdfAseoGenerator";
 
 interface ChecklistItem {
   item: string;
@@ -80,6 +82,19 @@ export default function AseoDesinfeccionPage() {
 
   // Formato Físico Imprimible HSEQ-F-097
   const [printRecord, setPrintRecord] = useState<AseoRecord | null>(null);
+  const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null);
+
+  // ── Descarga Oficial Vectorial de PDF HSEQ-F-097 ──
+  const handleDownloadPDF = async (record: AseoRecord) => {
+    setGeneratingPdfId(record.id);
+    try {
+      await generateAseoPDF(record);
+    } catch (err) {
+      console.error("Error al generar PDF HSEQ-F-097:", err);
+    } finally {
+      setGeneratingPdfId(null);
+    }
+  };
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -435,6 +450,14 @@ export default function AseoDesinfeccionPage() {
                     <td className="p-3.5 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         <button
+                          onClick={() => handleDownloadPDF(reg)}
+                          disabled={generatingPdfId === reg.id}
+                          className="p-1.5 rounded-lg text-fog-400 hover:text-signal-amber hover:bg-asphalt-800 transition-colors"
+                          title="Descargar PDF Oficial HSEQ-F-097 (Carta Vectorial)"
+                        >
+                          <FileDown size={15} className={generatingPdfId === reg.id ? "animate-bounce" : ""} />
+                        </button>
+                        <button
                           onClick={() => setSelectedRecord(reg)}
                           className="p-1.5 rounded-lg text-fog-400 hover:text-radar-cyan hover:bg-asphalt-800 transition-colors"
                           title="Ver Checklist Completo"
@@ -613,11 +636,21 @@ export default function AseoDesinfeccionPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  onClick={() => handleDownloadPDF(selectedRecord)}
+                  disabled={generatingPdfId === selectedRecord.id}
+                  className="text-xs flex items-center gap-1.5 text-signal-amber border-signal-amber/40 shadow-sm"
+                >
+                  <FileDown size={13} className={generatingPdfId === selectedRecord.id ? "animate-bounce" : ""} />
+                  <span>{generatingPdfId === selectedRecord.id ? "Generando..." : "Descargar PDF (HSEQ-F-097)"}</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => handlePrint(selectedRecord)}
                   className="text-xs flex items-center gap-1.5 text-radar-cyan border-radar-cyan/30"
                 >
                   <Printer size={13} />
-                  <span>Imprimir HSEQ-F-097</span>
+                  <span>Imprimir</span>
                 </Button>
                 <Button
                   variant="ghost"
@@ -666,13 +699,13 @@ export default function AseoDesinfeccionPage() {
           <div className="border-2 border-black mb-4">
             <div className="grid grid-cols-12 border-b border-black">
               <div className="col-span-3 border-r border-black p-2 flex flex-col items-center justify-center text-center">
-                <div className="font-bold text-base tracking-tighter">TRANS SERVICES A&B</div>
-                <div className="text-[9px] font-bold">NIT: 900778421-1</div>
-                <div className="text-[8px] text-gray-700">COOPERATIVA DE TRANSPORTE</div>
+                <div className="font-bold text-base tracking-tighter">TRANS SERVICES A&amp;B S.A.S.</div>
+                <div className="text-[9px] font-bold">NIT: 901.621.579-2</div>
+                <div className="text-[8px] text-gray-700">TRANSPORTE ESPECIAL Y LOGÍSTICA</div>
               </div>
               <div className="col-span-6 border-r border-black p-2 flex flex-col items-center justify-center text-center">
                 <div className="font-bold text-xs uppercase tracking-wide">
-                  SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO & PESV
+                  SISTEMA DE GESTIÓN DE SEGURIDAD Y SALUD EN EL TRABAJO &amp; PESV
                 </div>
                 <div className="font-black text-sm uppercase mt-1">
                   INSPECCIÓN DE ORDEN, ASEO Y DESINFECCIÓN VEHICULAR

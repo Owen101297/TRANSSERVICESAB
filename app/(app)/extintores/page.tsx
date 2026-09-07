@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   Award,
   Gauge,
+  FileDown,
 } from "lucide-react";
 import { Card, StatCard } from "@/components/ui/Card";
 import { PlateTag } from "@/components/ui/PlateTag";
@@ -27,6 +28,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
+import { generateExtintorPDF } from "@/lib/utils/pdfExtintorGenerator";
 
 interface ChecklistItem {
   id?: number;
@@ -86,6 +88,19 @@ export default function ExtintoresAdminPage() {
 
   // Formato Físico Imprimible HSEQ-F-034
   const [printRecord, setPrintRecord] = useState<ExtintorRecord | null>(null);
+  const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
+
+  const handleDownloadPdf = async (record: ExtintorRecord) => {
+    try {
+      setPdfLoadingId(record.id);
+      await generateExtintorPDF(record as any);
+    } catch (err) {
+      console.error("Error al generar PDF de extintor:", err);
+      alert("No se pudo generar el PDF del extintor. Por favor intente nuevamente.");
+    } finally {
+      setPdfLoadingId(null);
+    }
+  };
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -486,9 +501,21 @@ export default function ExtintoresAdminPage() {
                             <Eye size={15} />
                           </button>
                           <button
+                            onClick={() => handleDownloadPdf(reg)}
+                            disabled={pdfLoadingId === reg.id}
+                            className="p-1.5 rounded-lg text-ok-green hover:bg-ok-green/10 transition-colors"
+                            title="Descargar PDF Oficial HSEQ-F-034"
+                          >
+                            {pdfLoadingId === reg.id ? (
+                              <RefreshCw size={15} className="animate-spin text-ok-green" />
+                            ) : (
+                              <FileDown size={15} />
+                            )}
+                          </button>
+                          <button
                             onClick={() => handlePrint(reg)}
                             className="p-1.5 rounded-lg text-fog-400 hover:text-radar-cyan hover:bg-asphalt-800 transition-colors"
-                            title="Imprimir Formato Físico HSEQ-F-034"
+                            title="Vista Previa de Impresión"
                           >
                             <Printer size={15} />
                           </button>
@@ -526,16 +553,33 @@ export default function ExtintoresAdminPage() {
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedRecord(null);
-                  setSelectedPreviewImage(null);
-                }}
-                className="text-fog-400 hover:text-paper-50 p-2 rounded-lg hover:bg-asphalt-800"
-              >
-                <X size={18} />
-              </button>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => handleDownloadPdf(selectedRecord)}
+                  disabled={pdfLoadingId === selectedRecord.id}
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5 text-ok-green border-ok-green/30 hover:bg-ok-green/10 text-xs font-bold"
+                >
+                  {pdfLoadingId === selectedRecord.id ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-ok-green" />
+                  ) : (
+                    <FileDown className="w-3.5 h-3.5" />
+                  )}
+                  <span>Descargar PDF</span>
+                </Button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedRecord(null);
+                    setSelectedPreviewImage(null);
+                  }}
+                  className="text-fog-400 hover:text-paper-50 p-2 rounded-lg hover:bg-asphalt-800"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
             <div className="p-5 overflow-y-auto flex-1 space-y-5">
@@ -730,9 +774,9 @@ export default function ExtintoresAdminPage() {
           <div className="border-2 border-black mb-4">
             <div className="grid grid-cols-12 border-b border-black">
               <div className="col-span-3 border-r border-black p-2 flex flex-col items-center justify-center text-center">
-                <div className="font-bold text-base tracking-tighter">TRANS SERVICES A&B</div>
-                <div className="text-[9px] font-bold">NIT: 900778421-1</div>
-                <div className="text-[8px] text-gray-700">COOPERATIVA DE TRANSPORTE</div>
+                <div className="font-bold text-base tracking-tighter">TRANS SERVICES A&B S.A.S.</div>
+                <div className="text-[9px] font-bold">NIT: 901.621.579-2</div>
+                <div className="text-[8px] text-gray-700">TRANSPORTE ESPECIAL Y LOGÍSTICA</div>
               </div>
               <div className="col-span-6 border-r border-black p-2 flex flex-col items-center justify-center text-center">
                 <div className="font-bold text-xs uppercase tracking-wide">

@@ -22,13 +22,15 @@ import {
   Sparkles,
   Save,
   MapPin,
-  MessageSquare
+  MessageSquare,
+  FileDown,
 } from "lucide-react";
 import { Card, StatCard } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
+import { generateAsistenciaPDF } from "@/lib/utils/pdfAsistenciaGenerator";
 
 const PRESET_TEMAS = [
   "CHARLA 5 MINUTOS: PREVENCIÓN DE FATIGA Y CONTROL DE MICROSUEÑOS",
@@ -94,6 +96,32 @@ export default function AsistenciaAdminPage() {
     facilitador: "COORDINADOR HSEQ",
     lugar: "Base Operativa Villagarzón",
   });
+
+  const [generatingPdf, setGeneratingPdf] = useState<boolean>(false);
+
+  // ── Descarga Oficial Vectorial de PDF TH-FOR-03 ──
+  const handleDownloadPDF = async () => {
+    setGeneratingPdf(true);
+    try {
+      await generateAsistenciaPDF(filteredRegistros, {
+        fecha: fecha || new Date().toISOString().split("T")[0],
+        tema: formatoMeta.tema || temaActivo,
+        facilitador: formatoMeta.facilitador,
+        ciudad: formatoMeta.ciudad,
+        horario: formatoMeta.horario,
+        duracion: formatoMeta.duracion,
+        hh: formatoMeta.hh,
+        proyecto,
+        tipoEvento,
+        codigo: "TH-FOR-03",
+        version: "03",
+      });
+    } catch (err) {
+      console.error("Error al generar PDF de asistencia:", err);
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
 
   const PAGE_SIZE = 20;
 
@@ -782,6 +810,16 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               <span>Actualizar</span>
             </button>
+
+            <button
+              onClick={handleDownloadPDF}
+              disabled={generatingPdf || filteredRegistros.length === 0}
+              className="px-3.5 py-2 bg-asphalt-950 hover:bg-asphalt-800 text-signal-amber font-bold text-xs rounded-xl border border-signal-amber/40 shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
+              title="Descargar Planilla Oficial TH-FOR-03 en PDF Vectorial (Carta)"
+            >
+              <FileDown className={`w-3.5 h-3.5 ${generatingPdf ? "animate-bounce" : ""}`} />
+              <span>{generatingPdf ? "Generando..." : "Descargar PDF"}</span>
+            </button>
           </div>
 
           {/* Toggle Vista */}
@@ -979,11 +1017,34 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
         <div className="space-y-6">
           {/* Controles de Metadatos del Formato */}
           <div className="no-print bg-asphalt-900 border border-line-600 p-4 rounded-2xl space-y-3">
-            <div className="flex items-center justify-between border-b border-line-600 pb-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-paper-50 font-mono">
-                Parámetros del Acta Imprimible (TH-FOR-03)
-              </h3>
-              <span className="text-xs text-fog-400">Los datos modificados se sincronizan en las hojas oficiales</span>
+            <div className="flex flex-wrap items-center justify-between border-b border-line-600 pb-2 gap-2">
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-paper-50 font-mono">
+                  Parámetros del Acta Imprimible (TH-FOR-03)
+                </h3>
+                <span className="text-xs text-fog-400">Los datos modificados se sincronizan en las hojas oficiales</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleDownloadPDF}
+                  disabled={generatingPdf || filteredRegistros.length === 0}
+                  className="px-3 py-1.5 bg-signal-amber hover:bg-signal-amber/90 text-asphalt-950 font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 disabled:opacity-50"
+                  title="Descargar Planilla Oficial en PDF Vectorial (Carta)"
+                >
+                  <FileDown className={`w-3.5 h-3.5 ${generatingPdf ? "animate-bounce" : ""}`} />
+                  <span>{generatingPdf ? "Generando..." : "Descargar PDF (TH-FOR-03)"}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-3 py-1.5 bg-asphalt-950 hover:bg-asphalt-800 text-radar-cyan font-bold text-xs rounded-xl border border-radar-cyan/40 transition-all flex items-center gap-1.5"
+                  title="Imprimir formato físico"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Imprimir</span>
+                </button>
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
               <div>
@@ -1057,10 +1118,10 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                   <div className="grid grid-cols-[160px_1fr_160px] border-2 border-black min-h-[75px] text-center">
                     <div className="border-r-2 border-black p-2 flex flex-col items-center justify-center">
                       <div className="text-[11px] font-black tracking-tight text-blue-900 leading-none uppercase">
-                        TRANS SERVICES
+                        TRANS SERVICES A&amp;B
                       </div>
-                      <div className="text-[8px] font-bold text-slate-700 tracking-wider">COOPERATIVA A&B</div>
-                      <div className="text-[7px] text-slate-500 font-mono mt-0.5">NIT: 900.560.825-9</div>
+                      <div className="text-[8px] font-bold text-slate-700 tracking-wider">S.A.S.</div>
+                      <div className="text-[7px] text-slate-500 font-mono mt-0.5">NIT: 901.621.579-2</div>
                     </div>
 
                     <div className="flex flex-col justify-center">

@@ -18,6 +18,7 @@ import {
   QrCode,
   CheckCircle2,
   Sparkles,
+  FileDown,
 } from "lucide-react";
 import { Card, StatCard } from "@/components/ui/Card";
 import { PlateTag } from "@/components/ui/PlateTag";
@@ -25,6 +26,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
+import { generateEncuestaIndividualPDF } from "@/lib/utils/pdfEncuestaGenerator";
 
 interface EncuestaItem {
   id: string;
@@ -78,6 +80,19 @@ export default function EncuestasAdminPage() {
   const [selectedEncuesta, setSelectedEncuesta] = useState<EncuestaItem | null>(null);
   const [showQRModal, setShowQRModal] = useState(false);
   const [qrPlate, setQrPlate] = useState("");
+  const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null);
+
+  // ── Descargar PDF Oficial CAL-FOR-01 ──
+  const handleDownloadPDF = async (encuesta: EncuestaItem) => {
+    setGeneratingPdfId(encuesta.id);
+    try {
+      await generateEncuestaIndividualPDF(encuesta);
+    } catch (err) {
+      console.error("Error al generar PDF de encuesta:", err);
+    } finally {
+      setGeneratingPdfId(null);
+    }
+  };
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -451,6 +466,17 @@ export default function EncuestasAdminPage() {
                     <td className="py-3.5 px-4 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
                         <Button
+                          onClick={() => handleDownloadPDF(encuesta)}
+                          disabled={generatingPdfId === encuesta.id}
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-signal-amber hover:bg-signal-amber/10"
+                          title="Descargar PDF Oficial CAL-FOR-01"
+                        >
+                          <FileDown className={`w-4 h-4 ${generatingPdfId === encuesta.id ? "animate-bounce" : ""}`} />
+                        </Button>
+
+                        <Button
                           onClick={() => setSelectedEncuesta(encuesta)}
                           variant="ghost"
                           size="sm"
@@ -487,7 +513,7 @@ export default function EncuestasAdminPage() {
               <div className="flex items-center gap-2">
                 {selectedEncuesta.placa && <PlateTag plate={selectedEncuesta.placa} />}
                 <h3 className="font-display font-bold text-base text-paper-50">
-                  Calificación de Servicio
+                  Calificación de Servicio (CAL-FOR-01)
                 </h3>
               </div>
               <button
@@ -551,6 +577,26 @@ export default function EncuestasAdminPage() {
               <div className="text-[11px] text-fog-400 pt-2 border-t border-line-600 flex justify-between">
                 <span>Encuestado: <b className="text-paper-50">{selectedEncuesta.nombreEncuestado}</b></span>
                 <span>Canal: <b className="text-paper-50 font-mono">{selectedEncuesta.canal}</b></span>
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2 border-t border-line-600">
+                <Button
+                  onClick={() => handleDownloadPDF(selectedEncuesta)}
+                  disabled={generatingPdfId === selectedEncuesta.id}
+                  variant="outline"
+                  size="sm"
+                  className="text-signal-amber border-signal-amber/40 hover:bg-signal-amber/10 flex items-center gap-1.5"
+                >
+                  <FileDown className={`w-3.5 h-3.5 ${generatingPdfId === selectedEncuesta.id ? "animate-bounce" : ""}`} />
+                  <span>{generatingPdfId === selectedEncuesta.id ? "Generando..." : "Descargar PDF (CAL-FOR-01)"}</span>
+                </Button>
+                <Button
+                  onClick={() => setSelectedEncuesta(null)}
+                  variant="ghost"
+                  size="sm"
+                >
+                  Cerrar
+                </Button>
               </div>
             </div>
           </div>

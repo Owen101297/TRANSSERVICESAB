@@ -22,9 +22,8 @@ import {
   ChevronRight,
   AlertTriangle,
   Award,
-  Share2,
-  Copy,
   Check,
+  FileDown,
 } from "lucide-react";
 import { Card, StatCard } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -36,6 +35,7 @@ import {
   TIPO_CAPACITACION_LABELS,
   CATEGORIA_CAPACITACION_LABELS,
 } from "@/lib/types/capacitacion";
+import { generateAsistenciaPDF, AsistenciaPdfItem } from "@/lib/utils/pdfAsistenciaGenerator";
 
 export default function CapacitacionesPage() {
   const [capacitaciones, setCapacitaciones] = useState<Capacitacion[]>([]);
@@ -57,6 +57,38 @@ export default function CapacitacionesPage() {
 
   // Modal para imprimir formato físico
   const [printCapacitacion, setPrintCapacitacion] = useState<Capacitacion | null>(null);
+  const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null);
+
+  // ── Descargar PDF Oficial Vectorial TH-FOR-04 ──
+  const handleDownloadPDF = async (cap: Capacitacion) => {
+    setGeneratingPdfId(cap.id);
+    try {
+      const asistentes: AsistenciaPdfItem[] = (cap.asistencias || []).map((a) => ({
+        personaNombre: a.conductorNombre,
+        personaDocumento: a.conductorCedula || "—",
+        cargo: "CONDUCTOR",
+        proyecto: "TRANS SERVICES",
+        horaLlegada: a.fechaRegistro ? new Date(a.fechaRegistro).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }) : "—",
+        firmaUrl: a.firmaDigitalUrl,
+      }));
+
+      await generateAsistenciaPDF(asistentes, {
+        fecha: new Date(cap.fecha).toISOString().split("T")[0],
+        tema: cap.nombre,
+        facilitador: cap.facilitador || "COORDINADOR HSEQ",
+        ciudad: "Villagarzón (Putumayo)",
+        horario: `${cap.duracionHoras} Horas`,
+        duracion: `${cap.duracionHoras} Horas`,
+        hh: `${(cap.asistencias?.length || 1) * (cap.duracionHoras || 1)} H.H.`,
+        codigo: "TH-FOR-04",
+        version: "02",
+      });
+    } catch (err) {
+      console.error("Error al generar PDF de capacitación:", err);
+    } finally {
+      setGeneratingPdfId(null);
+    }
+  };
 
   const loadCapacitaciones = useCallback(async () => {
     setLoading(true);
@@ -430,12 +462,24 @@ _Cumplimiento Normativo PESV Res. 40595/2022 y SG-SST Dec. 1072_`;
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => handleDownloadPDF(cap)}
+                      disabled={generatingPdfId === cap.id}
+                      className="text-xs flex items-center gap-1.5 text-signal-amber hover:bg-signal-amber/10 border-signal-amber/40 shadow-sm"
+                      title="Descargar Planilla Oficial TH-FOR-04 en PDF Vectorial (Carta)"
+                    >
+                      <FileDown size={13} className={generatingPdfId === cap.id ? "animate-bounce" : ""} />
+                      <span>{generatingPdfId === cap.id ? "Generando..." : "Descargar PDF"}</span>
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => handlePrint(cap)}
                       className="text-xs flex items-center gap-1.5 text-radar-cyan hover:bg-radar-cyan/10 border-radar-cyan/30"
                       title="Imprimir Planilla Oficial TH-FOR-04"
                     >
                       <Printer size={13} />
-                      <span>PDF</span>
+                      <span>Imprimir</span>
                     </Button>
                   </div>
                 </div>
@@ -498,53 +542,46 @@ _Cumplimiento Normativo PESV Res. 40595/2022 y SG-SST Dec. 1072_`;
                       <th className="p-3">Fecha / Hora</th>
                       <th className="p-3 text-center">Selfie Facial</th>
                       <th className="p-3 text-center">Firma Digital</th>
-                      <th className="p-3 text-center">Nota / Test</th>
+                      <th className="p-3 text-center">Evaluación</th>
                       <th className="p-3 text-center">Estado</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-line-600 bg-asphalt-900/60">
+                  <tbody className="divide-y divide-line-600">
                     {!selectedCapacitacion.asistencias || selectedCapacitacion.asistencias.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="p-8 text-center text-fog-400">
-                          Ningún conductor ha registrado su asistencia a esta charla todavía.
+                          Aún no hay conductores registrados en esta sesión.
                         </td>
                       </tr>
                     ) : (
-                      selectedCapacitacion.asistencias.map((asist, idx) => (
-                        <tr key={asist.id || idx} className="hover:bg-asphalt-800/50 transition-colors">
-                          <td className="p-3 font-semibold text-paper-50">
-                            <div>{asist.personaNombre}</div>
-                            {asist.personaDocumento && (
-                              <div className="text-[10px] font-mono text-fog-400">
-                                CC: {asist.personaDocumento}
-                              </div>
-                            )}
+                      selectedCapacitacion.asistencias.map((asist) => (
+                        <tr key={asist.id} className="hover:bg-asphalt-800/40 transition-colors">
+                          <td className="p-3">
+                            <div className="font-bold text-paper-50">{asist.conductorNombre}</div>
+                            <div className="text-[10px] text-fog-400 font-mono">
+                              CC: {asist.conductorCedula || "—"}
+                            </div>
                           </td>
-                          <td className="p-3 font-mono text-mist-200 text-[11px]">
-                            {new Date(asist.fecha).toLocaleString("es-CO", {
-                              day: "2-digit",
-                              month: "2-digit",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                          <td className="p-3 font-mono text-[11px] text-mist-200">
+                            {new Date(asist.fechaRegistro).toLocaleString("es-CO")}
                           </td>
                           <td className="p-3 text-center">
-                            {asist.fotoUrl ? (
+                            {asist.selfieUrl ? (
                               <img
-                                src={asist.fotoUrl}
+                                src={asist.selfieUrl}
                                 alt="Selfie"
-                                className="w-10 h-10 rounded-full object-cover border border-line-500 mx-auto shadow-sm"
+                                className="w-9 h-9 rounded-full object-cover border border-radar-cyan mx-auto shadow-sm"
                               />
                             ) : (
-                              <span className="text-[10px] text-fog-400">—</span>
+                              <span className="text-[10px] text-fog-400">Sin foto</span>
                             )}
                           </td>
                           <td className="p-3 text-center">
-                            {asist.firmaUrl ? (
+                            {asist.firmaDigitalUrl ? (
                               <img
-                                src={asist.firmaUrl}
+                                src={asist.firmaDigitalUrl}
                                 alt="Firma"
-                                className="h-8 max-w-[80px] object-contain bg-white/90 p-1 rounded border border-line-600 mx-auto"
+                                className="h-7 max-w-[100px] object-contain mx-auto bg-white/95 p-0.5 rounded border border-line-600"
                               />
                             ) : (
                               <span className="text-[10px] text-fog-400">Sin firma</span>
@@ -574,11 +611,21 @@ _Cumplimiento Normativo PESV Res. 40595/2022 y SG-SST Dec. 1072_`;
                 <Button
                   variant="outline"
                   size="sm"
+                  onClick={() => handleDownloadPDF(selectedCapacitacion)}
+                  disabled={generatingPdfId === selectedCapacitacion.id}
+                  className="text-xs flex items-center gap-1.5 text-signal-amber border-signal-amber/40 shadow-sm"
+                >
+                  <FileDown size={13} className={generatingPdfId === selectedCapacitacion.id ? "animate-bounce" : ""} />
+                  <span>{generatingPdfId === selectedCapacitacion.id ? "Generando..." : "Descargar PDF (TH-FOR-04)"}</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => handlePrint(selectedCapacitacion)}
                   className="text-xs flex items-center gap-1.5 text-radar-cyan border-radar-cyan/30"
                 >
                   <Printer size={13} />
-                  <span>Imprimir Planilla Oficial</span>
+                  <span>Imprimir Planilla</span>
                 </Button>
                 <Button
                   variant="ghost"
@@ -602,9 +649,9 @@ _Cumplimiento Normativo PESV Res. 40595/2022 y SG-SST Dec. 1072_`;
           <div className="border-2 border-black mb-4">
             <div className="grid grid-cols-12 border-b border-black">
               <div className="col-span-3 border-r border-black p-2 flex flex-col items-center justify-center text-center">
-                <div className="font-bold text-base tracking-tighter">TRANS SERVICES A&B</div>
-                <div className="text-[9px] font-bold">NIT: 900778421-1</div>
-                <div className="text-[8px] text-gray-700">COOPERATIVA DE TRANSPORTE</div>
+                <div className="font-bold text-base tracking-tighter">TRANS SERVICES A&B S.A.S.</div>
+                <div className="text-[9px] font-bold">NIT: 901.621.579-2</div>
+                <div className="text-[8px] text-gray-700">TRANSPORTE ESPECIAL Y LOGÍSTICA</div>
               </div>
               <div className="col-span-6 border-r border-black p-2 flex flex-col items-center justify-center text-center">
                 <div className="font-bold text-xs uppercase tracking-wide">

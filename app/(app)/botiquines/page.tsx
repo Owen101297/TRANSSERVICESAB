@@ -22,6 +22,7 @@ import {
   PackageCheck,
   PackageX,
   ExternalLink,
+  FileDown,
 } from "lucide-react";
 import { Card, StatCard } from "@/components/ui/Card";
 import { PlateTag } from "@/components/ui/PlateTag";
@@ -29,6 +30,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
+import { generateBotiquinPDF } from "@/lib/utils/pdfBotiquinGenerator";
 
 interface BotiquinChecklistItem {
   id: number;
@@ -94,6 +96,19 @@ export default function BotiquinesAdminPage() {
 
   // Formato Físico Imprimible HSEQ-F-035
   const [printRecord, setPrintRecord] = useState<BotiquinRecord | null>(null);
+  const [pdfLoadingId, setPdfLoadingId] = useState<string | null>(null);
+
+  const handleDownloadPdf = async (record: BotiquinRecord) => {
+    try {
+      setPdfLoadingId(record.id);
+      await generateBotiquinPDF(record as any);
+    } catch (err) {
+      console.error("Error al generar PDF de botiquín:", err);
+      alert("No se pudo generar el PDF del botiquín. Por favor intente nuevamente.");
+    } finally {
+      setPdfLoadingId(null);
+    }
+  };
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -550,11 +565,26 @@ export default function BotiquinesAdminPage() {
                           </Button>
 
                           <Button
+                            onClick={() => handleDownloadPdf(record)}
+                            disabled={pdfLoadingId === record.id}
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2 text-ok-green hover:bg-ok-green/10"
+                            title="Descargar PDF Oficial HSEQ-F-035"
+                          >
+                            {pdfLoadingId === record.id ? (
+                              <RefreshCw className="w-4 h-4 animate-spin text-ok-green" />
+                            ) : (
+                              <FileDown className="w-4 h-4" />
+                            )}
+                          </Button>
+
+                          <Button
                             onClick={() => setPrintRecord(record)}
                             variant="ghost"
                             size="sm"
                             className="h-8 px-2 text-mist-200 hover:bg-asphalt-700"
-                            title="Imprimir Formato HSEQ-F-035"
+                            title="Vista Previa de Impresión"
                           >
                             <Printer className="w-4 h-4" />
                           </Button>
@@ -599,6 +629,21 @@ export default function BotiquinesAdminPage() {
               </div>
 
               <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => handleDownloadPdf(selectedRecord)}
+                  disabled={pdfLoadingId === selectedRecord.id}
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5 text-ok-green border-ok-green/30 hover:bg-ok-green/10 text-xs font-bold"
+                >
+                  {pdfLoadingId === selectedRecord.id ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-ok-green" />
+                  ) : (
+                    <FileDown className="w-3.5 h-3.5" />
+                  )}
+                  <span>Descargar PDF</span>
+                </Button>
+
                 <button
                   onClick={() => handleToggleAprobar(selectedRecord)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
@@ -827,12 +872,22 @@ export default function BotiquinesAdminPage() {
               >
                 ← Volver al ERP
               </button>
-              <button
-                onClick={() => window.print()}
-                className="px-5 py-2 bg-orange-600 text-white rounded-lg text-xs font-bold hover:bg-orange-700 shadow-md"
-              >
-                🖨️ Imprimir / Guardar PDF
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleDownloadPdf(printRecord)}
+                  disabled={pdfLoadingId === printRecord.id}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 shadow-md flex items-center gap-1.5"
+                >
+                  <FileDown className="w-3.5 h-3.5" />
+                  <span>Descargar PDF Oficial</span>
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  className="px-5 py-2 bg-orange-600 text-white rounded-lg text-xs font-bold hover:bg-orange-700 shadow-md"
+                >
+                  🖨️ Imprimir / Guardar
+                </button>
+              </div>
             </div>
 
             {/* Encabezado Corporativo Oficial */}

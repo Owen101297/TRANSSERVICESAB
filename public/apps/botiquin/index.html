@@ -14,7 +14,8 @@
   <!-- CDN Scripts / Local Fallbacks -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="../shared/vendor/signature_pad.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="./js/pdf-generator.js"></script>
 
   <script>
     tailwind.config = {
@@ -637,20 +638,63 @@
       }
     }
 
-    // IMPRESIÓN Y DESCARGA DE PDF
-    function generarPDF() {
+    // IMPRESIÓN Y DESCARGA DE PDF PROFESIONAL HSEQ-F-035
+    async function generarPDF() {
       const placa = document.getElementById("placa").value.trim().toUpperCase() || "VEHICULO";
-      const fecha = new Date().toISOString().split("T")[0];
-      const opt = {
-        margin: [8, 8, 8, 8],
-        filename: `HSEQ-F-035_Botiquin_${placa}_${fecha}.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: "mm", format: "letter", orientation: "portrait" }
+      const conductorNombre = document.getElementById("conductorNombre").value.trim() || "Conductor / Inspector";
+      const conductorDocumento = document.getElementById("conductorDocumento").value.trim();
+      const tipoVehiculo = document.getElementById("tipoVehiculo").value;
+      const ubicacionBotiquin = document.getElementById("ubicacionBotiquin").value.trim();
+      const estadoGabinete = document.getElementById("estadoGabinete").value;
+      const observaciones = document.getElementById("observaciones").value.trim();
+      const firma = signaturePad && !signaturePad.isEmpty() ? signaturePad.toDataURL("image/png") : null;
+
+      const checklist = ITEMS_BOTIQUIN.map(item => ({
+        id: item.id,
+        nombre: item.nombre,
+        categoria: item.categoria,
+        req: item.req,
+        unidad: item.unidad,
+        cantidad: parseInt(document.getElementById(`cant-${item.id}`)?.value || "0", 10),
+        estado: itemEstados[item.id] || "BUENO",
+        tieneVencimiento: item.venc,
+        fechaVencimiento: item.venc ? (document.getElementById(`venc-${item.id}`)?.value || null) : null
+      }));
+
+      let itemsVencidosCount = 0;
+      let itemsFaltantesCount = 0;
+      const todayStr = new Date().toISOString().split("T")[0];
+
+      checklist.forEach(it => {
+        if (it.estado !== "BUENO" || it.cantidad < Number(it.req)) itemsFaltantesCount++;
+        if (it.tieneVencimiento && it.fechaVencimiento && it.fechaVencimiento <= todayStr) itemsVencidosCount++;
+      });
+
+      const now = new Date();
+      const payload = {
+        fecha: now.toISOString().split("T")[0],
+        hora: now.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }),
+        placa,
+        tipoVehiculo,
+        conductorNombre,
+        conductorDocumento,
+        ubicacionBotiquin,
+        estadoGabinete,
+        checklist,
+        observaciones,
+        firmaConductor: firma,
+        firmaInspector: firma,
+        conforme: itemsFaltantesCount === 0 && itemsVencidosCount === 0 && estadoGabinete !== "MALO",
+        itemsVencidosCount,
+        itemsFaltantesCount,
+        estadoAprobo: false,
       };
 
-      const element = document.getElementById("printable-area");
-      html2pdf().set(opt).from(element).save();
+      if (typeof window.generateBotiquinPDFReport === "function") {
+        await window.generateBotiquinPDFReport(payload);
+      } else {
+        alert("Generador PDF no disponible. Por favor recargue la página.");
+      }
     }
   </script>
 </body>
