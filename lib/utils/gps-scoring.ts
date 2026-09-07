@@ -255,3 +255,77 @@ _Recuerda que tu vida y la de tus pasajeros es nuestra prioridad._`
   );
 }
 
+/**
+ * Genera el Balance Diario de Desempeño PESV para enviar al WhatsApp del conductor al final del día
+ */
+export function generarMensajeCierreDiarioConductor(
+  conductorNombre: string,
+  placa: string,
+  eventosDelDia: EventoGPS[],
+  esGranTierra: boolean = false
+): string {
+  const fechaHoy = new Date().toLocaleDateString("es-CO", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  const excesosVelocidad = eventosDelDia.filter((e) => e.tipoEvento === "exceso_velocidad" && (e.velocidad || 0) > 80);
+  const excesosGeocerca = esGranTierra
+    ? eventosDelDia.filter((e) => e.tipoEvento === "salida_geocerca" || e.descripcion.toLowerCase().includes("geocerca"))
+    : [];
+  const frenadasBruscas = eventosDelDia.filter((e) => e.tipoEvento === "frenada_brusca");
+  const aceleradasBruscas = eventosDelDia.filter((e) => e.tipoEvento === "acelerada_brusca");
+  const ralentiEventos = eventosDelDia.filter((e) => e.tipoEvento === "ralenti");
+
+  const totalNovedades = excesosVelocidad.length + excesosGeocerca.length + frenadasBruscas.length + aceleradasBruscas.length;
+
+  let scoreEstimado = 100 - (excesosVelocidad.length * 8 + excesosGeocerca.length * 6 + frenadasBruscas.length * 4 + aceleradasBruscas.length * 3 + ralentiEventos.length * 2);
+  scoreEstimado = Math.max(30, Math.min(100, scoreEstimado));
+
+  let concepto = "⭐⭐⭐⭐⭐ Excelente Jornada (Manejo Impecable)";
+  if (scoreEstimado < 70) concepto = "⚠️ Requiere Refuerzo y Atención Inmediata";
+  else if (scoreEstimado < 85) concepto = "🟡 Desempeño Aceptable con Oportunidades de Mejora";
+  else if (scoreEstimado < 95) concepto = "🟢 Buen Desempeño Operacional";
+
+  let feedbackTexto = "¡Felicitaciones por mantener una conducción segura y cuidar la integridad de nuestros usuarios!";
+  if (totalNovedades > 0) {
+    const sugerencias: string[] = [];
+    if (excesosVelocidad.length > 0) sugerencias.push("mantener la velocidad por debajo de los 80 km/h en carretera");
+    if (excesosGeocerca.length > 0) sugerencias.push("respetar rigurosamente los límites internos de geocerca en campo Gran Tierra");
+    if (frenadasBruscas.length > 0) sugerencias.push("aumentar la distancia de seguimiento con los vehículos precedentes");
+    if (aceleradasBruscas.length > 0) sugerencias.push("realizar arrancadas suaves y progresivas");
+    if (ralentiEventos.length > 0) sugerencias.push("apagar el motor durante paradas prolongadas");
+
+    feedbackTexto = `Te invitamos a: ${sugerencias.join(", ")} para seguir elevando tu puntaje PESV.`;
+  }
+
+  const lineaGeocerca = esGranTierra
+    ? `  • 📍 Excesos en Geocercas (Gran Tierra): *${excesosGeocerca.length}*\n`
+    : "";
+
+  return (
+`📊 *BALANCE DIARIO DE OPERACIÓN Y CONDUCCIÓN PESV* 📊
+*TRANS SERVICES A&B S.A.S. - Cierre de Jornada*
+
+Hola *${conductorNombre || "Conductor"}*, este es el reporte de tu jornada correspondiente a *${fechaHoy}*:
+
+🚘 *Vehículo / Placa Asignada:* ${placa}
+📈 *Calificación del Día:* *${scoreEstimado} / 100*
+🎯 *Estado:* ${concepto}
+
+*Novedades Registradas en Telemetría:*
+  • ⚠️ Excesos de velocidad (>80 km/h): *${excesosVelocidad.length}*
+${lineaGeocerca}  • 🛑 Frenadas bruscas: *${frenadasBruscas.length}*
+  • ⚡ Aceleradas bruscas: *${aceleradasBruscas.length}*
+  • ⏱️ Eventos de ralentí prolongado: *${ralentiEventos.length}*
+
+💡 *Recomendación Formativa:*
+${feedbackTexto}
+
+_¡Agradecemos tu compromiso diario con la vida y la seguridad vial!_`
+  );
+}
+
+

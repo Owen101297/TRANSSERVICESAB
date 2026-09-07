@@ -51,6 +51,7 @@ import { marcarRetroalimentacionDb } from "@/lib/services/gps.service";
 import { generateTelemetriaPDF } from "@/lib/utils/pdfTelemetriaGenerator";
 import { generateTelemetriaExcel } from "@/lib/utils/excelTelemetriaGenerator";
 import { QuickAsignacionModal } from "@/components/asignaciones/QuickAsignacionModal";
+import { CierreDiarioModal } from "@/components/gps/CierreDiarioModal";
 
 interface GpsMonitorClientViewProps {
   initialEventos: EventoGPS[];
@@ -77,6 +78,7 @@ export function GpsMonitorClientView({
   const [selectedEventoFeedback, setSelectedEventoFeedback] = useState<EventoGPS | null>(null);
   const [quickAssignModalOpen, setQuickAssignModalOpen] = useState(false);
   const [quickAssignPlaca, setQuickAssignPlaca] = useState("");
+  const [cierreDiarioModalOpen, setCierreDiarioModalOpen] = useState(false);
 
   // Filtros Multi-Criterio Flexibles
   const [selectedPlacas, setSelectedPlacas] = useState<string[]>([]); // vacio = todas
@@ -507,8 +509,20 @@ export function GpsMonitorClientView({
           </h1>
         </div>
 
-        {/* Acciones de Exportación & Actualización */}
+        {/* Acciones de Exportación, Balance Diario & Actualización */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Botón Cierre Diario PESV */}
+          <button
+            type="button"
+            onClick={() => setCierreDiarioModalOpen(true)}
+            disabled={eventos.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-radar-cyan/40 bg-radar-cyan-dim/25 hover:bg-radar-cyan/20 px-3 py-1 text-xs font-semibold text-radar-cyan transition-colors active:scale-95 disabled:opacity-50"
+            title="Generar y enviar balance consolidado diario por WhatsApp a los conductores"
+          >
+            <Sparkles size={13} className="text-radar-cyan animate-pulse" />
+            <span>Cierre Diario PESV</span>
+          </button>
+
           {/* Botón Exportar Excel */}
           <button
             type="button"
@@ -526,7 +540,7 @@ export function GpsMonitorClientView({
             type="button"
             onClick={handleExportPDF}
             disabled={isExportingPdf || eventos.length === 0}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-radar-cyan/40 bg-radar-cyan-dim/20 hover:bg-radar-cyan/20 px-3 py-1 text-xs font-semibold text-radar-cyan transition-colors active:scale-95 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-line-500 bg-asphalt-800 hover:bg-asphalt-700 px-3 py-1 text-xs font-semibold text-paper-50 transition-colors active:scale-95 disabled:opacity-50"
             title="Descargar informe oficial en PDF TEL-FOR-01"
           >
             {isExportingPdf ? <Loader2 size={13} className="animate-spin" /> : <FileText size={13} />}
@@ -1026,6 +1040,15 @@ export function GpsMonitorClientView({
         onSuccess={() => {
           fetchEventos(currentPage, pageSize);
         }}
+      />
+
+      {/* Modal de Cierre Diario PESV */}
+      <CierreDiarioModal
+        isOpen={cierreDiarioModalOpen}
+        onClose={() => setCierreDiarioModalOpen(false)}
+        eventos={eventos}
+        conductores={conductores}
+        vehiculos={vehiculos}
       />
     </div>
   );

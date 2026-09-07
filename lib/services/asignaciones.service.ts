@@ -321,7 +321,21 @@ export async function quickAsignarConductorVehiculoAction(payload: {
       newId = created.id;
     }
 
-    // 5. Revalidar todas las páginas
+    // 5. Vincular retroactivamente eventos de telemetría de esta placa que estuvieran sin conductor
+    try {
+      const { retroasignarEventosPlacaDb } = await import("@/lib/services/gps.service");
+      await retroasignarEventosPlacaDb(
+        placa,
+        conductorId,
+        conductorNombre,
+        persona.telefono || null,
+        persona.email || null
+      );
+    } catch (retroErr) {
+      console.warn("Aviso en retroasignación GPS:", retroErr);
+    }
+
+    // 6. Revalidar todas las páginas
     revalidatePath("/asignaciones");
     revalidatePath("/personas");
     revalidatePath(`/personas/${conductorId}`);

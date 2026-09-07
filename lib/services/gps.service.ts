@@ -297,11 +297,43 @@ export async function registrarEventoGPSDb(rawEvent: {
       }
     }
 
+    // Determinar si el vehículo pertenece a Gran Tierra
+    let contratistaVehiculo = "";
+    try {
+      const vehiculo = await (prisma as any).vehiculo.findFirst({
+        where: {
+          OR: [
+            { placa: { equals: cleanPlaca, mode: "insensitive" } },
+            { placa: { equals: hyphenPlaca, mode: "insensitive" } },
+          ],
+        },
+      });
+      if (vehiculo?.contratistaNombre) {
+        contratistaVehiculo = vehiculo.contratistaNombre;
+      }
+    } catch {
+      // Ignorar si no se pudo consultar
+    }
+
+    const esGranTierra = contratistaVehiculo.toUpperCase().includes("GRAN TIERRA") || contratistaVehiculo.toUpperCase().includes("GT");
+    const esGeocerca = tipoEvento === "salida_geocerca" || (rawEvent.descripcion || "").toLowerCase().includes("geocerca");
+
+    // Regla de Negocio: Geocercas solo son críticas para Gran Tierra
+    let prioridadCalculada = prioridad;
+    if (esGeocerca) {
+      prioridadCalculada = esGranTierra ? "alta" : "baja";
+    }
+
+    // Regla de Negocio: Velocidad > 80 km/h siempre es alta/crítica
+    if (rawEvent.velocidad !== undefined && Number(rawEvent.velocidad) > 80) {
+      prioridadCalculada = "alta";
+    }
+
     const eventoData = {
       placa: hyphenPlaca,
       fechaHora: eventTime,
       tipoEvento,
-      prioridad,
+      prioridad: prioridadCalculada,
       descripcion: rawEvent.descripcion || `Evento ${tipoEvento} registrado en vehículo ${cleanPlaca}`,
       velocidad: rawEvent.velocidad !== undefined ? Number(rawEvent.velocidad) : null,
       limiteVelocidad: rawEvent.limiteVelocidad !== undefined ? Number(rawEvent.limiteVelocidad) : null,
@@ -446,4 +478,58 @@ export async function getCalificacionesConductoresDb(
 
 // Alias de exportación para compatibilidad
 export const getCalificacionesMensualesDb = getCalificacionesConductoresDb;
+
+/**
+ * Actualiza retroactivamente los eventos pendientes de una placa recién asignada
+ */
+export async function retroasignarEventosPlacaDb(
+  placa: string,
+  conductorId: string,
+  conductorNombre: string,
+  conductorTelefono?: string | null,
+  conductorEmail?: string | null
+) {
+  try {
+    const cleanPlaca = placa.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const hyphenPlaca = cleanPlaca.length === 6 ? `${cleanPlaca.slice(0, 3)}-${cleanPlaca.slice(3)}` : cleanPlaca;
+
+    try {
+      await (prisma as any).eventoGPS.updateMany({
+        where: {
+          OR: [
+            { placa: { equals: cleanPlaca, mode: "insensitive" } },
+            { placa: { equals: hyphenPlaca, mode: "insensitive" } },
+          ],
+          conductorNombre: { in: ["Sin conductor asignado", "Sin asignar", null] },
+        },
+        data: {
+          conductorId,
+          conductorNombre,
+          conductorTelefono: conductorTelefono || null,
+          conductorEmail: conductorEmail || null,
+        },
+      });
+    } catch {
+      // Fallback en memoria
+      inMemoryEventosGPS.forEach((e) => {
+        const norm = e.placa.replace(/[^A-Z0-9]/g, "").toUpperCase();
+        if (norm === cleanPlaca && (!e.conductorNombre || e.conductorNombre === "Sin conductor asignado")) {
+          e.conductorId = conductorId;
+          e.conductorNombre = conductorNombre;
+          e.conductorTelefono = conductorTelefono || undefined;
+          e.conductorEmail = conductorEmail || undefined;
+        }
+      });
+    }
+
+    revalidatePath("/gps");
+    revalidatePath("/dashboard");
+    revalidatePath("/flota");
+    return { success: true };
+  } catch (err: any) {
+    console.warn("Aviso al retroasignar eventos:", err);
+    return { success: false, error: err.message };
+  }
+}
+
 
