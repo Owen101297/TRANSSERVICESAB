@@ -96,9 +96,17 @@ export function TagComboboxMultiSelect({
       e.preventDefault();
       setIsOpen(true);
       setHighlightedIndex((prev) => (prev - 1 + filteredOptions.length) % (filteredOptions.length || 1));
-    } else if (e.key === "Enter" && isOpen && filteredOptions[highlightedIndex]) {
+    } else if (e.key === "Enter") {
       e.preventDefault();
-      handleToggleOption(filteredOptions[highlightedIndex].value);
+      if (isOpen && filteredOptions[highlightedIndex]) {
+        handleToggleOption(filteredOptions[highlightedIndex].value);
+      } else if (query.trim()) {
+        const val = query.trim().toUpperCase();
+        if (!selectedValues.includes(val)) {
+          onChange([...selectedValues, val]);
+        }
+        setQuery("");
+      }
     } else if (e.key === "Escape") {
       setIsOpen(false);
     }
@@ -194,10 +202,32 @@ export function TagComboboxMultiSelect({
 
       {/* Menú Desplegable Flotante (Popover) */}
       {isOpen && (
-        <div className="absolute left-0 top-full z-50 mt-1 max-h-60 w-full min-w-[240px] overflow-y-auto rounded-xl border border-line-500 bg-asphalt-900 p-1.5 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-150 custom-scrollbar">
-          {filteredOptions.length === 0 ? (
+        <div className="absolute left-0 top-full z-50 mt-1 max-h-64 w-full min-w-[240px] overflow-y-auto rounded-xl border border-line-500 bg-asphalt-900 p-1.5 shadow-2xl backdrop-blur-md animate-in fade-in slide-in-from-top-2 duration-150 custom-scrollbar">
+          {/* Opción rápida para agregar el término tecleado si no existe en opciones exactas */}
+          {query.trim() && !options.some((o) => o.value.toLowerCase() === query.trim().toLowerCase()) && (
+            <button
+              type="button"
+              onClick={() => {
+                const val = query.trim().toUpperCase();
+                if (!selectedValues.includes(val)) {
+                  onChange([...selectedValues, val]);
+                }
+                setQuery("");
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 mb-1 text-left text-xs bg-radar-cyan-dim/30 border border-radar-cyan/40 text-radar-cyan hover:bg-radar-cyan/25 font-mono font-semibold transition-colors"
+            >
+              <Search size={13} className="text-radar-cyan" />
+              <span>Buscar en BD: <strong className="text-paper-50">{query.trim().toUpperCase()}</strong> (Enter)</span>
+            </button>
+          )}
+
+          {filteredOptions.length === 0 && !query.trim() ? (
             <div className="p-3 text-center text-xs text-fog-400 font-mono">
               {emptyMessage}
+            </div>
+          ) : filteredOptions.length === 0 && query.trim() ? (
+            <div className="p-2 text-center text-xs text-fog-400 font-mono">
+              Presiona <strong className="text-radar-cyan">Enter</strong> para buscar <strong className="text-paper-50 font-bold">{query.trim().toUpperCase()}</strong> en toda la base de datos.
             </div>
           ) : (
             <div className="space-y-0.5">

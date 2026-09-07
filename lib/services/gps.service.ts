@@ -63,36 +63,55 @@ export async function getEventosGPSConPaginacionDb(filtros?: {
   try {
     const whereClause: any = {};
 
-    // Filtro por placa(s) con soporte dual (con y sin guion: ej. WDH-465 y WDH465)
+    const andConditions: any[] = [];
+
+    // Filtro por placa(s) con soporte dual y búsqueda universal
     if (filtros?.placas && filtros.placas.length > 0 && !filtros.placas.includes("todas")) {
-      const variantesPlacas: string[] = [];
+      const orPlacas: any[] = [];
       filtros.placas.forEach((p) => {
-        const clean = p.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+        const raw = p.trim();
+        const clean = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
         const hyphen = clean.length === 6 ? `${clean.slice(0, 3)}-${clean.slice(3)}` : clean;
-        variantesPlacas.push(clean, hyphen, p.trim());
+        orPlacas.push(
+          { placa: { equals: raw, mode: "insensitive" } },
+          { placa: { equals: clean, mode: "insensitive" } },
+          { placa: { equals: hyphen, mode: "insensitive" } },
+          { placa: { contains: clean, mode: "insensitive" } }
+        );
       });
-      whereClause.placa = { in: Array.from(new Set(variantesPlacas)) };
+      andConditions.push({ OR: orPlacas });
     } else if (filtros?.placa && filtros.placa !== "todas") {
-      const clean = filtros.placa.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+      const raw = filtros.placa.trim();
+      const clean = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
       const hyphen = clean.length === 6 ? `${clean.slice(0, 3)}-${clean.slice(3)}` : clean;
-      whereClause.OR = [
-        { placa: { contains: clean, mode: "insensitive" } },
-        { placa: { contains: hyphen, mode: "insensitive" } },
-        { placa: { contains: filtros.placa.trim(), mode: "insensitive" } },
-      ];
+      andConditions.push({
+        OR: [
+          { placa: { equals: raw, mode: "insensitive" } },
+          { placa: { equals: clean, mode: "insensitive" } },
+          { placa: { equals: hyphen, mode: "insensitive" } },
+          { placa: { contains: clean, mode: "insensitive" } },
+        ],
+      });
     }
 
     // Búsqueda libre universal en base de datos
     if (filtros?.busqueda && filtros.busqueda.trim()) {
       const q = filtros.busqueda.trim();
       const qClean = q.toUpperCase().replace(/[^A-Z0-9]/g, "");
-      whereClause.OR = [
+      const searchOr: any[] = [
         { placa: { contains: q, mode: "insensitive" } },
-        { placa: { contains: qClean, mode: "insensitive" } },
         { conductorNombre: { contains: q, mode: "insensitive" } },
         { descripcion: { contains: q, mode: "insensitive" } },
         { ubicacion: { contains: q, mode: "insensitive" } },
       ];
+      if (qClean.length >= 2) {
+        searchOr.push({ placa: { contains: qClean, mode: "insensitive" } });
+      }
+      andConditions.push({ OR: searchOr });
+    }
+
+    if (andConditions.length > 0) {
+      whereClause.AND = andConditions;
     }
 
     if (filtros?.conductorId) whereClause.conductorId = filtros.conductorId;

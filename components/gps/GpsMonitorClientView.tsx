@@ -234,9 +234,11 @@ export function GpsMonitorClientView({
     }
 
     if (!searchTerm.trim()) return true;
-    const q = searchTerm.toLowerCase();
-    const matchPlaca = e.placa.toLowerCase().includes(q);
-    const matchConductor = e.conductorNombre?.toLowerCase().includes(q);
+    const q = searchTerm.toLowerCase().trim();
+    const qClean = q.replace(/[^a-z0-9]/g, "");
+    const cleanPlaca = e.placa.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const matchPlaca = e.placa.toLowerCase().includes(q) || (qClean.length >= 2 && cleanPlaca.includes(qClean));
+    const matchConductor = (e.conductorNombre || "sin conductor asignado").toLowerCase().includes(q);
     const matchDesc = e.descripcion?.toLowerCase().includes(q);
     const matchUbicacion = e.ubicacion?.toLowerCase().includes(q);
     return matchPlaca || matchConductor || matchDesc || matchUbicacion;
