@@ -503,6 +503,15 @@ export async function ensureContratistaExistsDb(
 
   try {
     if (process.env.DATABASE_URL) {
+      // 1. Buscar por ID directo si fue enviado un ID
+      const byId = await prisma.contratista.findUnique({
+        where: { id: cleanNombre },
+      });
+      if (byId) {
+        return { id: byId.id, razonSocial: byId.razonSocial };
+      }
+
+      // 2. Buscar por Razón Social insensible a mayúsculas
       const existing = await prisma.contratista.findFirst({
         where: { razonSocial: { equals: cleanNombre, mode: "insensitive" } },
       });
