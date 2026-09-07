@@ -97,6 +97,27 @@ async function initBaseCatalogs() {
       console.warn("Aviso en sincronización de contratistas desde vehículos:", vErr);
     }
 
+    // Reclasificación automática de eventos GPS históricos de geocerca
+    try {
+      const geoUpdate = await (prisma as any).eventoGPS.updateMany({
+        where: {
+          tipoEvento: "exceso_velocidad",
+          descripcion: {
+            contains: "geocerca",
+            mode: "insensitive",
+          },
+        },
+        data: {
+          tipoEvento: "exceso_geocerca",
+        },
+      });
+      if (geoUpdate.count > 0) {
+        console.log(`✓ Reclasificados ${geoUpdate.count} eventos históricos de geocerca a 'exceso_geocerca'.`);
+      }
+    } catch (gErr) {
+      console.warn("Aviso en reclasificación de eventos GPS de geocerca:", gErr);
+    }
+
     console.log("✓ Catálogos normativos y contratistas verificados con éxito.");
   } catch (err) {
     console.warn("Aviso al inicializar catálogos (no bloqueante):", err);
