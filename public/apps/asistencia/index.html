@@ -16,132 +16,84 @@
     <link rel="stylesheet" href="/apps/asistencia/styles.css">
 </head>
 
-<body class="bg-slate-50 min-h-screen text-slate-900 font-sans pb-24">
+<body class="bg-slate-50 min-h-screen text-slate-900 font-sans pb-16">
 
     <!-- Notificaciones Toast -->
     <div id="toasts" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-sm"></div>
 
     <!-- Header Institucional Trans Services A&B -->
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
-        <div class="max-w-xl mx-auto px-4 py-3 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <img src="/logo.png" alt="Trans Services A&B" class="w-10 h-10 object-contain rounded-xl border border-slate-200 p-0.5 bg-white shadow-xs">
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+        <div class="max-w-xl mx-auto px-4 py-2.5 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <img src="/logo.png" alt="Trans Services A&B" class="w-8 h-8 object-contain rounded-lg border border-slate-200 p-0.5 bg-white">
                 <div>
-                    <h1 class="text-sm font-extrabold text-slate-900 leading-tight">Trans Services A&B</h1>
-                    <p class="text-[11px] font-bold text-[#1E40AF]">TH-FOR-03 · SG-SST / PESV</p>
+                    <h1 class="text-xs font-black text-slate-900 leading-tight">Trans Services A&B</h1>
+                    <p class="text-[10px] font-bold text-[#1E40AF]">TH-FOR-03 · SG-SST / PESV</p>
                 </div>
             </div>
-            <div class="text-right">
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-[#1E40AF] text-[11px] font-extrabold border border-blue-200">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    En Línea
+            <div class="flex items-center gap-2">
+                <span id="clockDate" class="text-[11px] font-bold text-slate-500 capitalize hidden sm:inline-block">--</span>
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-extrabold border border-emerald-200">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Activo
                 </span>
             </div>
         </div>
     </header>
 
-    <main class="max-w-xl mx-auto px-4 sm:px-6 mt-4 space-y-5">
+    <main class="max-w-xl mx-auto px-3 sm:px-4 mt-3 space-y-3.5">
 
-        <!-- Título y Fecha / Hora Local -->
-        <div class="bg-white rounded-2xl p-4 border-2 border-slate-200 shadow-sm flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-blue-50 text-[#1E40AF] rounded-xl flex items-center justify-center border border-blue-200">
-                    <i data-lucide="clipboard-check" class="w-5 h-5"></i>
+        <!-- BANNER COMPACTO E INFORMATIVO DEL TEMA (SOLO LECTURA / CERO SCROLL) -->
+        <div class="bg-white rounded-2xl p-3 border-2 border-slate-200 shadow-xs flex items-center justify-between gap-2.5">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <div class="w-8 h-8 rounded-xl bg-blue-50 text-[#1E40AF] flex items-center justify-center shrink-0 border border-blue-200">
+                    <i data-lucide="shield-check" class="w-4 h-4"></i>
                 </div>
-                <div>
-                    <h2 class="text-xs font-extrabold text-slate-500 uppercase tracking-wider">Planilla de Asistencia</h2>
-                    <p id="clockDate" class="text-xs font-bold text-slate-700 capitalize">Cargando fecha...</p>
+                <div class="min-w-0">
+                    <span class="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 block leading-none">Actividad Programada</span>
+                    <h2 id="displayTema" class="text-xs sm:text-sm font-black text-slate-900 truncate mt-0.5">Charla 5 Minutos · Seguridad Vial y PESV</h2>
                 </div>
             </div>
-            <div class="text-right">
-                <span id="clockTime" class="text-lg font-black text-slate-900 tabular-nums">--:--:--</span>
+            <div class="text-right shrink-0">
+                <span id="clockTime" class="text-[11px] font-mono font-bold text-[#1E40AF] bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200 tabular-nums">--:--</span>
             </div>
         </div>
 
         <!-- FORMULARIO INDIVIDUAL DE ASISTENCIA -->
-        <form id="asistenciaForm" onsubmit="handleRegistrarAsistenciaIndividual(event)" class="space-y-5">
+        <form id="asistenciaForm" onsubmit="handleRegistrarAsistenciaIndividual(event)" class="space-y-3.5">
 
-            <!-- SECCIÓN 1: Actividad / Tema de Capacitación -->
-            <section class="card-apple space-y-4">
-                <div class="border-b border-slate-200 pb-2.5">
-                    <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                        <i data-lucide="shield-alert" class="w-4 h-4 text-[#1E40AF]"></i>
-                        1. Tema de la Charla o Capacitación
+            <!-- Inputs Ocultos de Actividad y Tema -->
+            <input type="hidden" id="inpTema" value="CHARLA DE SEGURIDAD VIAL Y PESV (5 MIN)">
+            <input type="hidden" id="inpTipoEvento" value="Charla 5 Minutos (PESV/HSEQ)">
+
+            <!-- SECCIÓN 1: Identificación y Ubicación en Ruta -->
+            <section class="card-apple p-4 space-y-3">
+                <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+                    <h3 class="text-xs font-extrabold text-slate-900 flex items-center gap-1.5 uppercase tracking-wide">
+                        <i data-lucide="user-check" class="w-3.5 h-3.5 text-[#1E40AF]"></i>
+                        1. Identificación y Ubicación
                     </h3>
-                    <p class="text-[11px] text-slate-500 font-medium">Selecciona la actividad divulgada por la empresa</p>
+                    <span class="text-[10px] text-slate-400 font-medium">Autocompletado con cédula</span>
                 </div>
 
-                <!-- Selector Rápido de Actividad -->
-                <div class="grid grid-cols-2 gap-2" id="eventPillsContainer">
-                    <button type="button" class="event-pill active" data-type="Charla 5 Minutos (PESV/HSEQ)" onclick="selectEventType(this)">
-                        <i data-lucide="shield-check" class="w-4 h-4 text-[#1E40AF]"></i>
-                        <span>Charla 5 Min</span>
-                    </button>
-                    <button type="button" class="event-pill" data-type="Pausas Activas y Fatiga" onclick="selectEventType(this)">
-                        <i data-lucide="activity" class="w-4 h-4"></i>
-                        <span>Pausas / Fatiga</span>
-                    </button>
-                    <button type="button" class="event-pill" data-type="Manejo Defensivo y Seguridad Vial" onclick="selectEventType(this)">
-                        <i data-lucide="navigation" class="w-4 h-4"></i>
-                        <span>Manejo Defensivo</span>
-                    </button>
-                    <button type="button" class="event-pill" data-type="Inspección Preoperacional" onclick="selectEventType(this)">
-                        <i data-lucide="check-circle" class="w-4 h-4"></i>
-                        <span>Preoperacional</span>
-                    </button>
-                    <button type="button" class="event-pill" data-type="Divulgación Políticas SG-SST/PESV" onclick="selectEventType(this)">
-                        <i data-lucide="book-open" class="w-4 h-4"></i>
-                        <span>Políticas PESV</span>
-                    </button>
-                    <button type="button" class="event-pill" data-type="Inducción / Capacitación Técnica" onclick="selectEventType(this)">
-                        <i data-lucide="graduation-cap" class="w-4 h-4"></i>
-                        <span>Capacitación</span>
-                    </button>
-                </div>
-
-                <!-- Detalle del Tema -->
-                <div>
-                    <label for="inpTema" class="field-label">Tema Específico / Asunto *</label>
-                    <input type="text" id="inpTema" list="temasSugeridos" class="input-moderno uppercase" placeholder="Ej: PREVENCIÓN DE FATIGA EN RUTA Y DISTANCIA DE FRENADO" required value="CHARLA DE SEGURIDAD VIAL Y PESV">
-                    <datalist id="temasSugeridos">
-                        <option value="PREVENCIÓN DE FATIGA Y CONTROL DE MICROSUEÑOS"></option>
-                        <option value="MANEJO DEFENSIVO EN CONDICIONES CLIMÁTICAS ADVERSAS"></option>
-                        <option value="INSPECCIÓN PREOPERACIONAL Y REPORTE DE HALLAZGOS"></option>
-                        <option value="USO DEL CINTURÓN DE SEGURIDAD Y VELOCIDADES MÁXIMAS"></option>
-                        <option value="PROTOCOLOS DE BIOSEGURIDAD Y ASEO VEHICULAR"></option>
-                        <option value="PLAN DE EMERGENCIAS Y USO DE EXTINTORES / BOTIQUÍN"></option>
-                    </datalist>
-                </div>
-            </section>
-
-            <!-- SECCIÓN 2: Datos de Identificación y Ubicación en Ruta -->
-            <section class="card-apple space-y-4">
-                <div class="border-b border-slate-200 pb-2.5">
-                    <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                        <i data-lucide="user-check" class="w-4 h-4 text-[#1E40AF]"></i>
-                        2. Identificación y Ubicación
-                    </h3>
-                    <p class="text-[11px] text-slate-500 font-medium">Ingresa tu cédula para autocompletar tus datos</p>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                        <label for="inpCedula" class="field-label">Cédula de Ciudadanía *</label>
+                        <label for="inpCedula" class="field-label text-[11px]">Cédula de Ciudadanía *</label>
                         <div class="relative">
-                            <input type="text" id="inpCedula" class="input-moderno font-mono" placeholder="Número de documento" inputmode="numeric" maxlength="15" required oninput="onCedulaInput(this.value)" onblur="buscarConductorPorCedula(this.value)">
-                            <div id="cedulaSearchStatus" class="absolute right-3 top-3.5 text-xs text-slate-400"></div>
+                            <input type="text" id="inpCedula" class="input-moderno font-mono text-sm py-2" placeholder="Número de documento" inputmode="numeric" maxlength="15" required oninput="onCedulaInput(this.value)" onblur="buscarConductorPorCedula(this.value)">
+                            <div id="cedulaSearchStatus" class="absolute right-3 top-3 text-xs text-slate-400"></div>
                         </div>
                     </div>
                     <div>
-                        <label for="inpNombre" class="field-label">Nombre Completo *</label>
-                        <input type="text" id="inpNombre" class="input-moderno uppercase" placeholder="Nombres y Apellidos" maxlength="80" required>
+                        <label for="inpNombre" class="field-label text-[11px]">Nombre Completo *</label>
+                        <input type="text" id="inpNombre" class="input-moderno uppercase text-sm py-2" placeholder="Nombres y Apellidos" maxlength="80" required>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label for="selCargo" class="field-label">Cargo / Rol *</label>
-                        <select id="selCargo" class="input-moderno">
+                        <label for="selCargo" class="field-label text-[11px]">Cargo / Rol *</label>
+                        <select id="selCargo" class="input-moderno text-xs py-2">
                             <option value="CONDUCTOR">CONDUCTOR</option>
                             <option value="AUXILIAR DE RUTA">AUXILIAR DE RUTA</option>
                             <option value="SUPERVISOR DE OPERACIONES">SUPERVISOR DE OPERACIONES</option>
@@ -152,8 +104,8 @@
                         </select>
                     </div>
                     <div>
-                        <label for="selProyecto" class="field-label">Empresa / Proyecto *</label>
-                        <select id="selProyecto" class="input-moderno">
+                        <label for="selProyecto" class="field-label text-[11px]">Empresa / Proyecto *</label>
+                        <select id="selProyecto" class="input-moderno text-xs py-2">
                             <option value="TRANS SERVICES A&B">TRANS SERVICES A&B</option>
                             <option value="GRAN TIERRA (GT)">GRAN TIERRA (GT)</option>
                             <option value="ICBF">ICBF</option>
@@ -165,8 +117,8 @@
                 </div>
 
                 <div>
-                    <label for="inpLugar" class="field-label">Ubicación / Municipio Actual *</label>
-                    <input type="text" id="inpLugar" list="municipiosSugeridos" class="input-moderno uppercase" placeholder="Ej: VILLAGARZÓN / EN RUTA" value="VILLAGARZÓN" required>
+                    <label for="inpLugar" class="field-label text-[11px]">Ubicación / Municipio Actual *</label>
+                    <input type="text" id="inpLugar" list="municipiosSugeridos" class="input-moderno uppercase text-xs py-2" placeholder="Ej: VILLAGARZÓN / EN RUTA" value="VILLAGARZÓN" required>
                     <datalist id="municipiosSugeridos">
                         <option value="VILLAGARZÓN (PUTUMAYO)"></option>
                         <option value="MOCOA (PUTUMAYO)"></option>
@@ -180,73 +132,71 @@
                 </div>
             </section>
 
-            <!-- SECCIÓN 3: Evidencia Fotográfica (PESV / Auditoría) -->
-            <section class="card-apple space-y-3">
-                <div class="border-b border-slate-200 pb-2.5">
-                    <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                        <i data-lucide="camera" class="w-4 h-4 text-[#1E40AF]"></i>
-                        3. Evidencia Fotográfica (Soporte PESV)
+            <!-- SECCIÓN 2: Evidencia Fotográfica (Soporte PESV en Ruta) -->
+            <section class="card-apple p-4 space-y-2.5">
+                <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+                    <h3 class="text-xs font-extrabold text-slate-900 flex items-center gap-1.5 uppercase tracking-wide">
+                        <i data-lucide="camera" class="w-3.5 h-3.5 text-[#1E40AF]"></i>
+                        2. Evidencia Fotográfica
                     </h3>
-                    <p class="text-[11px] text-slate-500 font-medium">Selfie con el vehículo o foto del entorno de la charla (Opcional)</p>
+                    <span class="text-[10px] text-slate-400 font-medium">Selfie en cabina / vehículo</span>
                 </div>
 
                 <div id="fotoUploadBox">
-                    <label for="fotoFile" class="flex flex-col items-center justify-center w-full py-6 border-2 border-slate-300 border-dashed rounded-2xl cursor-pointer bg-slate-50/60 hover:bg-slate-100 transition-all shadow-xs">
-                        <div class="flex flex-col items-center justify-center p-3 text-center">
-                            <i data-lucide="camera-plus" class="w-8 h-8 text-[#1E40AF] mb-1.5"></i>
-                            <p class="text-xs font-extrabold text-slate-900"><span class="text-[#1E40AF] underline">Tomar Selfie o Adjuntar Foto</span></p>
-                            <p class="text-[10px] text-slate-500 font-semibold mt-0.5">Comprueba tu presencia en el lugar</p>
+                    <label for="fotoFile" class="flex items-center justify-center gap-2.5 w-full py-3.5 px-4 border-2 border-slate-300 border-dashed rounded-xl cursor-pointer bg-slate-50/70 hover:bg-slate-100 transition-all">
+                        <i data-lucide="camera-plus" class="w-5 h-5 text-[#1E40AF]"></i>
+                        <div class="text-left">
+                            <p class="text-xs font-extrabold text-slate-900"><span class="text-[#1E40AF] underline">Tomar Selfie o Foto</span></p>
+                            <p class="text-[10px] text-slate-500 font-semibold">Respaldo de participación en ruta (Opcional)</p>
                         </div>
                         <input id="fotoFile" type="file" class="hidden" accept="image/*" onchange="previewFotoEvidencia(event)">
                     </label>
                 </div>
 
                 <div id="fotoPreviewBox" class="hidden relative group">
-                    <img id="fotoPreviewImg" src="" alt="Evidencia de Asistencia" class="w-full h-44 rounded-xl object-cover border-2 border-slate-300 shadow-sm">
-                    <button type="button" onclick="removeFotoEvidencia()" class="absolute top-2 right-2 px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-full shadow-md flex items-center gap-1">
-                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Cambiar Foto
+                    <img id="fotoPreviewImg" src="" alt="Evidencia de Asistencia" class="w-full h-36 rounded-xl object-cover border-2 border-slate-300 shadow-xs">
+                    <button type="button" onclick="removeFotoEvidencia()" class="absolute top-2 right-2 px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold rounded-full shadow-md flex items-center gap-1">
+                        <i data-lucide="trash-2" class="w-3 h-3"></i> Cambiar
                     </button>
                 </div>
             </section>
 
-            <!-- SECCIÓN 4: Firma Digital -->
-            <section class="card-apple space-y-3">
-                <div class="flex items-center justify-between border-b border-slate-200 pb-2.5">
-                    <div>
-                        <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                            <i data-lucide="pen-tool" class="w-4 h-4 text-[#1E40AF]"></i>
-                            4. Firma Digital del Asistente *
-                        </h3>
-                        <p class="text-[11px] text-slate-500 font-medium">Dibuja tu firma con el dedo en el recuadro</p>
-                    </div>
-                    <button type="button" onclick="clearSignature()" class="text-xs font-extrabold text-[#1E40AF] hover:underline flex items-center gap-1">
-                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Limpiar
+            <!-- SECCIÓN 3: Firma Digital con el Dedo -->
+            <section class="card-apple p-4 space-y-2.5">
+                <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+                    <h3 class="text-xs font-extrabold text-slate-900 flex items-center gap-1.5 uppercase tracking-wide">
+                        <i data-lucide="pen-tool" class="w-3.5 h-3.5 text-[#1E40AF]"></i>
+                        3. Firma Digital del Asistente *
+                    </h3>
+                    <button type="button" onclick="clearSignature()" class="text-[11px] font-extrabold text-[#1E40AF] hover:underline flex items-center gap-1">
+                        <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Borrar
                     </button>
                 </div>
 
-                <div class="signature-box h-[150px] overflow-hidden bg-white shadow-xs border-2 border-slate-300 rounded-xl">
+                <div class="signature-box h-[130px] overflow-hidden bg-white shadow-xs border-2 border-slate-300 rounded-xl">
                     <canvas id="signaturePad" class="signature-pad"></canvas>
                 </div>
+                <p class="text-[10px] text-slate-400 font-semibold text-center">Firme dentro del recuadro usando su dedo o lápiz táctil</p>
             </section>
 
             <!-- Botón de Envío Principal -->
-            <button type="submit" id="btnSubmitAsistencia" class="btn-primary w-full py-4 text-base font-black shadow-lg">
+            <button type="submit" id="btnSubmitAsistencia" class="btn-primary w-full py-3.5 text-sm sm:text-base font-black shadow-md">
                 <i data-lucide="check-circle-2" class="w-5 h-5 mr-2"></i>
                 Firmar y Registrar mi Asistencia
             </button>
         </form>
 
         <!-- PANTALLA DE ÉXITO Y CONSTANCIA (Oculta por defecto) -->
-        <section id="successScreen" class="hidden card-apple text-center space-y-4 py-8">
-            <div class="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto border-2 border-emerald-200 shadow-sm">
-                <i data-lucide="check" class="w-9 h-9"></i>
+        <section id="successScreen" class="hidden card-apple text-center space-y-3.5 py-6">
+            <div class="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto border-2 border-emerald-200 shadow-xs">
+                <i data-lucide="check" class="w-8 h-8"></i>
             </div>
             <div>
-                <h3 class="text-xl font-extrabold text-slate-900">¡Asistencia Registrada con Éxito!</h3>
-                <p class="text-xs text-slate-500 font-semibold mt-1">Formato Oficial TH-FOR-03 · Trans Services A&B</p>
+                <h3 class="text-lg font-extrabold text-slate-900">¡Asistencia Registrada con Éxito!</h3>
+                <p class="text-[11px] text-slate-500 font-semibold">Formato Oficial TH-FOR-03 · Trans Services A&B</p>
             </div>
 
-            <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-left text-xs space-y-2 max-w-sm mx-auto">
+            <div class="bg-slate-50 rounded-2xl p-3.5 border border-slate-200 text-left text-xs space-y-1.5 max-w-sm mx-auto">
                 <div class="flex justify-between">
                     <span class="text-slate-500 font-bold">Participante:</span>
                     <span id="recNombre" class="font-extrabold text-slate-900 uppercase"></span>
@@ -269,9 +219,9 @@
                 </div>
             </div>
 
-            <div class="pt-2">
-                <button type="button" onclick="reiniciarFormulario()" class="btn-secondary w-full py-3 text-xs font-extrabold">
-                    <i data-lucide="user-plus" class="w-4 h-4 mr-1.5"></i> Registrar Otra Asistencia
+            <div class="pt-1">
+                <button type="button" onclick="reiniciarFormulario()" class="btn-secondary w-full py-2.5 text-xs font-extrabold">
+                    <i data-lucide="user-plus" class="w-3.5 h-3.5 mr-1.5"></i> Registrar Otra Asistencia
                 </button>
             </div>
         </section>

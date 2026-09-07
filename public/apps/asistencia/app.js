@@ -1,7 +1,6 @@
 import { createAsistencia, getConductorByDocumento, fechaLocal, horaLocal } from './supabase-client.js';
 
 // --- ESTADO LOCAL ---
-let currentEventType = 'Charla 5 Minutos (PESV/HSEQ)';
 let fotoEvidenciaBase64 = null;
 let isDrawing = false;
 let hasDrawn = false;
@@ -19,23 +18,27 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 });
 
-// --- LEER PARÁMETROS DE URL (Si el supervisor envía enlace personalizado) ---
+// --- LEER PARÁMETROS DE URL (Para enlaces personalizados desde WhatsApp o ERP) ---
 function initUrlParams() {
     try {
         const params = new URLSearchParams(window.location.search);
         const doc = params.get('doc') || params.get('cedula') || params.get('documento');
-        const tema = params.get('tema') || params.get('actividad');
+        const tema = params.get('tema') || params.get('actividad') || params.get('asunto');
         const lugar = params.get('lugar') || params.get('municipio');
 
         if (doc && $('inpCedula')) {
             $('inpCedula').value = doc;
             window.buscarConductorPorCedula(doc);
         }
-        if (tema && $('inpTema')) {
-            $('inpTema').value = decodeURIComponent(tema);
+
+        if (tema) {
+            const cleanTema = decodeURIComponent(tema);
+            if ($('displayTema')) $('displayTema').textContent = cleanTema;
+            if ($('inpTema')) $('inpTema').value = cleanTema.toUpperCase();
         }
+
         if (lugar && $('inpLugar')) {
-            $('inpLugar').value = decodeURIComponent(lugar);
+            $('inpLugar').value = decodeURIComponent(lugar).toUpperCase();
         }
     } catch (e) {
         console.warn('Lectura de parámetros URL:', e);
@@ -46,13 +49,12 @@ function initUrlParams() {
 function initClock() {
     function tick() {
         const now = new Date();
-        if ($('clockTime')) $('clockTime').textContent = horaLocal(now);
+        if ($('clockTime')) $('clockTime').textContent = horaLocal(now).slice(0, 5);
         if ($('clockDate')) {
             $('clockDate').textContent = now.toLocaleDateString('es-CO', {
                 weekday: 'short',
                 day: 'numeric',
-                month: 'short',
-                year: 'numeric'
+                month: 'short'
             });
         }
     }
@@ -128,18 +130,6 @@ window.clearSignature = function () {
     hasDrawn = false;
 };
 
-// --- SELECTOR DE ACTIVIDAD / PILLS ---
-window.selectEventType = function (el) {
-    document.querySelectorAll('.event-pill').forEach(pill => pill.classList.remove('active'));
-    el.classList.add('active');
-    currentEventType = el.getAttribute('data-type');
-    
-    // Asignar sugerencia de tema por defecto según el pill
-    if ($('inpTema') && (!$('inpTema').value || $('inpTema').value === 'CHARLA DE SEGURIDAD VIAL Y PESV')) {
-        $('inpTema').value = currentEventType.toUpperCase();
-    }
-};
-
 // --- BÚSQUEDA AUTOMÁTICA POR CÉDULA ---
 let searchDebounce = null;
 window.onCedulaInput = function (val) {
@@ -153,7 +143,7 @@ window.onCedulaInput = function (val) {
 window.buscarConductorPorCedula = async function (cedula) {
     if (!cedula || cedula.trim().length < 5) return;
     const status = $('cedulaSearchStatus');
-    if (status) status.innerHTML = '<span class="text-[#1E40AF] font-bold text-[11px] animate-pulse">Buscando...</span>';
+    if (status) status.innerHTML = '<span class="text-[#1E40AF] font-bold text-[10px] animate-pulse">Buscando...</span>';
 
     try {
         const persona = await getConductorByDocumento(cedula.trim());
@@ -240,14 +230,14 @@ window.removeFotoEvidencia = function () {
 window.handleRegistrarAsistenciaIndividual = async function (e) {
     e.preventDefault();
 
-    const tema = $('inpTema')?.value?.trim();
+    const tema = $('inpTema')?.value?.trim() || 'CHARLA DE SEGURIDAD VIAL Y PESV (5 MIN)';
+    const tipoEvento = $('inpTipoEvento')?.value?.trim() || 'Charla 5 Minutos (PESV/HSEQ)';
     const cedula = $('inpCedula')?.value?.trim();
     const nombre = $('inpNombre')?.value?.trim();
     const cargo = $('selCargo')?.value;
     const proyecto = $('selProyecto')?.value;
     const lugar = $('inpLugar')?.value?.trim() || 'VILLAGARZÓN';
 
-    if (!tema) return showToast('Por favor escribe el tema de la charla', 'error');
     if (!cedula) return showToast('Por favor ingresa tu número de cédula', 'error');
     if (!nombre) return showToast('Por favor escribe tu nombre completo', 'error');
     if (!hasDrawn) return showToast('La firma digital en pantalla es obligatoria', 'error');
@@ -266,8 +256,8 @@ window.handleRegistrarAsistenciaIndividual = async function (e) {
         conductor_nombre: nombre,
         cargo: cargo,
         proyecto: proyecto,
-        evento: `${currentEventType}: ${tema}`,
-        tipo_evento: currentEventType,
+        evento: tema,
+        tipo_evento: tipoEvento,
         facilitador: 'COORDINACIÓN HSEQ & PESV',
         lugar: lugar,
         estado: 'presente',
