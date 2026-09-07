@@ -172,3 +172,86 @@ export const NIVEL_SCORE_LABELS: Record<
     colorText: "text-alert-red",
   },
 };
+
+/**
+ * Genera el mensaje formal de alerta por actividad fuera de horario (> 10:00 PM) para los administradores
+ */
+export function generarMensajeAlertaNocturnaAdmin(
+  placa: string,
+  conductorNombre: string,
+  conductorTelefono: string | null | undefined,
+  eventosNocturnos: EventoGPS[],
+  adminNombre: string = "Administrador"
+): string {
+  const ultEvt = eventosNocturnos[0] || {};
+  const fechaHoraStr = ultEvt.fechaHora
+    ? new Date(ultEvt.fechaHora).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "medium" })
+    : new Date().toLocaleString("es-CO");
+
+  const listaEventos = eventosNocturnos
+    .slice(0, 5)
+    .map((e) => {
+      const hora = new Date(e.fechaHora).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
+      const tipo = TIPO_EVENTO_LABELS[e.tipoEvento]?.label || e.tipoEvento;
+      const vel = e.velocidad ? ` (${e.velocidad} km/h)` : "";
+      return `  • *${hora}:* ${tipo}${vel}`;
+    })
+    .join("\n");
+
+  const ubicacion = ultEvt.ubicacion ? `\n📍 *Última Ubicación:* ${ultEvt.ubicacion}` : "";
+
+  return (
+`🚨 *ALERTA NOCTURNA - ACTIVIDAD FUERA DE HORARIO (>10:00 PM)* 🚨
+*TRANS SERVICES A&B S.A.S. - Control de Flota PESV*
+
+Estimado(a) *${adminNombre}*, el sistema satelital (Satelcopro) ha detectado *actividad vehicular no autorizada* en franja nocturna restringida:
+
+🚘 *Vehículo / Placa:* ${placa}
+👤 *Conductor Registrado:* ${conductorNombre || "Sin conductor asignado"} ${conductorTelefono ? `(Tel: ${conductorTelefono})` : ""}
+⏱️ *Hora Último Reporte:* ${fechaHoraStr}${ubicacion}
+📊 *Total Eventos en Turno Nocturno:* ${eventosNocturnos.length}
+
+*Detalle de Novedades Detectadas:*
+${listaEventos}
+
+⚠️ *Acción Inmediata:*
+Por favor comuníquese de inmediato con el conductor o contratista para verificar la autorización de movilización y salvaguardar la seguridad del vehículo y sus ocupantes.
+
+_Centro de Monitoreo Automatizado A&B_`
+  );
+}
+
+/**
+ * Genera el mensaje formal de reincidencia para conductores con múltiples faltas
+ */
+export function generarMensajeReincidenciaWhatsApp(
+  conductorNombre: string,
+  placa: string,
+  eventos: EventoGPS[]
+): string {
+  const faltasTexto = eventos
+    .slice(0, 4)
+    .map((e) => {
+      const fecha = new Date(e.fechaHora).toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" });
+      const tipo = TIPO_EVENTO_LABELS[e.tipoEvento]?.label || e.tipoEvento;
+      const vel = e.velocidad ? ` (${e.velocidad} km/h)` : "";
+      return `  • ${fecha} — ${tipo}${vel}`;
+    })
+    .join("\n");
+
+  return (
+`⚠️ *NOTIFICACIÓN DE REINCIDENCIA EN SEGURIDAD VIAL (PESV)* ⚠️
+*TRANS SERVICES A&B S.A.S.*
+
+Hola *${conductorNombre || "Conductor"}*, el Comité de Seguridad Vial y Monitoreo Satelcopro ha registrado *${eventos.length} novedades reiteradas* en el vehículo *${placa}*:
+
+*Historial Reciente de Novedades:*
+${faltasTexto}
+
+🛑 *Llamado a la Prevención:*
+La reiteración de estas conductas incrementa el riesgo de siniestralidad. De acuerdo con el procedimiento del PESV, te solicitamos extremar las medidas de *manejo defensivo*, respetar los límites de velocidad y realizar pausas activas.
+
+_Recuerda que tu vida y la de tus pasajeros es nuestra prioridad._`
+  );
+}
+

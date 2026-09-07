@@ -46,12 +46,19 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const placa = searchParams.get("placa") || undefined;
+    const placasParam = searchParams.get("placas");
+    const placas = placasParam ? placasParam.split(",").map((p) => p.trim()).filter(Boolean) : undefined;
+
     const conductorId = searchParams.get("conductorId") || undefined;
     const tipoEvento = (searchParams.get("tipo") || searchParams.get("tipoEvento")) as TipoEventoGPS | undefined;
+    const tiposParam = searchParams.get("tipos");
+    const tiposEvento = tiposParam ? tiposParam.split(",").map((t) => t.trim()).filter(Boolean) : undefined;
+
     const prioridad = (searchParams.get("prioridad") || searchParams.get("severidad")) as PrioridadEventoGPS | undefined;
     const rango = (searchParams.get("rango") || "todos") as any;
     const fechaDesde = searchParams.get("desde") || searchParams.get("fechaDesde") || undefined;
     const fechaHasta = searchParams.get("hasta") || searchParams.get("fechaHasta") || undefined;
+    const soloNocturno = searchParams.get("nocturno") === "true" || searchParams.get("soloNocturno") === "true";
     
     const limiteParam = searchParams.get("limite");
     const limite = limiteParam ? parseInt(limiteParam, 10) : 20;
@@ -61,12 +68,27 @@ export async function GET(request: NextRequest) {
     const offsetParam = searchParams.get("offset");
     const offset = offsetParam ? parseInt(offsetParam, 10) : (page - 1) * limite;
 
-    const { getEventosGPSConPaginacionDb } = await import("@/lib/services/gps.service");
+    const { getEventosGPSConPaginacionDb, getEventosNocturnosDb } = await import("@/lib/services/gps.service");
+    
+    // Si se consulta el consolidado nocturno
+    if (searchParams.get("modo") === "nocturno_agrupado") {
+      const resumenNocturno = await getEventosNocturnosDb(rango);
+      return NextResponse.json({
+        status: "online",
+        gateway: "Trans Services Telematics Gateway (Control Nocturno)",
+        ...resumenNocturno,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     const { eventos, totalCount } = await getEventosGPSConPaginacionDb({
       placa,
+      placas,
       conductorId,
       tipoEvento,
+      tiposEvento,
       prioridad,
+      soloNocturno,
       limite,
       offset,
       rango,

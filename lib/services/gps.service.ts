@@ -25,9 +25,12 @@ let inMemoryEventosGPS: EventoGPS[] = [];
  */
 export async function getEventosGPSDb(filtros?: {
   placa?: string;
+  placas?: string[];
   conductorId?: string;
   prioridad?: PrioridadEventoGPS;
   tipoEvento?: TipoEventoGPS;
+  tiposEvento?: string[];
+  soloNocturno?: boolean;
   limite?: number;
   offset?: number;
   rango?: "hoy" | "24h" | "7d" | "mes" | "todos" | "personalizado";
@@ -39,13 +42,16 @@ export async function getEventosGPSDb(filtros?: {
 }
 
 /**
- * Consulta eventos GPS con soporte para paginación y filtros temporales
+ * Consulta eventos GPS con soporte para paginación, filtros múltiples y temporales
  */
 export async function getEventosGPSConPaginacionDb(filtros?: {
   placa?: string;
+  placas?: string[];
   conductorId?: string;
   prioridad?: PrioridadEventoGPS | "todas";
   tipoEvento?: TipoEventoGPS | "todos";
+  tiposEvento?: string[];
+  soloNocturno?: boolean;
   limite?: number;
   offset?: number;
   rango?: "hoy" | "24h" | "7d" | "mes" | "todos" | "personalizado";
@@ -54,10 +60,23 @@ export async function getEventosGPSConPaginacionDb(filtros?: {
 }): Promise<{ eventos: EventoGPS[]; totalCount: number }> {
   try {
     const whereClause: any = {};
-    if (filtros?.placa) whereClause.placa = { contains: filtros.placa.trim(), mode: "insensitive" };
+
+    // Filtro por placa(s)
+    if (filtros?.placas && filtros.placas.length > 0 && !filtros.placas.includes("todas")) {
+      whereClause.placa = { in: filtros.placas };
+    } else if (filtros?.placa && filtros.placa !== "todas") {
+      whereClause.placa = { contains: filtros.placa.trim(), mode: "insensitive" };
+    }
+
     if (filtros?.conductorId) whereClause.conductorId = filtros.conductorId;
     if (filtros?.prioridad && filtros.prioridad !== "todas") whereClause.prioridad = filtros.prioridad;
-    if (filtros?.tipoEvento && filtros.tipoEvento !== "todos") whereClause.tipoEvento = filtros.tipoEvento;
+
+    // Filtro por tipo(s) de evento
+    if (filtros?.tiposEvento && filtros.tiposEvento.length > 0 && !filtros.tiposEvento.includes("todos")) {
+      whereClause.tipoEvento = { in: filtros.tiposEvento };
+    } else if (filtros?.tipoEvento && filtros.tipoEvento !== "todos") {
+      whereClause.tipoEvento = filtros.tipoEvento;
+    }
 
     // Filtros de fecha inteligente
     const now = new Date();
@@ -97,7 +116,7 @@ export async function getEventosGPSConPaginacionDb(filtros?: {
     ]);
 
     if (Array.isArray(dbRecords)) {
-      const formatted = dbRecords.map((r: any) => ({
+      let formatted: EventoGPS[] = dbRecords.map((r: any) => ({
         id: r.id,
         placa: r.placa,
         fechaHora: r.fechaHora ? new Date(r.fechaHora).toISOString() : new Date().toISOString(),
@@ -120,14 +139,76 @@ export async function getEventosGPSConPaginacionDb(filtros?: {
         createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : new Date().toISOString(),
       }));
 
-      return { eventos: formatted, totalCount };
+      // Filtro adicional nocturno si fue solicitado
+      if (filtros?.soloNocturno) {
+        formatted = formatted.filter((e) => {
+          const hour = new Date(e.fechaHora).getHours();
+          return hour >= 22 || hour < 5;
+        });
+      }
+
+      return { eventos: formatted, totalCount: filtros?.soloNocturno ? formatted.length : totalCount };
     }
 
     return { eventos: [], totalCount: 0 };
   } catch (err) {
     console.warn("Aviso: Consultando fallback para eventos GPS:", err);
-    return { eventos: inMemoryEventosGPS.slice(0, 20), totalCount: inMemoryEventosGPS.length };
+    let fallback = inMemoryEventosGPS;
+    if (filtros?.soloNocturno) {
+      fallback = fallback.filter((e) => {
+        const hour = new Date(e.fechaHora).getHours();
+        return hour >= 22 || hour < 5;
+      });
+    }
+    return { eventos: fallback.slice(0, 20), totalCount: fallback.length };
   }
+}
+
+/**
+ * Consulta y agrupa eventos ocurridos fuera del horario permitido (> 10:00 PM o antes de 5:00 AM)
+ */
+export async function getEventosNocturnosDb(rango: "hoy" | "24h" | "7d" | "mes" | "todos" = "todos") {
+  const { eventos } = await getEventosGPSConPaginacionDb({
+    rango,
+    limite: 1000,
+  });
+
+  const nocturnos = eventos.filter((e) => {
+    const hour = new Date(e.fechaHora).getHours();
+    return hour >= 22 || hour < 5;
+  });
+
+  // Agrupación por placa
+  const porVehiculo: Record<string, {
+    placa: string;
+    conductorNombre: string;
+    conductorTelefono?: string;
+    totalEventos: number;
+    ultimoEvento: EventoGPS;
+    eventos: EventoGPS[];
+  }> = {};
+
+  nocturnos.forEach((e) => {
+    if (!porVehiculo[e.placa]) {
+      porVehiculo[e.placa] = {
+        placa: e.placa,
+        conductorNombre: e.conductorNombre || "Sin conductor asignado",
+        conductorTelefono: e.conductorTelefono,
+        totalEventos: 0,
+        ultimoEvento: e,
+        eventos: [],
+      };
+    }
+    porVehiculo[e.placa].totalEventos++;
+    porVehiculo[e.placa].eventos.push(e);
+  });
+
+  return {
+    totalNocturnos: nocturnos.length,
+    vehiculosAfectados: Object.keys(porVehiculo).length,
+    grupos: Object.values(porVehiculo),
+    eventos: nocturnos,
+  };
 }
 
 /**
