@@ -47,6 +47,7 @@ export async function getEventosGPSDb(filtros?: {
 export async function getEventosGPSConPaginacionDb(filtros?: {
   placa?: string;
   placas?: string[];
+  busqueda?: string;
   conductorId?: string;
   prioridad?: PrioridadEventoGPS | "todas";
   tipoEvento?: TipoEventoGPS | "todos";
@@ -57,15 +58,41 @@ export async function getEventosGPSConPaginacionDb(filtros?: {
   rango?: "hoy" | "24h" | "7d" | "mes" | "todos" | "personalizado";
   fechaDesde?: string;
   fechaHasta?: string;
+  orden?: "desc" | "asc";
 }): Promise<{ eventos: EventoGPS[]; totalCount: number }> {
   try {
     const whereClause: any = {};
 
-    // Filtro por placa(s)
+    // Filtro por placa(s) con soporte dual (con y sin guion: ej. WDH-465 y WDH465)
     if (filtros?.placas && filtros.placas.length > 0 && !filtros.placas.includes("todas")) {
-      whereClause.placa = { in: filtros.placas };
+      const variantesPlacas: string[] = [];
+      filtros.placas.forEach((p) => {
+        const clean = p.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+        const hyphen = clean.length === 6 ? `${clean.slice(0, 3)}-${clean.slice(3)}` : clean;
+        variantesPlacas.push(clean, hyphen, p.trim());
+      });
+      whereClause.placa = { in: Array.from(new Set(variantesPlacas)) };
     } else if (filtros?.placa && filtros.placa !== "todas") {
-      whereClause.placa = { contains: filtros.placa.trim(), mode: "insensitive" };
+      const clean = filtros.placa.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+      const hyphen = clean.length === 6 ? `${clean.slice(0, 3)}-${clean.slice(3)}` : clean;
+      whereClause.OR = [
+        { placa: { contains: clean, mode: "insensitive" } },
+        { placa: { contains: hyphen, mode: "insensitive" } },
+        { placa: { contains: filtros.placa.trim(), mode: "insensitive" } },
+      ];
+    }
+
+    // Búsqueda libre universal en base de datos
+    if (filtros?.busqueda && filtros.busqueda.trim()) {
+      const q = filtros.busqueda.trim();
+      const qClean = q.toUpperCase().replace(/[^A-Z0-9]/g, "");
+      whereClause.OR = [
+        { placa: { contains: q, mode: "insensitive" } },
+        { placa: { contains: qClean, mode: "insensitive" } },
+        { conductorNombre: { contains: q, mode: "insensitive" } },
+        { descripcion: { contains: q, mode: "insensitive" } },
+        { ubicacion: { contains: q, mode: "insensitive" } },
+      ];
     }
 
     if (filtros?.conductorId) whereClause.conductorId = filtros.conductorId;
@@ -92,24 +119,30 @@ export async function getEventosGPSConPaginacionDb(filtros?: {
     } else if (filtros?.rango === "mes") {
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
       whereClause.fechaHora = { gte: startOfMonth };
-    } else if (filtros?.rango === "personalizado" && (filtros.fechaDesde || filtros.fechaHasta)) {
-      whereClause.fechaHora = {};
-      if (filtros.fechaDesde) whereClause.fechaHora.gte = new Date(filtros.fechaDesde);
-      if (filtros.fechaHasta) {
-        const hastaDate = new Date(filtros.fechaHasta);
-        hastaDate.setHours(23, 59, 59, 999);
-        whereClause.fechaHora.lte = hastaDate;
+    } else if (filtros?.rango === "personalizado" || filtros?.fechaDesde || filtros?.fechaHasta) {
+      if (filtros?.fechaDesde || filtros?.fechaHasta) {
+        whereClause.fechaHora = {};
+        if (filtros.fechaDesde) whereClause.fechaHora.gte = new Date(filtros.fechaDesde);
+        if (filtros.fechaHasta) {
+          const hastaDate = new Date(filtros.fechaHasta);
+          hastaDate.setHours(23, 59, 59, 999);
+          whereClause.fechaHora.lte = hastaDate;
+        }
       }
     }
 
     const limit = filtros?.limite !== undefined ? filtros.limite : 20;
     const skip = filtros?.offset || 0;
+    const direccionOrden = filtros?.orden === "asc" ? "asc" : "desc";
 
     const [totalCount, dbRecords] = await Promise.all([
       (prisma as any).eventoGPS.count({ where: whereClause }),
       (prisma as any).eventoGPS.findMany({
         where: whereClause,
-        orderBy: { fechaHora: "desc" },
+        orderBy: [
+          { fechaHora: direccionOrden },
+          { createdAt: direccionOrden }
+        ],
         take: limit,
         skip: skip,
       }),

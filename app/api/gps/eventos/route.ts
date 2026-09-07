@@ -81,9 +81,13 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    const busqueda = searchParams.get("q") || searchParams.get("busqueda") || searchParams.get("search") || undefined;
+    const orden = (searchParams.get("orden") as "desc" | "asc") || "desc";
+
     const { eventos, totalCount } = await getEventosGPSConPaginacionDb({
       placa,
       placas,
+      busqueda,
       conductorId,
       tipoEvento,
       tiposEvento,
@@ -94,6 +98,7 @@ export async function GET(request: NextRequest) {
       rango,
       fechaDesde,
       fechaHasta,
+      orden,
     });
 
     const resumen = await getResumenAlertasGPSDb();

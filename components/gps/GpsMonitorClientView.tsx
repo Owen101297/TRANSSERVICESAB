@@ -41,7 +41,7 @@ import {
 import { Card } from "@/components/ui/Card";
 import { DataTable, Column } from "@/components/ui/DataTable";
 import { PlateTag } from "@/components/ui/PlateTag";
-import { MultiSelectDropdown, MultiSelectOption } from "@/components/gps/MultiSelectDropdown";
+import { TagComboboxMultiSelect, ComboboxOption } from "@/components/gps/TagComboboxMultiSelect";
 import { RetroalimentacionModal } from "@/components/gps/RetroalimentacionModal";
 import { ControlNocturnoView } from "@/components/gps/ControlNocturnoView";
 import { DriverScoreRanking } from "@/components/gps/DriverScoreRanking";
@@ -62,7 +62,7 @@ interface GpsMonitorClientViewProps {
 }
 
 type TabType = "eventos" | "reincidencias" | "nocturno" | "ranking" | "conexion";
-type RangoFecha = "hoy" | "24h" | "7d" | "15d" | "mes" | "todos" | "personalizado";
+type RangoPreset = "hoy" | "24h" | "7d" | "mes" | "todos" | "personalizado";
 
 export function GpsMonitorClientView({
   initialEventos,
@@ -80,15 +80,16 @@ export function GpsMonitorClientView({
   const [quickAssignPlaca, setQuickAssignPlaca] = useState("");
   const [cierreDiarioModalOpen, setCierreDiarioModalOpen] = useState(false);
 
-  // Filtros Multi-Criterio Flexibles
-  const [selectedPlacas, setSelectedPlacas] = useState<string[]>([]); // vacio = todas
-  const [selectedTipos, setSelectedTipos] = useState<string[]>([]); // vacio = todos
+  // Filtros Avanzados (Multi-Tag / Token Combobox + Fechas)
+  const [selectedPlacas, setSelectedPlacas] = useState<string[]>([]); // Vacío = todas
+  const [selectedTipos, setSelectedTipos] = useState<string[]>([]); // Vacío = todos
   const [filtroPrioridad, setFiltroPrioridad] = useState<string>("todas");
   const [filtroGestion, setFiltroGestion] = useState<string>("todas");
   const [searchTerm, setSearchTerm] = useState("");
-  const [rangoFecha, setRangoFecha] = useState<RangoFecha>("todos");
+  const [rangoPreset, setRangoPreset] = useState<RangoPreset>("todos");
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
+  const [ordenCronologico, setOrdenCronologico] = useState<"desc" | "asc">("desc");
 
   // Estados de exportación
   const [isExportingPdf, setIsExportingPdf] = useState(false);
@@ -102,31 +103,33 @@ export function GpsMonitorClientView({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string>(new Date().toLocaleTimeString("es-CO"));
 
-  // Consulta optimizada a la API con soporte para filtros múltiples
+  // Consulta optimizada a la API con soporte para filtros de servidor y orden cronológico
   const fetchEventos = useCallback(
     async (
       page: number = 1,
-      size: number = 20,
-      rango: RangoFecha = rangoFecha,
+      size: number = pageSize,
       placas: string[] = selectedPlacas,
-      prioridad: string = filtroPrioridad,
       tipos: string[] = selectedTipos,
       desde: string = fechaDesde,
-      hasta: string = fechaHasta
+      hasta: string = fechaHasta,
+      rango: RangoPreset = rangoPreset,
+      prioridad: string = filtroPrioridad,
+      orden: "desc" | "asc" = ordenCronologico,
+      queryText: string = searchTerm
     ) => {
       setIsRefreshing(true);
       try {
         const params = new URLSearchParams();
         params.set("page", String(page));
         params.set("limite", String(size));
-        if (rango !== "todos") params.set("rango", rango);
+        params.set("orden", orden);
+        if (queryText.trim()) params.set("q", queryText.trim());
+        if (rango !== "todos" && rango !== "personalizado") params.set("rango", rango);
         if (placas.length > 0) params.set("placas", placas.join(","));
-        if (prioridad !== "todas") params.set("prioridad", prioridad);
         if (tipos.length > 0) params.set("tipos", tipos.join(","));
-        if (rango === "personalizado") {
-          if (desde) params.set("desde", desde);
-          if (hasta) params.set("hasta", hasta);
-        }
+        if (prioridad !== "todas") params.set("prioridad", prioridad);
+        if (desde) params.set("desde", desde);
+        if (hasta) params.set("hasta", hasta);
 
         const res = await fetch(`/api/gps/eventos?${params.toString()}`);
         if (res.ok) {
@@ -144,27 +147,55 @@ export function GpsMonitorClientView({
         setIsRefreshing(false);
       }
     },
-    [rangoFecha, selectedPlacas, filtroPrioridad, selectedTipos, fechaDesde, fechaHasta]
+    [pageSize, selectedPlacas, selectedTipos, fechaDesde, fechaHasta, rangoPreset, filtroPrioridad, ordenCronologico, searchTerm]
   );
 
-  // Refrescar al cambiar filtros principales
-  const handleAplicarFiltros = (
-    nuevoRango?: RangoFecha,
-    nuevasPlacas?: string[],
-    nuevaPrioridad?: string,
-    nuevosTipos?: string[]
-  ) => {
-    const r = nuevoRango !== undefined ? nuevoRango : rangoFecha;
-    const p = nuevasPlacas !== undefined ? nuevasPlacas : selectedPlacas;
-    const pr = nuevaPrioridad !== undefined ? nuevaPrioridad : filtroPrioridad;
-    const t = nuevosTipos !== undefined ? nuevosTipos : selectedTipos;
+  // Aplicar rango rápido predefinido
+  const handleSelectPresetFecha = (preset: RangoPreset) => {
+    setRangoPreset(preset);
+    let dDesde = "";
+    let dHasta = "";
+    const now = new Date();
 
-    if (nuevoRango !== undefined) setRangoFecha(nuevoRango);
-    if (nuevasPlacas !== undefined) setSelectedPlacas(nuevasPlacas);
-    if (nuevaPrioridad !== undefined) setFiltroPrioridad(nuevaPrioridad);
-    if (nuevosTipos !== undefined) setSelectedTipos(nuevosTipos);
+    if (preset === "hoy") {
+      dDesde = now.toISOString().slice(0, 10);
+      dHasta = now.toISOString().slice(0, 10);
+    } else if (preset === "24h") {
+      const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      dDesde = yesterday.toISOString().slice(0, 10);
+      dHasta = now.toISOString().slice(0, 10);
+    } else if (preset === "7d") {
+      const past7 = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      dDesde = past7.toISOString().slice(0, 10);
+      dHasta = now.toISOString().slice(0, 10);
+    } else if (preset === "mes") {
+      dDesde = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+      dHasta = now.toISOString().slice(0, 10);
+    }
 
-    fetchEventos(1, pageSize, r, p, pr, t);
+    setFechaDesde(dDesde);
+    setFechaHasta(dHasta);
+    fetchEventos(1, pageSize, selectedPlacas, selectedTipos, dDesde, dHasta, preset);
+  };
+
+  // Alternar orden cronológico
+  const handleToggleOrden = () => {
+    const nuevoOrden = ordenCronologico === "desc" ? "asc" : "desc";
+    setOrdenCronologico(nuevoOrden);
+    fetchEventos(1, pageSize, selectedPlacas, selectedTipos, fechaDesde, fechaHasta, rangoPreset, filtroPrioridad, nuevoOrden);
+  };
+
+  // Limpiar todos los filtros
+  const handleLimpiarFiltros = () => {
+    setSelectedPlacas([]);
+    setSelectedTipos([]);
+    setFechaDesde("");
+    setFechaHasta("");
+    setRangoPreset("todos");
+    setFiltroPrioridad("todas");
+    setFiltroGestion("todas");
+    setSearchTerm("");
+    fetchEventos(1, pageSize, [], [], "", "", "todos", "todas", ordenCronologico, "");
   };
 
   // Polling periódico cada 30 segundos
@@ -194,7 +225,7 @@ export function GpsMonitorClientView({
     ([_, evts]) => evts.filter((x) => x.prioridad !== "baja").length >= 2
   );
 
-  // Filtrado reactivo en memoria para búsqueda de texto y estado de gestión
+  // Filtrado reactivo en memoria para estado de gestión y texto complementario
   const filteredEventos = eventos.filter((e) => {
     if (filtroGestion !== "todas") {
       if (filtroGestion === "pendiente" && e.estadoRetroalimentacion !== "pendiente") return false;
@@ -213,16 +244,22 @@ export function GpsMonitorClientView({
 
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
 
-  // Opciones para el MultiSelect de Vehículos
-  const vehiculoOptions: MultiSelectOption[] = vehiculos.map((v) => ({
-    value: v.placa,
-    label: v.placa,
-    subtitle: v.marca ? `${v.marca} ${v.modelo || ""}` : v.contratistaNombre || "Vehículo",
-    badge: v.contratistaNombre ? "Contratista" : undefined,
-  }));
+  // Opciones para el TagCombobox de Vehículos (Placas)
+  const vehiculoComboboxOptions: ComboboxOption[] = vehiculos.map((v) => {
+    const esGT = (v.contratistaNombre || "").toUpperCase().includes("GRAN TIERRA") || (v.contratistaNombre || "").toUpperCase().includes("GT");
+    return {
+      value: v.placa,
+      label: v.placa,
+      subtitle: v.marca ? `${v.marca} ${v.modelo || ""}` : v.contratistaNombre || "Vehículo",
+      badge: esGT ? "Gran Tierra" : v.contratistaNombre ? v.contratistaNombre : undefined,
+      badgeClass: esGT
+        ? "bg-radar-cyan-dim text-radar-cyan border-radar-cyan/40 font-bold"
+        : "bg-asphalt-950 text-fog-400 border-line-600",
+    };
+  });
 
-  // Opciones para el MultiSelect de Tipos de Eventos
-  const tipoEventoOptions: MultiSelectOption[] = Object.entries(TIPO_EVENTO_LABELS).map(([key, val]) => ({
+  // Opciones para el TagCombobox de Tipos de Eventos
+  const tipoEventoComboboxOptions: ComboboxOption[] = Object.entries(TIPO_EVENTO_LABELS).map(([key, val]) => ({
     value: key,
     label: val.label,
     badge: val.defaultPrioridad === "alta" ? "Crítico" : val.defaultPrioridad === "media" ? "Medio" : "Info",
@@ -353,17 +390,25 @@ export function GpsMonitorClientView({
       ),
     },
     {
-      header: "Fecha / Hora",
+      header: "Fecha / Hora (Satélite)",
       accessor: "fechaHora",
       render: (v) => {
         const d = new Date(v as string);
         const hour = d.getHours();
         const esNocturno = hour >= 22 || hour < 5;
+        const now = new Date();
+        const diffMin = Math.floor((now.getTime() - d.getTime()) / 60000);
+        const esReciente = diffMin >= 0 && diffMin <= 15;
 
         return (
           <div className="flex flex-col font-mono text-xs">
             <div className="flex items-center gap-1.5">
               <span className="font-medium text-paper-50">{d.toLocaleDateString("es-CO")}</span>
+              {esReciente && (
+                <span className="inline-flex items-center gap-1 px-1 rounded bg-ok-green-dim text-ok-green text-[9px] font-bold border border-ok-green/30 animate-pulse">
+                  ● En Vivo
+                </span>
+              )}
               {esNocturno && (
                 <span
                   className="inline-flex items-center gap-0.5 px-1 rounded bg-signal-amber-dim text-signal-amber text-[9px] font-bold border border-signal-amber/30"
@@ -373,7 +418,14 @@ export function GpsMonitorClientView({
                 </span>
               )}
             </div>
-            <span className="text-fog-400 text-[11px]">{d.toLocaleTimeString("es-CO")}</span>
+            <div className="flex items-center gap-1.5 text-[11px] text-fog-400">
+              <span>{d.toLocaleTimeString("es-CO")}</span>
+              {diffMin >= 0 && diffMin < 120 && (
+                <span className="text-[10px] text-radar-cyan/90">
+                  (hace {diffMin < 1 ? "<1 min" : `${diffMin}m`})
+                </span>
+              )}
+            </div>
           </div>
         );
       },
@@ -646,65 +698,182 @@ export function GpsMonitorClientView({
       <div>
         {activeTab === "eventos" && (
           <div className="space-y-3">
-            {/* Barra de Filtros Multi-Criterio Avanzados */}
-            <div className="bg-asphalt-900 border border-line-600 rounded-xl p-3 space-y-2.5 shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2.5">
-                {/* Buscador Universal */}
-                <div className="relative flex-1 min-w-[200px]">
+            {/* Nueva Barra de Filtros Inteligente (Fechas + Multi-Tag Combobox + Orden) */}
+            <div className="bg-asphalt-900 border border-line-600 rounded-2xl p-4 space-y-3 shadow-md">
+              {/* Fila Principal: Fechas (Desde/Hasta) + Multi-Tag Vehículos + Multi-Tag Eventos */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 items-start">
+                {/* 1. Selector de Fechas (Desde - Hasta + Botones Rápidos) */}
+                <div className="lg:col-span-4 space-y-1.5 bg-asphalt-950/70 p-2.5 rounded-xl border border-line-600">
+                  <div className="flex items-center justify-between text-[11px] font-mono font-semibold uppercase tracking-wider text-fog-400">
+                    <span className="flex items-center gap-1.5 text-paper-50">
+                      <Calendar size={13} className="text-radar-cyan" />
+                      Rango de Fechas
+                    </span>
+                    {(fechaDesde || fechaHasta || rangoPreset !== "todos") && (
+                      <button
+                        type="button"
+                        onClick={() => handleSelectPresetFecha("todos")}
+                        className="text-[10px] text-alert-red hover:underline lowercase font-normal"
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Inputs Desde - Hasta */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="block text-[10px] font-mono text-fog-400 mb-0.5">Desde:</span>
+                      <input
+                        type="date"
+                        value={fechaDesde}
+                        onChange={(e) => {
+                          setFechaDesde(e.target.value);
+                          setRangoPreset("personalizado");
+                          fetchEventos(1, pageSize, selectedPlacas, selectedTipos, e.target.value, fechaHasta, "personalizado");
+                        }}
+                        className="w-full rounded-lg border border-line-600 bg-asphalt-950 px-2 py-1 text-xs text-paper-50 font-mono focus:border-radar-cyan focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <span className="block text-[10px] font-mono text-fog-400 mb-0.5">Hasta:</span>
+                      <input
+                        type="date"
+                        value={fechaHasta}
+                        onChange={(e) => {
+                          setFechaHasta(e.target.value);
+                          setRangoPreset("personalizado");
+                          fetchEventos(1, pageSize, selectedPlacas, selectedTipos, fechaDesde, e.target.value, "personalizado");
+                        }}
+                        className="w-full rounded-lg border border-line-600 bg-asphalt-950 px-2 py-1 text-xs text-paper-50 font-mono focus:border-radar-cyan focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Presets Rápidos de 1-Toque */}
+                  <div className="flex flex-wrap items-center gap-1 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectPresetFecha("hoy")}
+                      className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold transition-colors ${
+                        rangoPreset === "hoy"
+                          ? "bg-radar-cyan text-asphalt-950 font-bold"
+                          : "bg-asphalt-900 text-fog-400 hover:text-paper-50 hover:bg-asphalt-800"
+                      }`}
+                    >
+                      Hoy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectPresetFecha("24h")}
+                      className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold transition-colors ${
+                        rangoPreset === "24h"
+                          ? "bg-radar-cyan text-asphalt-950 font-bold"
+                          : "bg-asphalt-900 text-fog-400 hover:text-paper-50 hover:bg-asphalt-800"
+                      }`}
+                    >
+                      24h
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectPresetFecha("7d")}
+                      className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold transition-colors ${
+                        rangoPreset === "7d"
+                          ? "bg-radar-cyan text-asphalt-950 font-bold"
+                          : "bg-asphalt-900 text-fog-400 hover:text-paper-50 hover:bg-asphalt-800"
+                      }`}
+                    >
+                      7 Días
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectPresetFecha("mes")}
+                      className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold transition-colors ${
+                        rangoPreset === "mes"
+                          ? "bg-radar-cyan text-asphalt-950 font-bold"
+                          : "bg-asphalt-900 text-fog-400 hover:text-paper-50 hover:bg-asphalt-800"
+                      }`}
+                    >
+                      Este Mes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectPresetFecha("todos")}
+                      className={`px-2 py-0.5 rounded text-[10px] font-mono font-semibold transition-colors ${
+                        rangoPreset === "todos"
+                          ? "bg-signal-amber text-asphalt-950 font-bold"
+                          : "bg-asphalt-900 text-fog-400 hover:text-paper-50 hover:bg-asphalt-800"
+                      }`}
+                    >
+                      Todo
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2. Buscador Multi-Tag de Vehículos (Placas con chips dentro) */}
+                <div className="lg:col-span-4 bg-asphalt-950/70 p-2.5 rounded-xl border border-line-600">
+                  <TagComboboxMultiSelect
+                    label="Vehículos / Placas"
+                    placeholder="Clic para ver placas o buscar (ej: WDH, JOU)..."
+                    options={vehiculoComboboxOptions}
+                    selectedValues={selectedPlacas}
+                    onChange={(nuevasPlacas) => {
+                      setSelectedPlacas(nuevasPlacas);
+                      fetchEventos(1, pageSize, nuevasPlacas, selectedTipos, fechaDesde, fechaHasta, rangoPreset);
+                    }}
+                    icon={<Gauge size={13} className="text-signal-amber" />}
+                    emptyMessage="No se encontraron vehículos coincidentes"
+                  />
+                </div>
+
+                {/* 3. Buscador Multi-Tag de Tipos de Novedad / Eventos */}
+                <div className="lg:col-span-4 bg-asphalt-950/70 p-2.5 rounded-xl border border-line-600">
+                  <TagComboboxMultiSelect
+                    label="Novedades / Eventos PESV"
+                    placeholder="Clic para ver eventos (ej: Exceso, Frenada)..."
+                    options={tipoEventoComboboxOptions}
+                    selectedValues={selectedTipos}
+                    onChange={(nuevosTipos) => {
+                      setSelectedTipos(nuevosTipos);
+                      fetchEventos(1, pageSize, selectedPlacas, nuevosTipos, fechaDesde, fechaHasta, rangoPreset);
+                    }}
+                    icon={<AlertTriangle size={13} className="text-alert-red" />}
+                    emptyMessage="No se encontraron tipos de evento"
+                  />
+                </div>
+              </div>
+
+              {/* Fila Secundaria: Buscador Universal + Severidad + Gestión + Alternador de Orden */}
+              <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-line-600/70">
+                {/* Buscador Universal Libre */}
+                <div className="relative flex-1 min-w-[220px]">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-fog-400" />
                   <input
                     type="text"
-                    placeholder="Buscar por placa, conductor, tramo o novedad..."
+                    placeholder="Buscar conductor, cédula o tramo en toda la BD..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      fetchEventos(1, pageSize, selectedPlacas, selectedTipos, fechaDesde, fechaHasta, rangoPreset, filtroPrioridad, ordenCronologico, e.target.value);
+                    }}
                     className="w-full rounded-lg border border-line-600 bg-asphalt-950 pl-8 pr-3 py-1.5 text-xs text-paper-50 placeholder:text-fog-400 focus:border-radar-cyan focus:outline-none font-mono"
                   />
                 </div>
 
-                {/* Filtros Dropdowns Multi-Selección */}
+                {/* Filtros de Estado & Severidad */}
                 <div className="flex flex-wrap items-center gap-2">
-                  {/* Selector de Rango Temporal */}
-                  <select
-                    value={rangoFecha}
-                    onChange={(e) => handleAplicarFiltros(e.target.value as RangoFecha)}
-                    className="rounded-lg border border-line-600 bg-asphalt-950 px-2.5 py-1.5 text-xs text-paper-50 font-mono focus:border-radar-cyan focus:outline-none"
-                  >
-                    <option value="todos">🌐 Todo el Historial</option>
-                    <option value="hoy">📅 Solo Hoy</option>
-                    <option value="24h">⏱️ Últimas 24h</option>
-                    <option value="7d">📆 Últimos 7 Días</option>
-                    <option value="15d">🗓️ Últimos 15 Días</option>
-                    <option value="mes">🗓️ Este Mes</option>
-                    <option value="personalizado">⚙️ Personalizado (Desde/Hasta)</option>
-                  </select>
-
-                  {/* MultiSelect de Vehículos */}
-                  <MultiSelectDropdown
-                    label="Vehículos"
-                    options={vehiculoOptions}
-                    selectedValues={selectedPlacas}
-                    onChange={(vals) => handleAplicarFiltros(undefined, vals)}
-                    allLabel="Todos los Vehículos"
-                  />
-
-                  {/* MultiSelect de Tipos de Eventos */}
-                  <MultiSelectDropdown
-                    label="Eventos"
-                    options={tipoEventoOptions}
-                    selectedValues={selectedTipos}
-                    onChange={(vals) => handleAplicarFiltros(undefined, undefined, undefined, vals)}
-                    allLabel="Todos los Eventos"
-                  />
-
                   {/* Selector de Severidad */}
                   <select
                     value={filtroPrioridad}
-                    onChange={(e) => handleAplicarFiltros(undefined, undefined, e.target.value)}
+                    onChange={(e) => {
+                      setFiltroPrioridad(e.target.value);
+                      fetchEventos(1, pageSize, selectedPlacas, selectedTipos, fechaDesde, fechaHasta, rangoPreset, e.target.value);
+                    }}
                     className="rounded-lg border border-line-600 bg-asphalt-950 px-2.5 py-1.5 text-xs text-paper-50 font-mono focus:border-signal-amber focus:outline-none"
                   >
                     <option value="todas">Todas Severidades</option>
-                    <option value="alta">🔴 Crítica / Alta</option>
-                    <option value="media">🟡 Media</option>
+                    <option value="alta">🔴 Crítica / Alta (&gt;80 km/h)</option>
+                    <option value="media">🟡 Severidad Media</option>
                     <option value="baja">🔵 Informativa</option>
                   </select>
 
@@ -714,80 +883,37 @@ export function GpsMonitorClientView({
                     onChange={(e) => setFiltroGestion(e.target.value)}
                     className="rounded-lg border border-line-600 bg-asphalt-950 px-2.5 py-1.5 text-xs text-paper-50 font-mono focus:border-radar-cyan focus:outline-none"
                   >
-                    <option value="todas">Toda Gestión</option>
+                    <option value="todas">Toda Gestión HSE</option>
                     <option value="pendiente">⏳ Pendiente</option>
                     <option value="enviada_whatsapp">📲 Notificado WA</option>
                     <option value="resuelta">✅ Cerrado</option>
                   </select>
+
+                  {/* Botón de Orden Cronológico Estricto */}
+                  <button
+                    type="button"
+                    onClick={handleToggleOrden}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-line-500 bg-asphalt-800 hover:bg-asphalt-700 px-3 py-1.5 text-xs font-mono font-semibold text-paper-50 transition-colors active:scale-95 shadow-xs"
+                    title="Alternar orden cronológico de generación del satélite GPS"
+                  >
+                    <Clock size={13} className="text-radar-cyan" />
+                    <span>
+                      {ordenCronologico === "desc" ? "⏱️ Recientes primero ↓" : "⏱️ Antiguos primero ↑"}
+                    </span>
+                  </button>
+
+                  {/* Botón Limpiar Todo si hay filtros */}
+                  {(selectedPlacas.length > 0 || selectedTipos.length > 0 || fechaDesde || fechaHasta || filtroPrioridad !== "todas" || filtroGestion !== "todas" || searchTerm) && (
+                    <button
+                      type="button"
+                      onClick={handleLimpiarFiltros}
+                      className="px-2.5 py-1.5 text-xs font-mono text-alert-red hover:underline transition-colors"
+                    >
+                      Limpiar filtros
+                    </button>
+                  )}
                 </div>
               </div>
-
-              {/* Rango Personalizado de Fechas (Si seleccionó personalizado) */}
-              {rangoFecha === "personalizado" && (
-                <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-line-600/60 text-xs font-mono">
-                  <span className="text-fog-400">Desde:</span>
-                  <input
-                    type="date"
-                    value={fechaDesde}
-                    onChange={(e) => setFechaDesde(e.target.value)}
-                    className="rounded-md border border-line-600 bg-asphalt-950 px-2 py-1 text-xs text-paper-50"
-                  />
-                  <span className="text-fog-400">Hasta:</span>
-                  <input
-                    type="date"
-                    value={fechaHasta}
-                    onChange={(e) => setFechaHasta(e.target.value)}
-                    className="rounded-md border border-line-600 bg-asphalt-950 px-2 py-1 text-xs text-paper-50"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleAplicarFiltros("personalizado")}
-                    className="px-3 py-1 bg-radar-cyan hover:bg-radar-cyan/90 text-asphalt-950 font-bold rounded-md uppercase tracking-wider text-[11px] transition-colors"
-                  >
-                    Aplicar Rango
-                  </button>
-                </div>
-              )}
-
-              {/* Resumen de Filtros Activos si hay selecciones */}
-              {(selectedPlacas.length > 0 || selectedTipos.length > 0 || filtroPrioridad !== "todas" || filtroGestion !== "todas") && (
-                <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[11px] font-mono text-fog-400">
-                  <span>Filtros activos:</span>
-                  {selectedPlacas.length > 0 && (
-                    <span className="rounded bg-asphalt-950 px-2 py-0.5 border border-line-600 text-paper-50">
-                      {selectedPlacas.length} vehículos
-                    </span>
-                  )}
-                  {selectedTipos.length > 0 && (
-                    <span className="rounded bg-asphalt-950 px-2 py-0.5 border border-line-600 text-paper-50">
-                      {selectedTipos.length} tipos de evento
-                    </span>
-                  )}
-                  {filtroPrioridad !== "todas" && (
-                    <span className="rounded bg-asphalt-950 px-2 py-0.5 border border-line-600 text-signal-amber font-bold">
-                      Severidad: {filtroPrioridad}
-                    </span>
-                  )}
-                  {filtroGestion !== "todas" && (
-                    <span className="rounded bg-asphalt-950 px-2 py-0.5 border border-line-600 text-radar-cyan font-bold">
-                      Gestión: {filtroGestion}
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedPlacas([]);
-                      setSelectedTipos([]);
-                      setFiltroPrioridad("todas");
-                      setFiltroGestion("todas");
-                      handleAplicarFiltros("todos", [], "todas", []);
-                    }}
-                    className="text-alert-red hover:underline ml-2"
-                  >
-                    Limpiar todos los filtros
-                  </button>
-                </div>
-              )}
             </div>
 
             {/* Banner Informativo si no hay eventos */}
@@ -802,14 +928,8 @@ export function GpsMonitorClientView({
                 </p>
                 <button
                   type="button"
-                  onClick={() => {
-                    setSelectedPlacas([]);
-                    setSelectedTipos([]);
-                    setFiltroPrioridad("todas");
-                    setFiltroGestion("todas");
-                    handleAplicarFiltros("todos", [], "todas", []);
-                  }}
-                  className="px-3.5 py-1.5 bg-radar-cyan text-asphalt-950 font-bold text-xs uppercase tracking-wider rounded-lg shadow-sm"
+                  onClick={handleLimpiarFiltros}
+                  className="px-3.5 py-1.5 bg-radar-cyan text-asphalt-950 font-bold text-xs uppercase tracking-wider rounded-lg shadow-sm active:scale-95 transition-all"
                 >
                   Ver Todo el Historial ({totalCount})
                 </button>
