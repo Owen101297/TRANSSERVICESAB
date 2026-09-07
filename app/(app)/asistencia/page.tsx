@@ -437,7 +437,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
 
           <div className="flex flex-wrap items-center gap-2">
             <a
-              href="/apps/asistencia"
+              href="/apps/asistencia/index.html"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-signal-amber hover:bg-amber-400 text-asphalt-950 font-bold text-xs rounded-xl shadow transition-colors"

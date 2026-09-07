@@ -361,7 +361,7 @@ export default function PortalConductorMobilePage() {
             </div>
           </div>
           <button
-            onClick={() => handleOpenApp("/apps/preoperacional/index.html")}
+            onClick={() => router.push("/portal-conductor/preoperacional")}
             className="px-3.5 py-1.5 rounded-full bg-[#FF9500] hover:bg-[#FF9500]/90 active:scale-95 text-white font-bold text-xs shadow-[0_2px_10px_rgba(255,149,0,0.3)] transition-all flex items-center gap-1 shrink-0"
           >
             <span>Iniciar</span>
@@ -649,7 +649,7 @@ export default function PortalConductorMobilePage() {
         </button>
 
         <button
-          onClick={() => handleOpenApp("/apps/preoperacional/index.html")}
+          onClick={() => router.push("/portal-conductor/preoperacional")}
           className="flex flex-col items-center gap-0.5 text-[#FF9500] hover:text-[#FF9500]/90 transition-all active:scale-95 -mt-3.5"
         >
           <div className="p-2.5 rounded-full bg-gradient-to-tr from-[#FF9500] to-[#FF5E3A] text-white shadow-[0_4px_16px_rgba(255,149,0,0.35)]">

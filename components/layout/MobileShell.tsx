@@ -5,7 +5,7 @@ const NAV = [
   { href: "/portal-conductor", label: "Inicio", icon: Home },
   { href: "/portal-conductor/preoperacional", label: "Preoperacional", icon: ClipboardCheck },
   { href: "/portal-conductor/novedad", label: "Novedad", icon: AlertTriangle },
-  { href: "/personas/p1", label: "Perfil", icon: User },
+  { href: "/portal-conductor", label: "Portal", icon: User },
 ];
 
 export function MobileShell({ children }: { children: React.ReactNode }) {

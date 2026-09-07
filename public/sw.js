@@ -1,9 +1,9 @@
 /**
  * TRANS SERVICES A&B — PWA Offline Service Worker (Aislamiento Total ERP vs Apps)
- * Versión 1.4: Network-First para apps móviles y exclusión total de rutas administrativas.
+ * Versión 1.5: Network-First para apps móviles y exclusión total de rutas administrativas.
  */
 
-const CACHE_NAME = "transservices-pwa-v1.4";
+const CACHE_NAME = "transservices-pwa-v1.5";
 
 // Assets exclusivos para el funcionamiento offline del Portal Conductor y Apps Satélite
 const MOBILE_PWA_ASSETS = [
