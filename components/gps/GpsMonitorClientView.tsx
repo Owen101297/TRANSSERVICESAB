@@ -246,19 +246,28 @@ export function GpsMonitorClientView({
 
   const totalPages = Math.ceil(totalCount / pageSize) || 1;
 
-  // Opciones para el TagCombobox de Vehículos (Placas)
-  const vehiculoComboboxOptions: ComboboxOption[] = vehiculos.map((v) => {
+  // Opciones para el TagCombobox de Vehículos (Placas) - Deduplicadas estrictamente por placa alfanumérica
+  const deduplicatedVehiculosMap = new Map<string, ComboboxOption>();
+  vehiculos.forEach((v) => {
+    const rawClean = (v.placa || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (!rawClean) return;
+    const formattedPlaca = rawClean.length === 6 ? `${rawClean.slice(0, 3)}-${rawClean.slice(3)}` : rawClean;
     const esGT = (v.contratistaNombre || "").toUpperCase().includes("GRAN TIERRA") || (v.contratistaNombre || "").toUpperCase().includes("GT");
-    return {
-      value: v.placa,
-      label: v.placa,
-      subtitle: v.marca ? `${v.marca} ${v.modelo || ""}` : v.contratistaNombre || "Vehículo",
-      badge: esGT ? "Gran Tierra" : v.contratistaNombre ? v.contratistaNombre : undefined,
-      badgeClass: esGT
-        ? "bg-radar-cyan-dim text-radar-cyan border-radar-cyan/40 font-bold"
-        : "bg-asphalt-950 text-fog-400 border-line-600",
-    };
+    
+    if (!deduplicatedVehiculosMap.has(rawClean) || v.marca) {
+      deduplicatedVehiculosMap.set(rawClean, {
+        value: formattedPlaca,
+        label: formattedPlaca,
+        subtitle: v.marca ? `${v.marca} ${v.modelo || ""}`.trim() : v.contratistaNombre || "Vehículo en flota",
+        badge: esGT ? "Gran Tierra" : v.contratistaNombre ? v.contratistaNombre : undefined,
+        badgeClass: esGT
+          ? "bg-radar-cyan-dim text-radar-cyan border-radar-cyan/40 font-bold"
+          : "bg-asphalt-950 text-fog-400 border-line-600",
+      });
+    }
   });
+
+  const vehiculoComboboxOptions: ComboboxOption[] = Array.from(deduplicatedVehiculosMap.values()).sort((a, b) => a.label.localeCompare(b.label));
 
   // Opciones para el TagCombobox de Tipos de Eventos
   const tipoEventoComboboxOptions: ComboboxOption[] = Object.entries(TIPO_EVENTO_LABELS).map(([key, val]) => ({

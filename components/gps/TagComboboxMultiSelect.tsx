@@ -40,14 +40,27 @@ export function TagComboboxMultiSelect({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Deduplicación defensiva estricta de opciones por clave alfanumérica
+  const uniqueOptions = Array.from(
+    new Map(
+      options.map((opt) => [
+        opt.value.toUpperCase().replace(/[^A-Z0-9]/g, "") || opt.value,
+        opt,
+      ])
+    ).values()
+  );
+
   // Opciones filtradas por búsqueda de texto
-  const filteredOptions = options.filter((opt) => {
+  const filteredOptions = uniqueOptions.filter((opt) => {
     const q = query.toLowerCase().trim();
     if (!q) return true;
+    const qClean = q.replace(/[^a-z0-9]/g, "");
+    const optClean = opt.value.toLowerCase().replace(/[^a-z0-9]/g, "");
     const matchLabel = opt.label.toLowerCase().includes(q);
     const matchSub = opt.subtitle?.toLowerCase().includes(q);
     const matchVal = opt.value.toLowerCase().includes(q);
-    return matchLabel || matchSub || matchVal;
+    const matchClean = qClean.length >= 2 && optClean.includes(qClean);
+    return matchLabel || matchSub || matchVal || matchClean;
   });
 
   // Cerrar al hacer clic fuera
