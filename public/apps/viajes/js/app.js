@@ -18,7 +18,7 @@ import {
     signOut,
     verifyPinAdmin
 } from './supabase-client.js';
-import { generatePDF } from './pdf-generator.js';
+import { generatePDF } from './pdf-generator.js?v=57';
 
 // Variables globales
 let currentUser = null;
