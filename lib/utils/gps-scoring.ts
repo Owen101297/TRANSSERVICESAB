@@ -8,34 +8,52 @@ import {
 import { Persona } from "@/lib/types/persona";
 
 /**
- * Normaliza el tipo de evento de Satelcopro
+ * Normaliza el tipo de evento de Satelcopro respetando la discriminación exacta del GPS
  */
-export function normalizarTipoEventoSatelcopro(rawTipo: string): TipoEventoGPS {
-  const t = (rawTipo || "").toLowerCase().trim();
-  if (t.includes("overspeed") || t.includes("velocid") || t.includes("speed")) return "exceso_velocidad";
+export function normalizarTipoEventoSatelcopro(rawTipo: string, rawDescripcion?: string): TipoEventoGPS {
+  const t = `${rawTipo || ""} ${rawDescripcion || ""}`.toLowerCase().trim();
+
+  // 1. Discriminación de Geocercas (Límites zonales / internos)
+  if (t.includes("geocerca") || t.includes("geofence") || t.includes("geo_cerca")) {
+    if (t.includes("velocid") || t.includes("overspeed") || t.includes("exceso") || t.includes("speed")) {
+      return "exceso_geocerca";
+    }
+    return "salida_geocerca";
+  }
+
+  // 2. Eventos de Maniobras y Dinámica Vehicular
   if (t.includes("frenad") || t.includes("brak")) return "frenada_brusca";
   if (t.includes("aceler") || t.includes("accel")) return "acelerada_brusca";
   if (t.includes("giro") || t.includes("turn") || t.includes("corner")) return "giro_brusco";
+  if (t.includes("ralenti") || t.includes("ralentí") || t.includes("idle") || t.includes("parada prolongada")) return "ralenti";
+
+  // 3. Eventos Críticos de Seguridad Física / Dispositivo
   if (t.includes("panic") || t.includes("sos") || t.includes("alarma")) return "panico";
-  if (t.includes("desconex") || t.includes("bater") || t.includes("power")) return "desconexion";
-  if (t.includes("apagad") || t.includes("off")) return "apagado";
-  if (t.includes("encendid") || t.includes("on")) return "encendido";
-  if (t.includes("ralenti") || t.includes("idle") || t.includes("parada")) return "ralenti";
-  if (t.includes("geocerca") || t.includes("fence")) return "salida_geocerca";
+  if (t.includes("desconex") || t.includes("bater") || t.includes("power") || t.includes("tamper")) return "desconexion";
+
+  // 4. Estados de Motor
+  if (t.includes("apagad") || t.includes("motor off") || t.includes("engine off")) return "apagado";
+  if (t.includes("encendid") || t.includes("motor on") || t.includes("engine on")) return "encendido";
+
+  // 5. Exceso de Velocidad General / Carretera (Regla explícita de sobrevelocidad)
+  if (t.includes("overspeed") || t.includes("exceso velocidad") || t.includes("exceso de velocidad") || t.includes("sobrevelocidad")) {
+    return "exceso_velocidad";
+  }
+
   return "otro";
 }
 
 /**
- * Normaliza la prioridad de Satelcopro
+ * Normaliza la prioridad respetando la severidad original emitida por las reglas del GPS
  */
 export function normalizarPrioridadSatelcopro(rawPrioridad?: string, tipo?: TipoEventoGPS): PrioridadEventoGPS {
   const p = (rawPrioridad || "").toLowerCase().trim();
-  if (p === "alta" || p === "critica" || p === "high" || p === "critical") return "alta";
-  if (p === "media" || p === "medium") return "media";
+  if (p === "alta" || p === "critica" || p === "crítica" || p === "high" || p === "critical") return "alta";
+  if (p === "media" || p === "medium" || p === "med") return "media";
   if (p === "baja" || p === "informativa" || p === "low" || p === "info") return "baja";
 
-  // Si no viene prioridad explícita, deducir por tipo de evento
-  if (tipo === "exceso_velocidad" || tipo === "panico" || tipo === "desconexion") return "alta";
+  // Si el GPS no envía prioridad explícita, aplicar severidad por defecto del tipo de evento
+  if (tipo === "exceso_velocidad" || tipo === "exceso_geocerca" || tipo === "panico" || tipo === "desconexion") return "alta";
   if (tipo === "frenada_brusca" || tipo === "acelerada_brusca" || tipo === "giro_brusco" || tipo === "salida_geocerca") return "media";
   return "baja";
 }
@@ -51,7 +69,11 @@ export function generarMensajeWhatsApp(evento: EventoGPS): string {
 
   let detalleNovedad = "";
   if (evento.tipoEvento === "exceso_velocidad") {
-    detalleNovedad = `⚠️ *Exceso de Velocidad:* ${evento.velocidad || 0} km/h (Límite permitido: ${evento.limiteVelocidad || 80} km/h)`;
+    detalleNovedad = `⚠️ *Exceso de Velocidad en Carretera:* ${evento.velocidad || 0} km/h (Límite permitido: ${evento.limiteVelocidad || 80} km/h)`;
+  } else if (evento.tipoEvento === "exceso_geocerca") {
+    detalleNovedad = `📍 *Exceso de Velocidad en Geocerca:* ${evento.velocidad || 0} km/h registrado dentro del perímetro controlado`;
+  } else if (evento.tipoEvento === "salida_geocerca") {
+    detalleNovedad = `📍 *Salida de Geocerca:* Vehículo fuera del área operativa autorizada`;
   } else if (evento.tipoEvento === "frenada_brusca") {
     detalleNovedad = `🛑 *Frenada Brusca:* Desaceleración intempestiva registrada en telemetría`;
   } else if (evento.tipoEvento === "acelerada_brusca") {

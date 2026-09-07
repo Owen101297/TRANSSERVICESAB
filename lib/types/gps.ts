@@ -2,6 +2,7 @@
 
 export type TipoEventoGPS =
   | "exceso_velocidad"
+  | "exceso_geocerca"
   | "frenada_brusca"
   | "acelerada_brusca"
   | "giro_brusco"
@@ -70,6 +71,7 @@ export interface CalificacionConductorMensual {
 
 export const TIPO_EVENTO_LABELS: Record<TipoEventoGPS, { label: string; icon: string; defaultPrioridad: PrioridadEventoGPS }> = {
   exceso_velocidad: { label: "Exceso de Velocidad", icon: "Gauge", defaultPrioridad: "alta" },
+  exceso_geocerca: { label: "Exceso en Geocerca", icon: "MapPinAlert", defaultPrioridad: "alta" },
   frenada_brusca: { label: "Frenada Brusca", icon: "OctagonAlert", defaultPrioridad: "media" },
   acelerada_brusca: { label: "Acelerada Brusca", icon: "Zap", defaultPrioridad: "media" },
   giro_brusco: { label: "Giro Brusco", icon: "CornerUpRight", defaultPrioridad: "media" },

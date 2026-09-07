@@ -442,6 +442,12 @@ export function GpsMonitorClientView({
         if (tipo === "exceso_velocidad") {
           Icon = Gauge;
           iconColor = "text-alert-red";
+        } else if (tipo === "exceso_geocerca") {
+          Icon = MapPin;
+          iconColor = "text-alert-red";
+        } else if (tipo === "salida_geocerca") {
+          Icon = MapPin;
+          iconColor = "text-signal-amber";
         } else if (tipo === "frenada_brusca") {
           Icon = OctagonAlert;
           iconColor = "text-signal-amber";

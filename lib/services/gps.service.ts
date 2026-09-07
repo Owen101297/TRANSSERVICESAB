@@ -265,7 +265,7 @@ export async function registrarEventoGPSDb(rawEvent: {
     const rawPlacaClean = rawEvent.placa.trim().toUpperCase();
     const cleanPlaca = rawPlacaClean.replace(/[^A-Z0-9]/g, "");
     const hyphenPlaca = cleanPlaca.length === 6 ? `${cleanPlaca.slice(0, 3)}-${cleanPlaca.slice(3)}` : cleanPlaca;
-    const tipoEvento = normalizarTipoEventoSatelcopro(rawEvent.tipoEvento);
+    const tipoEvento = normalizarTipoEventoSatelcopro(rawEvent.tipoEvento, rawEvent.descripcion);
     const prioridad = normalizarPrioridadSatelcopro(rawEvent.prioridad, tipoEvento);
 
     // 1. Trazabilidad Temporal Estricta:
