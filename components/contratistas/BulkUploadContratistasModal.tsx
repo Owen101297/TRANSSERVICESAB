@@ -25,6 +25,7 @@ import {
   parseContratistasFile,
 } from "@/lib/data/contratistas-upsert";
 import { bulkUpsertContratistasAction } from "@/lib/services/contratistas.service";
+import { descargarPlantillaContratistasExcel } from "@/lib/data/contratistas-excel-export";
 
 interface BulkUploadContratistasModalProps {
   isOpen: boolean;
@@ -117,65 +118,7 @@ export function BulkUploadContratistasModal({
   };
 
   const handleDownloadTemplate = () => {
-    const templateData = [
-      ["TRANS SERVICES A&B", "", "", "PLANTILLA OFICIAL DE CARGA MASIVA DE CONTRATISTAS"],
-      [],
-      [
-        "Razón Social",
-        "NIT",
-        "Tipo Operación",
-        "Contacto Principal",
-        "Teléfono",
-        "Email",
-        "Fecha Vinculación (YYYY-MM-DD)",
-        "Fecha Fin Contrato (YYYY-MM-DD)",
-        "Estado (activo/inactivo)",
-        "Notas / Observaciones",
-      ],
-      [
-        "Transportes Especiales del Norte S.A.S.",
-        "900123456-7",
-        "fija",
-        "Carlos Mario Gómez",
-        "3001234567",
-        "contacto@transnorte.com",
-        "2024-01-15",
-        "2026-12-31",
-        "activo",
-        "Contratista con flota de 5 vans para rutas empresariales",
-      ],
-      [
-        "Cooperativa Cooptax A&B",
-        "890987654-3",
-        "rotativa",
-        "Marta Elena Ríos",
-        "3119876543",
-        "gerencia@cooptax.com",
-        "2023-06-01",
-        "",
-        "activo",
-        "Operación de microbuses en turnos rotativos",
-      ],
-    ];
-
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(templateData);
-
-    ws["!cols"] = [
-      { wch: 35 },
-      { wch: 18 },
-      { wch: 18 },
-      { wch: 25 },
-      { wch: 18 },
-      { wch: 30 },
-      { wch: 22 },
-      { wch: 22 },
-      { wch: 15 },
-      { wch: 40 },
-    ];
-
-    XLSX.utils.book_append_sheet(wb, ws, "Plantilla Contratistas");
-    XLSX.writeFile(wb, "Plantilla_Carga_Masiva_Contratistas_AB.xlsx");
+    descargarPlantillaContratistasExcel();
   };
 
   const handleReset = () => {

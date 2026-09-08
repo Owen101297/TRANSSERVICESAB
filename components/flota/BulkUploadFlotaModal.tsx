@@ -20,6 +20,7 @@ import {
   DiagnosticoFilaVehiculo,
 } from "@/lib/data/flota-upsert";
 import { bulkUpsertVehiculosDb } from "@/lib/services/vehiculos.service";
+import { descargarPlantillaFlotaExcel } from "@/lib/data/flota-excel-export";
 
 interface BulkUploadFlotaModalProps {
   isOpen: boolean;
@@ -83,65 +84,7 @@ export function BulkUploadFlotaModal({
   };
 
   const handleDownloadPlantilla = () => {
-    const plantilla = [
-      [
-        "PLACA",
-        "MARCA",
-        "MODELO",
-        "AÑO",
-        "TIPO",
-        "CAPACIDAD",
-        "SERVICIO",
-        "CONTRATISTA",
-        "SOAT",
-        "RTM",
-        "POLIZAS",
-      ],
-      [
-        "WLM789",
-        "Chevrolet",
-        "NPR Buseta",
-        2022,
-        "buseta",
-        24,
-        "especial",
-        "Transcaribe Express SAS",
-        "2027-03-15",
-        "2027-04-20",
-        "2027-06-10",
-      ],
-      [
-        "TLK456",
-        "Renault",
-        "Master Van",
-        2023,
-        "van",
-        16,
-        "escolar",
-        "Transportes del Norte Ltda",
-        "2026-11-05",
-        "2026-10-18",
-        "2027-01-30",
-      ],
-    ];
-
-    const ws = XLSX.utils.aoa_to_sheet(plantilla);
-    ws["!cols"] = [
-      { wch: 12 },
-      { wch: 16 },
-      { wch: 18 },
-      { wch: 8 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 14 },
-      { wch: 30 },
-      { wch: 14 },
-      { wch: 14 },
-      { wch: 14 },
-    ];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Plantilla Flota");
-    XLSX.writeFile(wb, "Plantilla_Carga_Masiva_Flota_TransServicesAB.xlsx");
+    descargarPlantillaFlotaExcel();
   };
 
   return (

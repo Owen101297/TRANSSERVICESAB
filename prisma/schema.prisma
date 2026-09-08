@@ -46,32 +46,32 @@ model Persona {
 }
 
 model LicenciaConduccion {
-  id                String   @id @default(cuid())
-  personaId         String   @unique
-  persona           Persona  @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  id                String    @id @default(cuid())
+  personaId         String    @unique
+  persona           Persona   @relation(fields: [personaId], references: [id], onDelete: Cascade)
   numero            String
-  categorias        String[] // C1, C2, C3, B1, B2, etc.
-  fechaVencimiento  DateTime
+  categorias        String[]  // C1, C2, C3, B1, B2, etc.
+  fechaVencimiento  DateTime?
   organismoTransito String?
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 }
 
 model ExamenMedico {
-  id                String   @id @default(cuid())
-  personaId         String   @unique
-  persona           Persona  @relation(fields: [personaId], references: [id], onDelete: Cascade)
-  tipo              String   @default("periodico") // ingreso, periodico, egreso, post_incapacidad
-  fechaRealizacion  DateTime
-  fechaVigencia     DateTime
-  enfasis           String[] // Visiometría, Audiometría, Psicosensométrico, Osteomuscular
-  concepto          String   @default("apto") // apto, apto_con_restricciones, no_apto, pendiente
+  id                String    @id @default(cuid())
+  personaId         String    @unique
+  persona           Persona   @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  tipo              String    @default("periodico") // ingreso, periodico, egreso, post_incapacidad
+  fechaRealizacion  DateTime?
+  fechaVigencia     DateTime?
+  enfasis           String[]  // Visiometría, Audiometría, Psicosensométrico, Osteomuscular
+  concepto          String    @default("apto") // apto, apto_con_restricciones, no_apto, pendiente
   restricciones     String?
   centroMedico      String?
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 }
 
 model DatosSalud {
@@ -142,10 +142,10 @@ model Vehiculo {
   contratistaNombre String
   estado            String       @default("activo") // activo, mantenimiento, inactivo
 
-  // Vencimientos documentales
-  soatVencimiento   DateTime
-  rtmVencimiento    DateTime
-  polizaVencimiento DateTime
+  // Vencimientos documentales (Opcionales si no han sido registrados)
+  soatVencimiento   DateTime?
+  rtmVencimiento    DateTime?
+  polizaVencimiento DateTime?
 
   asignaciones      Asignacion[]
 

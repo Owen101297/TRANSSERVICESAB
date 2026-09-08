@@ -508,8 +508,8 @@ export async function batchUpsertPersonasDb(items: any[]) {
       const nombres = cleanStr(item.nombres);
       const apellidos = cleanStr(item.apellidos);
       const tipoDoc = cleanStr(item.tipoDocumento) || "CC";
-      const telefono = cleanStr(item.telefono) || "3000000000";
-      const email = cleanStr(item.email) || `${nombres.toLowerCase().replace(/[^a-z0-9]/g, ".") || "usuario"}@transservices.com`;
+      const telefono = cleanStr(item.telefono);
+      const email = cleanStr(item.email);
       const contratistaNombre = cleanStr(item.contratistaNombre);
       const estado = cleanStr(item.estado) || "activo";
       const perfiles = Array.isArray(item.perfiles) && item.perfiles.length > 0 ? item.perfiles : ["conductor"];
@@ -537,8 +537,8 @@ export async function batchUpsertPersonasDb(items: any[]) {
                 nombres,
                 apellidos,
                 tipoDocumento: tipoDoc,
-                telefono: telefono || existing.telefono,
-                email: email || existing.email,
+                telefono: telefono !== undefined ? telefono : existing.telefono,
+                email: email !== undefined ? email : existing.email,
                 perfiles,
                 estado,
                 contratistaId: contratistaId || existing.contratistaId,
@@ -559,10 +559,10 @@ export async function batchUpsertPersonasDb(items: any[]) {
                     categorias: item.categoriasLicencia && item.categoriasLicencia.length > 0
                       ? item.categoriasLicencia
                       : existing.licenciaConduccion.categorias,
-                    fechaVencimiento: safeLicVenc || existing.licenciaConduccion.fechaVencimiento,
+                    fechaVencimiento: safeLicVenc !== undefined ? safeLicVenc : existing.licenciaConduccion.fechaVencimiento,
                   },
                 });
-              } else if (safeLicVenc) {
+              } else if (licNum || safeLicVenc) {
                 await prisma.licenciaConduccion.create({
                   data: {
                     personaId: existing.id,
@@ -570,7 +570,7 @@ export async function batchUpsertPersonasDb(items: any[]) {
                     categorias: item.categoriasLicencia && item.categoriasLicencia.length > 0
                       ? item.categoriasLicencia
                       : ["C2"],
-                    fechaVencimiento: safeLicVenc,
+                    fechaVencimiento: safeLicVenc || null,
                   },
                 });
               }
@@ -578,55 +578,56 @@ export async function batchUpsertPersonasDb(items: any[]) {
 
             // Salud
             if (item.eps || item.arl || item.fondoPension || item.grupoSanguineo) {
-              const eps = cleanStr(item.eps) || "Sura";
-              const arl = cleanStr(item.arl) || "Positiva";
-              const fondo = cleanStr(item.fondoPension) || undefined;
-              const rh = cleanStr(item.grupoSanguineo) || "O_POSITIVO";
+              const eps = cleanStr(item.eps);
+              const arl = cleanStr(item.arl);
+              const fondo = cleanStr(item.fondoPension);
+              const rh = cleanStr(item.grupoSanguineo);
 
               if (existing.datosSalud) {
                 await prisma.datosSalud.update({
                   where: { personaId: existing.id },
                   data: {
-                    eps: item.eps ? eps : existing.datosSalud.eps,
-                    arl: item.arl ? arl : existing.datosSalud.arl,
-                    fondoPensiones: fondo || existing.datosSalud.fondoPensiones,
+                    eps: eps !== undefined ? eps : existing.datosSalud.eps,
+                    arl: arl !== undefined ? arl : existing.datosSalud.arl,
+                    fondoPensiones: fondo !== undefined ? fondo : existing.datosSalud.fondoPensiones,
+                    grupoSanguineoRH: rh !== undefined ? rh : existing.datosSalud.grupoSanguineoRH,
                   },
                 });
               } else {
                 await prisma.datosSalud.create({
                   data: {
                     personaId: existing.id,
-                    eps,
-                    arl,
-                    fondoPensiones: fondo,
-                    grupoSanguineoRH: rh,
+                    eps: eps || "",
+                    arl: arl || "",
+                    fondoPensiones: fondo || null,
+                    grupoSanguineoRH: rh || "",
                   },
                 });
               }
             }
 
             // Contacto Emergencia
-            if (item.contactoEmergenciaNombre) {
+            if (item.contactoEmergenciaNombre || item.contactoEmergenciaTelefono) {
               const nomEm = cleanStr(item.contactoEmergenciaNombre);
-              const telEm = cleanStr(item.contactoEmergenciaTelefono) || "3000000000";
-              const parEm = cleanStr(item.contactoEmergenciaParentesco) || "Familiar";
+              const telEm = cleanStr(item.contactoEmergenciaTelefono);
+              const parEm = cleanStr(item.contactoEmergenciaParentesco);
 
               if (existing.contactoEmergencia) {
                 await prisma.contactoEmergencia.update({
                   where: { personaId: existing.id },
                   data: {
-                    nombreCompleto: nomEm,
-                    telefono: telEm || existing.contactoEmergencia.telefono,
-                    parentesco: parEm || existing.contactoEmergencia.parentesco,
+                    nombreCompleto: nomEm !== undefined ? nomEm : existing.contactoEmergencia.nombreCompleto,
+                    telefono: telEm !== undefined ? telEm : existing.contactoEmergencia.telefono,
+                    parentesco: parEm !== undefined ? parEm : existing.contactoEmergencia.parentesco,
                   },
                 });
-              } else {
+              } else if (nomEm) {
                 await prisma.contactoEmergencia.create({
                   data: {
                     personaId: existing.id,
                     nombreCompleto: nomEm,
-                    telefono: telEm,
-                    parentesco: parEm,
+                    telefono: telEm || "",
+                    parentesco: parEm || "Familiar",
                   },
                 });
               }
@@ -641,8 +642,8 @@ export async function batchUpsertPersonasDb(items: any[]) {
                 apellidos,
                 tipoDocumento: tipoDoc,
                 numeroDocumento: numDoc,
-                telefono,
-                email,
+                telefono: telefono || "",
+                email: email || "",
                 perfiles,
                 estado,
                 contratistaId,
@@ -653,28 +654,29 @@ export async function batchUpsertPersonasDb(items: any[]) {
 
             // Licencia
             const safeLicVenc = parseSafeDate(item.vencimientoLicencia);
-            if (safeLicVenc) {
+            const licNum = cleanStr(item.numeroLicencia);
+            if (licNum || safeLicVenc) {
               await prisma.licenciaConduccion.create({
                 data: {
                   personaId: newP.id,
-                  numero: cleanStr(item.numeroLicencia) || numDoc,
+                  numero: licNum || numDoc,
                   categorias: item.categoriasLicencia && item.categoriasLicencia.length > 0
                     ? item.categoriasLicencia
                     : ["C2"],
-                  fechaVencimiento: safeLicVenc,
+                  fechaVencimiento: safeLicVenc || null,
                 },
               });
             }
 
             // Salud
-            if (item.eps || item.arl || item.fondoPension) {
+            if (item.eps || item.arl || item.fondoPension || item.grupoSanguineo) {
               await prisma.datosSalud.create({
                 data: {
                   personaId: newP.id,
-                  eps: cleanStr(item.eps) || "Sura",
-                  arl: cleanStr(item.arl) || "Positiva",
-                  fondoPensiones: cleanStr(item.fondoPension) || undefined,
-                  grupoSanguineoRH: cleanStr(item.grupoSanguineo) || "O_POSITIVO",
+                  eps: cleanStr(item.eps) || "",
+                  arl: cleanStr(item.arl) || "",
+                  fondoPensiones: cleanStr(item.fondoPension) || null,
+                  grupoSanguineoRH: cleanStr(item.grupoSanguineo) || "",
                 },
               });
             }
@@ -685,7 +687,7 @@ export async function batchUpsertPersonasDb(items: any[]) {
                 data: {
                   personaId: newP.id,
                   nombreCompleto: cleanStr(item.contactoEmergenciaNombre),
-                  telefono: cleanStr(item.contactoEmergenciaTelefono) || "3000000000",
+                  telefono: cleanStr(item.contactoEmergenciaTelefono) || "",
                   parentesco: cleanStr(item.contactoEmergenciaParentesco) || "Familiar",
                 },
               });

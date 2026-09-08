@@ -35,7 +35,7 @@ export interface GetPreoperacionalesFilters {
 
 export async function createPreoperacionalDb(input: CreatePreoperacionalInput) {
   try {
-    const cleanPlaca = (input.placa || "WGM-212").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const cleanPlaca = (input.placa || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
     let cId = input.conductorId;
     let cNombre = input.conductorNombre;
     let vId = "vehiculo-general";

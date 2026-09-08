@@ -1,135 +1,140 @@
 import * as XLSX from "xlsx";
 import { Vehiculo, TIPO_LABELS, SERVICIO_LABELS, ESTADO_VEHICULO_LABELS } from "@/lib/types/vehiculo";
-import { calcularAlertaFecha } from "@/lib/utils/alertas-flota";
+
+export const FLOTA_EXCEL_COLUMNS = [
+  "PLACA",
+  "MARCA",
+  "MODELO",
+  "AÑO",
+  "TIPO",
+  "CAPACIDAD",
+  "SERVICIO",
+  "CONTRATISTA",
+  "VENCIMIENTO SOAT",
+  "VENCIMIENTO RTM",
+  "VENCIMIENTO POLIZAS",
+  "ESTADO",
+];
 
 /**
- * Genera y descarga el archivo Excel oficial de Flota con membrete institucional de Trans Services A&B
- * Código documental: FL-FOR-01 (Matriz de Control y Cumplimiento Legal del Parque Automotor)
+ * Genera el archivo Excel oficial de Flota con los datos actuales de la base de datos
  */
 export function exportarFlotaAExcel(vehiculos: Vehiculo[], asignacionesMap?: Record<string, string>) {
-  const hoyStr = new Date().toLocaleDateString("es-CO", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  const rowsData = vehiculos.map((v) => [
+    v.placa,
+    v.marca,
+    v.modelo,
+    v.anio || "",
+    TIPO_LABELS[v.tipo] || v.tipo,
+    v.capacidad || "",
+    SERVICIO_LABELS[v.servicio] || v.servicio,
+    v.contratistaNombre || "Flota Propia / Trans Services A&B",
+    v.documentos?.soatVencimiento || "",
+    v.documentos?.rtmVencimiento || "",
+    v.documentos?.polizaVencimiento || "",
+    ESTADO_VEHICULO_LABELS[v.estado] || v.estado,
+  ]);
 
-  const fechaGeneracion = new Date().toLocaleString("es-CO", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
-
-  // 1. Cabecera Corporativa Membretada (FL-FOR-01)
-  const headerData = [
-    ["TRANS SERVICES COOPERATIVA A&B"],
-    ["NIT: 901.234.567-8 | TRANSPORTE ESPECIAL, ESCOLAR Y TURISMO"],
-    ["SISTEMA DE GESTIÓN INTEGRAL HSEQ & PESV"],
-    ["MATRIZ DE CONTROL Y CUMPLIMIENTO LEGAL DEL PARQUE AUTOMOTOR (FLOTA)"],
-    [`Código Documental: FL-FOR-01 | Versión: 3.0 | Fecha de Corte: ${hoyStr}`],
-    [], // Fila en blanco
-    [
-      "ÍTEM",
-      "PLACA",
-      "TIPO DE VEHÍCULO",
-      "MARCA",
-      "LÍNEA / MODELO",
-      "AÑO",
-      "CAPACIDAD (PASAJEROS)",
-      "MODALIDAD DE SERVICIO",
-      "CONTRATISTA / ALIADO PROPIETARIO",
-      "CONDUCTOR ASIGNADO",
-      "ESTADO OPERATIVO",
-      "VENCIMIENTO SOAT",
-      "ESTADO SOAT",
-      "VENCIMIENTO RTM",
-      "ESTADO RTM",
-      "VENCIMIENTO PÓLIZAS RCC/RCE",
-      "ESTADO PÓLIZAS",
-    ],
-  ];
-
-  // 2. Mapeo de Filas de Vehículos
-  const rowsData = vehiculos.map((v, idx) => {
-    const alertaSoat = calcularAlertaFecha(v.documentos?.soatVencimiento, "SOAT");
-    const alertaRtm = calcularAlertaFecha(v.documentos?.rtmVencimiento, "RTM");
-    const alertaPoliza = calcularAlertaFecha(v.documentos?.polizaVencimiento, "Pólizas");
-
-    const conductorNombre = asignacionesMap ? asignacionesMap[v.placa] || "Sin asignar" : "Sin asignar";
-
-    return [
-      idx + 1,
-      v.placa,
-      TIPO_LABELS[v.tipo] || v.tipo,
-      v.marca,
-      v.modelo,
-      v.anio,
-      v.capacidad,
-      SERVICIO_LABELS[v.servicio] || v.servicio,
-      v.contratistaNombre || "Propio / Cooperativa",
-      conductorNombre,
-      ESTADO_VEHICULO_LABELS[v.estado] || v.estado,
-      v.documentos?.soatVencimiento || "Sin fecha",
-      alertaSoat.etiqueta,
-      v.documentos?.rtmVencimiento || "Sin fecha",
-      alertaRtm.etiqueta,
-      v.documentos?.polizaVencimiento || "Sin fecha",
-      alertaPoliza.etiqueta,
-    ];
-  });
-
-  // 3. Fila de Resumen / Pie de Informe
-  const totalVehiculos = vehiculos.length;
-  const activos = vehiculos.filter((x) => x.estado === "activo").length;
-  const enMantenimiento = vehiculos.filter((x) => x.estado === "mantenimiento").length;
-
-  const footerData = [
-    [],
-    [
-      "TOTAL VEHÍCULOS REGISTRADOS:",
-      totalVehiculos,
-      `Activos: ${activos}`,
-      `En Mantenimiento: ${enMantenimiento}`,
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      `Generado: ${fechaGeneracion}`,
-      "A&B OS Sistema de Gestión",
-    ],
-  ];
-
-  const fullData = [...headerData, ...rowsData, ...footerData];
-
-  // 4. Crear Libro de Trabajo
+  const fullData = [FLOTA_EXCEL_COLUMNS, ...rowsData];
   const worksheet = XLSX.utils.aoa_to_sheet(fullData);
 
-  // 5. Ajustar anchos de columna automáticos
   worksheet["!cols"] = [
-    { wch: 6 },  // Ítem
-    { wch: 12 }, // Placa
-    { wch: 18 }, // Tipo
-    { wch: 16 }, // Marca
-    { wch: 18 }, // Modelo
-    { wch: 8 },  // Año
-    { wch: 12 }, // Capacidad
-    { wch: 22 }, // Servicio
-    { wch: 32 }, // Contratista
-    { wch: 26 }, // Conductor
-    { wch: 18 }, // Estado Operativo
-    { wch: 16 }, // SOAT
-    { wch: 20 }, // Estado SOAT
-    { wch: 16 }, // RTM
-    { wch: 20 }, // Estado RTM
-    { wch: 18 }, // Pólizas
-    { wch: 20 }, // Estado Pólizas
+    { wch: 12 }, // PLACA
+    { wch: 16 }, // MARCA
+    { wch: 18 }, // MODELO
+    { wch: 8 },  // AÑO
+    { wch: 14 }, // TIPO
+    { wch: 12 }, // CAPACIDAD
+    { wch: 22 }, // SERVICIO
+    { wch: 34 }, // CONTRATISTA
+    { wch: 18 }, // VENCIMIENTO SOAT
+    { wch: 18 }, // VENCIMIENTO RTM
+    { wch: 22 }, // VENCIMIENTO POLIZAS
+    { wch: 14 }, // ESTADO
   ];
 
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Matriz de Flota FL-FOR-01");
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Flota");
 
-  // 6. Descargar archivo
   const fechaIso = new Date().toISOString().slice(0, 10);
-  XLSX.writeFile(workbook, `Matriz_Flota_TransServicesAB_FL-FOR-01_${fechaIso}.xlsx`);
+  XLSX.writeFile(workbook, `Matriz_Flota_TransServicesAB_${fechaIso}.xlsx`);
+}
+
+/**
+ * Genera y descarga la Plantilla Oficial de Flota para carga y actualización masiva
+ */
+export function descargarPlantillaFlotaExcel() {
+  const ejemploRows = [
+    [
+      "WLM789",
+      "Chevrolet",
+      "NPR Buseta",
+      2023,
+      "Buseta",
+      24,
+      "Transporte especial",
+      "Trans Services Cooperativa A&B (Flota Propia)",
+      "2027-03-15",
+      "2027-04-20",
+      "2027-06-10",
+      "Activo",
+    ],
+    [
+      "TLK456",
+      "Renault",
+      "Master Van",
+      2024,
+      "Van",
+      16,
+      "Escolar",
+      "Transportes del Norte SAS",
+      "", // Dejar en blanco si está pendiente
+      "",
+      "",
+      "Activo",
+    ],
+  ];
+
+  const fullData = [FLOTA_EXCEL_COLUMNS, ...ejemploRows];
+  const wsData = XLSX.utils.aoa_to_sheet(fullData);
+
+  wsData["!cols"] = [
+    { wch: 12 },
+    { wch: 16 },
+    { wch: 18 },
+    { wch: 8 },
+    { wch: 14 },
+    { wch: 12 },
+    { wch: 22 },
+    { wch: 34 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 22 },
+    { wch: 14 },
+  ];
+
+  // Hoja 2: Guía de Valores Permitidos
+  const guiaData = [
+    ["CAMPO", "OBLIGATORIO", "FORMATO / VALORES VÁLIDOS", "OBSERVACIÓN"],
+    ["PLACA", "SÍ", "Texto de 6 caracteres (ej. WLM789 o WLM-789)", "Clave única del vehículo."],
+    ["MARCA", "NO", "Texto libre (ej. Chevrolet, Renault, Nissan)", "Marca comercial."],
+    ["MODELO", "NO", "Texto libre (ej. NPR, Master, Duster)", "Línea o referencia."],
+    ["AÑO", "NO", "Número de 4 dígitos (ej. 2023)", "Año de fabricación."],
+    ["TIPO", "NO", "Bus | Buseta | Microbús | Camioneta | Automóvil | Van", "Clase vehicular."],
+    ["CAPACIDAD", "NO", "Número de pasajeros (ej. 16, 24)", "Capacidad máxima autorizada."],
+    ["SERVICIO", "NO", "Especial | Escolar | Turismo", "Modalidad de transporte."],
+    ["CONTRATISTA", "NO", "Razón Social o NIT de la empresa", "Si se deja vacío, se asume Flota Propia."],
+    ["VENCIMIENTO SOAT", "NO", "YYYY-MM-DD o DD/MM/YYYY", "Dejar en blanco si aún no tiene fecha."],
+    ["VENCIMIENTO RTM", "NO", "YYYY-MM-DD o DD/MM/YYYY", "Dejar en blanco si aún no tiene fecha."],
+    ["VENCIMIENTO POLIZAS", "NO", "YYYY-MM-DD o DD/MM/YYYY", "Dejar en blanco si aún no tiene fecha."],
+    ["ESTADO", "NO", "Activo | En mantenimiento | Inactivo", "Por defecto Activo."],
+  ];
+  const wsGuia = XLSX.utils.aoa_to_sheet(guiaData);
+  wsGuia["!cols"] = [{ wch: 22 }, { wch: 14 }, { wch: 45 }, { wch: 40 }];
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, wsData, "Plantilla_Flota");
+  XLSX.utils.book_append_sheet(workbook, wsGuia, "Guia_Valores");
+
+  XLSX.writeFile(workbook, "Plantilla_Carga_Masiva_Flota_TransServicesAB.xlsx");
 }

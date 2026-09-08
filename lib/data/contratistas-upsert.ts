@@ -9,6 +9,7 @@ export interface RawContratistaImportRow {
   contactoNombre?: string;
   contactoTelefono?: string;
   contactoEmail?: string;
+  direccion?: string;
   fechaVinculacion?: string;
   fechaFinContrato?: string;
   estado?: string;
@@ -66,7 +67,7 @@ export function mapRawRowToContratista(raw: Record<string, any>): RawContratista
   for (const [key, val] of Object.entries(raw)) {
     if (val === undefined || val === null) continue;
     const strVal = String(val).trim();
-    if (!strVal) continue;
+    if (!strVal || strVal === "—" || strVal === "-") continue;
 
     const normKey = normalizeKey(key);
 
@@ -96,6 +97,10 @@ export function mapRawRowToContratista(raw: Record<string, any>): RawContratista
 
     if (normKey.includes("email") || normKey.includes("correo") || normKey.includes("mail")) {
       normalized.contactoEmail = strVal;
+    }
+
+    if (normKey.includes("direccion") || normKey.includes("sede") || normKey.includes("oficina")) {
+      normalized.direccion = strVal;
     }
 
     if (normKey.includes("vinculacion") || normKey.includes("ingreso") || normKey.includes("inicio")) {
@@ -131,7 +136,7 @@ export function analyzeContratistaUpsertBatch(
     if (cleanNit) existingMapByNit.set(cleanNit, c);
   }
 
-  const seenNitsInBatch = new Map<string, number>(); // cleanNit -> rowNumber
+  const seenNitsInBatch = new Map<string, number>();
   const items: ContratistaUpsertPreviewItem[] = [];
   const diagnostico: string[] = [];
 
@@ -140,7 +145,7 @@ export function analyzeContratistaUpsertBatch(
   let errors = 0;
 
   for (let idx = 0; idx < rawRows.length; idx++) {
-    const rowNumber = idx + 2; // Fila 1 es encabezado
+    const rowNumber = idx + 2;
     const raw = rawRows[idx];
     const mapped = mapRawRowToContratista(raw);
 
@@ -148,122 +153,101 @@ export function analyzeContratistaUpsertBatch(
     const rawNit = mapped.nit || "";
     const cleanNit = rawNit.replace(/[^0-9kK]/g, "").toLowerCase();
 
-    // Validar NIT obligatorio
-    if (!cleanNit) {
+    // 1. Validaciones requeridas
+    if (!cleanNit || cleanNit.length < 5) {
       errors++;
-      const msg = `Fila #${rowNumber}: Omitida porque no contiene NIT o Número de Identificación Tributaria.`;
-      diagnostico.push(msg);
       items.push({
-        id: `err_${idx}`,
+        id: `err_${idx}_${Date.now()}`,
         rowNumber,
-        nombre: nombre || "Nombre no especificado",
-        nit: "Sin NIT",
+        nombre: nombre || "Empresa Desconocida",
+        nit: rawNit || "NIT Vacío",
         tipoOperacion: "fija",
-        contactoNombre: mapped.contactoNombre || "Pendiente",
-        contactoTelefono: mapped.contactoTelefono || "Pendiente",
-        contactoEmail: mapped.contactoEmail || "pendiente@ejemplo.com",
+        contactoNombre: "",
+        contactoTelefono: "",
+        contactoEmail: "",
         fechaVinculacion: new Date().toISOString().split("T")[0],
         estado: "activo",
         action: "error",
-        errorMessage: "NIT ausente o inválido",
+        errorMessage: "NIT ausente o con formato inválido.",
       });
       continue;
     }
 
-    // Validar Nombre obligatorio
     if (!nombre) {
       errors++;
-      const msg = `Fila #${rowNumber}: Omitida porque no contiene Razón Social ni Nombre de la Empresa.`;
-      diagnostico.push(msg);
       items.push({
-        id: `err_${idx}`,
+        id: `err_${idx}_${Date.now()}`,
         rowNumber,
-        nombre: "Sin Razón Social",
+        nombre: "Falta Razón Social",
         nit: rawNit,
         tipoOperacion: "fija",
-        contactoNombre: mapped.contactoNombre || "Pendiente",
-        contactoTelefono: mapped.contactoTelefono || "Pendiente",
-        contactoEmail: mapped.contactoEmail || "pendiente@ejemplo.com",
+        contactoNombre: "",
+        contactoTelefono: "",
+        contactoEmail: "",
         fechaVinculacion: new Date().toISOString().split("T")[0],
         estado: "activo",
         action: "error",
-        errorMessage: "Razón social ausente",
+        errorMessage: "Falta la Razón Social / Nombre de la empresa.",
       });
       continue;
     }
 
-    // Comprobar si el mismo NIT ya apareció en una fila previa del mismo Excel
+    // 2. Detección de duplicados dentro del mismo archivo
     if (seenNitsInBatch.has(cleanNit)) {
-      const prevRow = seenNitsInBatch.get(cleanNit)!;
-      diagnostico.push(
-        `Fila #${rowNumber} (${nombre}): El NIT ${rawNit} ya figuraba en la Fila #${prevRow} de este archivo. Se unificarán los datos.`
-      );
-    } else {
-      seenNitsInBatch.set(cleanNit, rowNumber);
+      errors++;
+      const prevRow = seenNitsInBatch.get(cleanNit);
+      items.push({
+        id: `err_dup_${idx}_${Date.now()}`,
+        rowNumber,
+        nombre,
+        nit: rawNit,
+        tipoOperacion: "fija",
+        contactoNombre: "",
+        contactoTelefono: "",
+        contactoEmail: "",
+        fechaVinculacion: new Date().toISOString().split("T")[0],
+        estado: "activo",
+        action: "error",
+        errorMessage: `NIT duplicado en el mismo archivo (primera aparición en fila #${prevRow}).`,
+      });
+      continue;
     }
+    seenNitsInBatch.set(cleanNit, rowNumber);
 
-    // Normalizar Tipo de Operación
-    let tipoOperacion: TipoOperacion = "fija";
-    if (mapped.tipoOperacion) {
-      const lower = mapped.tipoOperacion.toLowerCase();
-      if (lower.includes("rotat") || lower.includes("turno")) {
-        tipoOperacion = "rotativa";
-      }
-    }
+    // 3. Normalizaciones
+    const tipoOperacion: TipoOperacion = (mapped.tipoOperacion || "").toLowerCase().includes("rotat") ? "rotativa" : "fija";
+    const estado: EstadoContratista = (mapped.estado || "").toLowerCase().includes("inact") ? "inactivo" : "activo";
+    const fechaVinculacion = mapped.fechaVinculacion || new Date().toISOString().split("T")[0];
+    const fechaFinContrato = mapped.fechaFinContrato || undefined;
 
-    // Normalizar Estado
-    let estado: EstadoContratista = "activo";
-    if (mapped.estado) {
-      const lower = mapped.estado.toLowerCase();
-      if (lower.includes("inactiv") || lower.includes("retir") || lower.includes("cancel")) {
-        estado = "inactivo";
-      }
-    }
-
-    // Normalizar Fecha Vinculación
-    let fechaVinculacion = new Date().toISOString().split("T")[0];
-    if (mapped.fechaVinculacion) {
-      const parsed = new Date(mapped.fechaVinculacion);
-      if (!isNaN(parsed.getTime())) {
-        fechaVinculacion = parsed.toISOString().split("T")[0];
-      }
-    }
-
-    // Normalizar Fecha Fin Contrato
-    let fechaFinContrato: string | undefined = undefined;
-    if (mapped.fechaFinContrato) {
-      const parsed = new Date(mapped.fechaFinContrato);
-      if (!isNaN(parsed.getTime())) {
-        fechaFinContrato = parsed.toISOString().split("T")[0];
-      }
-    }
-
+    // 4. Determinar si es Creación o Actualización
     const existing = existingMapByNit.get(cleanNit);
 
     if (existing) {
-      toUpdate++;
       const changes: string[] = [];
-      if (existing.nombre !== nombre) changes.push(`Razón Social: "${existing.nombre}" ➔ "${nombre}"`);
-      if (existing.tipoOperacion !== tipoOperacion) changes.push(`Operación: ${existing.tipoOperacion} ➔ ${tipoOperacion}`);
-      if (mapped.contactoTelefono && existing.contactoTelefono !== mapped.contactoTelefono) changes.push("Teléfono de contacto");
-      if (mapped.contactoEmail && existing.contactoEmail !== mapped.contactoEmail) changes.push("Email de contacto");
-      if (fechaFinContrato && existing.fechaFinContrato !== fechaFinContrato) changes.push("Fecha fin de contrato");
+      if (existing.nombre !== nombre) changes.push(`Nombre: "${existing.nombre}" → "${nombre}"`);
+      if (existing.tipoOperacion !== tipoOperacion) changes.push(`Operación: ${existing.tipoOperacion} → ${tipoOperacion}`);
+      if (mapped.contactoNombre && existing.contactoNombre !== mapped.contactoNombre) changes.push(`Contacto: "${existing.contactoNombre}" → "${mapped.contactoNombre}"`);
+      if (mapped.contactoTelefono && existing.contactoTelefono !== mapped.contactoTelefono) changes.push(`Teléfono: "${existing.contactoTelefono}" → "${mapped.contactoTelefono}"`);
+      if (mapped.contactoEmail && existing.contactoEmail !== mapped.contactoEmail) changes.push(`Email: "${existing.contactoEmail}" → "${mapped.contactoEmail}"`);
+      if (existing.estado !== estado) changes.push(`Estado: ${existing.estado} → ${estado}`);
 
+      toUpdate++;
       items.push({
         id: existing.id,
         rowNumber,
         nombre,
-        nit: rawNit,
+        nit: existing.nit,
         tipoOperacion,
-        contactoNombre: mapped.contactoNombre || existing.contactoNombre,
-        contactoTelefono: mapped.contactoTelefono || existing.contactoTelefono,
-        contactoEmail: mapped.contactoEmail || existing.contactoEmail,
-        fechaVinculacion: existing.fechaVinculacion || fechaVinculacion,
+        contactoNombre: mapped.contactoNombre || existing.contactoNombre || "",
+        contactoTelefono: mapped.contactoTelefono || existing.contactoTelefono || "",
+        contactoEmail: mapped.contactoEmail || existing.contactoEmail || "",
+        fechaVinculacion: existing.fechaVinculacion,
         fechaFinContrato: fechaFinContrato || existing.fechaFinContrato,
         estado,
         notas: mapped.notas || existing.notas,
         action: "update",
-        changesSummary: changes.length > 0 ? changes : ["Sin modificaciones detectadas (datos idénticos)"],
+        changesSummary: changes.length > 0 ? changes : ["Sin cambios detectados (se revalidará registro)"],
         originalContratista: existing,
       });
     } else {
@@ -274,9 +258,9 @@ export function analyzeContratistaUpsertBatch(
         nombre,
         nit: rawNit,
         tipoOperacion,
-        contactoNombre: mapped.contactoNombre || "Pendiente",
-        contactoTelefono: mapped.contactoTelefono || "Pendiente",
-        contactoEmail: mapped.contactoEmail || "pendiente@ejemplo.com",
+        contactoNombre: mapped.contactoNombre || "",
+        contactoTelefono: mapped.contactoTelefono || "",
+        contactoEmail: mapped.contactoEmail || "",
         fechaVinculacion,
         fechaFinContrato,
         estado,
@@ -299,12 +283,62 @@ export function analyzeContratistaUpsertBatch(
 }
 
 /**
- * Lee un archivo File (Excel o CSV) desde el navegador
+ * Lee un archivo File (Excel o CSV) desde el navegador con escaneo inteligente de cabeceras
  */
 export async function parseContratistasFile(file: File): Promise<Record<string, any>[]> {
   const data = await file.arrayBuffer();
   const workbook = XLSX.read(data, { type: "array" });
   const firstSheetName = workbook.SheetNames[0];
   const worksheet = workbook.Sheets[firstSheetName];
-  return XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+  const matrix: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+  if (matrix.length === 0) return [];
+
+  // Localizar la fila de cabeceras
+  let headerRowIndex = 0;
+  let headers: string[] = [];
+
+  for (let r = 0; r < Math.min(matrix.length, 15); r++) {
+    const row = matrix[r].map((cell: any) => String(cell || "").trim());
+    if (row.some((cell: string) => {
+      const c = normalizeKey(cell);
+      return ["nit", "razonsocial", "contratista", "empresa", "nombre"].includes(c);
+    })) {
+      headerRowIndex = r;
+      headers = row;
+      break;
+    }
+  }
+
+  if (headers.length === 0) {
+    headers = matrix[0].map((cell: any) => String(cell || "").trim());
+  }
+
+  const resultRows: Record<string, any>[] = [];
+
+  for (let i = headerRowIndex + 1; i < matrix.length; i++) {
+    const rowValues = matrix[i];
+    const firstCell = String(rowValues[0] || "").trim().toUpperCase();
+    if (firstCell.startsWith("TOTAL") || firstCell.startsWith("RESUMEN") || firstCell.startsWith("CÓDIGO")) {
+      continue;
+    }
+
+    const rowObj: Record<string, any> = {};
+    let hasData = false;
+    headers.forEach((h, colIdx) => {
+      if (h) {
+        const val = rowValues[colIdx];
+        if (val !== undefined && val !== null && String(val).trim() !== "") {
+          hasData = true;
+          rowObj[h] = val;
+        }
+      }
+    });
+
+    if (hasData) {
+      resultRows.push(rowObj);
+    }
+  }
+
+  return resultRows;
 }

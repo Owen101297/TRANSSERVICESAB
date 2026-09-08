@@ -32,9 +32,9 @@ export interface Vehiculo {
   servicio: ServicioVehiculo;
   estado: EstadoVehiculo;
   documentos: {
-    soatVencimiento: string; // ISO
-    rtmVencimiento: string; // ISO
-    polizaVencimiento: string; // ISO
+    soatVencimiento?: string; // ISO o undefined si está pendiente
+    rtmVencimiento?: string; // ISO o undefined si está pendiente
+    polizaVencimiento?: string; // ISO o undefined si está pendiente
   };
 }
 

@@ -38,9 +38,9 @@ export async function getVehiculosDb(): Promise<Vehiculo[]> {
           servicio: (v.servicio as ServicioVehiculo) || "especial",
           estado: (v.estado as EstadoVehiculo) || "activo",
           documentos: {
-            soatVencimiento: v.soatVencimiento ? v.soatVencimiento.toISOString().split("T")[0] : "",
-            rtmVencimiento: v.rtmVencimiento ? v.rtmVencimiento.toISOString().split("T")[0] : "",
-            polizaVencimiento: v.polizaVencimiento ? v.polizaVencimiento.toISOString().split("T")[0] : "",
+            soatVencimiento: v.soatVencimiento ? v.soatVencimiento.toISOString().split("T")[0] : undefined,
+            rtmVencimiento: v.rtmVencimiento ? v.rtmVencimiento.toISOString().split("T")[0] : undefined,
+            polizaVencimiento: v.polizaVencimiento ? v.polizaVencimiento.toISOString().split("T")[0] : undefined,
           },
         }));
       }
@@ -76,9 +76,9 @@ export async function getVehiculoByIdDb(id: string): Promise<Vehiculo | undefine
           servicio: (v.servicio as ServicioVehiculo) || "especial",
           estado: (v.estado as EstadoVehiculo) || "activo",
           documentos: {
-            soatVencimiento: v.soatVencimiento ? v.soatVencimiento.toISOString().split("T")[0] : "",
-            rtmVencimiento: v.rtmVencimiento ? v.rtmVencimiento.toISOString().split("T")[0] : "",
-            polizaVencimiento: v.polizaVencimiento ? v.polizaVencimiento.toISOString().split("T")[0] : "",
+            soatVencimiento: v.soatVencimiento ? v.soatVencimiento.toISOString().split("T")[0] : undefined,
+            rtmVencimiento: v.rtmVencimiento ? v.rtmVencimiento.toISOString().split("T")[0] : undefined,
+            polizaVencimiento: v.polizaVencimiento ? v.polizaVencimiento.toISOString().split("T")[0] : undefined,
           },
         };
       }
@@ -101,8 +101,8 @@ export async function createVehiculoAction(
     const tipo = (formData.get("tipo") as TipoVehiculo) || "van";
     const marca = (formData.get("marca") as string) || "";
     const modelo = (formData.get("modelo") as string) || "";
-    const anio = parseInt((formData.get("anio") as string) || "2022", 10);
-    const capacidad = parseInt((formData.get("capacidad") as string) || "15", 10);
+    const anio = parseInt((formData.get("anio") as string) || "2023", 10);
+    const capacidad = parseInt((formData.get("capacidad") as string) || "16", 10);
     const rawContratista = (formData.get("contratistaNombre") as string) || (formData.get("contratistaId") as string) || "Propio / Cooperativa";
 
     let contratistaId: string | null = null;
@@ -117,9 +117,9 @@ export async function createVehiculoAction(
     }
 
     const servicio = (formData.get("servicio") as ServicioVehiculo) || "especial";
-    const soatVencimiento = (formData.get("soatVencimiento") as string) || new Date().toISOString().split("T")[0];
-    const rtmVencimiento = (formData.get("rtmVencimiento") as string) || new Date().toISOString().split("T")[0];
-    const polizaVencimiento = (formData.get("polizaVencimiento") as string) || new Date().toISOString().split("T")[0];
+    const soatVencimiento = (formData.get("soatVencimiento") as string)?.trim() || undefined;
+    const rtmVencimiento = (formData.get("rtmVencimiento") as string)?.trim() || undefined;
+    const polizaVencimiento = (formData.get("polizaVencimiento") as string)?.trim() || undefined;
 
     let newId = `v_${Date.now()}`;
 
@@ -137,9 +137,9 @@ export async function createVehiculoAction(
             contratistaNombre,
             servicio,
             estado: "activo",
-            soatVencimiento: new Date(soatVencimiento),
-            rtmVencimiento: new Date(rtmVencimiento),
-            polizaVencimiento: new Date(polizaVencimiento),
+            soatVencimiento: soatVencimiento ? new Date(soatVencimiento) : null,
+            rtmVencimiento: rtmVencimiento ? new Date(rtmVencimiento) : null,
+            polizaVencimiento: polizaVencimiento ? new Date(polizaVencimiento) : null,
           },
         });
         newId = created.id;
@@ -174,7 +174,7 @@ export async function createVehiculoAction(
 
     return { success: true, vehiculoId: newId };
   } catch (error: any) {
-    return { success: false, error: error.message || "Error al registrar vehículo." };
+    return { success: false, error: error.message || "Error al crear vehículo." };
   }
 }
 
@@ -236,7 +236,7 @@ export async function deleteVehiculoDb(id: string): Promise<{ success: boolean; 
           where: { id },
         });
       } catch (err) {
-        console.warn("Aviso eliminando de DB:", err);
+        console.warn("Aviso eliminando vehículo en DB:", err);
       }
     }
 
@@ -252,34 +252,25 @@ export async function deleteVehiculoDb(id: string): Promise<{ success: boolean; 
 }
 
 /**
- * Elimina múltiples vehículos seleccionados
+ * Elimina múltiples vehículos seleccionados en bloque
  */
-export async function deleteMultipleVehiculosDb(ids: string[]): Promise<{ success: boolean; count: number }> {
+export async function bulkDeleteVehiculosDb(ids: string[]): Promise<{ success: boolean; count: number; error?: string }> {
   try {
-    let count = 0;
+    let deletedCount = 0;
     if (process.env.DATABASE_URL) {
       try {
-        const vehs = await prisma.vehiculo.findMany({ where: { id: { in: ids } } });
-        const placas = vehs.map((v) => v.placa);
-
-        // Finalizar asignaciones activas de los vehículos a eliminar
+        // Finalizar asignaciones vinculadas
         await prisma.asignacion.updateMany({
-          where: {
-            OR: [{ vehiculoId: { in: ids } }, { placa: { in: placas } }],
-            estado: "activa",
-          },
-          data: {
-            estado: "finalizada",
-            fechaFin: new Date(),
-          },
+          where: { vehiculoId: { in: ids }, estado: "activa" },
+          data: { estado: "finalizada", fechaFin: new Date() },
         });
 
         const res = await prisma.vehiculo.deleteMany({
           where: { id: { in: ids } },
         });
-        count = res.count;
-      } catch (err) {
-        console.warn("Aviso eliminando múltiples de DB:", err);
+        deletedCount = res.count;
+      } catch (dbErr) {
+        console.warn("Aviso en bulkDeleteVehiculosDb (DB):", dbErr);
       }
     }
 
@@ -288,14 +279,16 @@ export async function deleteMultipleVehiculosDb(ids: string[]): Promise<{ succes
     revalidatePath("/flota");
     revalidatePath("/dashboard");
     revalidatePath("/asignaciones");
-    return { success: true, count: count || ids.length };
-  } catch (error) {
-    return { success: false, count: 0 };
+    return { success: true, count: deletedCount || ids.length };
+  } catch (error: any) {
+    return { success: false, count: 0, error: error.message || "Error al eliminar vehículos." };
   }
 }
 
+export const deleteMultipleVehiculosDb = bulkDeleteVehiculosDb;
+
 /**
- * Importación masiva de vehículos desde Excel con Upsert en PostgreSQL
+ * Registra o actualiza en bloque (Upsert) los vehículos leídos de un archivo Excel/CSV
  */
 export async function bulkUpsertVehiculosDb(
   filas: DiagnosticoFilaVehiculo[]
@@ -304,13 +297,13 @@ export async function bulkUpsertVehiculosDb(
     let count = 0;
 
     for (const f of filas) {
-      const soatDate = f.soatVencimiento ? new Date(f.soatVencimiento) : new Date(Date.now() + 1000 * 60 * 60 * 24 * 180);
-      const rtmDate = f.rtmVencimiento ? new Date(f.rtmVencimiento) : new Date(Date.now() + 1000 * 60 * 60 * 24 * 180);
-      const polizaDate = f.polizaVencimiento ? new Date(f.polizaVencimiento) : new Date(Date.now() + 1000 * 60 * 60 * 24 * 180);
+      const soatDate = f.soatVencimiento ? new Date(f.soatVencimiento) : null;
+      const rtmDate = f.rtmVencimiento ? new Date(f.rtmVencimiento) : null;
+      const polizaDate = f.polizaVencimiento ? new Date(f.polizaVencimiento) : null;
 
       // Auto-asegurar que el contratista exista en el módulo Contratistas
       let contratistaId: string | null = null;
-      let contratistaNombre = f.contratistaNombre || "Propio / Cooperativa";
+      let contratistaNombre = f.contratistaNombre || "Flota Propia / Trans Services A&B";
 
       try {
         const cObj = await ensureContratistaExistsDb(contratistaNombre);
@@ -375,9 +368,9 @@ export async function bulkUpsertVehiculosDb(
         servicio: f.servicio,
         estado: f.estado || "activo",
         documentos: {
-          soatVencimiento: soatDate.toISOString().split("T")[0],
-          rtmVencimiento: rtmDate.toISOString().split("T")[0],
-          polizaVencimiento: polizaDate.toISOString().split("T")[0],
+          soatVencimiento: f.soatVencimiento,
+          rtmVencimiento: f.rtmVencimiento,
+          polizaVencimiento: f.polizaVencimiento,
         },
       };
 
@@ -394,7 +387,7 @@ export async function bulkUpsertVehiculosDb(
     return { success: true, count: count || filas.length };
   } catch (error: any) {
     console.error("Error en bulkUpsertVehiculosDb:", error);
-    return { success: false, count: 0, error: error.message || "Error al cargar la flota." };
+    return { success: false, count: 0, error: error.message || "Error al procesar la carga masiva." };
   }
 }
 
@@ -408,8 +401,8 @@ export async function updateVehiculoAction(
   try {
     const marca = formData.get("marca") as string;
     const modelo = formData.get("modelo") as string;
-    const anio = parseInt((formData.get("anio") as string) || "2022", 10);
-    const capacidad = parseInt((formData.get("capacidad") as string) || "15", 10);
+    const anio = parseInt((formData.get("anio") as string) || "2023", 10);
+    const capacidad = parseInt((formData.get("capacidad") as string) || "16", 10);
     const tipo = formData.get("tipo") as TipoVehiculo;
     const servicio = formData.get("servicio") as ServicioVehiculo;
     const estado = formData.get("estado") as EstadoVehiculo;
@@ -428,9 +421,9 @@ export async function updateVehiculoAction(
       }
     }
 
-    const soatVencimiento = formData.get("soatVencimiento") as string;
-    const rtmVencimiento = formData.get("rtmVencimiento") as string;
-    const polizaVencimiento = formData.get("polizaVencimiento") as string;
+    const soatVencimiento = (formData.get("soatVencimiento") as string)?.trim() || undefined;
+    const rtmVencimiento = (formData.get("rtmVencimiento") as string)?.trim() || undefined;
+    const polizaVencimiento = (formData.get("polizaVencimiento") as string)?.trim() || undefined;
 
     if (process.env.DATABASE_URL) {
       try {
@@ -446,9 +439,9 @@ export async function updateVehiculoAction(
             estado: estado || undefined,
             contratistaId: contratistaId || undefined,
             contratistaNombre: contratistaNombre || undefined,
-            soatVencimiento: soatVencimiento ? new Date(soatVencimiento) : undefined,
-            rtmVencimiento: rtmVencimiento ? new Date(rtmVencimiento) : undefined,
-            polizaVencimiento: polizaVencimiento ? new Date(polizaVencimiento) : undefined,
+            soatVencimiento: soatVencimiento ? new Date(soatVencimiento) : null,
+            rtmVencimiento: rtmVencimiento ? new Date(rtmVencimiento) : null,
+            polizaVencimiento: polizaVencimiento ? new Date(polizaVencimiento) : null,
           },
         });
       } catch (dbErr) {

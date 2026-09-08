@@ -62,14 +62,24 @@ export function normalizarServicioVehiculo(raw: any): ServicioVehiculo {
 }
 
 /**
- * Normaliza una fecha a formato ISO YYYY-MM-DD
+ * Normaliza el estado del vehículo
+ */
+export function normalizarEstadoVehiculo(raw: any): EstadoVehiculo {
+  const str = String(raw || "").toLowerCase().trim();
+  if (str.includes("manten") || str.includes("taller")) return "mantenimiento";
+  if (str.includes("inact") || str.includes("retir")) return "inactivo";
+  return "activo";
+}
+
+/**
+ * Normaliza una fecha a formato ISO YYYY-MM-DD sin inventar fechas por defecto
  */
 export function normalizarFechaISO(raw: any): string | undefined {
-  if (!raw) return undefined;
+  if (raw === undefined || raw === null) return undefined;
   if (typeof raw === "number") {
     // Fecha numérica de Excel
     const d = XLSX.SSF.parse_date_code(raw);
-    if (d) {
+    if (d && d.y > 1990 && d.y < 2100) {
       const mes = String(d.m).padStart(2, "0");
       const dia = String(d.d).padStart(2, "0");
       return `${d.y}-${mes}-${dia}`;
@@ -77,16 +87,28 @@ export function normalizarFechaISO(raw: any): string | undefined {
   }
 
   const str = String(raw).trim();
-  if (str.length === 10 && str.includes("-")) return str;
+  if (!str || str.toLowerCase() === "sin fecha" || str === "—" || str === "-") return undefined;
 
-  // DD/MM/YYYY
-  if (str.includes("/")) {
-    const parts = str.split("/");
+  if (str.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+
+  // DD/MM/YYYY o DD-MM-YYYY
+  if (str.includes("/") || str.includes("-")) {
+    const delimiter = str.includes("/") ? "/" : "-";
+    const parts = str.split(delimiter);
     if (parts.length === 3) {
-      const dia = parts[0].padStart(2, "0");
-      const mes = parts[1].padStart(2, "0");
-      const anio = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
-      return `${anio}-${mes}-${dia}`;
+      if (parts[0].length === 4) {
+        // YYYY/MM/DD
+        const anio = parts[0];
+        const mes = parts[1].padStart(2, "0");
+        const dia = parts[2].padStart(2, "0");
+        return `${anio}-${mes}-${dia}`;
+      } else {
+        // DD/MM/YYYY
+        const dia = parts[0].padStart(2, "0");
+        const mes = parts[1].padStart(2, "0");
+        const anio = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
+        return `${anio}-${mes}-${dia}`;
+      }
     }
   }
 
@@ -99,56 +121,105 @@ export function normalizarFechaISO(raw: any): string | undefined {
 }
 
 /**
- * Analiza un archivo Excel o CSV de flota y genera el informe de diagnóstico fila por fila
+ * Analiza un archivo Excel o CSV de flota con escaneo inteligente de cabeceras
  */
 export function analizarArchivoExcelFlota(buffer: ArrayBuffer): ResultadoAnalisisLoteFlota {
   const workbook = XLSX.read(buffer, { type: "array" });
   const firstSheetName = workbook.SheetNames[0];
   const worksheet = workbook.Sheets[firstSheetName];
 
-  // Convertir a matriz de objetos crudos con fila de encabezado
-  const rawJson: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+  // 1. Convertir a matriz bidimensional de filas
+  const matrix: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+  if (matrix.length === 0) {
+    return {
+      filasValidas: [],
+      filasOmitidas: [],
+      placasDuplicadasArchivo: [],
+      totalFilasLeidas: 0,
+    };
+  }
+
+  // 2. Escanear las primeras 15 filas para localizar la fila de cabeceras
+  let headerRowIndex = 0;
+  let headers: string[] = [];
+
+  for (let r = 0; r < Math.min(matrix.length, 15); r++) {
+    const row = matrix[r].map((cell: any) => String(cell || "").trim().toUpperCase());
+    if (row.some((cell: string) => cell === "PLACA" || cell === "MATRICULA" || cell === "MATRÍCULA" || cell === "VEHICULO")) {
+      headerRowIndex = r;
+      headers = row;
+      break;
+    }
+  }
+
+  // Si no se encontró fila explícita, usar la primera fila
+  if (headers.length === 0) {
+    headers = matrix[0].map((cell: any) => String(cell || "").trim().toUpperCase());
+  }
 
   const filasValidas: DiagnosticoFilaVehiculo[] = [];
   const filasOmitidas: DiagnosticoFilaVehiculo[] = [];
   const placasVistasEnArchivo = new Map<string, number>();
   const placasDuplicadasArchivo: string[] = [];
 
-  rawJson.forEach((row, index) => {
-    const filaOriginal = index + 2; // Fila 1 = encabezados
+  // 3. Procesar filas de datos a partir de la fila siguiente a la cabecera
+  for (let i = headerRowIndex + 1; i < matrix.length; i++) {
+    const rowValues = matrix[i];
+    const filaOriginal = i + 1;
 
-    // Buscar campos con tolerancia a encabezados variados
-    const rawPlaca = row["PLACA"] || row["Placa"] || row["placa"] || row["Matrícula"] || row["MATRICULA"] || row["Vehiculo"] || row["VEHICULO"];
-    const rawMarca = row["MARCA"] || row["Marca"] || row["marca"] || "Genérico";
-    const rawModelo = row["MODELO"] || row["Modelo"] || row["LÍNEA"] || row["Linea"] || row["linea"] || "Línea Estándar";
-    const rawAnio = parseInt(row["AÑO"] || row["Año"] || row["Modelo (Año)"] || row["anio"] || row["ANIO"] || "2022", 10);
-    const rawCapacidad = parseInt(row["CAPACIDAD"] || row["Capacidad"] || row["Pasajeros"] || row["PASAJEROS"] || row["Puestos"] || "16", 10);
-    const rawTipo = row["TIPO"] || row["Tipo"] || row["Clase"] || row["CLASE"] || row["Carrocería"];
-    const rawServicio = row["SERVICIO"] || row["Servicio"] || row["Modalidad"] || row["MODALIDAD"];
-    const rawContratista = row["CONTRATISTA"] || row["Contratista"] || row["Propietario"] || row["PROPIETARIO"] || row["Empresa"] || "Propio / Cooperativa";
+    // Verificar si la fila está vacía o es fila de totales/pie de página
+    const firstCell = String(rowValues[0] || "").trim().toUpperCase();
+    if (firstCell.startsWith("TOTAL") || firstCell.startsWith("RESUMEN") || firstCell.startsWith("CÓDIGO")) {
+      continue;
+    }
 
-    const rawSoat = row["SOAT"] || row["Vencimiento SOAT"] || row["VENCIMIENTO SOAT"] || row["Fecha SOAT"];
-    const rawRtm = row["RTM"] || row["Vencimiento RTM"] || row["VENCIMIENTO RTM"] || row["Tecnomecanica"] || row["TÉCNICOMECÁNICA"];
-    const rawPoliza = row["POLIZAS"] || row["PÓLIZAS"] || row["Poliza RCC"] || row["Póliza"] || row["Vencimiento Pólizas"];
+    const rowObj: Record<string, any> = {};
+    headers.forEach((h, colIdx) => {
+      if (h) {
+        rowObj[h] = rowValues[colIdx];
+      }
+    });
+
+    // Mapear campos con tolerancia a variaciones
+    const rawPlaca = rowObj["PLACA"] || rowObj["MATRICULA"] || rowObj["MATRÍCULA"] || rowObj["VEHICULO"] || rowObj["VEHÍCULO"];
+    const rawMarca = rowObj["MARCA"] || "Genérico";
+    const rawModelo = rowObj["MODELO"] || rowObj["LÍNEA"] || rowObj["LINEA"] || "Línea Estándar";
+    const rawAnio = parseInt(rowObj["AÑO"] || rowObj["ANIO"] || rowObj["AÑO MODELO"] || "2023", 10);
+    const rawCapacidad = parseInt(rowObj["CAPACIDAD"] || rowObj["PASAJEROS"] || rowObj["PUESTOS"] || "16", 10);
+    const rawTipo = rowObj["TIPO"] || rowObj["TIPO DE VEHÍCULO"] || rowObj["CLASE"] || rowObj["CARROCERÍA"];
+    const rawServicio = rowObj["SERVICIO"] || rowObj["MODALIDAD"] || rowObj["MODALIDAD DE SERVICIO"];
+    const rawContratista = rowObj["CONTRATISTA"] || rowObj["CONTRATISTA / ALIADO PROPIETARIO"] || rowObj["EMPRESA"] || rowObj["PROPIETARIO"];
+    const rawEstado = rowObj["ESTADO"] || rowObj["ESTADO OPERATIVO"];
+
+    const rawSoat = rowObj["VENCIMIENTO SOAT"] || rowObj["SOAT"] || rowObj["FECHA SOAT"];
+    const rawRtm = rowObj["VENCIMIENTO RTM"] || rowObj["RTM"] || rowObj["TECNOMECANICA"] || rowObj["TÉCNICOMECÁNICA"];
+    const rawPoliza = rowObj["VENCIMIENTO POLIZAS"] || rowObj["VENCIMIENTO PÓLIZAS"] || rowObj["VENCIMIENTO PÓLIZAS RCC/RCE"] || rowObj["POLIZAS"] || rowObj["PÓLIZAS"];
 
     const placa = normalizarPlaca(rawPlaca);
+    if (!placa) {
+      // Ignorar filas completamente en blanco
+      continue;
+    }
+
     const marca = String(rawMarca).trim();
     const modelo = String(rawModelo).trim();
     const anio = isNaN(rawAnio) ? new Date().getFullYear() : rawAnio;
     const capacidad = isNaN(rawCapacidad) ? 16 : rawCapacidad;
     const tipo = normalizarTipoVehiculo(rawTipo);
     const servicio = normalizarServicioVehiculo(rawServicio);
-    const contratistaNombre = String(rawContratista).trim();
+    const estado = normalizarEstadoVehiculo(rawEstado);
+    const contratistaNombre = String(rawContratista || "Flota Propia / Trans Services A&B").trim();
 
+    // Fechas normalizadas estrictas (undefined si está vacía)
     const soatVencimiento = normalizarFechaISO(rawSoat);
     const rtmVencimiento = normalizarFechaISO(rawRtm);
     const polizaVencimiento = normalizarFechaISO(rawPoliza);
 
     // Validación básica: Placa obligatoria de al menos 5 caracteres
-    if (!placa || placa.length < 5) {
+    if (placa.length < 5) {
       filasOmitidas.push({
         filaOriginal,
-        placa: placa || "VACÍA",
+        placa: placa || "INVÁLIDA",
         marca,
         modelo,
         anio,
@@ -158,9 +229,9 @@ export function analizarArchivoExcelFlota(buffer: ArrayBuffer): ResultadoAnalisi
         contratistaNombre,
         estado: "inactivo",
         valido: false,
-        motivo: "Falta la placa del vehículo o es inválida.",
+        motivo: "Placa incompleta o con formato inválido.",
       });
-      return;
+      continue;
     }
 
     // Detección de duplicados dentro del mismo archivo
@@ -179,11 +250,11 @@ export function analizarArchivoExcelFlota(buffer: ArrayBuffer): ResultadoAnalisi
         servicio,
         capacidad,
         contratistaNombre,
-        estado: "activo",
+        estado,
         valido: false,
-        motivo: `Placa repetida en el mismo archivo (previamente leída en la fila #${filaPrevia}).`,
+        motivo: `Placa repetida en el mismo archivo (primera aparición en fila #${filaPrevia}).`,
       });
-      return;
+      continue;
     }
 
     placasVistasEnArchivo.set(placa, filaOriginal);
@@ -201,15 +272,15 @@ export function analizarArchivoExcelFlota(buffer: ArrayBuffer): ResultadoAnalisi
       soatVencimiento,
       rtmVencimiento,
       polizaVencimiento,
-      estado: "activo",
+      estado,
       valido: true,
     });
-  });
+  }
 
   return {
     filasValidas,
     filasOmitidas,
     placasDuplicadasArchivo,
-    totalFilasLeidas: rawJson.length,
+    totalFilasLeidas: filasValidas.length + filasOmitidas.length,
   };
 }

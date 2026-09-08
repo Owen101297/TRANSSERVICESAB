@@ -1,117 +1,189 @@
 import * as XLSX from "xlsx";
 import { Persona } from "@/lib/types/persona";
 
+export const PERSONAL_EXCEL_COLUMNS = [
+  "TIPO DOCUMENTO",
+  "NUMERO DOCUMENTO",
+  "NOMBRES",
+  "APELLIDOS",
+  "PERFILES",
+  "CONTRATISTA",
+  "ESTADO",
+  "TELEFONO",
+  "EMAIL",
+  "NRO LICENCIA",
+  "CATEGORIAS",
+  "VENCIMIENTO LICENCIA",
+  "EPS",
+  "ARL",
+  "FONDO PENSIONES",
+  "GRUPO RH",
+  "CONTACTO EMERGENCIA",
+  "TELEFONO EMERGENCIA",
+  "PARENTESCO",
+];
+
 /**
- * Exporta la matriz oficial de personal a Excel con encabezado normativo,
- * membrete de Transservices A&B y codificación documental HSEQ (TH-FOR-01).
+ * Exporta la matriz oficial de personal a Excel con los datos actuales
  */
 export function exportPersonasToExcel(personas: Persona[]): void {
   const currentDate = new Date().toISOString().split("T")[0];
 
-  // Matriz de datos con membrete corporativo y codificación oficial
-  const sheetData: any[][] = [
-    ["TRANS SERVICES A & B", "", "", "SISTEMA INTEGRADO DE GESTIÓN HSEQ", "", "", "", "CÓDIGO:", "TH-FOR-01"],
-    ["COOPERATIVA DE TRANSPORTES Y SERVICIOS A & B", "", "", "MATRIZ DE EXPEDIENTE Y CONTROL DE PERSONAL", "", "", "", "VERSIÓN:", "01"],
-    ["TRANSPORTE ESPECIAL TERRESTRE", "", "", `TOTAL REGISTROS: ${personas.length}`, "", "", "", "FECHA:", currentDate],
-    [], // Separador
+  const rowsData = personas.map((p) => [
+    p.tipoDocumento || "CC",
+    p.numeroDocumento,
+    p.nombres,
+    p.apellidos,
+    (p.perfiles || []).join(", "),
+    p.contratistaNombre || "Trans Services A&B (Flota Propia)",
+    p.estado || "activo",
+    p.telefono || "",
+    p.email || "",
+    p.licenciaConduccion?.numero || "",
+    (p.licenciaConduccion?.categorias || []).join(", "),
+    p.licenciaConduccion?.fechaVencimiento || "",
+    p.datosSalud?.eps || "",
+    p.datosSalud?.arl || "",
+    p.datosSalud?.fondoPensiones || "",
+    p.datosSalud?.grupoSanguineoRH || "",
+    p.contactoEmergencia?.nombreCompleto || "",
+    p.contactoEmergencia?.telefono || "",
+    p.contactoEmergencia?.parentesco || "",
+  ]);
+
+  const fullData = [PERSONAL_EXCEL_COLUMNS, ...rowsData];
+  const ws = XLSX.utils.aoa_to_sheet(fullData);
+
+  ws["!cols"] = [
+    { wch: 16 }, // TIPO DOCUMENTO
+    { wch: 18 }, // NUMERO DOCUMENTO
+    { wch: 22 }, // NOMBRES
+    { wch: 22 }, // APELLIDOS
+    { wch: 24 }, // PERFILES
+    { wch: 32 }, // CONTRATISTA
+    { wch: 12 }, // ESTADO
+    { wch: 16 }, // TELEFONO
+    { wch: 28 }, // EMAIL
+    { wch: 18 }, // NRO LICENCIA
+    { wch: 16 }, // CATEGORIAS
+    { wch: 20 }, // VENCIMIENTO LICENCIA
+    { wch: 16 }, // EPS
+    { wch: 16 }, // ARL
+    { wch: 18 }, // FONDO PENSIONES
+    { wch: 14 }, // GRUPO RH
+    { wch: 26 }, // CONTACTO EMERGENCIA
+    { wch: 20 }, // TELEFONO EMERGENCIA
+    { wch: 16 }, // PARENTESCO
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Personal");
+
+  XLSX.writeFile(wb, `Matriz_Personal_TransServicesAB_${currentDate}.xlsx`);
+}
+
+/**
+ * Genera y descarga la Plantilla Oficial de Personal para carga y actualización masiva
+ */
+export function descargarPlantillaPersonasExcel(): void {
+  const ejemploRows = [
     [
-      "#",
-      "Tipo Documento",
-      "Número Documento",
-      "Nombres",
-      "Apellidos",
-      "Perfiles / Roles",
-      "Estado",
-      "Motivo / Detalle Retiro",
-      "Contratista / Empresa",
-      "Teléfono",
-      "Email",
-      "Nro Licencia",
-      "Categorías",
-      "Vencimiento Licencia",
-      "EPS",
-      "ARL",
-      "Fondo Pensiones",
-      "Grupo RH",
-      "Contacto Emergencia",
-      "Teléfono Emergencia",
-      "Parentesco",
+      "CC",
+      "1098765432",
+      "Carlos Alberto",
+      "Rodríguez Gómez",
+      "Conductor",
+      "Trans Services Cooperativa A&B (Flota Propia)",
+      "Activo",
+      "3101234567",
+      "carlos.rodriguez@gmail.com",
+      "1098765432",
+      "C2, C3",
+      "2028-05-20",
+      "Sura EPS",
+      "Positiva",
+      "Porvenir",
+      "O+",
+      "María Gómez",
+      "3119876543",
+      "Esposa",
+    ],
+    [
+      "CC",
+      "1045678901",
+      "Javier",
+      "Mendoza Pérez",
+      "Conductor",
+      "Transportes del Norte SAS",
+      "Activo",
+      "", // Dejar en blanco si no tiene teléfono
+      "",
+      "",
+      "",
+      "", // Dejar en blanco si no tiene licencia registrada
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
     ],
   ];
 
-  personas.forEach((p, idx) => {
-    sheetData.push([
-      idx + 1,
-      p.tipoDocumento,
-      p.numeroDocumento,
-      p.nombres,
-      p.apellidos,
-      p.perfiles.join(", "),
-      p.estado.toUpperCase(),
-      p.motivoRetiro || (p.estado === "retirado" ? "Retirado a Historial" : "Vínculo operativo activo"),
-      p.contratistaNombre || "Transservices A&B",
-      p.telefono || "—",
-      p.email || "—",
-      p.licenciaConduccion?.numero || "—",
-      p.licenciaConduccion?.categorias?.join(", ") || "—",
-      p.licenciaConduccion?.fechaVencimiento || "—",
-      p.datosSalud?.eps || "—",
-      p.datosSalud?.arl || "—",
-      p.datosSalud?.fondoPensiones || "—",
-      p.datosSalud?.grupoSanguineoRH || "—",
-      p.contactoEmergencia?.nombreCompleto || "—",
-      p.contactoEmergencia?.telefono || "—",
-      p.contactoEmergencia?.parentesco || "—",
-    ]);
-  });
+  const fullData = [PERSONAL_EXCEL_COLUMNS, ...ejemploRows];
+  const wsData = XLSX.utils.aoa_to_sheet(fullData);
+
+  wsData["!cols"] = [
+    { wch: 16 },
+    { wch: 18 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 24 },
+    { wch: 32 },
+    { wch: 12 },
+    { wch: 16 },
+    { wch: 28 },
+    { wch: 18 },
+    { wch: 16 },
+    { wch: 20 },
+    { wch: 16 },
+    { wch: 16 },
+    { wch: 18 },
+    { wch: 14 },
+    { wch: 26 },
+    { wch: 20 },
+    { wch: 16 },
+  ];
+
+  const guiaData = [
+    ["CAMPO", "OBLIGATORIO", "FORMATO / VALORES VÁLIDOS", "OBSERVACIÓN"],
+    ["TIPO DOCUMENTO", "NO", "CC | CE | PA | TI", "Por defecto CC."],
+    ["NUMERO DOCUMENTO", "SÍ", "Número de cédula o documento sin puntos", "Identificador único."],
+    ["NOMBRES", "SÍ", "Texto (ej. Juan Carlos)", "Nombres de la persona."],
+    ["APELLIDOS", "SÍ", "Texto (ej. Pérez Gómez)", "Apellidos de la persona."],
+    ["PERFILES", "NO", "Conductor | Administrativo | HSEQ | Supervisor | Empleado", "Separar por comas si tiene varios."],
+    ["CONTRATISTA", "NO", "Nombre de la empresa aliada", "Si se deja vacío, se asume Flota Propia."],
+    ["ESTADO", "NO", "Activo | Vacaciones | Descanso | Inactivo", "Por defecto Activo."],
+    ["TELEFONO", "NO", "Número de 10 dígitos (ej. 3101234567)", "Dejar en blanco si no se conoce."],
+    ["EMAIL", "NO", "Correo electrónico válido", "Dejar en blanco si no tiene."],
+    ["NRO LICENCIA", "NO", "Número de pase/licencia", "Opcional si es conductor."],
+    ["CATEGORIAS", "NO", "C1 | C2 | C3 | B1 | B2 | B3 | A2", "Separar por comas si tiene varias."],
+    ["VENCIMIENTO LICENCIA", "NO", "YYYY-MM-DD o DD/MM/YYYY", "Dejar en blanco si está pendiente."],
+    ["EPS", "NO", "Nombre de la EPS (ej. Sura, Sanitas, Nueva EPS)", "Dejar en blanco si no se conoce."],
+    ["ARL", "NO", "Nombre de la ARL (ej. Positiva, Sura, Bolívar)", "Dejar en blanco si no se conoce."],
+    ["FONDO PENSIONES", "NO", "Porvenir | Protección | Colfondos | Colpensiones", "Dejar en blanco si no se conoce."],
+    ["GRUPO RH", "NO", "O+ | O- | A+ | A- | B+ | B- | AB+ | AB-", "Grupo sanguíneo."],
+    ["CONTACTO EMERGENCIA", "NO", "Nombre completo de familiar", "Para emergencias."],
+    ["TELEFONO EMERGENCIA", "NO", "Teléfono del contacto", "Dejar en blanco si no se conoce."],
+    ["PARENTESCO", "NO", "Esposa | Esposo | Madre | Padre | Hijo | Hermano | Familiar", "Parentesco."],
+  ];
+  const wsGuia = XLSX.utils.aoa_to_sheet(guiaData);
+  wsGuia["!cols"] = [{ wch: 24 }, { wch: 14 }, { wch: 45 }, { wch: 40 }];
 
   const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet(sheetData);
+  XLSX.utils.book_append_sheet(wb, wsData, "Plantilla_Personal");
+  XLSX.utils.book_append_sheet(wb, wsGuia, "Guia_Valores");
 
-  // Definir anchos de columna proporcionales
-  ws["!cols"] = [
-    { wch: 6 },  // #
-    { wch: 16 }, // Tipo Documento
-    { wch: 18 }, // Número Documento
-    { wch: 22 }, // Nombres
-    { wch: 22 }, // Apellidos
-    { wch: 24 }, // Perfiles
-    { wch: 12 }, // Estado
-    { wch: 24 }, // Contratista
-    { wch: 15 }, // Teléfono
-    { wch: 28 }, // Email
-    { wch: 18 }, // Licencia
-    { wch: 14 }, // Categorías
-    { wch: 20 }, // Vencimiento Licencia
-    { wch: 16 }, // EPS
-    { wch: 16 }, // ARL
-    { wch: 18 }, // Fondo Pensiones
-    { wch: 12 }, // Grupo RH
-    { wch: 26 }, // Contacto Emergencia
-    { wch: 20 }, // Teléfono Emergencia
-    { wch: 16 }, // Parentesco
-  ];
-
-  // Fusiones de celdas del membrete oficial
-  ws["!merges"] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
-    { s: { r: 0, c: 3 }, e: { r: 0, c: 6 } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } },
-    { s: { r: 1, c: 3 }, e: { r: 1, c: 6 } },
-    { s: { r: 2, c: 0 }, e: { r: 2, c: 2 } },
-    { s: { r: 2, c: 3 }, e: { r: 2, c: 6 } },
-  ];
-
-  XLSX.utils.book_append_sheet(wb, ws, "TH-FOR-01_Personal");
-
-  const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-  const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.setAttribute("href", url);
-  link.setAttribute("download", `TH-FOR-01_Control_Personal_Transservices_${currentDate}.xlsx`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
+  XLSX.writeFile(wb, "Plantilla_Carga_Masiva_Personal_TransServicesAB.xlsx");
 }

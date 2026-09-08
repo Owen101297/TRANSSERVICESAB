@@ -168,7 +168,7 @@ function parseDateValue(val: any): string {
 }
 
 /**
- * Lee un archivo Excel (.xlsx / .xls) o CSV desde un ArrayBuffer en el navegador
+ * Lee un archivo Excel (.xlsx / .xls) o CSV desde un ArrayBuffer en el navegador con escaneo inteligente de cabeceras
  */
 export function parseExcelOrCSVBuffer(buffer: ArrayBuffer): RawPersonaImportRow[] {
   const workbook = XLSX.read(new Uint8Array(buffer), { type: "array", cellDates: true });
@@ -176,16 +176,61 @@ export function parseExcelOrCSVBuffer(buffer: ArrayBuffer): RawPersonaImportRow[
   if (!sheetName) return [];
 
   const worksheet = workbook.Sheets[sheetName];
-  const jsonRows = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, {
-    defval: "",
-    raw: false,
-  });
+  const matrix: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+  if (matrix.length === 0) return [];
 
-  return jsonRows.map(mapRawRow);
+  // 1. Localizar la fila de cabeceras
+  let headerRowIndex = 0;
+  let headers: string[] = [];
+
+  for (let r = 0; r < Math.min(matrix.length, 15); r++) {
+    const row = matrix[r].map((cell: any) => String(cell || "").trim());
+    if (row.some((cell: string) => {
+      const c = cleanKey(cell);
+      return ["numerodocumento", "cedula", "documento", "identificacion", "numdoc", "nombres"].includes(c);
+    })) {
+      headerRowIndex = r;
+      headers = row;
+      break;
+    }
+  }
+
+  if (headers.length === 0) {
+    headers = matrix[0].map((cell: any) => String(cell || "").trim());
+  }
+
+  const resultRows: RawPersonaImportRow[] = [];
+
+  // 2. Extraer y mapear datos
+  for (let i = headerRowIndex + 1; i < matrix.length; i++) {
+    const rowValues = matrix[i];
+    const firstCell = String(rowValues[0] || "").trim().toUpperCase();
+    if (firstCell.startsWith("TOTAL") || firstCell.startsWith("RESUMEN") || firstCell.startsWith("CÓDIGO")) {
+      continue;
+    }
+
+    const rowObj: Record<string, any> = {};
+    let hasData = false;
+    headers.forEach((h, colIdx) => {
+      if (h) {
+        const val = rowValues[colIdx];
+        if (val !== undefined && val !== null && String(val).trim() !== "") {
+          hasData = true;
+          rowObj[h] = val;
+        }
+      }
+    });
+
+    if (hasData) {
+      resultRows.push(mapRawRow(rowObj));
+    }
+  }
+
+  return resultRows;
 }
 
 /**
- * Parser de texto CSV compatible con comas y punto y coma
+ * Parser de texto CSV compatible con comas y punto y coma con escaneo inteligente de cabeceras
  */
 export function parseCSVText(csvText: string): RawPersonaImportRow[] {
   const cleanText = csvText.replace(/^\uFEFF/, "").trim();
@@ -196,12 +241,50 @@ export function parseCSVText(csvText: string): RawPersonaImportRow[] {
   if (!sheetName) return [];
 
   const worksheet = workbook.Sheets[sheetName];
-  const jsonRows = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet, {
-    defval: "",
-    raw: false,
-  });
+  const matrix: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+  if (matrix.length === 0) return [];
 
-  return jsonRows.map(mapRawRow);
+  let headerRowIndex = 0;
+  let headers: string[] = [];
+
+  for (let r = 0; r < Math.min(matrix.length, 15); r++) {
+    const row = matrix[r].map((cell: any) => String(cell || "").trim());
+    if (row.some((cell: string) => {
+      const c = cleanKey(cell);
+      return ["numerodocumento", "cedula", "documento", "identificacion", "nombres"].includes(c);
+    })) {
+      headerRowIndex = r;
+      headers = row;
+      break;
+    }
+  }
+
+  if (headers.length === 0) {
+    headers = matrix[0].map((cell: any) => String(cell || "").trim());
+  }
+
+  const resultRows: RawPersonaImportRow[] = [];
+
+  for (let i = headerRowIndex + 1; i < matrix.length; i++) {
+    const rowValues = matrix[i];
+    const rowObj: Record<string, any> = {};
+    let hasData = false;
+    headers.forEach((h, colIdx) => {
+      if (h) {
+        const val = rowValues[colIdx];
+        if (val !== undefined && val !== null && String(val).trim() !== "") {
+          hasData = true;
+          rowObj[h] = val;
+        }
+      }
+    });
+
+    if (hasData) {
+      resultRows.push(mapRawRow(rowObj));
+    }
+  }
+
+  return resultRows;
 }
 
 function computeInitials(nombres: string, apellidos: string): string {

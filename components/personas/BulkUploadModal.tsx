@@ -29,6 +29,7 @@ import {
   UpsertBatchResult,
 } from "@/lib/data/personas-upsert";
 import { batchUpsertPersonasDb } from "@/lib/services/personas.service";
+import { descargarPlantillaPersonasExcel } from "@/lib/data/personas-excel-export";
 
 interface BulkUploadModalProps {
   isOpen: boolean;
@@ -92,15 +93,7 @@ export function BulkUploadModal({
   };
 
   const handleDownloadExcel = () => {
-    const blob = generateExcelTemplateBlob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", "Plantilla_Carga_Personal_Transservices.xlsx");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    descargarPlantillaPersonasExcel();
   };
 
   const handleDownloadCSV = () => {
