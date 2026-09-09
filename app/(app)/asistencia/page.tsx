@@ -131,9 +131,15 @@ export default function AsistenciaAdminPage() {
 
   // ── Descarga Oficial Vectorial de PDF TH-FOR-03 ──
   const handleDownloadPDF = async () => {
+    const dataToExport = filteredRegistros.length > 0 ? filteredRegistros : registros;
+    if (dataToExport.length === 0) {
+      alert("No hay registros de asistencia para generar el PDF en esta fecha.");
+      return;
+    }
+
     setGeneratingPdf(true);
     try {
-      await generateAsistenciaPDF(filteredRegistros, {
+      await generateAsistenciaPDF(dataToExport, {
         fecha: fecha || new Date().toISOString().split("T")[0],
         tema: formatoMeta.tema || temaActivo,
         facilitador: formatoMeta.facilitador,
@@ -146,8 +152,15 @@ export default function AsistenciaAdminPage() {
         codigo: "TH-FOR-03",
         version: "03",
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error al generar PDF de asistencia:", err);
+      // Si la generación vectorial tiene alguna restricción en el cliente, ofrecer impresión como PDF directa
+      const continuar = confirm(
+        "Hubo un inconveniente con el motor de PDF directo. ¿Deseas abrir la vista de impresión oficial para guardarlo como PDF desde tu navegador?"
+      );
+      if (continuar) {
+        handlePrint();
+      }
     } finally {
       setGeneratingPdf(false);
     }
@@ -335,25 +348,32 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
     if (!renameModal || !renameModal.newName.trim()) return;
     setRenamingRecord(true);
     try {
+      const cleanOld = (renameModal.oldName || "").trim().toUpperCase();
+      const idsToRename = registros
+        .filter((r) => !cleanOld || (r.evento && r.evento.trim().toUpperCase() === cleanOld))
+        .map((r) => r.id);
+
+      const targetNewName = renameModal.newName.trim().toUpperCase();
+
       const res = await fetch("/api/apps/asistencia", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "rename_event",
+          ids: idsToRename,
           oldEvent: renameModal.oldName,
-          newEvent: renameModal.newName.trim().toUpperCase(),
+          newEvent: targetNewName,
           fecha,
         }),
       });
       if (res.ok) {
-        if (actividadFiltro === renameModal.oldName) {
-          setActividadFiltro(renameModal.newName.trim().toUpperCase());
-        }
+        setActividadFiltro(targetNewName);
         if (temaActivo === renameModal.oldName) {
-          setTemaActivo(renameModal.newName.trim().toUpperCase());
+          setTemaActivo(targetNewName);
         }
         setRenameModal(null);
-        await fetchData();
+        await fetchData(true);
+        await fetchDatesSummary();
       } else {
         const json = await res.json();
         alert(json.error || "Error al renombrar el tema.");
@@ -625,31 +645,44 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
 
           <div className="flex flex-wrap items-center gap-2">
             <a
-              href="/apps/asistencia/index.html"
+              href="/asistir"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-signal-amber hover:bg-amber-400 text-asphalt-950 font-bold text-xs rounded-xl shadow transition-colors"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-asphalt-800 hover:bg-asphalt-700 text-mist-200 border border-line-500 font-bold text-xs rounded-xl shadow transition-colors"
             >
-              <PenTool className="w-4 h-4" />
+              <PenTool className="w-4 h-4 text-signal-amber" />
               <span>Toma de Firmas Móvil</span>
               <ExternalLink className="w-3.5 h-3.5 opacity-70" />
             </a>
 
             <button
-              onClick={exportCsv}
-              disabled={registros.length === 0}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-asphalt-800 hover:bg-asphalt-700 text-mist-200 border border-line-500 font-bold text-xs rounded-xl shadow-sm transition-colors disabled:opacity-40"
+              onClick={handleDownloadPDF}
+              disabled={generatingPdf || registros.length === 0}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-signal-amber hover:bg-amber-400 text-asphalt-950 font-black text-xs rounded-xl shadow-md transition-all disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98]"
+              title="Descargar Planilla Oficial TH-FOR-03 en PDF Vectorial (Carta)"
             >
-              <Download className="w-4 h-4 text-ok-green" />
-              <span>CSV</span>
+              <FileDown className={`w-4 h-4 ${generatingPdf ? "animate-bounce" : ""}`} />
+              <span>{generatingPdf ? "Generando PDF..." : "Descargar PDF (TH-FOR-03)"}</span>
             </button>
 
             <button
               onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-asphalt-800 hover:bg-asphalt-700 text-paper-50 border border-line-500 font-bold text-xs rounded-xl shadow-sm transition-colors"
+              disabled={registros.length === 0}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-asphalt-800 hover:bg-asphalt-700 text-paper-50 border border-line-500 font-bold text-xs rounded-xl shadow-sm transition-colors disabled:opacity-40"
+              title="Abrir vista oficial e imprimir planilla física"
             >
               <Printer className="w-4 h-4 text-radar-cyan" />
-              <span>Imprimir / PDF</span>
+              <span>Imprimir Planilla</span>
+            </button>
+
+            <button
+              onClick={exportCsv}
+              disabled={registros.length === 0}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-asphalt-950 hover:bg-asphalt-800 text-mist-200 border border-line-600 font-bold text-xs rounded-xl shadow-sm transition-colors disabled:opacity-40"
+              title="Descargar archivo Excel / CSV"
+            >
+              <Download className="w-3.5 h-3.5 text-ok-green" />
+              <span>CSV</span>
             </button>
           </div>
         </div>
@@ -1127,15 +1160,6 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
               <span>Actualizar</span>
             </button>
 
-            <button
-              onClick={handleDownloadPDF}
-              disabled={generatingPdf || filteredRegistros.length === 0}
-              className="px-3.5 py-2 bg-asphalt-950 hover:bg-asphalt-800 text-signal-amber font-bold text-xs rounded-xl border border-signal-amber/40 shadow-sm transition-all flex items-center gap-1.5 disabled:opacity-50"
-              title="Descargar Planilla Oficial TH-FOR-03 en PDF Vectorial (Carta)"
-            >
-              <FileDown className={`w-3.5 h-3.5 ${generatingPdf ? "animate-bounce" : ""}`} />
-              <span>{generatingPdf ? "Generando..." : "Descargar PDF"}</span>
-            </button>
           </div>
 
           {/* Toggle Vista */}
@@ -1469,8 +1493,8 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
               return (
                 <div
                   key={pageIdx}
-                  className="bg-white text-black p-8 rounded-xl shadow-2xl border-2 border-black max-w-[950px] mx-auto page-break"
-                  style={{ minHeight: "1050px", fontFamily: "Arial, Helvetica, sans-serif" }}
+                  className="print-sheet bg-white text-black p-5 rounded-xl shadow-2xl border-2 border-black w-full max-w-[760px] mx-auto page-break"
+                  style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
                 >
                   {/* Encabezado Institucional */}
                   <div className="grid grid-cols-[160px_1fr_160px] border-2 border-black min-h-[75px] text-center">
@@ -1548,7 +1572,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                           const r = pageRows[slotIdx];
                           const num = startIdx + slotIdx + 1;
                           return (
-                            <tr key={slotIdx} className="h-9">
+                            <tr key={slotIdx} className="h-8">
                               <td className="border-r border-black text-center font-bold font-mono text-[9px]">
                                 {num}
                               </td>
@@ -1734,10 +1758,43 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                   value={renameModal.newName}
                   onChange={(e) => setRenameModal({ ...renameModal, newName: e.target.value })}
                   placeholder="Escribe el nuevo nombre de la charla o actividad..."
-                  className="w-full px-3 py-2.5 bg-asphalt-950 border border-line-600 rounded-xl text-xs text-paper-50 placeholder-fog-400 outline-none focus:border-radar-cyan uppercase"
+                  className="w-full px-3 py-2.5 bg-asphalt-950 border border-line-600 rounded-xl text-xs text-paper-50 placeholder-fog-400 outline-none focus:border-radar-cyan uppercase font-medium"
                   autoFocus
                 />
               </div>
+
+              {/* Atajos para unificar con otras charlas ya registradas en la fecha */}
+              {actividadesDelDia.filter((a) => a.nombre.trim().toUpperCase() !== renameModal.oldName.trim().toUpperCase()).length > 0 && (
+                <div className="pt-2 border-t border-line-600">
+                  <label className="text-[10px] font-mono uppercase text-ok-green block mb-1.5 flex items-center gap-1">
+                    <span>⚡ O Unificar con otra charla de esta fecha:</span>
+                  </label>
+                  <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                    {actividadesDelDia
+                      .filter((a) => a.nombre.trim().toUpperCase() !== renameModal.oldName.trim().toUpperCase())
+                      .map((act) => (
+                        <button
+                          key={act.nombre}
+                          type="button"
+                          onClick={() => setRenameModal({ ...renameModal, newName: act.nombre })}
+                          className={`w-full text-left px-3 py-1.5 rounded-lg border text-xs font-mono transition-all flex items-center justify-between ${
+                            renameModal.newName.trim().toUpperCase() === act.nombre.trim().toUpperCase()
+                              ? "bg-ok-green/20 border-ok-green text-paper-50"
+                              : "bg-asphalt-950 border-line-600 text-mist-200 hover:border-radar-cyan"
+                          }`}
+                        >
+                          <span className="truncate">{act.nombre}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-asphalt-800 text-fog-400 font-bold ml-2">
+                            {act.total} asist.
+                          </span>
+                        </button>
+                      ))}
+                  </div>
+                  <p className="text-[10px] text-fog-400 mt-1.5">
+                    💡 Al guardar con el mismo nombre de otra charla, ambas se unirán automáticamente en una sola lista consolidada.
+                  </p>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2 pt-2">
               <button
@@ -1926,37 +1983,69 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
         </div>
       )}
 
-      {/* Estilos CSS para Impresión Limpia sin Menús */}
+      {/* Estilos CSS para Impresión Limpia sin Menús y sin Recortes */}
       <style jsx global>{`
         @media print {
           @page {
             size: letter portrait;
-            margin: 10mm;
+            margin: 6mm 6mm 6mm 6mm !important;
           }
-          body {
+          html, body {
             background: #ffffff !important;
             color: #000000 !important;
+            overflow: visible !important;
+            height: auto !important;
+            min-height: auto !important;
+            max-height: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          img {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
+          /* Ocultar elementos de UI administrativa de Next.js AppShell */
           .no-print,
           nav,
           header,
           aside,
-          button {
+          button,
+          select,
+          input,
+          [role="navigation"] {
             display: none !important;
           }
+          /* Resetear contenedores para evitar recortes de overflow-y o flex h-screen */
+          main,
+          div:has(> main),
+          .h-screen,
+          .overflow-hidden,
+          .overflow-y-auto {
+            overflow: visible !important;
+            height: auto !important;
+            max-height: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            display: block !important;
+          }
           .print-container {
+            width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
+            display: block !important;
           }
-          .page-break {
-            page-break-after: always;
-            break-after: page;
+          .print-sheet {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-height: auto !important;
+            padding: 0 !important;
+            margin: 0 0 10mm 0 !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            page-break-after: always !important;
+            break-after: page !important;
+          }
+          .print-sheet:last-child {
+            page-break-after: auto !important;
+            break-after: auto !important;
           }
         }
       `}</style>

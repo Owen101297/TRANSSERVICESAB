@@ -70,9 +70,10 @@ export async function generateAsistenciaPDF(
   asistentes: AsistenciaPdfItem[],
   meta: AsistenciaPdfMeta
 ): Promise<void> {
-  const { jsPDF } = await import("jspdf");
+  const jspdfModule = await import("jspdf");
+  const JsPdfClass = (jspdfModule as any).jsPDF || (jspdfModule as any).default || jspdfModule;
 
-  const doc = new jsPDF({
+  const doc = new JsPdfClass({
     orientation: "portrait",
     unit: "mm",
     format: "letter", // 215.9 x 279.4 mm
@@ -437,6 +438,36 @@ export async function generateAsistenciaPDF(
     );
   }
 
-  const cleanDate = meta.fecha.replace(/[^0-9-]/g, "");
-  doc.save(`TH-FOR-03_Asistencia_${cleanDate}_${meta.tema.substring(0, 15).replace(/\s+/g, "_")}.pdf`);
+  const cleanDate = (meta.fecha || "consolidado").replace(/[^0-9-]/g, "");
+  const cleanTema = (meta.tema || "Asistencia")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // quitar acentos
+    .replace(/[^a-zA-Z0-9_-]/g, "_") // quitar caracteres prohibidos en archivos (: / \ ? * " < > |)
+    .replace(/_+/g, "_")            // condensar guiones bajos
+    .replace(/^_|_$/g, "")          // quitar guiones al inicio o fin
+    .substring(0, 30);
+
+  const fileName = `TH-FOR-03_Asistencia_${cleanDate || "2026"}_${cleanTema || "Oficial"}.pdf`;
+
+  try {
+    doc.save(fileName);
+  } catch (saveErr) {
+    console.warn("Fallo doc.save directo, usando descarga por Blob nativo:", saveErr);
+    try {
+      const blob = doc.output("blob");
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+      }, 200);
+    } catch (e) {
+      console.error("Error fatal descargando PDF:", e);
+      throw e;
+    }
+  }
 }

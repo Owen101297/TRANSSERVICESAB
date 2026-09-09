@@ -61,7 +61,7 @@ function normalizeRecord(item: any, idx: number): NormalizedAsistencia {
   const cargo = (obs.cargo || item.cargo || "CONDUCTOR").toUpperCase();
   const proyecto = (obs.proyecto || item.proyecto || "TRANS SERVICES A&B").toUpperCase();
   const firma = obs.firma || item.firmaUrl || item.firma_url || item.firma_base64 || item.signature || null;
-  const actividad = obs.actividad || item.evento || item.tipoEvento || item.tipo_evento || "Capacitación";
+  const actividad = (item.evento && item.evento !== "Jornada de Capacitación / Charla" ? item.evento : (obs.actividad || item.evento || "Capacitación")).trim();
   const tipoEvento = item.tipoEvento || item.tipo_evento || (actividad.toLowerCase().includes("charla") ? "charla_5min" : "capacitacion");
 
   // Extracción fiel de la fecha YYYY-MM-DD en zona horaria oficial Colombia (America/Bogota)
@@ -500,32 +500,75 @@ export async function PATCH(req: Request) {
         return NextResponse.json({ success: false, error: "El nuevo nombre del tema es obligatorio" }, { status: 400 });
       }
 
-      const whereClause: any = {};
-      if (oldEvent) {
-        whereClause.evento = oldEvent.trim();
+      const targetNewEvent = newEvent.trim().toUpperCase();
+      let idsToUpdate: string[] = [];
+
+      // 1. Si el frontend envió IDs directos
+      if (Array.isArray(body.ids) && body.ids.length > 0) {
+        idsToUpdate = body.ids.filter(Boolean);
+      } else {
+        // 2. Buscar por fecha y/o oldEvent
+        const dateFilter: any = {};
+        if (fecha && fecha !== "TODAS" && fecha.toLowerCase() !== "all") {
+          const [y, m, d] = fecha.split("-").map(Number);
+          dateFilter.fecha = {
+            gte: new Date(Date.UTC(y, m - 1, d, 0, 0, 0)),
+            lte: new Date(Date.UTC(y, m - 1, d, 23, 59, 59)),
+          };
+        }
+
+        const candidates = await prisma.asistenciaRegistro.findMany({
+          where: dateFilter,
+        });
+
+        const cleanOld = (oldEvent || "").trim().toUpperCase();
+        for (const c of candidates) {
+          const norm = normalizeRecord(c, 0);
+          if (!cleanOld || norm.evento.toUpperCase() === cleanOld || (c.evento && c.evento.toUpperCase() === cleanOld)) {
+            idsToUpdate.push(c.id);
+          }
+        }
       }
 
-      if (fecha && fecha !== "TODAS") {
-        const [y, m, d] = fecha.split("-").map(Number);
-        const startDay = new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
-        const endDay = new Date(Date.UTC(y, m - 1, d, 23, 59, 59));
-        whereClause.fecha = {
-          gte: startDay,
-          lte: endDay,
-        };
+      if (idsToUpdate.length === 0) {
+        return NextResponse.json({
+          success: true,
+          message: "No se encontraron registros para actualizar con ese tema.",
+          count: 0,
+        });
       }
 
-      const res = await prisma.asistenciaRegistro.updateMany({
-        where: whereClause,
+      // Actualizar columna evento
+      await prisma.asistenciaRegistro.updateMany({
+        where: { id: { in: idsToUpdate } },
         data: {
-          evento: newEvent.trim().toUpperCase(),
+          evento: targetNewEvent,
         },
       });
 
+      // Sincronizar también campo observaciones (JSON)
+      const recordsToSync = await prisma.asistenciaRegistro.findMany({
+        where: { id: { in: idsToUpdate } },
+        select: { id: true, observaciones: true },
+      });
+
+      for (const rec of recordsToSync) {
+        if (rec.observaciones && rec.observaciones.startsWith("{")) {
+          try {
+            const parsed = JSON.parse(rec.observaciones);
+            parsed.actividad = targetNewEvent;
+            await prisma.asistenciaRegistro.update({
+              where: { id: rec.id },
+              data: { observaciones: JSON.stringify(parsed) },
+            });
+          } catch {}
+        }
+      }
+
       return NextResponse.json({
         success: true,
-        message: `Se actualizaron ${res.count} registros al tema '${newEvent.trim().toUpperCase()}'`,
-        count: res.count,
+        message: `Se actualizaron ${idsToUpdate.length} registros al tema '${targetNewEvent}'`,
+        count: idsToUpdate.length,
       });
     }
 
