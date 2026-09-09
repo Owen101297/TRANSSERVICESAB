@@ -124,7 +124,7 @@ async function initBaseCatalogs() {
     try {
       const historicalPath = path.join(__dirname, "../lib/data/historical-asistencias.json");
       if (fs.existsSync(historicalPath)) {
-        const raw = fs.readFileSync(historicalPath, "utf-8");
+        const raw = fs.readFileSync(historicalPath, "utf-8").replace(/^\uFEFF/, "").trim();
         const records = JSON.parse(raw);
         if (Array.isArray(records) && records.length > 0) {
           const currentCount = await prisma.asistenciaRegistro.count();
