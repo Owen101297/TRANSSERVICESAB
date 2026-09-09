@@ -61,7 +61,7 @@ export default function PortalCapacitacionesPage() {
   // 1. Cargar Sesión del Conductor
   useEffect(() => {
     try {
-      const stored = localStorage.getItem("ab_driver_session");
+      const stored = localStorage.getItem("transservices_conductor") || localStorage.getItem("ab_driver_session");
       if (stored) {
         const session = JSON.parse(stored);
         setDriverSession(session);

@@ -42,7 +42,7 @@ export function middleware(req: NextRequest) {
   // 4. Si es un Conductor intentando acceder al ERP Administrativo
   if (session.rolPrincipal === "conductor") {
     const allowedForDriver =
-      pathname === "/portal-conductor" ||
+      pathname.startsWith("/portal-conductor") ||
       pathname.startsWith("/apps");
 
     if (!allowedForDriver) {

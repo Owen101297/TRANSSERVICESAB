@@ -245,7 +245,9 @@ export default function PortalConductorMobilePage() {
     if (driver) {
       localStorage.setItem("transservices_conductor", JSON.stringify(driver));
     }
-    window.location.href = href;
+    const separator = href.includes("?") ? "&" : "?";
+    const cacheBustedHref = href.startsWith("/apps/") ? `${href}${separator}v=2.1.0&t=${Date.now()}` : href;
+    window.location.href = cacheBustedHref;
   };
 
   const handleConfirmVehicleChange = async (targetPlaca: string) => {
