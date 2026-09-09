@@ -114,18 +114,33 @@ function normalizeRecord(item: any, idx: number): NormalizedAsistencia {
 export const dynamic = "force-dynamic";
 
 // Auto-siembra segura desde el archivo histórico local en caso de que la tabla esté vacía
-async function ensureHistoricalSeeded() {
+async function ensureHistoricalSeeded(force = false) {
   try {
     const count = await prisma.asistenciaRegistro.count();
-    if (count === 0) {
-      const historicalPath = path.join(process.cwd(), "lib/data/historical-asistencias.json");
-      if (fs.existsSync(historicalPath)) {
-        const raw = fs.readFileSync(historicalPath, "utf-8");
+    if (count === 0 || force) {
+      const candidates = [
+        path.join(process.cwd(), "lib/data/historical-asistencias.json"),
+        path.resolve("lib/data/historical-asistencias.json"),
+        path.join(__dirname ?? "", "../lib/data/historical-asistencias.json"),
+        path.join(__dirname ?? "", "lib/data/historical-asistencias.json"),
+      ];
+      let historicalPath = "";
+      for (const p of candidates) {
+        try {
+          if (p && fs.existsSync(p)) {
+            historicalPath = p;
+            break;
+          }
+        } catch {}
+      }
+
+      console.log(`[API Asistencia] Buscando archivo histórico... Encontrado: ${historicalPath || "NO"}`);
+      if (historicalPath) {
+        const raw = fs.readFileSync(historicalPath, "utf-8").replace(/^\uFEFF/, "").trim();
         const records = JSON.parse(raw);
         if (Array.isArray(records) && records.length > 0) {
           console.log(`Auto-sembrando ${records.length} asistencias históricas en PostgreSQL...`);
-          for (let i = 0; i < records.length; i++) {
-            const r = records[i];
+          const dataToInsert = records.map((r: any, i: number) => {
             const regId = r.id ? (String(r.id).startsWith("sup_") ? String(r.id) : `sup_${r.id}`) : `hist_${i}`;
             let obs: any = {};
             if (r.observaciones && typeof r.observaciones === "string") {
@@ -148,37 +163,47 @@ async function ensureHistoricalSeeded() {
             const fechaDate = new Date(Date.UTC(y, m - 1, d, 17, 0, 0));
             const horaStr = r.hora_llegada || r.horaLlegada || "08:00";
 
-            await prisma.asistenciaRegistro.upsert({
-              where: { id: regId },
-              update: {},
-              create: {
-                id: regId,
-                personaId: r.personaId || r.conductor_id || (cedula ? `p_${cedula}` : `p_${regId}`),
-                personaNombre: nombre,
-                personaDocumento: cedula || null,
-                cargo,
-                proyecto,
-                facilitador: r.facilitador || "COORDINADOR HSEQ",
-                lugar: r.lugar || "VILLAGARZÓN",
-                duracionHoras: r.duracionHoras ? parseFloat(r.duracionHoras) : 0.25,
-                fecha: fechaDate,
-                horaLlegada: horaStr,
-                evento: ev,
-                tipoEvento: tipEv,
-                estado: r.estado || "presente",
-                firmaUrl: firma,
-                fotoUrl: fot,
-                observaciones: r.observaciones || null,
-                asistio: r.estado !== "ausente",
-              },
-            }).catch(() => {});
+            return {
+              id: regId,
+              personaId: r.personaId || r.conductor_id || (cedula ? `p_${cedula}` : `p_${regId}`),
+              personaNombre: nombre,
+              personaDocumento: cedula || null,
+              cargo,
+              proyecto,
+              facilitador: r.facilitador || "COORDINADOR HSEQ",
+              lugar: r.lugar || "VILLAGARZÓN",
+              duracionHoras: r.duracionHoras ? parseFloat(r.duracionHoras) : 0.25,
+              fecha: fechaDate,
+              horaLlegada: horaStr,
+              evento: ev,
+              tipoEvento: tipEv,
+              estado: r.estado || "presente",
+              firmaUrl: firma,
+              fotoUrl: fot,
+              observaciones: r.observaciones || null,
+              asistio: r.estado !== "ausente",
+            };
+          });
+
+          const batchSize = 100;
+          let totalInserted = 0;
+          for (let i = 0; i < dataToInsert.length; i += batchSize) {
+            const batch = dataToInsert.slice(i, i + batchSize);
+            const res = await prisma.asistenciaRegistro.createMany({
+              data: batch,
+              skipDuplicates: true,
+            });
+            totalInserted += res.count;
           }
+          console.log(`✓ Auto-sembrados ${totalInserted} registros en PostgreSQL.`);
+          return totalInserted;
         }
       }
     }
   } catch (e) {
     console.warn("Aviso al verificar siembra histórica:", e);
   }
+  return 0;
 }
 
 // Obtiene todos los registros leyendo EXCLUSIVAMENTE de PostgreSQL (Railway) vía Prisma
@@ -208,6 +233,13 @@ export async function GET(req: Request) {
     const tipoEvento = searchParams.get("tipoEvento");
     const cedula = searchParams.get("cedula");
     const datesSummary = searchParams.get("datesSummary");
+    const seed = searchParams.get("seed");
+
+    if (seed === "true") {
+      const inserted = await ensureHistoricalSeeded(true);
+      const total = await prisma.asistenciaRegistro.count();
+      return NextResponse.json({ success: true, seeded: inserted, totalInDb: total });
+    }
 
     // 1. Consulta de conductor por cédula para autocompletado en app móvil
     if (cedula) {

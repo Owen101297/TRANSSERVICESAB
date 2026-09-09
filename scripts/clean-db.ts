@@ -122,17 +122,33 @@ async function initBaseCatalogs() {
 
     // Sincronización automática de asistencias históricas desde JSON local a PostgreSQL
     try {
-      const historicalPath = path.join(__dirname, "../lib/data/historical-asistencias.json");
-      if (fs.existsSync(historicalPath)) {
+      const candidates = [
+        path.join(process.cwd(), "lib/data/historical-asistencias.json"),
+        path.resolve("lib/data/historical-asistencias.json"),
+        path.join(__dirname, "../lib/data/historical-asistencias.json"),
+        path.join(__dirname, "lib/data/historical-asistencias.json"),
+      ];
+      let historicalPath = "";
+      for (const p of candidates) {
+        try {
+          if (p && fs.existsSync(p)) {
+            historicalPath = p;
+            break;
+          }
+        } catch {}
+      }
+
+      console.log(`[Seed Asistencias] Buscando archivo... Encontrado: ${historicalPath || "NO"}`);
+      if (historicalPath) {
         const raw = fs.readFileSync(historicalPath, "utf-8").replace(/^\uFEFF/, "").trim();
         const records = JSON.parse(raw);
         if (Array.isArray(records) && records.length > 0) {
           const currentCount = await prisma.asistenciaRegistro.count();
+          console.log(`[Seed Asistencias] Registros en DB: ${currentCount} / Registros en histórico: ${records.length}`);
           if (currentCount < records.length) {
             console.log(`Sincronizando ${records.length} registros históricos de asistencia a PostgreSQL...`);
-            let synced = 0;
-            for (const r of records) {
-              const regId = r.id ? (String(r.id).startsWith("sup_") ? String(r.id) : `sup_${r.id}`) : `hist_${synced}`;
+            const dataToInsert = records.map((r: any, idx: number) => {
+              const regId = r.id ? (String(r.id).startsWith("sup_") ? String(r.id) : `sup_${r.id}`) : `hist_${idx}`;
 
               let obs: any = {};
               if (r.observaciones && typeof r.observaciones === "string") {
@@ -156,33 +172,40 @@ async function initBaseCatalogs() {
 
               const horaStr = r.hora_llegada || r.horaLlegada || "08:00";
 
-              await prisma.asistenciaRegistro.upsert({
-                where: { id: regId },
-                update: {},
-                create: {
-                  id: regId,
-                  personaId: r.personaId || r.conductor_id || (cedula ? `p_${cedula}` : `p_${regId}`),
-                  personaNombre: nombre,
-                  personaDocumento: cedula || null,
-                  cargo,
-                  proyecto,
-                  facilitador: r.facilitador || "COORDINADOR HSEQ",
-                  lugar: r.lugar || "VILLAGARZÓN",
-                  duracionHoras: r.duracionHoras ? parseFloat(r.duracionHoras) : 0.25,
-                  fecha: fechaDate,
-                  horaLlegada: horaStr,
-                  evento: ev,
-                  tipoEvento: tipEv,
-                  estado: r.estado || "presente",
-                  firmaUrl: firma,
-                  fotoUrl: fot,
-                  observaciones: r.observaciones || null,
-                  asistio: r.estado !== "ausente",
-                }
-              }).catch(() => {});
-              synced++;
+              return {
+                id: regId,
+                personaId: r.personaId || r.conductor_id || (cedula ? `p_${cedula}` : `p_${regId}`),
+                personaNombre: nombre,
+                personaDocumento: cedula || null,
+                cargo,
+                proyecto,
+                facilitador: r.facilitador || "COORDINADOR HSEQ",
+                lugar: r.lugar || "VILLAGARZÓN",
+                duracionHoras: r.duracionHoras ? parseFloat(r.duracionHoras) : 0.25,
+                fecha: fechaDate,
+                horaLlegada: horaStr,
+                evento: ev,
+                tipoEvento: tipEv,
+                estado: r.estado || "presente",
+                firmaUrl: firma,
+                fotoUrl: fot,
+                observaciones: r.observaciones || null,
+                asistio: r.estado !== "ausente",
+              };
+            });
+
+            // Inserción en lotes de 100 con skipDuplicates
+            const batchSize = 100;
+            let totalInserted = 0;
+            for (let i = 0; i < dataToInsert.length; i += batchSize) {
+              const batch = dataToInsert.slice(i, i + batchSize);
+              const res = await prisma.asistenciaRegistro.createMany({
+                data: batch,
+                skipDuplicates: true,
+              });
+              totalInserted += res.count;
             }
-            console.log(`✓ Sincronizados ${synced} registros históricos de asistencia en PostgreSQL.`);
+            console.log(`✓ Sincronizados ${totalInserted} registros históricos de asistencia en PostgreSQL.`);
           }
         }
       }
