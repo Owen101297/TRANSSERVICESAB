@@ -24,6 +24,13 @@ import {
   MapPin,
   MessageSquare,
   FileDown,
+  Camera,
+  Trash2,
+  UserPlus,
+  Edit3,
+  X,
+  AlertTriangle,
+  Layers,
 } from "lucide-react";
 import { Card, StatCard } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -44,7 +51,7 @@ const PRESET_TEMAS = [
   "OTRO (PERSONALIZADO)",
 ];
 
-interface AsistenciaItem {
+export interface AsistenciaItem {
   id: string;
   personaId?: string;
   personaDocumento?: string;
@@ -73,6 +80,7 @@ export default function AsistenciaAdminPage() {
 
   const [proyecto, setProyecto] = useState<string>("TODOS");
   const [tipoEvento, setTipoEvento] = useState<string>("TODOS");
+  const [actividadFiltro, setActividadFiltro] = useState<string>("TODAS");
   const [registros, setRegistros] = useState<AsistenciaItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +88,24 @@ export default function AsistenciaAdminPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [signatureModal, setSignatureModal] = useState<string | null>(null);
+  const [photoModal, setPhotoModal] = useState<{ url: string; nombre: string; documento: string; hora: string } | null>(null);
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState<{ id: string; nombre: string } | null>(null);
+  const [deletingRecord, setDeletingRecord] = useState<boolean>(false);
+  const [renameModal, setRenameModal] = useState<{ open: boolean; oldName: string; newName: string } | null>(null);
+  const [renamingRecord, setRenamingRecord] = useState<boolean>(false);
+  const [manualModal, setManualModal] = useState<boolean>(false);
+  const [manualForm, setManualForm] = useState({
+    documento: "",
+    nombre: "",
+    cargo: "CONDUCTOR",
+    proyecto: "TRANS SERVICES A&B",
+    hora: "07:30",
+    fecha: getTodayColombia(),
+    evento: "",
+    estado: "presente",
+  });
+  const [searchingPersona, setSearchingPersona] = useState<boolean>(false);
+  const [savingManual, setSavingManual] = useState<boolean>(false);
   const [datesSummary, setDatesSummary] = useState<Record<string, { total: number; proyectos: string[] }>>({});
 
   // Control y Divulgación del Tema Activo del Día
@@ -224,7 +250,7 @@ export default function AsistenciaAdminPage() {
     }
   };
 
-  // Compartir por WhatsApp con texto oficial
+  // Compartir por WhatsApp con texto oficial y parámetros inmutables
   const handleShareWhatsApp = () => {
     const fechaActual = new Date().toLocaleDateString("es-CO", {
       weekday: "long",
@@ -233,6 +259,8 @@ export default function AsistenciaAdminPage() {
       day: "numeric",
     });
 
+    const linkAsistir = `https://erp.transservicesab.com/asistir?tema=${encodeURIComponent(temaActivo)}&lugar=${encodeURIComponent(lugarActivo)}`;
+
     const mensaje = 
 `🚚 *TRANS SERVICES S.A.S. - REGISTRO DE ASISTENCIA DIARIA*
 📋 *Tema:* ${temaActivo}
@@ -240,19 +268,177 @@ export default function AsistenciaAdminPage() {
 📅 *Fecha:* ${fechaActual}
 
 Estimado equipo de trabajo y conductores en ruta, por favor ingresar al siguiente enlace oficial para registrar su asistencia, selfie y firma digital:
-👉 https://erp.transservicesab.com/asistir
+👉 ${linkAsistir}
 
 _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
 
     window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, "_blank");
   };
 
-  // Copiar Enlace Corto
+  // Copiar Enlace Corto con Parámetros Inmutables
   const handleCopyLink = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText("https://erp.transservicesab.com/asistir");
+      const linkAsistir = `https://erp.transservicesab.com/asistir?tema=${encodeURIComponent(temaActivo)}&lugar=${encodeURIComponent(lugarActivo)}`;
+      navigator.clipboard.writeText(linkAsistir);
       setCopiedLinkFeedback(true);
       setTimeout(() => setCopiedLinkFeedback(false), 2500);
+    }
+  };
+
+  // Actividades / Charlas del Día únicas
+  const actividadesDelDia = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const r of registros) {
+      const ev = (r.evento || "CHARLA GENERAL").trim();
+      counts[ev] = (counts[ev] || 0) + 1;
+    }
+    return Object.entries(counts).map(([nombre, total]) => ({ nombre, total }));
+  }, [registros]);
+
+  // Sincronizar automáticamente el tema del formato TH-FOR-03
+  useEffect(() => {
+    if (actividadFiltro !== "TODAS") {
+      setFormatoMeta((prev) => ({ ...prev, tema: actividadFiltro }));
+    } else if (actividadesDelDia.length > 0) {
+      setFormatoMeta((prev) => ({ ...prev, tema: actividadesDelDia[0].nombre }));
+    }
+    if (registros.length > 0 && registros[0].lugar) {
+      setFormatoMeta((prev) => ({ ...prev, ciudad: `${registros[0].lugar}, Putumayo` }));
+    }
+  }, [actividadFiltro, actividadesDelDia]);
+
+  // Eliminar asistente
+  const handleDeleteAsistente = async () => {
+    if (!deleteConfirmModal) return;
+    setDeletingRecord(true);
+    try {
+      const res = await fetch(`/api/apps/asistencia?id=${deleteConfirmModal.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setRegistros((prev) => prev.filter((r) => r.id !== deleteConfirmModal.id));
+        fetchDatesSummary();
+        setDeleteConfirmModal(null);
+      } else {
+        const json = await res.json();
+        alert(json.error || "Error al eliminar el registro.");
+      }
+    } catch (e: any) {
+      alert("Error al conectar con el servidor para eliminar.");
+    } finally {
+      setDeletingRecord(false);
+    }
+  };
+
+  // Renombrar tema en lote
+  const handleRenameTema = async () => {
+    if (!renameModal || !renameModal.newName.trim()) return;
+    setRenamingRecord(true);
+    try {
+      const res = await fetch("/api/apps/asistencia", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "rename_event",
+          oldEvent: renameModal.oldName,
+          newEvent: renameModal.newName.trim().toUpperCase(),
+          fecha,
+        }),
+      });
+      if (res.ok) {
+        if (actividadFiltro === renameModal.oldName) {
+          setActividadFiltro(renameModal.newName.trim().toUpperCase());
+        }
+        if (temaActivo === renameModal.oldName) {
+          setTemaActivo(renameModal.newName.trim().toUpperCase());
+        }
+        setRenameModal(null);
+        await fetchData();
+      } else {
+        const json = await res.json();
+        alert(json.error || "Error al renombrar el tema.");
+      }
+    } catch (e: any) {
+      alert("Error al conectar con el servidor para renombrar.");
+    } finally {
+      setRenamingRecord(false);
+    }
+  };
+
+  // Búsqueda por cédula para autocompletado en asistente manual
+  const handleSearchPersonaManual = async (cedula: string) => {
+    const clean = cedula.replace(/[\.\s-]/g, "").trim();
+    if (!clean || clean.length < 5) return;
+    setSearchingPersona(true);
+    try {
+      const res = await fetch(`/api/apps/asistencia?cedula=${clean}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.persona) {
+          setManualForm((prev) => ({
+            ...prev,
+            nombre: json.persona.nombreCompleto || prev.nombre,
+            cargo: json.persona.cargo || prev.cargo,
+            proyecto: json.persona.proyecto || prev.proyecto,
+          }));
+        }
+      }
+    } catch {} finally {
+      setSearchingPersona(false);
+    }
+  };
+
+  // Guardar asistente manual
+  const handleSaveManualAsistente = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualForm.nombre.trim()) return alert("El nombre es obligatorio");
+    setSavingManual(true);
+    try {
+      const res = await fetch("/api/apps/asistencia", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          personaDocumento: manualForm.documento.trim(),
+          personaNombre: manualForm.nombre.trim().toUpperCase(),
+          cargo: manualForm.cargo.toUpperCase(),
+          proyecto: manualForm.proyecto.toUpperCase(),
+          evento: (manualForm.evento || (actividadFiltro !== "TODAS" ? actividadFiltro : temaActivo)).trim().toUpperCase(),
+          fecha: manualForm.fecha || fecha || getTodayColombia(),
+          horaLlegada: manualForm.hora || "08:00",
+          estado: manualForm.estado,
+          observaciones: JSON.stringify({
+            cedula: manualForm.documento,
+            nombre: manualForm.nombre,
+            cargo: manualForm.cargo,
+            proyecto: manualForm.proyecto,
+            actividad: manualForm.evento || temaActivo,
+            manual: true,
+          }),
+        }),
+      });
+
+      if (res.ok) {
+        setManualModal(false);
+        setManualForm({
+          documento: "",
+          nombre: "",
+          cargo: "CONDUCTOR",
+          proyecto: "TRANS SERVICES A&B",
+          hora: "07:30",
+          fecha: getTodayColombia(),
+          evento: "",
+          estado: "presente",
+        });
+        await fetchData();
+        fetchDatesSummary();
+      } else {
+        const json = await res.json();
+        alert(json.error || "Error al guardar el asistente.");
+      }
+    } catch (err) {
+      alert("Error de conexión al registrar asistente.");
+    } finally {
+      setSavingManual(false);
     }
   };
 
@@ -276,18 +462,23 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Filtrado por buscador
+  // Filtrado por buscador y actividad
   const filteredRegistros = useMemo(() => {
+    let list = registros;
+    if (actividadFiltro !== "TODAS") {
+      list = list.filter((r) => (r.evento || "").trim().toUpperCase() === actividadFiltro.trim().toUpperCase());
+    }
     const q = searchQuery.toLowerCase().trim();
-    if (!q) return registros;
-    return registros.filter(
+    if (!q) return list;
+    return list.filter(
       (r) =>
         (r.personaNombre && r.personaNombre.toLowerCase().includes(q)) ||
         (r.personaDocumento && r.personaDocumento.toLowerCase().includes(q)) ||
         (r.cargo && r.cargo.toLowerCase().includes(q)) ||
-        (r.proyecto && r.proyecto.toLowerCase().includes(q))
+        (r.proyecto && r.proyecto.toLowerCase().includes(q)) ||
+        (r.evento && r.evento.toLowerCase().includes(q))
     );
-  }, [registros, searchQuery]);
+  }, [registros, actividadFiltro, searchQuery]);
 
   // Estadísticas calculadas
   const stats = useMemo(() => {
@@ -824,6 +1015,43 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
               )}
             </div>
 
+            {/* Selector de Actividad / Charla Específica del Día */}
+            {actividadesDelDia.length > 0 && (
+              <div className="flex items-center gap-2 bg-asphalt-950 border border-line-600 px-3 py-2 rounded-xl">
+                <Layers className="w-3.5 h-3.5 text-radar-cyan" />
+                <select
+                  value={actividadFiltro}
+                  onChange={(e) => {
+                    setActividadFiltro(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="bg-transparent text-xs font-bold text-paper-50 outline-none border-none uppercase cursor-pointer max-w-[200px] truncate"
+                >
+                  <option value="TODAS" className="bg-asphalt-900 text-paper-50">
+                    CHARLAS: TODAS ({registros.length})
+                  </option>
+                  {actividadesDelDia.map((act) => (
+                    <option key={act.nombre} value={act.nombre} className="bg-asphalt-900 text-paper-50">
+                      {act.nombre.length > 30 ? act.nombre.slice(0, 30) + "..." : act.nombre} ({act.total})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Renombrar tema cuando se selecciona una actividad */}
+            {actividadFiltro !== "TODAS" && (
+              <button
+                type="button"
+                onClick={() => setRenameModal({ open: true, oldName: actividadFiltro, newName: actividadFiltro })}
+                className="px-3 py-2 bg-asphalt-950 hover:bg-asphalt-800 text-radar-cyan font-bold text-xs rounded-xl border border-radar-cyan/40 transition-all flex items-center gap-1.5"
+                title="Renombrar / Corregir este tema para todos los asistentes"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Renombrar</span>
+              </button>
+            )}
+
             {/* Filtro Proyecto */}
             <div className="flex items-center gap-2 bg-asphalt-950 border border-line-600 px-3 py-2 rounded-xl">
               <Filter className="w-4 h-4 text-fog-400" />
@@ -863,6 +1091,29 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                 <option value="epp" className="bg-asphalt-900 text-paper-50">ENTREGA EPP</option>
               </select>
             </div>
+
+            {/* Botón Registrar Asistente Manual */}
+            <button
+              type="button"
+              onClick={() => {
+                setManualForm({
+                  documento: "",
+                  nombre: "",
+                  cargo: "CONDUCTOR",
+                  proyecto: proyecto !== "TODOS" ? (proyecto === "GT" ? "GRAN TIERRA (GT)" : proyecto) : "TRANS SERVICES A&B",
+                  hora: new Date().toLocaleTimeString("es-CO", { timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit" }),
+                  fecha: fecha || getTodayColombia(),
+                  evento: actividadFiltro !== "TODAS" ? actividadFiltro : (actividadesDelDia[0]?.nombre || temaActivo),
+                  estado: "presente",
+                });
+                setManualModal(true);
+              }}
+              className="px-3.5 py-2 bg-radar-cyan hover:bg-cyan-400 text-asphalt-950 font-black text-xs rounded-xl shadow-sm transition-all flex items-center gap-1.5"
+              title="Registrar asistente manualmente en la planilla"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>+ Asistente Manual</span>
+            </button>
 
             <button
               onClick={() => {
@@ -922,11 +1173,9 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
         </div>
       </div>
 
-      {/* ============================================================ */}
-      {/* VISTA 1: TABLA DINÁMICA INTERACTIVA                         */}
-      {/* ============================================================ */}
-      {viewMode === "tabla" && (
-        <Card className="no-print p-0 overflow-hidden border-line-600 bg-asphalt-900 shadow-xl">
+      {/* Contenedor Principal: Vista Tabla vs Vista Formato Oficial */}
+      {viewMode === "tabla" ? (
+        <div className="bg-asphalt-900 border border-line-600 rounded-2xl overflow-hidden shadow-lg">
           {/* Barra de búsqueda interna */}
           <div className="p-4 border-b border-line-600 bg-asphalt-950/50 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="relative w-full sm:w-80">
@@ -959,7 +1208,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
             </div>
           ) : loading ? (
             <div className="p-4">
-              <TableSkeleton rows={8} columns={8} />
+              <TableSkeleton rows={8} columns={9} />
             </div>
           ) : paginatedRegistros.length === 0 ? (
             <div className="p-6">
@@ -967,20 +1216,21 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                 icon={Search}
                 title="No hay registros de asistencia"
                 description={
-                  searchQuery || proyecto !== "TODOS" || tipoEvento !== "TODOS"
+                  searchQuery || proyecto !== "TODOS" || tipoEvento !== "TODOS" || actividadFiltro !== "TODAS"
                     ? `No se encontraron registros que coincidan con la búsqueda para el día ${fecha}.`
                     : `No se registraron firmas ni asistencias para el día ${fecha}. Prueba seleccionando otra fecha en el calendario.`
                 }
                 actionLabel={
-                  searchQuery || proyecto !== "TODOS" || tipoEvento !== "TODOS"
+                  searchQuery || proyecto !== "TODOS" || tipoEvento !== "TODOS" || actividadFiltro !== "TODAS"
                     ? "Restablecer Filtros"
                     : "Sincronizar Datos"
                 }
                 onAction={() => {
-                  if (searchQuery || proyecto !== "TODOS" || tipoEvento !== "TODOS") {
+                  if (searchQuery || proyecto !== "TODOS" || tipoEvento !== "TODOS" || actividadFiltro !== "TODAS") {
                     setSearchQuery("");
                     setProyecto("TODOS");
                     setTipoEvento("TODOS");
+                    setActividadFiltro("TODAS");
                   } else {
                     fetchData(true);
                   }
@@ -994,14 +1244,16 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                 <table className="w-full text-left text-xs">
                   <thead className="bg-asphalt-950 text-fog-400 font-mono text-[11px] uppercase tracking-wider border-b border-line-600">
                     <tr>
-                      <th className="px-4 py-3 w-12 text-center">#</th>
-                      <th className="px-4 py-3">Nombre y Apellidos</th>
-                      <th className="px-4 py-3">Cédula</th>
-                      <th className="px-4 py-3">Cargo</th>
-                      <th className="px-4 py-3">Proyecto</th>
-                      <th className="px-4 py-3">Hora</th>
-                      <th className="px-4 py-3 text-center">Firma</th>
-                      <th className="px-4 py-3 text-center">Estado</th>
+                      <th className="px-3 py-3 w-10 text-center">#</th>
+                      <th className="px-3 py-3">Nombre y Apellidos</th>
+                      <th className="px-3 py-3">Cédula</th>
+                      <th className="px-3 py-3">Cargo</th>
+                      <th className="px-3 py-3">Proyecto</th>
+                      <th className="px-3 py-3">Tema / Actividad</th>
+                      <th className="px-3 py-3">Hora</th>
+                      <th className="px-3 py-3 text-center">Evidencias</th>
+                      <th className="px-3 py-3 text-center">Estado</th>
+                      <th className="px-3 py-3 text-center w-14">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-line-600/50 text-mist-200 font-[family-name:var(--font-body)]">
@@ -1009,35 +1261,74 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                       const rowNum = (currentPage - 1) * PAGE_SIZE + idx + 1;
                       return (
                         <tr key={r.id || idx} className="hover:bg-asphalt-800/50 transition-colors">
-                          <td className="px-4 py-3 text-center font-mono text-fog-400 text-[11px]">{rowNum}</td>
-                          <td className="px-4 py-3 font-medium text-paper-50 uppercase">{r.personaNombre}</td>
-                          <td className="px-4 py-3 font-mono font-bold text-paper-50">{r.personaDocumento || "—"}</td>
-                          <td className="px-4 py-3">
+                          <td className="px-3 py-3 text-center font-mono text-fog-400 text-[11px]">{rowNum}</td>
+                          <td className="px-3 py-3 font-medium text-paper-50 uppercase">{r.personaNombre}</td>
+                          <td className="px-3 py-3 font-mono font-bold text-paper-50">{r.personaDocumento || "—"}</td>
+                          <td className="px-3 py-3">
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-asphalt-950 border border-line-600 text-mist-200 uppercase">
                               {r.cargo || "CONDUCTOR"}
                             </span>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-3 py-3">
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-asphalt-800 border border-line-500 text-radar-cyan uppercase">
                               {r.proyecto || "TRANS SERVICES"}
                             </span>
                           </td>
-                          <td className="px-4 py-3 font-mono text-xs text-mist-200">{r.horaLlegada || "—"}</td>
-                          <td className="px-4 py-3 text-center">
-                            {r.firmaUrl ? (
-                              <button
-                                onClick={() => setSignatureModal(r.firmaUrl!)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 bg-radar-cyan/10 hover:bg-radar-cyan/20 text-radar-cyan font-bold rounded-lg border border-radar-cyan/30 transition-colors"
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                                <span>Ver Firma</span>
-                              </button>
-                            ) : (
-                              <span className="text-fog-400 font-mono text-[11px]">Sin firma</span>
-                            )}
+                          <td className="px-3 py-3">
+                            <span
+                              className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-asphalt-950 border border-line-600 text-mist-200 block truncate max-w-[180px]"
+                              title={r.evento || "Charla General"}
+                            >
+                              {r.evento || "Charla General"}
+                            </span>
                           </td>
-                          <td className="px-4 py-3 text-center">
+                          <td className="px-3 py-3 font-mono text-xs text-mist-200">{r.horaLlegada || "—"}</td>
+                          <td className="px-3 py-3 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              {r.firmaUrl ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setSignatureModal(r.firmaUrl!)}
+                                  className="inline-flex items-center gap-1 px-2 py-1 bg-radar-cyan/10 hover:bg-radar-cyan/20 text-radar-cyan font-bold rounded-lg border border-radar-cyan/30 transition-colors text-[11px]"
+                                  title="Ver Firma Digital"
+                                >
+                                  <PenTool className="w-3 h-3" />
+                                  <span>Firma</span>
+                                </button>
+                              ) : (
+                                <span className="text-fog-400 font-mono text-[10px]">Sin firma</span>
+                              )}
+
+                              {r.fotoUrl ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setPhotoModal({
+                                    url: r.fotoUrl!,
+                                    nombre: r.personaNombre,
+                                    documento: r.personaDocumento || "—",
+                                    hora: r.horaLlegada || "—",
+                                  })}
+                                  className="inline-flex items-center gap-1 px-2 py-1 bg-ok-green/10 hover:bg-ok-green/20 text-ok-green font-bold rounded-lg border border-ok-green/30 transition-colors text-[11px]"
+                                  title="Ver Evidencia Fotográfica / Selfie"
+                                >
+                                  <Camera className="w-3 h-3" />
+                                  <span>Foto</span>
+                                </button>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 text-center">
                             <StatusBadge status={r.estado === "presente" ? "activo" : "inactivo"} />
+                          </td>
+                          <td className="px-3 py-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => setDeleteConfirmModal({ id: r.id, nombre: r.personaNombre })}
+                              className="p-1.5 rounded-lg text-fog-400 hover:text-alert-red hover:bg-alert-red/10 transition-colors"
+                              title="Eliminar este asistente de la lista"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </td>
                         </tr>
                       );
@@ -1330,6 +1621,305 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
             >
               Cerrar
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Visualizar Fotografía / Selfie */}
+      {photoModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-asphalt-900 border border-line-600 rounded-2xl max-w-md w-full p-6 space-y-4 text-center shadow-2xl">
+            <div className="flex items-center justify-between border-b border-line-600 pb-3">
+              <div className="text-left">
+                <h3 className="text-sm font-bold text-paper-50 uppercase tracking-wider font-mono">
+                  Evidencia Fotográfica
+                </h3>
+                <p className="text-xs text-fog-400 font-mono">
+                  {photoModal.nombre} — C.C. {photoModal.documento}
+                </p>
+              </div>
+              <span className="text-[10px] font-mono bg-asphalt-950 border border-line-600 px-2 py-1 rounded text-radar-cyan">
+                {photoModal.hora}
+              </span>
+            </div>
+            <div className="bg-black/50 p-2 rounded-xl border border-line-600 flex items-center justify-center overflow-hidden">
+              <img
+                src={photoModal.url}
+                alt={`Foto de ${photoModal.nombre}`}
+                className="max-h-80 w-auto rounded-lg object-contain"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setPhotoModal(null)}
+              className="w-full py-2.5 bg-asphalt-800 hover:bg-asphalt-700 text-paper-50 font-bold text-xs rounded-xl border border-line-500 transition-colors"
+            >
+              Cerrar Evidencia
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Confirmar Eliminación de Asistente */}
+      {deleteConfirmModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-asphalt-900 border border-alert-red/40 rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-alert-red/10 border border-alert-red/30 flex items-center justify-center text-alert-red">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-paper-50">Eliminar Asistente</h3>
+                <p className="text-xs text-fog-400">Esta acción no se puede deshacer.</p>
+              </div>
+            </div>
+            <p className="text-xs text-mist-200">
+              ¿Estás seguro de que deseas eliminar el registro de <span className="font-bold text-paper-50 uppercase">{deleteConfirmModal.nombre}</span> de esta lista de asistencia?
+            </p>
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmModal(null)}
+                disabled={deletingRecord}
+                className="flex-1 py-2.5 bg-asphalt-800 hover:bg-asphalt-700 text-paper-50 font-bold text-xs rounded-xl border border-line-500 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAsistente}
+                disabled={deletingRecord}
+                className="flex-1 py-2.5 bg-alert-red hover:bg-red-600 text-white font-bold text-xs rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {deletingRecord ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Eliminando...</span>
+                  </>
+                ) : (
+                  <span>Sí, Eliminar</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Renombrar Tema en Lote */}
+      {renameModal && renameModal.open && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-asphalt-900 border border-line-600 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center gap-3 border-b border-line-600 pb-3">
+              <div className="w-10 h-10 rounded-xl bg-radar-cyan/10 border border-radar-cyan/30 flex items-center justify-center text-radar-cyan">
+                <Edit3 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-paper-50">Renombrar Tema / Charla</h3>
+                <p className="text-xs text-fog-400">Actualiza el tema para todos los asistentes con este título.</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] font-mono uppercase text-fog-400 block mb-1">Tema Actual</label>
+                <div className="px-3 py-2 bg-asphalt-950 border border-line-600 rounded-xl text-xs text-fog-400 font-mono truncate">
+                  {renameModal.oldName}
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-mono uppercase text-radar-cyan block mb-1">Nuevo Tema / Actividad</label>
+                <input
+                  type="text"
+                  value={renameModal.newName}
+                  onChange={(e) => setRenameModal({ ...renameModal, newName: e.target.value })}
+                  placeholder="Escribe el nuevo nombre de la charla o actividad..."
+                  className="w-full px-3 py-2.5 bg-asphalt-950 border border-line-600 rounded-xl text-xs text-paper-50 placeholder-fog-400 outline-none focus:border-radar-cyan uppercase"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setRenameModal(null)}
+                disabled={renamingRecord}
+                className="flex-1 py-2.5 bg-asphalt-800 hover:bg-asphalt-700 text-paper-50 font-bold text-xs rounded-xl border border-line-500 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleRenameTema}
+                disabled={renamingRecord || !renameModal.newName.trim()}
+                className="flex-1 py-2.5 bg-radar-cyan hover:bg-cyan-400 text-asphalt-950 font-black text-xs rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {renamingRecord ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Guardando...</span>
+                  </>
+                ) : (
+                  <span>Guardar Cambios</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Registrar Asistente Manual */}
+      {manualModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-asphalt-900 border border-line-600 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-line-600 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-radar-cyan/10 border border-radar-cyan/30 flex items-center justify-center text-radar-cyan">
+                  <UserPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-paper-50">Registrar Asistente Manual</h3>
+                  <p className="text-xs text-fog-400">Ingresa la cédula para autocompletar desde la base de datos.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setManualModal(false)}
+                className="text-fog-400 hover:text-paper-50 p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveManualAsistente} className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-mono uppercase text-radar-cyan block mb-1">
+                    Cédula / Documento {searchingPersona && <span className="animate-pulse text-xs">🔍 Buscando...</span>}
+                  </label>
+                  <input
+                    type="text"
+                    value={manualForm.documento}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setManualForm((prev) => ({ ...prev, documento: val }));
+                      if (val.trim().length >= 5) {
+                        handleSearchPersonaManual(val);
+                      }
+                    }}
+                    placeholder="Ej: 1122784561"
+                    className="w-full px-3 py-2 bg-asphalt-950 border border-line-600 rounded-xl text-xs text-paper-50 placeholder-fog-400 font-mono outline-none focus:border-radar-cyan"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-mono uppercase text-radar-cyan block mb-1">
+                    Nombre Completo *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={manualForm.nombre}
+                    onChange={(e) => setManualForm((prev) => ({ ...prev, nombre: e.target.value }))}
+                    placeholder="NOMBRES Y APELLIDOS"
+                    className="w-full px-3 py-2 bg-asphalt-950 border border-line-600 rounded-xl text-xs text-paper-50 placeholder-fog-400 outline-none focus:border-radar-cyan uppercase"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-mono uppercase text-fog-400 block mb-1">Cargo</label>
+                  <input
+                    type="text"
+                    value={manualForm.cargo}
+                    onChange={(e) => setManualForm((prev) => ({ ...prev, cargo: e.target.value }))}
+                    placeholder="CONDUCTOR"
+                    className="w-full px-3 py-2 bg-asphalt-950 border border-line-600 rounded-xl text-xs text-paper-50 placeholder-fog-400 outline-none focus:border-radar-cyan uppercase"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-mono uppercase text-fog-400 block mb-1">Proyecto</label>
+                  <input
+                    type="text"
+                    value={manualForm.proyecto}
+                    onChange={(e) => setManualForm((prev) => ({ ...prev, proyecto: e.target.value }))}
+                    placeholder="TRANS SERVICES A&B"
+                    className="w-full px-3 py-2 bg-asphalt-950 border border-line-600 rounded-xl text-xs text-paper-50 placeholder-fog-400 outline-none focus:border-radar-cyan uppercase"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-mono uppercase text-radar-cyan block mb-1">Tema / Actividad</label>
+                <input
+                  type="text"
+                  value={manualForm.evento}
+                  onChange={(e) => setManualForm((prev) => ({ ...prev, evento: e.target.value }))}
+                  placeholder="TEMA DE LA CHARLA O ACTIVIDAD"
+                  className="w-full px-3 py-2 bg-asphalt-950 border border-line-600 rounded-xl text-xs text-paper-50 placeholder-fog-400 outline-none focus:border-radar-cyan uppercase"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-[10px] font-mono uppercase text-fog-400 block mb-1">Fecha</label>
+                  <input
+                    type="date"
+                    value={manualForm.fecha}
+                    onChange={(e) => setManualForm((prev) => ({ ...prev, fecha: e.target.value }))}
+                    className="w-full px-3 py-2 bg-asphalt-950 border border-line-600 rounded-xl text-xs text-paper-50 font-mono outline-none focus:border-radar-cyan"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-mono uppercase text-fog-400 block mb-1">Hora</label>
+                  <input
+                    type="time"
+                    value={manualForm.hora}
+                    onChange={(e) => setManualForm((prev) => ({ ...prev, hora: e.target.value }))}
+                    className="w-full px-3 py-2 bg-asphalt-950 border border-line-600 rounded-xl text-xs text-paper-50 font-mono outline-none focus:border-radar-cyan"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-mono uppercase text-fog-400 block mb-1">Estado</label>
+                  <select
+                    value={manualForm.estado}
+                    onChange={(e) => setManualForm((prev) => ({ ...prev, estado: e.target.value }))}
+                    className="w-full px-3 py-2 bg-asphalt-950 border border-line-600 rounded-xl text-xs text-paper-50 outline-none focus:border-radar-cyan"
+                  >
+                    <option value="presente">PRESENTE</option>
+                    <option value="justificado">JUSTIFICADO</option>
+                    <option value="ausente">AUSENTE</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-3 border-t border-line-600">
+                <button
+                  type="button"
+                  onClick={() => setManualModal(false)}
+                  disabled={savingManual}
+                  className="flex-1 py-2.5 bg-asphalt-800 hover:bg-asphalt-700 text-paper-50 font-bold text-xs rounded-xl border border-line-500 transition-colors disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingManual || !manualForm.nombre.trim()}
+                  className="flex-1 py-2.5 bg-radar-cyan hover:bg-cyan-400 text-asphalt-950 font-black text-xs rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                >
+                  {savingManual ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Guardando...</span>
+                    </>
+                  ) : (
+                    <span>Registrar Asistente</span>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

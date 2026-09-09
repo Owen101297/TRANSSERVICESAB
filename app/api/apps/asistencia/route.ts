@@ -313,8 +313,13 @@ export async function GET(req: Request) {
     // 3. Filtrado de registros
     let filtered = allRecords;
 
-    if (fecha && fecha !== "TODAS") {
+    if (fecha && fecha !== "TODAS" && fecha.toLowerCase() !== "all") {
       filtered = filtered.filter((r) => r.fecha === fecha);
+    }
+
+    const eventoParam = searchParams.get("evento") || searchParams.get("actividad");
+    if (eventoParam && eventoParam !== "TODAS" && eventoParam !== "TODOS") {
+      filtered = filtered.filter((r) => r.evento && r.evento.trim().toUpperCase() === eventoParam.trim().toUpperCase());
     }
 
     if (proyecto && proyecto !== "TODOS") {
@@ -376,32 +381,38 @@ export async function POST(req: Request) {
       firma_base64,
       fotoUrl,
       foto_url,
+      fecha,
+      horaLlegada,
+      hora_llegada,
     } = body;
 
     const doc = (conductorDocumento || personaDocumento || "").replace(/[\.\s-]/g, "").trim();
     const nombre = (conductorNombre || personaNombre || "PARTICIPANTE").trim().toUpperCase();
     const firm = signature || firmaUrl || firma_url || firma_base64 || null;
-    const fot = fotoUrl || foto_url || null;
+    const fot = fotoUrl || foto_url || body.foto_base64 || body.fotoBase64 || body.foto || null;
     const ev = evento || tipoEvento || tipo_evento || "Jornada de Capacitación / Charla";
-    const tipEv = tipoEvento || tipo_evento || "capacitacion";
+    const tipEv = tipoEvento || tipo_evento || (ev.toLowerCase().includes("charla") ? "charla_5min" : "capacitacion");
 
     const fechaNow = new Date();
-    const fechaStr = fechaNow.toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
-    const horaNow = fechaNow.toLocaleTimeString("es-CO", {
+    let fechaStr = fecha ? String(fecha).slice(0, 10) : fechaNow.toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
+    let horaNow = horaLlegada || hora_llegada || fechaNow.toLocaleTimeString("es-CO", {
       timeZone: "America/Bogota",
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
     });
 
-    const observacionesJson = JSON.stringify({
-      cedula: doc,
-      nombre,
-      cargo: (cargo || "CONDUCTOR").toUpperCase(),
-      proyecto: (proyecto || "TRANS SERVICES A&B").toUpperCase(),
-      actividad: ev,
-      firma: firm,
-    });
+    const observacionesJson = typeof observaciones === "string" && observaciones.startsWith("{")
+      ? observaciones
+      : JSON.stringify({
+          cedula: doc,
+          nombre,
+          cargo: (cargo || "CONDUCTOR").toUpperCase(),
+          proyecto: (proyecto || "TRANS SERVICES A&B").toUpperCase(),
+          actividad: ev,
+          firma: firm,
+          manual: !firm,
+        });
 
     // Guardar exclusivamente en Prisma (PostgreSQL en Railway)
     let pId = conductorId;
@@ -449,12 +460,124 @@ export async function POST(req: Request) {
         fecha: fechaStr,
         horaLlegada: horaNow,
         firmaUrl: firm,
+        fotoUrl: fot,
+        evento: ev,
       },
     });
   } catch (error: any) {
     console.error("Error al registrar asistencia en Prisma:", error);
     return NextResponse.json(
       { success: false, error: error.message || "Error al registrar asistencia" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    let id = searchParams.get("id");
+    if (!id) {
+      try {
+        const body = await req.json();
+        id = body.id;
+      } catch {}
+    }
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: "ID de registro requerido" }, { status: 400 });
+    }
+
+    await prisma.asistenciaRegistro.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Registro de asistencia eliminado exitosamente",
+    });
+  } catch (error: any) {
+    console.error("Error al eliminar asistencia:", error);
+    return NextResponse.json(
+      { success: false, error: error.message || "Error al eliminar asistencia" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(req: Request) {
+  try {
+    const body = await req.json();
+    const { action, id, oldEvent, newEvent, fecha, data } = body;
+
+    // Caso A: Renombrar tema/evento en lote
+    if (action === "rename_event") {
+      if (!newEvent || !newEvent.trim()) {
+        return NextResponse.json({ success: false, error: "El nuevo nombre del tema es obligatorio" }, { status: 400 });
+      }
+
+      const whereClause: any = {};
+      if (oldEvent) {
+        whereClause.evento = oldEvent.trim();
+      }
+
+      if (fecha && fecha !== "TODAS") {
+        const [y, m, d] = fecha.split("-").map(Number);
+        const startDay = new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
+        const endDay = new Date(Date.UTC(y, m - 1, d, 23, 59, 59));
+        whereClause.fecha = {
+          gte: startDay,
+          lte: endDay,
+        };
+      }
+
+      const res = await prisma.asistenciaRegistro.updateMany({
+        where: whereClause,
+        data: {
+          evento: newEvent.trim().toUpperCase(),
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `Se actualizaron ${res.count} registros al tema '${newEvent.trim().toUpperCase()}'`,
+        count: res.count,
+      });
+    }
+
+    // Caso B: Actualizar registro individual
+    if (action === "update_record" || id) {
+      const targetId = id || body.id;
+      if (!targetId) {
+        return NextResponse.json({ success: false, error: "ID de registro requerido" }, { status: 400 });
+      }
+
+      const updateData: any = {};
+      if (data?.personaNombre) updateData.personaNombre = String(data.personaNombre).trim().toUpperCase();
+      if (data?.personaDocumento) updateData.personaDocumento = String(data.personaDocumento).trim();
+      if (data?.cargo) updateData.cargo = String(data.cargo).trim().toUpperCase();
+      if (data?.proyecto) updateData.proyecto = String(data.proyecto).trim().toUpperCase();
+      if (data?.evento) updateData.evento = String(data.evento).trim();
+      if (data?.horaLlegada) updateData.horaLlegada = String(data.horaLlegada).trim();
+      if (data?.estado) updateData.estado = String(data.estado).trim();
+
+      const updated = await prisma.asistenciaRegistro.update({
+        where: { id: targetId },
+        data: updateData,
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: "Registro actualizado exitosamente",
+        asistencia: updated,
+      });
+    }
+
+    return NextResponse.json({ success: false, error: "Acción no reconocida" }, { status: 400 });
+  } catch (error: any) {
+    console.error("Error al actualizar asistencia:", error);
+    return NextResponse.json(
+      { success: false, error: error.message || "Error al actualizar asistencia" },
       { status: 500 }
     );
   }
