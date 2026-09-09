@@ -66,6 +66,8 @@ export interface AsistenciaItem {
   firmaUrl?: string;
   fotoUrl?: string;
   observaciones?: string;
+  lugar?: string;
+  facilitador?: string;
 }
 
 const getTodayColombia = () => {
@@ -1215,6 +1217,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                   fecha: fecha || getTodayColombia(),
                   evento: actividadFiltro !== "TODAS" ? actividadFiltro : (actividadesDelDia[0]?.nombre || temaActivo),
                   estado: "presente",
+                  firmarConHseq: true,
                 });
                 setManualModal(true);
               }}
@@ -1447,7 +1450,9 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                             </div>
                           </td>
                           <td className="px-3 py-3 text-center">
-                            <StatusBadge status={r.estado === "presente" ? "activo" : "inactivo"} />
+                            <StatusBadge status={r.estado === "presente" ? "activo" : "inactivo"}>
+                              {r.estado === "presente" ? "Presente" : (r.estado || "Ausente")}
+                            </StatusBadge>
                           </td>
                           <td className="px-3 py-3 text-center">
                             <button
