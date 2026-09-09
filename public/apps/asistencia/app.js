@@ -151,38 +151,7 @@ window.clearSignature = function () {
     hasDrawn = false;
 };
 
-// --- ASIGNAR FIRMA OFICIAL HSEQ CON 1 CLIC ---
-window.asignarFirmaHSEQOficial = function () {
-    if (!canvas || !ctx) return;
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-        const rect = canvas.getBoundingClientRect();
-        ctx.clearRect(0, 0, rect.width || canvas.width, rect.height || canvas.height);
-        const cw = rect.width || (canvas.width / 2);
-        const ch = rect.height || (canvas.height / 2);
-        const aspect = img.width / img.height;
-        let w = cw * 0.75;
-        let h = w / aspect;
-        if (h > ch * 0.8) {
-            h = ch * 0.8;
-            w = h * aspect;
-        }
-        const x = (cw - w) / 2;
-        const y = (ch - h) / 2;
-        ctx.drawImage(img, x, y, w, h);
-        hasDrawn = true;
-        if (typeof window.showToast === 'function') {
-            window.showToast('Firma oficial HSEQ asignada', 'success');
-        }
-    };
-    img.onerror = () => {
-        if (typeof window.showToast === 'function') {
-            window.showToast('No se pudo cargar la firma HSEQ', 'error');
-        }
-    };
-    img.src = '/firma-hseq.png';
-};
+
 
 // --- BÚSQUEDA AUTOMÁTICA POR CÉDULA ---
 let searchDebounce = null;

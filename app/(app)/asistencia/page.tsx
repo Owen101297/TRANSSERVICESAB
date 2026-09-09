@@ -95,7 +95,6 @@ export default function AsistenciaAdminPage() {
   const [deletingRecord, setDeletingRecord] = useState<boolean>(false);
   const [renameModal, setRenameModal] = useState<{ open: boolean; oldName: string; newName: string } | null>(null);
   const [renamingRecord, setRenamingRecord] = useState<boolean>(false);
-  const [assigningHseqId, setAssigningHseqId] = useState<string | null>(null);
   const [manualModal, setManualModal] = useState<boolean>(false);
   const [manualForm, setManualForm] = useState({
     documento: "",
@@ -106,7 +105,6 @@ export default function AsistenciaAdminPage() {
     fecha: getTodayColombia(),
     evento: "",
     estado: "presente",
-    firmarConHseq: true,
   });
   const [searchingPersona, setSearchingPersona] = useState<boolean>(false);
   const [savingManual, setSavingManual] = useState<boolean>(false);
@@ -412,74 +410,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
     }
   };
 
-  // Asignar firma oficial HSEQ a un registro individual (1 Clic)
-  const handleAssignHseqSignature = async (recordId: string, nombre?: string) => {
-    setAssigningHseqId(recordId);
-    try {
-      const res = await fetch("/api/apps/asistencia", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "assign_hseq_signature",
-          id: recordId,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setRegistros((prev) =>
-          prev.map((r) => (r.id === recordId ? { ...r, firmaUrl: "/firma-hseq.png" } : r))
-        );
-      } else {
-        alert(data.error || "No se pudo asignar la firma HSEQ.");
-      }
-    } catch (err: any) {
-      alert("Error de conexión al asignar firma HSEQ: " + err.message);
-    } finally {
-      setAssigningHseqId(null);
-    }
-  };
 
-  // Asignar firma oficial HSEQ en lote a todos los registros visibles sin firma (o a todos)
-  const handleAssignHseqAll = async () => {
-    const unassigned = filteredRegistros.filter((r) => !r.firmaUrl);
-    const targetIds = unassigned.length > 0 
-      ? unassigned.map((r) => r.id) 
-      : filteredRegistros.map((r) => r.id);
-
-    if (targetIds.length === 0) {
-      return alert("No hay registros en la lista actual para firmar.");
-    }
-
-    const confirmMsg = unassigned.length > 0
-      ? `¿Deseas asignar con 1 clic la Firma Oficial HSEQ a los ${targetIds.length} participantes que aún no tienen firma?`
-      : `¿Deseas asignar con 1 clic la Firma Oficial HSEQ a los ${targetIds.length} participantes de esta lista?`;
-
-    if (!window.confirm(confirmMsg)) return;
-
-    setAssigningHseqId("all");
-    try {
-      const res = await fetch("/api/apps/asistencia", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "assign_hseq_signature",
-          ids: targetIds,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setRegistros((prev) =>
-          prev.map((r) => (targetIds.includes(r.id) ? { ...r, firmaUrl: "/firma-hseq.png" } : r))
-        );
-      } else {
-        alert(data.error || "Error al asignar firmas HSEQ en lote.");
-      }
-    } catch (err: any) {
-      alert("Error al conectar con el servidor: " + err.message);
-    } finally {
-      setAssigningHseqId(null);
-    }
-  };
 
   // Guardar asistente manual
   const handleSaveManualAsistente = async (e: React.FormEvent) => {
@@ -499,9 +430,9 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
           fecha: manualForm.fecha || fecha || getTodayColombia(),
           horaLlegada: manualForm.hora || "08:00",
           estado: manualForm.estado,
-          firmaUrl: manualForm.firmarConHseq ? "/firma-hseq.png" : null,
-          firma_url: manualForm.firmarConHseq ? "/firma-hseq.png" : null,
-          firma_base64: manualForm.firmarConHseq ? "/firma-hseq.png" : null,
+          firmaUrl: null,
+          firma_url: null,
+          firma_base64: null,
           observaciones: JSON.stringify({
             cedula: manualForm.documento,
             nombre: manualForm.nombre,
@@ -509,8 +440,6 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
             proyecto: manualForm.proyecto,
             actividad: manualForm.evento || temaActivo,
             manual: true,
-            firmadoHseq: manualForm.firmarConHseq,
-            firma: manualForm.firmarConHseq ? "/firma-hseq.png" : null,
           }),
         }),
       });
@@ -1217,7 +1146,6 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                   fecha: fecha || getTodayColombia(),
                   evento: actividadFiltro !== "TODAS" ? actividadFiltro : (actividadesDelDia[0]?.nombre || temaActivo),
                   estado: "presente",
-                  firmarConHseq: true,
                 });
                 setManualModal(true);
               }}
@@ -1297,18 +1225,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                 className="w-full pl-9 pr-4 py-2 bg-asphalt-900 border border-line-600 rounded-xl text-xs text-paper-50 placeholder-fog-400 outline-none focus:border-radar-cyan transition-colors"
               />
             </div>
-            <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-              <button
-                type="button"
-                onClick={handleAssignHseqAll}
-                disabled={assigningHseqId === "all" || filteredRegistros.length === 0}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 font-bold text-xs rounded-xl border border-emerald-500/30 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
-                title="Asignar la Firma Oficial HSEQ con un solo clic a los participantes"
-              >
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>{assigningHseqId === "all" ? "Firmando..." : "✍️ Asignar Firma HSEQ (1 Clic)"}</span>
-              </button>
-
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
               <div className="text-xs font-mono text-fog-400">
                 Mostrando {paginatedRegistros.length} de {filteredRegistros.length} registros ({fecha})
               </div>
@@ -1403,32 +1320,17 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                                   <button
                                     type="button"
                                     onClick={() => setSignatureModal(r.firmaUrl!)}
-                                    className="inline-flex items-center gap-1 px-2 py-1 bg-radar-cyan/10 hover:bg-radar-cyan/20 text-radar-cyan font-bold rounded-lg border border-radar-cyan/30 transition-colors text-[11px]"
+                                    className="inline-flex items-center gap-1 px-2 py-1 bg-asphalt-800 hover:bg-asphalt-700 text-mist-200 font-bold rounded-lg border border-line-500 transition-colors text-[11px]"
                                     title="Ver Firma Digital"
                                   >
-                                    <PenTool className="w-3 h-3" />
+                                    <PenTool className="w-3 h-3 text-radar-cyan" />
                                     <span>Firma</span>
                                   </button>
-                                  {r.firmaUrl.includes("firma-hseq") && (
-                                    <span
-                                      className="px-1 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-mono font-bold"
-                                      title="Firmado Oficialmente por HSEQ"
-                                    >
-                                      HSEQ
-                                    </span>
-                                  )}
                                 </div>
                               ) : (
-                                <button
-                                  type="button"
-                                  onClick={() => handleAssignHseqSignature(r.id, r.personaNombre)}
-                                  disabled={assigningHseqId === r.id}
-                                  className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-400 font-bold rounded-lg border border-emerald-500/40 transition-colors text-[10px] shadow-2xs"
-                                  title="Asignar Firma Oficial HSEQ con 1 Clic"
-                                >
-                                  <CheckCircle2 className="w-3 h-3" />
-                                  <span>{assigningHseqId === r.id ? "..." : "Firma HSEQ"}</span>
-                                </button>
+                                <span className="text-[11px] text-fog-400 italic">
+                                  Sin firma
+                                </span>
                               )}
 
                               {r.fotoUrl ? (
@@ -2068,24 +1970,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                 </div>
               </div>
 
-              {/* Opción de Asignar Firma Oficial HSEQ */}
-              <div className="p-3 rounded-xl bg-asphalt-950 border border-line-600 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
-                    <CheckCircle2 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-bold text-paper-50">Asignar Firma Oficial HSEQ</div>
-                    <div className="text-[10px] text-fog-400">Estampa la firma oficial de HSEQ automáticamente en el registro.</div>
-                  </div>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={manualForm.firmarConHseq}
-                  onChange={(e) => setManualForm((prev) => ({ ...prev, firmarConHseq: e.target.checked }))}
-                  className="w-4 h-4 accent-emerald-500 cursor-pointer"
-                />
-              </div>
+
 
               <div className="flex items-center gap-2 pt-3 border-t border-line-600">
                 <button

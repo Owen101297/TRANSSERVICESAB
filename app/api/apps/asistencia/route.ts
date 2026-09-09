@@ -636,13 +636,30 @@ export async function PATCH(req: Request) {
       if (data?.proyecto) updateData.proyecto = String(data.proyecto).trim().toUpperCase();
       if (data?.evento) updateData.evento = String(data.evento).trim();
       if (data?.horaLlegada) updateData.horaLlegada = String(data.horaLlegada).trim();
-      if (data?.estado) updateData.estado = String(data.estado).trim();
-      if (data?.firmaUrl) updateData.firmaUrl = String(data.firmaUrl).trim();
+      if ("firmaUrl" in (data || {})) {
+        updateData.firmaUrl = data.firmaUrl;
+      }
 
       const updated = await prisma.asistenciaRegistro.update({
         where: { id: targetId },
         data: updateData,
       });
+
+      if ("firmaUrl" in (data || {}) && updated.observaciones && updated.observaciones.startsWith("{")) {
+        try {
+          const parsed = JSON.parse(updated.observaciones);
+          parsed.firma = data.firmaUrl;
+          if (!data.firmaUrl) {
+            delete parsed.firmaTipo;
+            delete parsed.firmadoPorHseq;
+            delete parsed.fechaFirmaHseq;
+          }
+          await prisma.asistenciaRegistro.update({
+            where: { id: targetId },
+            data: { observaciones: JSON.stringify(parsed) },
+          });
+        } catch {}
+      }
 
       return NextResponse.json({
         success: true,
