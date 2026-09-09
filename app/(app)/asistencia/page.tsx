@@ -61,9 +61,13 @@ interface AsistenciaItem {
   observaciones?: string;
 }
 
+const getTodayColombia = () => {
+  return new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
+};
+
 export default function AsistenciaAdminPage() {
-  const [fecha, setFecha] = useState<string>("2026-08-21"); // Fecha con registros históricos
-  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date(2026, 7, 1)); // Agosto 2026
+  const [fecha, setFecha] = useState<string>(getTodayColombia());
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [showCalendarDropdown, setShowCalendarDropdown] = useState<boolean>(false);
   const calendarRef = useRef<HTMLDivElement>(null);
 
@@ -133,13 +137,6 @@ export default function AsistenciaAdminPage() {
         const json = await res.json();
         if (json.datesSummary) {
           setDatesSummary(json.datesSummary);
-          // Si hay fechas activas y la fecha actual no tiene, seleccionar la más reciente con actividad
-          const dates = Object.keys(json.datesSummary).sort((a, b) => b.localeCompare(a));
-          if (dates.length > 0 && !json.datesSummary[fecha]) {
-            setFecha(dates[0]);
-            const [y, m] = dates[0].split("-").map(Number);
-            setCalendarMonth(new Date(y, m - 1, 1));
-          }
         }
       }
     } catch (e) {
@@ -646,21 +643,89 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
           <div className="flex flex-wrap items-center gap-3">
             {/* Selector de Fecha Interactivo con Popover de Días Marcados */}
             <div className="relative" ref={calendarRef}>
-              <button
-                type="button"
-                onClick={() => setShowCalendarDropdown(!showCalendarDropdown)}
-                className="flex items-center gap-2.5 bg-asphalt-950 border border-line-600 hover:border-radar-cyan px-3.5 py-2 rounded-xl text-xs font-mono font-bold text-paper-50 shadow-sm transition-all"
-              >
-                <CalendarIcon className="w-4 h-4 text-radar-cyan" />
-                <span>{fecha || "Seleccionar Día"}</span>
-                {datesSummary[fecha] ? (
-                  <span className="px-2 py-0.5 bg-ok-green/20 text-ok-green border border-ok-green/40 text-[10px] font-mono font-black rounded-md flex items-center gap-1">
-                    ● {datesSummary[fecha].total} firmas
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setShowCalendarDropdown(!showCalendarDropdown)}
+                  className="flex items-center gap-2.5 bg-asphalt-950 border border-line-600 hover:border-radar-cyan px-3.5 py-2 rounded-xl text-xs font-mono font-bold text-paper-50 shadow-sm transition-all"
+                >
+                  <CalendarIcon className="w-4 h-4 text-radar-cyan" />
+                  <span>
+                    {fecha === getTodayColombia()
+                      ? `Hoy (${fecha})`
+                      : (fecha || "Todas las fechas")}
                   </span>
-                ) : (
-                  <span className="text-fog-400 text-[10px]">(0 firmas)</span>
+                  {fecha && datesSummary[fecha] ? (
+                    <span className="px-2 py-0.5 bg-ok-green/20 text-ok-green border border-ok-green/40 text-[10px] font-mono font-black rounded-md flex items-center gap-1">
+                      ● {datesSummary[fecha].total} firmas
+                    </span>
+                  ) : fecha ? (
+                    <span className="text-fog-400 text-[10px]">(0 firmas)</span>
+                  ) : (
+                    <span className="px-2 py-0.5 bg-radar-cyan/20 text-radar-cyan border border-radar-cyan/40 text-[10px] font-mono font-black rounded-md">
+                      Consolidado
+                    </span>
+                  )}
+                </button>
+
+                {/* Acceso rápido a Hoy */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const hoy = getTodayColombia();
+                    setFecha(hoy);
+                    setCalendarMonth(new Date());
+                    setCurrentPage(1);
+                    setShowCalendarDropdown(false);
+                  }}
+                  className={`px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all ${
+                    fecha === getTodayColombia()
+                      ? "bg-radar-cyan text-asphalt-950 shadow-sm font-black"
+                      : "bg-asphalt-950 border border-line-600 hover:border-radar-cyan text-mist-200"
+                  }`}
+                  title="Ver registros de hoy"
+                >
+                  Hoy
+                </button>
+
+                {/* Acceso rápido a Todas */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFecha("");
+                    setCurrentPage(1);
+                    setShowCalendarDropdown(false);
+                  }}
+                  className={`px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all ${
+                    !fecha
+                      ? "bg-radar-cyan text-asphalt-950 shadow-sm font-black"
+                      : "bg-asphalt-950 border border-line-600 hover:border-radar-cyan text-fog-400 hover:text-paper-50"
+                  }`}
+                  title="Ver todas las asistencias históricas"
+                >
+                  Todas
+                </button>
+
+                {/* Enlace rápido al último día con registros si hoy aún no tiene */}
+                {fecha === getTodayColombia() && !datesSummary[fecha] && Object.keys(datesSummary).length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const latest = Object.keys(datesSummary).sort((a, b) => b.localeCompare(a))[0];
+                      if (latest) {
+                        setFecha(latest);
+                        const [y, m] = latest.split("-").map(Number);
+                        setCalendarMonth(new Date(y, m - 1, 1));
+                        setCurrentPage(1);
+                      }
+                    }}
+                    className="text-[11px] font-mono text-fog-400 hover:text-radar-cyan px-2.5 py-1.5 rounded-xl border border-line-600/60 hover:border-radar-cyan/60 bg-asphalt-950 transition-all flex items-center gap-1"
+                    title="Ir a la fecha más reciente con registros"
+                  >
+                    <span>● Último activo: {Object.keys(datesSummary).sort((a, b) => b.localeCompare(a))[0]}</span>
+                  </button>
                 )}
-              </button>
+              </div>
 
               {/* Menú Desplegable Calendario con Números Marcados */}
               {showCalendarDropdown && (

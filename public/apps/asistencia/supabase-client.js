@@ -1,5 +1,5 @@
 /**
- * CLIENTE API FERROVIARIA / RAILWAY - App Asistencia TH-FOR-03
+ * CLIENTE API OFICIAL A&B OS - App Asistencia TH-FOR-03
  * Proyecto: Trans Services A&B
  * 100% Integrado con PostgreSQL en Railway a través de Next.js API
  */

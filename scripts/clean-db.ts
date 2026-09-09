@@ -1,4 +1,6 @@
 import { PrismaClient } from "@prisma/client";
+import fs from "fs";
+import path from "path";
 import { ITEMS_SGSST } from "../lib/data/sgsst-items";
 import { PASOS_PESV } from "../lib/data/pesv-pasos";
 import { SEED_ROLES } from "../lib/data/roles";
@@ -118,6 +120,76 @@ async function initBaseCatalogs() {
       console.warn("Aviso en reclasificación de eventos GPS de geocerca:", gErr);
     }
 
+    // Sincronización automática de asistencias históricas desde JSON local a PostgreSQL
+    try {
+      const historicalPath = path.join(__dirname, "../lib/data/historical-asistencias.json");
+      if (fs.existsSync(historicalPath)) {
+        const raw = fs.readFileSync(historicalPath, "utf-8");
+        const records = JSON.parse(raw);
+        if (Array.isArray(records) && records.length > 0) {
+          const currentCount = await prisma.asistenciaRegistro.count();
+          if (currentCount < records.length) {
+            console.log(`Sincronizando ${records.length} registros históricos de asistencia a PostgreSQL...`);
+            let synced = 0;
+            for (const r of records) {
+              const regId = r.id ? (String(r.id).startsWith("sup_") ? String(r.id) : `sup_${r.id}`) : `hist_${synced}`;
+
+              let obs: any = {};
+              if (r.observaciones && typeof r.observaciones === "string") {
+                if (r.observaciones.startsWith("{")) {
+                  try { obs = JSON.parse(r.observaciones); } catch (e) {}
+                }
+              }
+
+              const cedula = (obs.cedula || r.personaDocumento || r.conductor_documento || r.conductorDocumento || "").replace(/[\.\s-]/g, "").trim();
+              const nombre = (r.personaNombre || r.conductor_nombre || r.conductorNombre || obs.nombre || "PARTICIPANTE").trim().toUpperCase();
+              const cargo = (obs.cargo || r.cargo || "CONDUCTOR").toUpperCase();
+              const proyecto = (obs.proyecto || r.proyecto || "TRANS SERVICES A&B").toUpperCase();
+              const firma = obs.firma || r.firmaUrl || r.firma_url || r.firma_base64 || r.signature || null;
+              const fot = r.fotoUrl || r.foto_url || null;
+              const ev = obs.actividad || r.evento || r.tipoEvento || r.tipo_evento || "Jornada de Capacitación";
+              const tipEv = r.tipoEvento || r.tipo_evento || (ev.toLowerCase().includes("charla") ? "charla_5min" : "capacitacion");
+
+              let dateStr = r.fecha ? String(r.fecha).slice(0, 10) : (r.created_at ? new Date(r.created_at).toLocaleDateString("en-CA", { timeZone: "America/Bogota" }) : "2026-08-21");
+              const [y, m, d] = dateStr.split("-").map(Number);
+              const fechaDate = new Date(Date.UTC(y, m - 1, d, 17, 0, 0));
+
+              const horaStr = r.hora_llegada || r.horaLlegada || "08:00";
+
+              await prisma.asistenciaRegistro.upsert({
+                where: { id: regId },
+                update: {},
+                create: {
+                  id: regId,
+                  personaId: r.personaId || r.conductor_id || (cedula ? `p_${cedula}` : `p_${regId}`),
+                  personaNombre: nombre,
+                  personaDocumento: cedula || null,
+                  cargo,
+                  proyecto,
+                  facilitador: r.facilitador || "COORDINADOR HSEQ",
+                  lugar: r.lugar || "VILLAGARZÓN",
+                  duracionHoras: r.duracionHoras ? parseFloat(r.duracionHoras) : 0.25,
+                  fecha: fechaDate,
+                  horaLlegada: horaStr,
+                  evento: ev,
+                  tipoEvento: tipEv,
+                  estado: r.estado || "presente",
+                  firmaUrl: firma,
+                  fotoUrl: fot,
+                  observaciones: r.observaciones || null,
+                  asistio: r.estado !== "ausente",
+                }
+              }).catch(() => {});
+              synced++;
+            }
+            console.log(`✓ Sincronizados ${synced} registros históricos de asistencia en PostgreSQL.`);
+          }
+        }
+      }
+    } catch (aErr) {
+      console.warn("Aviso en sincronización de asistencias históricas:", aErr);
+    }
+
     console.log("✓ Catálogos normativos y contratistas verificados con éxito.");
   } catch (err) {
     console.warn("Aviso al inicializar catálogos (no bloqueante):", err);
@@ -134,4 +206,5 @@ initBaseCatalogs()
     } catch {}
     process.exit(0);
   });
+
 

@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-
-const SUPABASE_URL = "https://xftllyjjqvozjjmgwomg.supabase.co/rest/v1/asistencia?select=*&order=fecha.desc&limit=2000";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmdGxseWpqcXZvempqbWd3b21nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyMjExMTIsImV4cCI6MjA5Mzc5NzExMn0.UURzZOytfoYMrxzpohRams_GcJ3ETsEnNNOaSQqeuu8";
+import fs from "fs";
+import path from "path";
 
 interface NormalizedAsistencia {
   id: string;
@@ -13,7 +12,7 @@ interface NormalizedAsistencia {
   proyecto: string;
   evento: string;
   tipoEvento: string;
-  fecha: string; // formato estándar YYYY-MM-DD
+  fecha: string; // formato estándar YYYY-MM-DD (America/Bogota)
   horaLlegada: string;
   estado: string;
   firmaUrl: string | null;
@@ -21,7 +20,7 @@ interface NormalizedAsistencia {
   observaciones?: string | null;
 }
 
-// Normaliza cualquier registro (de Supabase o de Prisma) de forma consistente
+// Normaliza cualquier registro proveniente de Prisma de forma consistente
 function normalizeRecord(item: any, idx: number): NormalizedAsistencia {
   let obs: any = {};
   if (item.observaciones && typeof item.observaciones === "string") {
@@ -65,29 +64,29 @@ function normalizeRecord(item: any, idx: number): NormalizedAsistencia {
   const actividad = obs.actividad || item.evento || item.tipoEvento || item.tipo_evento || "Capacitación";
   const tipoEvento = item.tipoEvento || item.tipo_evento || (actividad.toLowerCase().includes("charla") ? "charla_5min" : "capacitacion");
 
-  // Extracción pura de la fecha YYYY-MM-DD sin desfasajes de UTC
+  // Extracción fiel de la fecha YYYY-MM-DD en zona horaria oficial Colombia (America/Bogota)
   let dateStr = "";
   if (item.fecha) {
-    if (typeof item.fecha === "string") {
+    if (item.fecha instanceof Date) {
+      dateStr = item.fecha.toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
+    } else if (typeof item.fecha === "string") {
       dateStr = item.fecha.slice(0, 10);
-    } else if (item.fecha instanceof Date) {
-      dateStr = item.fecha.toISOString().slice(0, 10);
     }
-  } else if (item.created_at) {
-    dateStr = new Date(item.created_at).toLocaleDateString("en-CA", {
+  } else if (item.createdAt || item.created_at) {
+    dateStr = new Date(item.createdAt || item.created_at).toLocaleDateString("en-CA", {
       timeZone: "America/Bogota",
     });
   }
 
   if (!dateStr || dateStr.length < 10) {
-    dateStr = "2026-08-21";
+    dateStr = new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
   }
 
   const horaStr =
     item.horaLlegada ||
     item.hora_llegada ||
-    (item.created_at
-      ? new Date(item.created_at).toLocaleTimeString("es-CO", {
+    (item.createdAt || item.created_at
+      ? new Date(item.createdAt || item.created_at).toLocaleTimeString("es-CO", {
           timeZone: "America/Bogota",
           hour: "2-digit",
           minute: "2-digit",
@@ -114,93 +113,89 @@ function normalizeRecord(item: any, idx: number): NormalizedAsistencia {
 
 export const dynamic = "force-dynamic";
 
-// Obtiene todos los registros desde Supabase
-async function fetchSupabaseRecords(): Promise<NormalizedAsistencia[]> {
+// Auto-siembra segura desde el archivo histórico local en caso de que la tabla esté vacía
+async function ensureHistoricalSeeded() {
   try {
-    const res = await fetch(SUPABASE_URL, {
-      headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-      },
-      cache: "no-store",
-    });
+    const count = await prisma.asistenciaRegistro.count();
+    if (count === 0) {
+      const historicalPath = path.join(process.cwd(), "lib/data/historical-asistencias.json");
+      if (fs.existsSync(historicalPath)) {
+        const raw = fs.readFileSync(historicalPath, "utf-8");
+        const records = JSON.parse(raw);
+        if (Array.isArray(records) && records.length > 0) {
+          console.log(`Auto-sembrando ${records.length} asistencias históricas en PostgreSQL...`);
+          for (let i = 0; i < records.length; i++) {
+            const r = records[i];
+            const regId = r.id ? (String(r.id).startsWith("sup_") ? String(r.id) : `sup_${r.id}`) : `hist_${i}`;
+            let obs: any = {};
+            if (r.observaciones && typeof r.observaciones === "string") {
+              if (r.observaciones.startsWith("{")) {
+                try { obs = JSON.parse(r.observaciones); } catch (e) {}
+              }
+            }
 
-    if (!res.ok) return [];
-    const data = await res.json();
-    if (!Array.isArray(data)) return [];
+            const cedula = (obs.cedula || r.personaDocumento || r.conductor_documento || r.conductorDocumento || "").replace(/[\.\s-]/g, "").trim();
+            const nombre = (r.personaNombre || r.conductor_nombre || r.conductorNombre || obs.nombre || "PARTICIPANTE").trim().toUpperCase();
+            const cargo = (obs.cargo || r.cargo || "CONDUCTOR").toUpperCase();
+            const proyecto = (obs.proyecto || r.proyecto || "TRANS SERVICES A&B").toUpperCase();
+            const firma = obs.firma || r.firmaUrl || r.firma_url || r.firma_base64 || r.signature || null;
+            const fot = r.fotoUrl || r.foto_url || null;
+            const ev = obs.actividad || r.evento || r.tipoEvento || r.tipo_evento || "Jornada de Capacitación";
+            const tipEv = r.tipoEvento || r.tipo_evento || (ev.toLowerCase().includes("charla") ? "charla_5min" : "capacitacion");
 
-    return data.map((item, idx) => normalizeRecord(item, idx));
-  } catch (e) {
-    console.warn("Aviso fetch Supabase:", e);
-    return [];
-  }
-}
+            let dateStr = r.fecha ? String(r.fecha).slice(0, 10) : (r.created_at ? new Date(r.created_at).toLocaleDateString("en-CA", { timeZone: "America/Bogota" }) : "2026-08-21");
+            const [y, m, d] = dateStr.split("-").map(Number);
+            const fechaDate = new Date(Date.UTC(y, m - 1, d, 17, 0, 0));
+            const horaStr = r.hora_llegada || r.horaLlegada || "08:00";
 
-// Sincronización en segundo plano hacia PostgreSQL (Railway)
-async function syncToPrisma(records: NormalizedAsistencia[]) {
-  try {
-    for (const r of records) {
-      const regId = r.id.startsWith("sup_") ? r.id : `sup_${r.id}`;
-      const [y, m, d] = r.fecha.split("-").map(Number);
-      const fechaCot = new Date(Date.UTC(y, m - 1, d, 17, 0, 0));
-
-      await prisma.asistenciaRegistro.upsert({
-        where: { id: regId },
-        update: {
-          personaNombre: r.personaNombre,
-          personaDocumento: r.personaDocumento !== "—" ? r.personaDocumento : null,
-          cargo: r.cargo,
-          proyecto: r.proyecto,
-          evento: r.evento,
-          tipoEvento: r.tipoEvento,
-          horaLlegada: r.horaLlegada,
-          fecha: fechaCot,
-          estado: r.estado,
-          firmaUrl: r.firmaUrl,
-          asistio: r.estado !== "ausente",
-        },
-        create: {
-          id: regId,
-          personaId: r.personaId || `p_${r.personaDocumento || r.id}`,
-          personaNombre: r.personaNombre,
-          personaDocumento: r.personaDocumento !== "—" ? r.personaDocumento : null,
-          cargo: r.cargo,
-          proyecto: r.proyecto,
-          evento: r.evento,
-          tipoEvento: r.tipoEvento,
-          horaLlegada: r.horaLlegada,
-          fecha: fechaCot,
-          estado: r.estado,
-          firmaUrl: r.firmaUrl,
-          asistio: r.estado !== "ausente",
-        },
-      }).catch(() => {});
+            await prisma.asistenciaRegistro.upsert({
+              where: { id: regId },
+              update: {},
+              create: {
+                id: regId,
+                personaId: r.personaId || r.conductor_id || (cedula ? `p_${cedula}` : `p_${regId}`),
+                personaNombre: nombre,
+                personaDocumento: cedula || null,
+                cargo,
+                proyecto,
+                facilitador: r.facilitador || "COORDINADOR HSEQ",
+                lugar: r.lugar || "VILLAGARZÓN",
+                duracionHoras: r.duracionHoras ? parseFloat(r.duracionHoras) : 0.25,
+                fecha: fechaDate,
+                horaLlegada: horaStr,
+                evento: ev,
+                tipoEvento: tipEv,
+                estado: r.estado || "presente",
+                firmaUrl: firma,
+                fotoUrl: fot,
+                observaciones: r.observaciones || null,
+                asistio: r.estado !== "ausente",
+              },
+            }).catch(() => {});
+          }
+        }
+      }
     }
   } catch (e) {
-    console.warn("Aviso sync Prisma:", e);
+    console.warn("Aviso al verificar siembra histórica:", e);
   }
 }
 
-// Obtiene todos los registros combinando Supabase y Prisma de forma resiliente
-async function getAllNormalizedRecords(forceSync = false): Promise<NormalizedAsistencia[]> {
-  const supabaseRecords = await fetchSupabaseRecords();
-
-  if (forceSync && supabaseRecords.length > 0) {
-    syncToPrisma(supabaseRecords).catch(() => {});
-  }
-
-  // Si Supabase trajo datos, usar Supabase como fuente primaria enriquecida
-  if (supabaseRecords.length > 0) {
-    return supabaseRecords;
-  }
-
-  // Fallback a Prisma
+// Obtiene todos los registros leyendo EXCLUSIVAMENTE de PostgreSQL (Railway) vía Prisma
+async function getAllNormalizedRecords(): Promise<NormalizedAsistencia[]> {
   try {
+    await ensureHistoricalSeeded();
+
     const prismaRecords = await prisma.asistenciaRegistro.findMany({
-      orderBy: { fecha: "desc" },
+      orderBy: [
+        { fecha: "desc" },
+        { horaLlegada: "desc" },
+      ],
     });
+
     return prismaRecords.map((item, idx) => normalizeRecord(item, idx));
   } catch (e) {
+    console.error("Error al consultar asistencias en Prisma:", e);
     return [];
   }
 }
@@ -213,7 +208,6 @@ export async function GET(req: Request) {
     const tipoEvento = searchParams.get("tipoEvento");
     const cedula = searchParams.get("cedula");
     const datesSummary = searchParams.get("datesSummary");
-    const forceSync = searchParams.get("sync") === "true";
 
     // 1. Consulta de conductor por cédula para autocompletado en app móvil
     if (cedula) {
@@ -262,7 +256,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: true, persona: null });
     }
 
-    const allRecords = await getAllNormalizedRecords(forceSync);
+    const allRecords = await getAllNormalizedRecords();
 
     // 2. Resumen de fechas activas para marcar los días en el calendario
     if (datesSummary === "true") {
@@ -287,7 +281,7 @@ export async function GET(req: Request) {
     // 3. Filtrado de registros
     let filtered = allRecords;
 
-    if (fecha) {
+    if (fecha && fecha !== "TODAS") {
       filtered = filtered.filter((r) => r.fecha === fecha);
     }
 
@@ -377,73 +371,47 @@ export async function POST(req: Request) {
       firma: firm,
     });
 
-    // Guardar en Supabase para persistencia compartida
-    fetch("https://xftllyjjqvozjjmgwomg.supabase.co/rest/v1/asistencia", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
-      },
-      body: JSON.stringify({
-        fecha: fechaStr,
-        hora_llegada: horaNow,
-        conductor_documento: doc,
-        conductor_nombre: nombre,
-        cargo: (cargo || "CONDUCTOR").toUpperCase(),
-        proyecto: (proyecto || "TRANS SERVICES A&B").toUpperCase(),
-        evento: ev,
-        tipo_evento: tipEv,
-        facilitador: facilitador || "COORDINADOR HSEQ",
-        lugar: lugar || "VILLAGARZÓN",
-        estado: estado || "presente",
-        firma_url: firm,
-        observaciones: observacionesJson,
-      }),
-    }).catch((e) => console.warn("Aviso POST Supabase:", e));
-
-    // Guardar también en Prisma si está disponible
-    try {
-      let pId = conductorId;
-      if (doc && !pId) {
+    // Guardar exclusivamente en Prisma (PostgreSQL en Railway)
+    let pId = conductorId;
+    if (doc && !pId) {
+      try {
         const persona = await prisma.persona.findFirst({
           where: { numeroDocumento: doc },
         });
         if (persona) pId = persona.id;
-      }
-
-      const [y, m, d] = fechaStr.split("-").map(Number);
-      const fechaCot = new Date(Date.UTC(y, m - 1, d, 17, 0, 0));
-
-      await prisma.asistenciaRegistro.create({
-        data: {
-          personaId: pId || "persona-general",
-          personaDocumento: doc || null,
-          personaNombre: nombre,
-          cargo: (cargo || "CONDUCTOR").toUpperCase(),
-          proyecto: (proyecto || "TRANS SERVICES A&B").toUpperCase(),
-          facilitador: facilitador ? facilitador.toUpperCase() : "COORDINADOR HSEQ",
-          lugar: lugar ? lugar.toUpperCase() : "VILLAGARZÓN",
-          duracionHoras: duracionHoras ? parseFloat(duracionHoras) : 1.0,
-          fecha: fechaCot,
-          horaLlegada: horaNow,
-          evento: ev,
-          tipoEvento: tipEv,
-          estado: estado || "presente",
-          firmaUrl: firm,
-          fotoUrl: fot,
-          observaciones: observacionesJson,
-          asistio: estado !== "ausente",
-        },
-      });
-    } catch (e) {
-      console.warn("Aviso POST Prisma:", e);
+      } catch (e) {}
     }
+
+    const [y, m, d] = fechaStr.split("-").map(Number);
+    const fechaCot = new Date(Date.UTC(y, m - 1, d, 17, 0, 0));
+
+    const nuevaAsistencia = await prisma.asistenciaRegistro.create({
+      data: {
+        personaId: pId || `p_${doc || Date.now()}`,
+        personaDocumento: doc || null,
+        personaNombre: nombre,
+        cargo: (cargo || "CONDUCTOR").toUpperCase(),
+        proyecto: (proyecto || "TRANS SERVICES A&B").toUpperCase(),
+        facilitador: facilitador ? facilitador.toUpperCase() : "COORDINADOR HSEQ",
+        lugar: lugar ? lugar.toUpperCase() : "VILLAGARZÓN",
+        duracionHoras: duracionHoras ? parseFloat(duracionHoras) : 0.25,
+        fecha: fechaCot,
+        horaLlegada: horaNow,
+        evento: ev,
+        tipoEvento: tipEv,
+        estado: estado || "presente",
+        firmaUrl: firm,
+        fotoUrl: fot,
+        observaciones: observacionesJson,
+        asistio: estado !== "ausente",
+      },
+    });
 
     return NextResponse.json({
       success: true,
-      message: "Registro de asistencia guardado exitosamente",
+      message: "Registro de asistencia guardado exitosamente en PostgreSQL",
       asistencia: {
+        id: nuevaAsistencia.id,
         personaNombre: nombre,
         personaDocumento: doc,
         fecha: fechaStr,
@@ -452,7 +420,7 @@ export async function POST(req: Request) {
       },
     });
   } catch (error: any) {
-    console.error("Error al registrar asistencia:", error);
+    console.error("Error al registrar asistencia en Prisma:", error);
     return NextResponse.json(
       { success: false, error: error.message || "Error al registrar asistencia" },
       { status: 500 }
