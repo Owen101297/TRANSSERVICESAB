@@ -75,6 +75,14 @@ export default async function ReportesPage() {
       valor: `${sgsstPct}% de cumplimiento (${sgsstCumplidos}/${itemsSgsst.length} ítems)`,
     },
     {
+      id: "sisi-pesv",
+      nombre: "SISI-PESV · SuperTransporte",
+      descripcion: "Exportación oficial de despachos, kilometrajes, DIVIPOLA y matriz de riesgo STE-F-010.",
+      href: "/api/reportes/sisi-pesv?format=csv",
+      isDirectDownload: true,
+      valor: `${viajes.length} despacho(s) registrados`,
+    },
+    {
       id: "pesv-avance",
       nombre: "Avance del PESV (Res. 40595)",
       descripcion: "Cumplimiento de los 24 pasos e indicadores VIGIA2.",
@@ -106,11 +114,13 @@ export default async function ReportesPage() {
             </div>
             <div className="mt-4 flex items-center gap-2">
               <Link href={r.href}>
-                <Button variant="secondary">Ver módulo</Button>
+                <Button variant="secondary">{r.isDirectDownload ? "Descargar CSV" : "Ver módulo"}</Button>
               </Link>
-              <Button variant="ghost" onClick={undefined}>
-                <Download size={14} /> Exportar
-              </Button>
+              <a href={r.isDirectDownload ? r.href : `/api/reportes/sisi-pesv?format=csv`} download>
+                <Button variant="ghost">
+                  <Download size={14} /> Exportar
+                </Button>
+              </a>
             </div>
           </Card>
         ))}

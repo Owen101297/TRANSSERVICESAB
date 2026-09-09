@@ -36,14 +36,31 @@ export default async function IndicadoresPESVPage() {
         <ArrowLeft size={15} /> Volver a PESV
       </Link>
 
-      <div>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold text-paper-50">
-          Indicadores PESV
-        </h1>
-        <p className="mt-1 text-sm text-fog-400">
-          Corresponde al Formulario 2 de VIGIA2 — reporte periódico, plazo
-          hasta el décimo día hábil del mes siguiente al periodo.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold text-paper-50">
+            Indicadores PESV
+          </h1>
+          <p className="mt-1 text-sm text-fog-400">
+            Corresponde al Formulario 2 de VIGIA2 — reporte periódico, plazo
+            hasta el décimo día hábil del mes siguiente al periodo.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/pesv/conductores"
+            className="inline-flex items-center gap-2 rounded-md border border-line-600 bg-asphalt-800 px-3 py-1.5 text-xs text-paper-50 hover:bg-asphalt-700 transition-colors"
+          >
+            Scorecard Conductores
+          </Link>
+          <a
+            href="/api/reportes/sisi-pesv?format=csv"
+            download
+            className="inline-flex items-center gap-2 rounded-md border border-radar-cyan/30 bg-radar-cyan-dim px-3 py-1.5 text-xs text-radar-cyan hover:bg-radar-cyan/20 transition-colors"
+          >
+            Descargar SISI-PESV (CSV)
+          </a>
+        </div>
       </div>
 
       {PERIODICIDADES.map((periodo) => {

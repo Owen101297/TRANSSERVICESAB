@@ -1,46 +1,57 @@
 /**
- * CLIENTE API OFICIAL - App Viajes (STE-F-010)
+ * api-client.js (reemplaza supabase-client.js)
+ * Cliente Oficial de Datos - App Viajes (STE-F-010)
  * Proyecto: Trans Services A&B S.A.S.
- * 100% Integrado con PostgreSQL en Railway a través de las APIs de Next.js
+ * 100% Integrado con PostgreSQL en Railway a través de las APIs de Next.js (Prisma).
  * CERO dependencias de Supabase.
  */
 
-// Objeto de sesión simulado compatible con el bridge de autenticación
-export const supabase = {
-    auth: {
-        getUser: async () => {
-            const sso = window.TransServices?.getSession();
-            if (sso) {
-                return { data: { user: { id: sso.id, email: sso.email, user_metadata: { role: sso.rol || 'conductor' } } }, error: null };
-            }
-            return { data: { user: null }, error: null };
-        },
-        getSession: async () => {
-            const sso = window.TransServices?.getSession();
-            return { data: { session: sso ? { user: sso } : null }, error: null };
-        },
-        onAuthStateChange: (cb) => {
-            const sso = window.TransServices?.getSession();
-            if (sso) cb('SIGNED_IN', { user: sso });
-            return { data: { subscription: { unsubscribe: () => {} } } };
-        }
-    }
-};
+// ============================================================
+// HABILITACIÓN OPERATIVA Y PREOPERACIONAL EN TIEMPO REAL
+// ============================================================
 
-// ============================================================
-// HABILITACIÓN OPERATIVA PREVIA AL DESPACHO
-// ============================================================
-export async function validarHabilitacionDespacho(vehiculoId, conductorId) {
-    const validacion = { ok: true, bloqueos: [], advertencias: [] };
-    // Validación directa vía endpoint
-    return validacion;
+/**
+ * Consulta si el vehículo cuenta con inspección preoperacional del día aprobada
+ */
+export async function checkPreoperacionalDia(placa) {
+    if (!placa) return { aprobado: false, encontrado: false, mensaje: 'Placa requerida' };
+    try {
+        const clean = placa.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        const res = await fetch(`/api/apps/viajes/preoperacional?placa=${encodeURIComponent(clean)}`);
+        if (res.ok) {
+            return await res.json();
+        }
+    } catch (e) {
+        console.warn('Aviso verificando preoperacional en Railway:', e);
+    }
+    return { aprobado: false, encontrado: false, mensaje: 'No se pudo verificar el preoperacional.' };
 }
 
-// ============================================================
-// CONDUCTORES Y VEHÍCULOS
-// ============================================================
+let cachedRecursos = null;
+
+async function fetchRecursos() {
+    if (cachedRecursos) return cachedRecursos;
+    try {
+        const res = await fetch('/api/apps/viajes/recursos');
+        if (res.ok) {
+            const data = await res.json();
+            if (data.success) {
+                cachedRecursos = data;
+                return cachedRecursos;
+            }
+        }
+    } catch (e) {
+        console.warn('Aviso cargando /api/apps/viajes/recursos:', e);
+    }
+    return { conductores: [], vehiculos: [] };
+}
+
 export async function getConductores() {
     try {
+        const rec = await fetchRecursos();
+        if (rec.conductores && rec.conductores.length > 0) {
+            return rec.conductores;
+        }
         const res = await fetch('/api/personas');
         if (res.ok) {
             const data = await res.json();
@@ -64,6 +75,10 @@ export async function getConductores() {
 
 export async function getVehiculos() {
     try {
+        const rec = await fetchRecursos();
+        if (rec.vehiculos && rec.vehiculos.length > 0) {
+            return rec.vehiculos;
+        }
         const res = await fetch('/api/flota');
         if (res.ok) {
             const data = await res.json();
@@ -74,6 +89,9 @@ export async function getVehiculos() {
                 modelo: v.modelo,
                 color: v.color,
                 empresa: v.empresa || 'TRANS SERVICES A&B',
+                soatVencimiento: v.soatVencimiento,
+                rtmVencimiento: v.rtmVencimiento,
+                polizaVencimiento: v.polizaVencimiento,
                 activo: v.activo !== false
             }));
         }
@@ -103,7 +121,7 @@ export async function getConductorByEmail(email) {
 // AUTENTICACIÓN Y ROLES
 // ============================================================
 export async function getCurrentUser() {
-    const sso = window.TransServices?.getSession();
+    const sso = window.TransServices?.getSession?.();
     if (sso) return sso;
     try {
         const res = await fetch('/api/auth/me');
@@ -128,7 +146,7 @@ export async function getCurrentProfile() {
 
 export async function isAdmin() {
     const prof = await getCurrentProfile();
-    return prof?.rol === 'admin' || prof?.rol === 'superadmin' || prof?.rol === 'gerente';
+    return prof?.rol === 'admin' || prof?.rol === 'superadmin' || prof?.rol === 'gerente' || prof?.rol === 'hseq';
 }
 
 export async function requireAuth() {
@@ -147,7 +165,9 @@ export async function signOut() {
 }
 
 export async function verifyPinAdmin(pin) {
-    return pin === '1234' || pin === '2026' || pin === '901621579';
+    const p = String(pin || '').trim();
+    // Validación de PIN institucional para HSE y Gerencia
+    return p === '1234' || p === '2026' || p === '901621579' || p === '900778421';
 }
 
 // ============================================================
@@ -168,7 +188,7 @@ export async function getViajes() {
 
 export async function getViajesByConductor(conductorId) {
     try {
-        const sso = window.TransServices?.getSession();
+        const sso = window.TransServices?.getSession?.();
         const doc = sso ? sso.documento : '';
         const url = `/api/apps/viajes?conductorId=${encodeURIComponent(conductorId || '')}&doc=${encodeURIComponent(doc || '')}`;
         const res = await fetch(url);
@@ -221,59 +241,48 @@ export async function getViajeById(id) {
     return null;
 }
 
-export async function getEstadisticasViajes() {
-    try {
-        const data = await getViajes();
-        const total = data?.length || 0;
-        const completados = data?.filter(v => ['completado', 'finalizado', 'Finalizado'].includes(v.estado)).length || 0;
-        const enCurso = data?.filter(v => ['en_curso', 'En Curso', 'autorizado', 'Autorizado'].includes(v.estado)).length || 0;
-        const pendientes = data?.filter(v => ['pendiente', 'Pendiente', 'Pendiente HSE'].includes(v.estado)).length || 0;
-        return { total, completados, enCurso, pendientes };
-    } catch (e) {
-        console.warn('Aviso en getEstadisticasViajes Railway:', e);
-        return { total: 0, completados: 0, enCurso: 0, pendientes: 0 };
-    }
-}
-
 export async function createViaje(viaje) {
     try {
         const res = await fetch('/api/apps/viajes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                conductorId: viaje.conductor_id,
-                conductorNombre: viaje.conductor_nombre,
-                conductorDocumento: viaje.conductor_documento,
-                placa: viaje.vehiculo_placa || viaje.vPlaca,
-                origen: viaje.origen,
-                destino: viaje.destino,
-                fechaSalida: viaje.fecha_salida || viaje.fecha,
-                horaSalida: viaje.hora_salida || viaje.horaSalida,
-                distanciaKm: viaje.distancia_km || viaje.distanciaEstimada,
-                duracionEstimadaHoras: viaje.duracion_estimada_horas || 1.0,
-                estado: viaje.estado || 'en_curso',
-                riskScore: viaje.risk_score || viaje.risk?.score,
-                riskLevel: viaje.risk_level || viaje.risk?.level,
-                riskInputs: viaje.risk_inputs || viaje.risk,
-                previaje: viaje.previaje,
-                fatiga: viaje.fatiga,
-                control: viaje.control,
-                puntosControl: viaje.puntos_control || viaje.puntosControl,
-                medio: viaje.medio,
-                observaciones: viaje.observaciones,
-                gpsSalida: viaje.gps_salida || viaje.gpsSalida,
-                gpsLlegada: viaje.gps_llegada || viaje.gpsLlegada,
-                kmSalida: viaje.km_salida || viaje.kmSalida,
-                kmLlegada: viaje.km_llegada || viaje.kmLlegada,
-                signatures: viaje.signatures || {},
+                conductorId: viaje.conductor_id || viaje.conductorId,
+                conductorNombre: viaje.conductor_nombre || viaje.conductorNombre,
+                conductorDocumento: viaje.conductor_documento || viaje.conductorDocumento || viaje.cLicencia,
+                conductorLicencia: viaje.conductor_licencia || viaje.cLicencia,
+                conductorCategoria: viaje.conductor_categoria || viaje.cCat,
+                conductorVencimiento: viaje.conductor_vencimiento || viaje.cVence,
+                conductorTelefono: viaje.conductor_telefono || viaje.cTelefono,
+                placa: viaje.vehiculo_placa || viaje.vPlaca || viaje.placa,
                 vehiculoTipo: viaje.vehiculo_tipo || viaje.vTipo,
                 vehiculoModelo: viaje.vehiculo_modelo || viaje.vModelo,
                 vehiculoColor: viaje.vehiculo_color || viaje.vColor,
                 vehiculoEmpresa: viaje.vehiculo_empresa || viaje.vEmpresa,
-                conductorLicencia: viaje.conductor_licencia || viaje.cLicencia,
-                conductorCategoria: viaje.conductor_categoria || viaje.cCat,
-                conductorVencimiento: viaje.conductor_vencimiento || viaje.cVence,
-                conductorTelefono: viaje.conductor_telefono || viaje.cTelefono
+                origen: viaje.origen,
+                origenDivipola: viaje.origen_divipola || viaje.origenDivipola,
+                destino: viaje.destino,
+                destinoDivipola: viaje.destino_divipola || viaje.destinoDivipola,
+                fechaSalida: viaje.fecha_salida || viaje.fecha,
+                horaSalida: viaje.hora_salida || viaje.horaSalida,
+                distanciaKm: viaje.distancia_km || viaje.distanciaEstimada,
+                duracionEstimadaHoras: viaje.duracion_estimada_horas || 2.0,
+                kmSalida: viaje.km_salida || viaje.kmSalida,
+                kmLlegada: viaje.km_llegada || viaje.kmLlegada,
+                gpsSalida: viaje.gps_salida || viaje.gpsSalida,
+                gpsLlegada: viaje.gps_llegada || viaje.gpsLlegada,
+                medio: viaje.medio || 'Celular',
+                rutograma: viaje.rutograma,
+                puntosControl: viaje.puntos_control || viaje.puntosControl || [],
+                previaje: viaje.previaje || {},
+                fatiga: viaje.fatiga || {},
+                control: viaje.control || {},
+                riskScore: viaje.risk_score || viaje.risk?.score,
+                riskLevel: viaje.risk_level || viaje.risk?.level,
+                riskInputs: viaje.risk_inputs || viaje.risk || {},
+                signatures: viaje.signatures || {},
+                estado: viaje.estado || 'en_curso',
+                observaciones: viaje.observaciones
             })
         });
 
@@ -281,7 +290,12 @@ export async function createViaje(viaje) {
             const err = await res.json().catch(() => ({}));
             throw new Error(err.error || `Error del servidor HTTP ${res.status}`);
         }
-        return await res.json();
+        const data = await res.json();
+        // Garantizar que data contenga la propiedad `id` plana
+        return {
+            id: data.id || data.viaje?.id,
+            ...(data.viaje || data)
+        };
     } catch (error) {
         console.error('Error creando viaje en Railway:', error);
         throw error;
@@ -299,7 +313,11 @@ export async function updateViaje(id, updates) {
             const err = await res.json().catch(() => ({}));
             throw new Error(err.error || `Error actualizando viaje HTTP ${res.status}`);
         }
-        return await res.json();
+        const data = await res.json();
+        return {
+            id: data.id || data.viaje?.id || id,
+            ...(data.viaje || data)
+        };
     } catch (error) {
         console.error('Error actualizando viaje en Railway:', error);
         throw error;
@@ -319,7 +337,7 @@ export async function firmarViajeHSE(id, firmaDataUrl, pin) {
     const valid = await verifyPinAdmin(pin);
     if (!valid) throw new Error('PIN de autorización HSE incorrecto.');
     return await updateViaje(id, {
-        estado: 'autorizado',
+        estado: 'Autorizado',
         signatures: {
             hse: firmaDataUrl || 'Firma Autorizada HSE',
             hse_fecha: new Date().toISOString()
@@ -331,7 +349,7 @@ export async function firmarViajeGerencia(id, firmaDataUrl, pin) {
     const valid = await verifyPinAdmin(pin);
     if (!valid) throw new Error('PIN de autorización de Gerencia incorrecto.');
     return await updateViaje(id, {
-        estado: 'autorizado',
+        estado: 'Autorizado',
         signatures: {
             gerencia: firmaDataUrl || 'Firma Aprobada Gerencia',
             gerencia_fecha: new Date().toISOString()
@@ -348,9 +366,52 @@ export async function deleteViaje(id) {
             const err = await res.json().catch(() => ({}));
             throw new Error(err.error || `Error eliminando viaje HTTP ${res.status}`);
         }
-        return true;
+        return await res.json();
     } catch (error) {
-        console.error('Error eliminando viaje:', error);
+        console.error('Error eliminando viaje en Railway:', error);
         throw error;
     }
 }
+
+// Adaptador de compatibilidad para evitar caídas en scripts legados
+export const supabase = {
+    auth: {
+        getUser: async () => {
+            const user = await getCurrentUser();
+            return { data: { user }, error: null };
+        },
+        getSession: async () => {
+            const user = await getCurrentUser();
+            return { data: { session: user ? { user } : null }, error: null };
+        },
+        onAuthStateChange: (cb) => {
+            getCurrentUser().then(user => {
+                if (user) cb('SIGNED_IN', { user });
+            });
+            return { data: { subscription: { unsubscribe: () => {} } } };
+        }
+    },
+    from: (table) => {
+        return {
+            select: (cols = '*') => ({
+                eq: (col, val) => ({
+                    single: async () => {
+                        if (table.includes('viajes')) {
+                            const v = await getViajeById(val);
+                            return { data: v, error: null };
+                        }
+                        return { data: null, error: null };
+                    },
+                    order: async () => {
+                        const v = await getViajes();
+                        return { data: v, error: null };
+                    }
+                }),
+                order: async () => {
+                    const v = await getViajes();
+                    return { data: v, error: null };
+                }
+            })
+        };
+    }
+};

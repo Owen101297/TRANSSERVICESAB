@@ -1,6 +1,10 @@
-// --- CLIENTE SUPABASE ROBUSTO ---
+/**
+ * app.js - Lógica Integral y Robusta de Gerenciamiento de Viajes (STE-F-010)
+ * Cooperativa de Transportes y Servicios A&B S.A.S.
+ * 100% PostgreSQL en Railway · Cumplimiento Resolución 40595 de 2022 & SISI-PESV
+ */
+
 import {
-    supabase,
     getViajes,
     getViajesByPlaca,
     createViaje,
@@ -16,18 +20,42 @@ import {
     isAdmin,
     requireAuth,
     signOut,
-    verifyPinAdmin
+    verifyPinAdmin,
+    checkPreoperacionalDia
 } from './supabase-client.js';
-import { generatePDF } from './pdf-generator.js?v=57';
 
-// Variables globales
+import {
+    DIVIPOLA_COLOMBIA,
+    searchDivipola,
+    getDivipolaByCode,
+    formatDivipolaLabel
+} from './divipola-data.js';
+
+import {
+    RUTAS_FRECUENTES,
+    findRuta
+} from './rutas-data.js';
+
+import { generatePDF } from './pdf-generator.js?v=58';
+
+// --- ESTADO GLOBAL DE LA APLICACIÓN ---
 let currentUser = null;
 let currentProfile = null;
 let currentConductor = null;
-let skipGerenciaSignature = false;
+let currentTripId = null;
+let currentStep = 0;
+let isAnimating = false;
+let historyDataMap = {};
+let currentHistoryData = [];
+let gpsData = { salida: null, llegada: null };
+let hseModalActive = false;
+let pinAuthCallback = null;
 
-// Wrapper db para compatibilidad con el resto del código
-let db = {
+const steps = document.getElementsByClassName("form-step");
+const totalSteps = steps.length;
+
+// Wrapper de base de datos para compatibilidad
+const db = {
     getTrips: getViajes,
     getTripsByPlaca: getViajesByPlaca,
     saveTrip: async (trip) => {
@@ -39,78 +67,284 @@ let db = {
     }
 };
 
-// Auth wrapper
-const auth = {
-    currentUser: null,
-    onAuthStateChanged: (callback) => {
-        supabase.auth.onAuthStateChange((event, session) => {
-            currentUser = session?.user || null;
-            callback(currentUser);
-        });
-    },
-    signOut: async () => {
-        await signOut();
+// ============================================================
+// INICIALIZACIÓN DE LA APLICACIÓN
+// ============================================================
+window.onload = async () => {
+    try {
+        initDivipolaList();
+        initConductoresList();
+        showStep(currentStep);
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        getGPS('salida');
+
+        setupCanvas('signatureCanvasConductor');
+        setupCanvas('signatureCanvasGerencia');
+        setupCanvas('signatureCanvasHSE_Modal');
+        updateRisk();
+
+        // Cargar fecha actual por defecto
+        const fechaInput = document.getElementById('fecha');
+        if (fechaInput && !fechaInput.value) {
+            fechaInput.value = new Date().toISOString().split('T')[0];
+        }
+
+        // Cargar hora de salida por defecto
+        const horaSalidaInput = document.getElementById('horaSalida');
+        if (horaSalidaInput && !horaSalidaInput.value) {
+            const now = new Date();
+            horaSalidaInput.value = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        }
+
+        // Cargar perfil o sesión en segundo plano
+        initAuth().catch(console.warn);
+    } catch (e) {
+        console.error("Error en inicialización:", e);
     }
 };
 
-// Firmas base64 de ejemplo (para PDFs)
-const FIRMA_HSE_DATA = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAABACAYAAABidp8zAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAoKADAAQAAAABAAAAQAAAAAClvYvKAAAC9UlEQVR4Ae3XvUoDQRSG4TMTIyZGE8VYEAsRKy0Vf9BeS8X30Uq000p7C7G0U7S0VFC0SBCSGBMTE8XEn88sLITshmSXTfKeB5Z9Z77ZfS87O7Mh8SFAgMBNArfXfI8vCRAg8CVAAX0IECCwS0ABd/H5EgECBHQDAgQI7BJQwF18vkSAAAHdgAABArsEFHAXny8RIEBANyBAgMAuAQXcxedLBAgQ0A0IECCwS0ABd/H5EgECBHQDAgQI7BJQwF18vkSAAAHdgAABArsEFHAXny8RIEBANyBAgMAuAQXcxedLBAgQ0A0IECCwS0ABd/H5EgECBHQDAgQI7BJQwF18vkSAAAHdgAABArsEFHAXny8RIEBANyBAgMAuAQXcxedLBAgQ0A0IECCwS0ABd/H5EgECBHQDAgQI7BJQwF18vkSAAAHdgAABArsEFHAXny8RIEBANyBAgMAuAQXcxedLBAgQ0A0IECCwS0ABd/H5EgECBHQDAgQI7BJQwF18vkSAAAHdgAABArsEFHAXny8RIEBANyBAgMAuAQXcxedLBAgQ0A0IECCwS0ABd/H5EgECBHQDAgQI7BJQwF18vkSAAAHdgAABArsEFHAXny8RIEBANyBAgMAuAQXcxedLBAgQ0A0IECCwS0ABd/H5EgECBHQDAgQI7BJQwF18vkSAAAHdgAABArsEFHAXny8RIEBANyBAgMAuAQXcxedLBAgQ0A0IECCwS0ABd/H5EgECBHQDAgQI7BJQwF18vkSAAAHdgAABArswvAEnX90UvjU8EAAAAABJRU5ErkJggg==";
-const FIRMA_GERENCIA_DATA = FIRMA_HSE_DATA;
+// ============================================================
+// CATÁLOGO DIVIPOLA & AUTOCOMPLETADO
+// ============================================================
+function initDivipolaList() {
+    const list = document.getElementById('divipolaList');
+    if (!list) return;
+    list.innerHTML = DIVIPOLA_COLOMBIA.map(d => 
+        `<option value="${d.codigo} - ${d.municipio} (${d.departamento})"></option>`
+    ).join('');
+}
 
-// --- CONSTANTES GLOBALES ---
-// const FIRMA_HSE_DATA = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAABACAYAAABidp8zAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAoKADAAQAAAABAAAAQAAAAAClvYvKAAAC9UlEQVR4Ae3XvUoDQRSG4TMTIyZGE8VYEAsRKy0Vf9BeS8X30Uq000p7C7G0U7S0VFC0SBCSGBMTE8XEn88sLITshmSXTfKeB5Z9Z77ZfS87O7Mh8SFAgMBNArfXfI8vCRAg8CVAAX0IECCwS0ABd/H5EgECBHQDAgQI7BJQwF18vkSAAAHdgAABArsEFHAXny8RIEBANyBAgMAuAQXcxedLBAgQ0A0IECCwS0ABd/H5EgECBHQDAgQI7BJQwF18vkSAAAHdgAABArsEFHAXny8RIEBANyBAgMAuAQXcxedLBAgQ0A0IECCwS0ABd/H5EgECBHQDAgQI7BJQwF18vkSAAAHdgAABArsEFHAXny8RIEBANyBAgMAuAQXcxedLBAgQ0A0IECCwS0ABd/H5EgECBHQDAgQI7BJQwF18vkSAAAHdgAABArsEFHAXny8RIEBANyBAgMAuAQXcxedLBAgQ0A0IECCwS0ABd/H5EgECBHQDAgQI7BJQwF18vkSAAAHdgAABArsEFHAXny8RIEBANyBAgMAuAQXcxedLBAgQ0A0IECCwS0ABd/H5EgECBHQDAgQI7BJQwF18vkSAAAHdgAABArsEFHAXny8RIEBANyBAgMAuAQXcxedLBAgQ0A0IECCwS0ABd/H5EgECBHQDAgQI7BJQwF18vkSAAAHdgAABArsEFHAXny8RIEBANyBAgMAuAQXcxedLBAgQ0A0IECCwS0ABd/H5EgECBHQDAgQI7BJQwF18vkSAAAHdgAABArswvAEnX90UvjU8EAAAAABJRU5ErkJggg==";
-// const FIRMA_GERENCIA_DATA = FIRMA_HSE_DATA;
+let cachedConductoresList = [];
 
-// --- ESTADO DE LA APLICACIÓN ---
-let currentStep = 0;
-let isAnimating = false;
-let currentTripId = null; 
-let historyDataMap = {}; 
-let historyUnsubscribe = null; 
-let currentHistoryData = []; 
-let gpsData = { salida: null, llegada: null };
-let hseModalActive = false;
-const steps = document.getElementsByClassName("form-step");
-const totalSteps = steps.length;
+async function initConductoresList() {
+    const list = document.getElementById('conductoresList');
+    if (!list) return;
+    cachedConductoresList = await getConductores();
+    list.innerHTML = cachedConductoresList.map(c => 
+        `<option value="${c.nombre}">${c.cedula ? `C.C. ${c.cedula}` : ''}</option>`
+    ).join('');
 
-// --- NAVEGACIÓN PRINCIPAL ---
+    const cNombreInput = document.getElementById('cNombre');
+    if (cNombreInput) {
+        cNombreInput.addEventListener('change', (e) => onConductorSelected(e.target.value));
+        cNombreInput.addEventListener('input', (e) => onConductorSelected(e.target.value));
+    }
+}
+
+function onConductorSelected(val) {
+    if (!val || !cachedConductoresList.length) return;
+    const clean = val.trim().toLowerCase();
+    const cond = cachedConductoresList.find(c => (c.nombre || '').toLowerCase() === clean);
+    if (cond) {
+        if (cond.cedula && document.getElementById('cLicencia')) document.getElementById('cLicencia').value = cond.cedula;
+        if (cond.categoria && document.getElementById('cCat')) document.getElementById('cCat').value = cond.categoria;
+        if (cond.vencimiento && document.getElementById('cVence')) {
+            document.getElementById('cVence').value = cond.vencimiento.split('T')[0];
+            checkLicenciaVencimiento();
+        }
+        if (cond.telefono && document.getElementById('cTelefono')) document.getElementById('cTelefono').value = cond.telefono;
+    }
+}
+
+window.checkLicenciaVencimiento = function() {
+    const venceInput = document.getElementById('cVence');
+    const badge = document.getElementById('badgeLicencia');
+    if (!venceInput || !badge || !venceInput.value) return;
+
+    const fechaVence = new Date(venceInput.value);
+    const hoy = new Date();
+    const diffDays = Math.ceil((fechaVence.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+
+    badge.classList.remove('hidden');
+    if (diffDays < 0) {
+        badge.className = 'mt-1 p-2 rounded-lg text-xs font-bold font-mono bg-red-100 text-red-800 border border-red-300';
+        badge.innerText = `🚨 LICENCIA VENCIDA (Hace ${Math.abs(diffDays)} días)`;
+    } else if (diffDays <= 30) {
+        badge.className = 'mt-1 p-2 rounded-lg text-xs font-bold font-mono bg-amber-100 text-amber-800 border border-amber-300';
+        badge.innerText = `⚠️ Por vencer en ${diffDays} días`;
+    } else {
+        badge.className = 'mt-1 p-2 rounded-lg text-xs font-bold font-mono bg-emerald-100 text-emerald-800 border border-emerald-300';
+        badge.innerText = `✔ Vigente (${diffDays} días restantes)`;
+    }
+};
+
+window.onRutaFrecuenteSelected = function(rutaId) {
+    if (!rutaId) return;
+    const ruta = RUTAS_FRECUENTES.find(r => r.id === rutaId);
+    if (!ruta) return;
+
+    const origenInput = document.getElementById('origen');
+    const origenDivipolaInput = document.getElementById('origenDivipola');
+    const destinoInput = document.getElementById('destino');
+    const destinoDivipolaInput = document.getElementById('destinoDivipola');
+    const distInput = document.getElementById('distanciaEstimada');
+
+    if (origenInput) origenInput.value = `${ruta.origenDivipola} - ${ruta.origen}`;
+    if (origenDivipolaInput) origenDivipolaInput.value = ruta.origenDivipola;
+    if (destinoInput) destinoInput.value = `${ruta.destinoDivipola} - ${ruta.destino}`;
+    if (destinoDivipolaInput) destinoDivipolaInput.value = ruta.destinoDivipola;
+    if (distInput) distInput.value = ruta.distanciaKm;
+
+    // Set suggested route type
+    const viaRadios = document.querySelectorAll('input[name="rVia"]');
+    viaRadios.forEach(r => {
+        if (Number(r.value) === ruta.tipoVia) r.checked = true;
+    });
+
+    // Auto set distance risk radio
+    const distRadios = document.querySelectorAll('input[name="rDistancia"]');
+    distRadios.forEach(r => {
+        const val = Number(r.value);
+        if (ruta.distanciaKm < 50 && val === 1) r.checked = true;
+        else if (ruta.distanciaKm >= 50 && ruta.distanciaKm < 100 && val === 2) r.checked = true;
+        else if (ruta.distanciaKm >= 100 && ruta.distanciaKm < 200 && val === 5) r.checked = true;
+        else if (ruta.distanciaKm >= 200 && val === 8) r.checked = true;
+    });
+
+    // Auto populate control points
+    if (ruta.puntosControl && ruta.puntosControl.length > 0) {
+        populatePuntosControlFromRuta(ruta);
+    }
+
+    updateRisk();
+    if (typeof TS !== 'undefined' && TS.toastSuccess) {
+        TS.toastSuccess(`Ruta aplicada: ${ruta.distanciaKm} km (~${ruta.duracionHoras}h)`);
+    }
+};
+
+window.checkHorarioNocturno = function() {
+    const horaSalida = document.getElementById('horaSalida')?.value || '';
+    const alertBox = document.getElementById('nocturnoAlert');
+    if (!horaSalida) return;
+
+    const [h] = horaSalida.split(':').map(Number);
+    const isNocturno = (h >= 18 || h < 6);
+
+    if (alertBox) {
+        if (isNocturno) alertBox.classList.remove('hidden');
+        else alertBox.classList.add('hidden');
+    }
+
+    const horaRadios = document.querySelectorAll('input[name="rHora"]');
+    horaRadios.forEach(r => {
+        if (isNocturno && Number(r.value) === 8) r.checked = true;
+        else if (!isNocturno && Number(r.value) === 1) r.checked = true;
+    });
+
+    updateRisk();
+};
+
+window.sugerirPuntosDescanso = function() {
+    const o = document.getElementById('origen')?.value || '';
+    const d = document.getElementById('destino')?.value || '';
+    const ruta = findRuta(o, d);
+    if (ruta && ruta.puntosControl && ruta.puntosControl.length > 0) {
+        populatePuntosControlFromRuta(ruta);
+        if (typeof TS !== 'undefined' && TS.toastSuccess) {
+            TS.toastSuccess(`Se agregaron ${ruta.puntosControl.length} puntos de descanso sugeridos.`);
+        }
+    } else {
+        const cont = document.getElementById('puntosControlContainer');
+        if (cont && cont.children.length === 0) {
+            addControlPoint();
+            const firstInput = cont.querySelector('input[name="pc_lugar[]"]');
+            if (firstInput) firstInput.value = 'Punto de Control Intermedio / Pausa Activa';
+        }
+        if (typeof TS !== 'undefined' && TS.toastInfo) {
+            TS.toastInfo('Punto de pausa activa agregado.');
+        }
+    }
+};
+
+function populatePuntosControlFromRuta(ruta) {
+    const cont = document.getElementById('puntosControlContainer');
+    if (!cont) return;
+    cont.innerHTML = '';
+    const horaSalidaStr = document.getElementById('horaSalida')?.value || '06:00';
+    const [hBase, mBase] = horaSalidaStr.split(':').map(Number);
+
+    ruta.puntosControl.forEach((p, idx) => {
+        const offsetMin = Math.round((p.horaOffset || 1) * 60);
+        const dateObj = new Date();
+        dateObj.setHours((hBase || 6), (mBase || 0) + offsetMin, 0);
+        const hh = String(dateObj.getHours()).padStart(2, '0');
+        const mm = String(dateObj.getMinutes()).padStart(2, '0');
+
+        const div = document.createElement('div');
+        div.className = "p-3 bg-white rounded-xl flex items-center gap-3 border-2 border-slate-300 shadow-sm transition-all";
+        div.innerHTML = `
+            <span class="font-black text-slate-900 w-6 text-center index-number">${idx + 1}</span>
+            <input type="text" name="pc_lugar[]" list="divipolaList" value="${p.lugar}" placeholder="Lugar, peaje o punto DIVIPOLA" class="input-moderno flex-1 text-xs">
+            <input type="time" name="pc_hora[]" value="${hh}:${mm}" class="input-moderno !w-auto !px-2 text-xs">
+            <button type="button" onclick="removeControlPoint(this)" class="text-red-600 hover:bg-red-50 p-2 rounded-xl transition-colors" title="Eliminar"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+        `;
+        cont.appendChild(div);
+    });
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+window.onOrigenChange = function(val) {
+    const origenDivipolaInput = document.getElementById('origenDivipola');
+    if (!origenDivipolaInput) return;
+    const match = val.match(/^(\d{5})/);
+    if (match) {
+        origenDivipolaInput.value = match[1];
+    } else {
+        const found = searchDivipola(val);
+        if (found.length > 0) origenDivipolaInput.value = found[0].codigo;
+    }
+};
+
+window.onDestinoChange = function(val) {
+    const destinoDivipolaInput = document.getElementById('destinoDivipola');
+    if (!destinoDivipolaInput) return;
+    const match = val.match(/^(\d{5})/);
+    if (match) {
+        destinoDivipolaInput.value = match[1];
+    } else {
+        const found = searchDivipola(val);
+        if (found.length > 0) destinoDivipolaInput.value = found[0].codigo;
+    }
+};
+
+// ============================================================
+// NAVEGACIÓN ENTRE PASOS Y VALIDACIÓN PASO A PASO
+// ============================================================
 function showStep(n) {
-    for (let i = 0; i < totalSteps; i++) { steps[i].style.display = "none"; }
-    steps[n].style.display = "block";
-    steps[n].classList.add('animate-enter');
-    
+    for (let i = 0; i < totalSteps; i++) {
+        if (steps[i]) steps[i].style.display = "none";
+    }
+    if (steps[n]) {
+        steps[n].style.display = "block";
+        steps[n].classList.add('animate-enter');
+    }
+
     updateNavigation(n);
     updateProgressBar(n);
     window.scrollTo(0, 0);
 
+    // Redimensionar canvas cuando se entra al paso de firmas
     if (n === totalSteps - 1) {
         setTimeout(() => {
-             ['signatureCanvasConductor', 'signatureCanvasHSE_Modal', 'signatureCanvasGerencia'].forEach(id => {
-                 if(document.getElementById(id)) resizeCanvas(id);
-             });
-        }, 100);
+            ['signatureCanvasConductor', 'signatureCanvasGerencia', 'signatureCanvasHSE_Modal'].forEach(id => {
+                if (document.getElementById(id)) resizeCanvas(id);
+            });
+        }, 120);
     }
 }
 
 async function nextPrev(n) {
     if (isAnimating) return;
 
+    // Si el usuario quiere avanzar hacia adelante, validamos el paso actual
     if (n > 0) {
-        if (currentStep === 0) {
-            const sal = parseFloat(document.getElementById('kmSalida')?.value) || 0;
-            const lleg = parseFloat(document.getElementById('kmLlegada')?.value) || 0;
-            if (lleg > 0) {
-                if (lleg < sal) return TS.toastWarning("El kilometraje de llegada no puede ser menor al de salida.");
-                if (currentTripId) {
-                    document.getElementById("travelForm").dispatchEvent(new Event('submit'));
-                    return;
-                }
-            }
-        }
+        const isValid = validateStep(currentStep);
+        if (!isValid) return;
     }
 
+    // Si estamos en el último paso (firmas) y pulsa Siguiente / Guardar
     if (currentStep === totalSteps - 1 && n > 0) {
-        document.getElementById("travelForm").dispatchEvent(new Event('submit'));
+        await handleSubmit();
         return;
     }
 
@@ -120,16 +354,20 @@ async function nextPrev(n) {
         const currentEl = steps[currentStep];
         const nextEl = steps[nxt];
 
-        currentEl.classList.remove('animate-enter');
-        currentEl.classList.add('animate-exit');
-        await new Promise(resolve => setTimeout(resolve, 280)); 
-        currentEl.style.display = "none";
-        currentEl.classList.remove('animate-exit');
+        if (currentEl) {
+            currentEl.classList.remove('animate-enter');
+            currentEl.classList.add('animate-exit');
+            await new Promise(resolve => setTimeout(resolve, 200));
+            currentEl.style.display = "none";
+            currentEl.classList.remove('animate-exit');
+        }
 
         currentStep = nxt;
-        nextEl.style.display = "block";
-        nextEl.classList.add('animate-enter');
-        
+        if (nextEl) {
+            nextEl.style.display = "block";
+            nextEl.classList.add('animate-enter');
+        }
+
         updateNavigation(currentStep);
         updateProgressBar(currentStep);
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -137,11 +375,101 @@ async function nextPrev(n) {
     }
 }
 
+/**
+ * Validador robusto paso a paso (Resolución 40595 de 2022)
+ */
+function validateStep(stepIndex) {
+    const getVal = (id) => (document.getElementById(id)?.value || '').trim();
+
+    if (stepIndex === 0) {
+        // Paso 1: Ruta y Odómetro inicial
+        if (!getVal('fecha')) {
+            TS.toastWarning("Por favor ingresa la fecha del viaje.");
+            document.getElementById('fecha')?.focus();
+            return false;
+        }
+        if (!getVal('horaSalida')) {
+            TS.toastWarning("Por favor ingresa la hora de salida.");
+            document.getElementById('horaSalida')?.focus();
+            return false;
+        }
+        if (!getVal('origen')) {
+            TS.toastWarning("Por favor indica el municipio de origen (DIVIPOLA).");
+            document.getElementById('origen')?.focus();
+            return false;
+        }
+        if (!getVal('destino')) {
+            TS.toastWarning("Por favor indica el municipio de destino (DIVIPOLA).");
+            document.getElementById('destino')?.focus();
+            return false;
+        }
+        const kmSal = parseFloat(getVal('kmSalida'));
+        if (isNaN(kmSal) || kmSal <= 0) {
+            TS.toastWarning("Por favor ingresa un kilometraje inicial válido.");
+            document.getElementById('kmSalida')?.focus();
+            return false;
+        }
+        const kmLleg = parseFloat(getVal('kmLlegada'));
+        if (!isNaN(kmLleg) && kmLleg > 0 && kmLleg < kmSal) {
+            TS.toastWarning("El kilometraje final no puede ser menor al inicial.");
+            return false;
+        }
+        return true;
+    }
+
+    if (stepIndex === 1) {
+        // Paso 2: Vehículo y Conductor
+        if (!getVal('vPlaca')) {
+            TS.toastWarning("Por favor ingresa la placa del vehículo.");
+            document.getElementById('vPlaca')?.focus();
+            return false;
+        }
+        if (!getVal('cNombre')) {
+            TS.toastWarning("Por favor ingresa el nombre del conductor.");
+            document.getElementById('cNombre')?.focus();
+            return false;
+        }
+        if (!getVal('cLicencia')) {
+            TS.toastWarning("Por favor ingresa la cédula o licencia de conducción.");
+            document.getElementById('cLicencia')?.focus();
+            return false;
+        }
+        return true;
+    }
+
+    if (stepIndex === 4) {
+        // Paso 5: Matriz de Riesgo STE-F-010
+        const rsk = updateRisk();
+        if (rsk.score <= 0) {
+            TS.toastWarning("Por favor completa las opciones de la matriz de riesgo.");
+            return false;
+        }
+        return true;
+    }
+
+    if (stepIndex === 5) {
+        // Paso 6: Verificaciones Pre-Viaje y Test de Fatiga
+        const noAlcohol = document.getElementById('tf_sustancias')?.checked;
+        const descanso = document.getElementById('tf_descanso')?.checked;
+        if (!noAlcohol) {
+            TS.toastWarning("Es obligatorio certificar la ausencia de alcohol o sustancias que alteren la conducción.");
+            return false;
+        }
+        if (!descanso) {
+            TS.toastWarning("El conductor debe haber descansado al menos 8 horas antes del viaje según la norma PESV.");
+            return false;
+        }
+        return true;
+    }
+
+    return true;
+}
+
 function updateNavigation(n) {
     const nextBtn = document.getElementById("nextBtn");
     const prevBtn = document.getElementById("prevBtn");
     if (!nextBtn || !prevBtn) return;
-    
+
     if (n === 0) {
         prevBtn.style.display = "none";
         nextBtn.className = "btn btn-primary w-full shadow-xl font-black text-white bg-[#1E40AF] border-2 border-[#1E3A8A] text-base py-3.5";
@@ -155,261 +483,373 @@ function updateNavigation(n) {
         const condSig = document.getElementById('signatureCanvasConductor');
         const isSigned = condSig ? condSig.getAttribute('data-signed') === 'true' : false;
         const rsk = updateRisk();
-        nextBtn.innerHTML = isSigned ? (rsk.score > 15 ? 'Guardar y Proceder a Firma HSE <i class="ml-2 w-4 h-4 inline-block" data-lucide="shield-check"></i>' : 'Registrar Viaje <i class="ml-2 w-4 h-4 inline-block" data-lucide="save"></i>') : 'Firma Requerida <i class="ml-2 w-4 h-4 inline-block" data-lucide="pen-tool"></i>';
-    } 
-    else if (n === 0 && currentTripId && parseFloat(document.getElementById('kmLlegada')?.value) > 0) {
-        nextBtn.innerHTML = 'Finalizar y Cerrar Viaje <i class="ml-2 w-4 h-4 inline-block" data-lucide="check-circle"></i>';
+
+        if (isSigned) {
+            if (rsk.score > 15) {
+                nextBtn.innerHTML = 'Guardar y Proceder a Autorización HSE <i class="ml-2 w-4 h-4 inline-block" data-lucide="shield-check"></i>';
+            } else {
+                nextBtn.innerHTML = 'Registrar y Finalizar Despacho <i class="ml-2 w-4 h-4 inline-block" data-lucide="save"></i>';
+            }
+        } else {
+            nextBtn.innerHTML = 'Firma Requerida para Despachar <i class="ml-2 w-4 h-4 inline-block" data-lucide="pen-tool"></i>';
+        }
+    } else if (n === 0 && currentTripId && parseFloat(document.getElementById('kmLlegada')?.value) > 0) {
+        nextBtn.innerHTML = 'Cerrar Viaje con KM Final <i class="ml-2 w-4 h-4 inline-block" data-lucide="check-circle"></i>';
         nextBtn.classList.add('!bg-emerald-600', '!border-emerald-700');
-    } 
-    else {
+    } else {
         nextBtn.innerHTML = 'Siguiente <i class="ml-2 w-4 h-4 inline-block" data-lucide="arrow-right"></i>';
     }
+
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function updateProgressBar(n) {
     const progress = ((n + 1) / totalSteps) * 100;
-    if(document.getElementById("progressBar")) document.getElementById("progressBar").style.width = progress + "%";
-    if(document.getElementById("progressText")) document.getElementById("progressText").innerText = `Paso ${n + 1} de ${totalSteps}`;
-    if(document.getElementById("progressPercent")) document.getElementById("progressPercent").innerText = Math.round(progress);
+    const bar = document.getElementById("progressBar");
+    const txt = document.getElementById("progressText");
+    const pct = document.getElementById("progressPercent");
+    if (bar) bar.style.width = progress + "%";
+    if (txt) txt.innerText = `Paso ${n + 1} de ${totalSteps}`;
+    if (pct) pct.innerText = Math.round(progress);
 }
 
-// --- GPS Y CÁLCULOS ---
+// ============================================================
+// VERIFICACIÓN DE PREOPERACIONAL & BÚSQUEDA DE VEHÍCULO
+// ============================================================
+window.searchVehicle = async function() {
+    const placaInput = document.getElementById('vPlaca');
+    if (!placaInput) return;
+    const placa = placaInput.value.trim().toUpperCase();
+    placaInput.value = placa;
+    if (placa.length < 3) return;
+
+    const bannerText = document.getElementById('preoperacionalText');
+    const banner = document.getElementById('preoperacionalBanner');
+    const vigenciasCont = document.getElementById('vehiculoVigencias');
+    const badgeSoat = document.getElementById('badgeSoat');
+    const badgeRtm = document.getElementById('badgeRtm');
+
+    try {
+        if (bannerText) bannerText.innerText = "Consultando preoperacional y flota en Railway...";
+        
+        // 1. Consultar preoperacional del día en tiempo real
+        const prep = await checkPreoperacionalDia(placa);
+        if (banner && bannerText) {
+            if (prep.encontrado && prep.aprobado) {
+                banner.className = "p-3 bg-emerald-50 border border-emerald-300 rounded-xl flex items-center gap-2 text-xs font-bold text-emerald-900";
+                bannerText.innerText = `✔ ${prep.mensaje}`;
+            } else if (prep.encontrado && !prep.aprobado) {
+                banner.className = "p-3 bg-red-50 border border-red-300 rounded-xl flex items-center gap-2 text-xs font-bold text-red-900";
+                bannerText.innerText = `⚠ ${prep.mensaje}`;
+            } else {
+                banner.className = "p-3 bg-amber-50 border border-amber-300 rounded-xl flex items-center gap-2 text-xs font-bold text-amber-900";
+                bannerText.innerText = `ℹ Sin preoperacional registrado hoy para ${placa}. Se registrará con verificación en ruta.`;
+            }
+        }
+
+        // 2. Autocompletar datos del vehículo desde Railway y mostrar vigencias
+        const vehiculo = await getVehiculoByPlaca(placa);
+        if (vehiculo) {
+            if (vehiculo.modelo && document.getElementById('vModelo')) document.getElementById('vModelo').value = vehiculo.modelo;
+            if (vehiculo.color && document.getElementById('vColor')) document.getElementById('vColor').value = vehiculo.color;
+            if (vehiculo.tipo && document.getElementById('vTipo')) document.getElementById('vTipo').value = vehiculo.tipo;
+            if (vehiculo.empresa && document.getElementById('vEmpresa')) document.getElementById('vEmpresa').value = vehiculo.empresa;
+
+            if (vigenciasCont && badgeSoat && badgeRtm) {
+                vigenciasCont.classList.remove('hidden');
+                const hoy = new Date();
+
+                // SOAT
+                if (vehiculo.soatVencimiento) {
+                    const diffS = Math.ceil((new Date(vehiculo.soatVencimiento).getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+                    if (diffS < 0) {
+                        badgeSoat.className = "font-mono px-2 py-0.5 rounded text-[11px] bg-red-100 text-red-800 border border-red-300";
+                        badgeSoat.innerText = `🚨 Vencido (${vehiculo.soatVencimiento})`;
+                    } else if (diffS <= 30) {
+                        badgeSoat.className = "font-mono px-2 py-0.5 rounded text-[11px] bg-amber-100 text-amber-800 border border-amber-300";
+                        badgeSoat.innerText = `⚠️ Vence en ${diffS}d (${vehiculo.soatVencimiento})`;
+                    } else {
+                        badgeSoat.className = "font-mono px-2 py-0.5 rounded text-[11px] bg-emerald-100 text-emerald-800 border border-emerald-300";
+                        badgeSoat.innerText = `✔ Vigente (${vehiculo.soatVencimiento})`;
+                    }
+                } else {
+                    badgeSoat.className = "font-mono px-2 py-0.5 rounded text-[11px] bg-slate-200 text-slate-700";
+                    badgeSoat.innerText = "Registrado";
+                }
+
+                // RTM
+                if (vehiculo.rtmVencimiento) {
+                    const diffR = Math.ceil((new Date(vehiculo.rtmVencimiento).getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24));
+                    if (diffR < 0) {
+                        badgeRtm.className = "font-mono px-2 py-0.5 rounded text-[11px] bg-red-100 text-red-800 border border-red-300";
+                        badgeRtm.innerText = `🚨 Vencida (${vehiculo.rtmVencimiento})`;
+                    } else if (diffR <= 30) {
+                        badgeRtm.className = "font-mono px-2 py-0.5 rounded text-[11px] bg-amber-100 text-amber-800 border border-amber-300";
+                        badgeRtm.innerText = `⚠️ Vence en ${diffR}d (${vehiculo.rtmVencimiento})`;
+                    } else {
+                        badgeRtm.className = "font-mono px-2 py-0.5 rounded text-[11px] bg-emerald-100 text-emerald-800 border border-emerald-300";
+                        badgeRtm.innerText = `✔ Vigente (${vehiculo.rtmVencimiento})`;
+                    }
+                } else {
+                    badgeRtm.className = "font-mono px-2 py-0.5 rounded text-[11px] bg-slate-200 text-slate-700";
+                    badgeRtm.innerText = "Registrado";
+                }
+            }
+        }
+    } catch (e) {
+        console.warn("Aviso buscando vehículo:", e);
+    }
+};
+
+// ============================================================
+// GPS Y CÁLCULO DE ODÓMETRO
+// ============================================================
 function getGPS(type) {
     if (!navigator.geolocation) return;
     const statusEl = document.getElementById(type === 'salida' ? 'gpsSalidaStatus' : 'gpsLlegadaStatus');
-    if(statusEl) statusEl.innerHTML = '<span class="flex items-center gap-1"><i class="w-3 h-3 animate-spin" data-lucide="loader-2"></i> Obteniendo ubicación...</span>';
-    if(typeof lucide !== 'undefined') lucide.createIcons();
+    if (statusEl) statusEl.innerHTML = '<span class="flex items-center gap-1 text-slate-500"><i class="w-3 h-3 animate-spin" data-lucide="loader-2"></i> Capturando GPS...</span>';
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 
     navigator.geolocation.getCurrentPosition(
         (position) => {
-            const coords = `${position.coords.latitude},${position.coords.longitude}`;
+            const coords = `${position.coords.latitude.toFixed(6)},${position.coords.longitude.toFixed(6)}`;
             gpsData[type] = coords;
-            if(statusEl) statusEl.innerHTML = `<span class="text-emerald-600 flex items-center gap-1"><i class="w-3 h-3" data-lucide="map-pin"></i> Ubicación ${type === 'salida' ? 'Inicio' : 'Fin'} OK</span>`;
-            if(typeof lucide !== 'undefined') lucide.createIcons();
+            if (statusEl) statusEl.innerHTML = `<span class="text-emerald-600 flex items-center gap-1 font-bold"><i class="w-3 h-3" data-lucide="map-pin"></i> GPS ${type === 'salida' ? 'Inicio' : 'Fin'} OK</span>`;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
         },
-        (error) => {
-            if(statusEl) statusEl.innerHTML = '<span class="text-red-500 flex items-center gap-1"><i class="w-3 h-3" data-lucide="alert-circle"></i> Error GPS</span>';
-            if(typeof lucide !== 'undefined') lucide.createIcons();
+        () => {
+            if (statusEl) statusEl.innerHTML = '<span class="text-amber-600 text-xs">GPS manual</span>';
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
     );
-}
-
-function getGPSAsync(type, timeoutMs = 8000) {
-    return new Promise((resolve) => {
-        if (!navigator.geolocation) return resolve(null);
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                const coords = `${position.coords.latitude},${position.coords.longitude}`;
-                gpsData[type] = coords;
-                resolve(coords);
-            },
-            () => resolve(null),
-            { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 0 }
-        );
-    });
 }
 
 function calcKm() {
     const salida = parseFloat(document.getElementById('kmSalida')?.value) || 0;
     const llegada = parseFloat(document.getElementById('kmLlegada')?.value) || 0;
+    const errorEl = document.getElementById('kmError');
+
+    if (llegada > 0 && llegada < salida) {
+        if (errorEl) errorEl.classList.remove('hidden');
+    } else {
+        if (errorEl) errorEl.classList.add('hidden');
+    }
+
     if (llegada > salida && document.getElementById('distanciaEstimada')) {
         document.getElementById('distanciaEstimada').value = llegada - salida;
-    } else if (document.getElementById('distanciaEstimada')) {
-        document.getElementById('distanciaEstimada').value = '';
-    }
-    
-    // Auto-hora de llegada cuando se ingresa KM final
-    if (llegada > salida) {
         const horaLlegadaInput = document.getElementById('horaLlegada');
         if (horaLlegadaInput && !horaLlegadaInput.value) {
             const now = new Date();
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            horaLlegadaInput.value = `${hours}:${minutes}`;
+            horaLlegadaInput.value = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         }
     }
-    
     updateNavigation(currentStep);
 }
 
-// --- SEMÁFORO DE RIESGO ---
+// ============================================================
+// MATRIZ DE RIESGO PESV STE-F-010
+// ============================================================
 function updateRisk() {
     const val = (name) => {
         const el = document.querySelector(`input[name="${name}"]:checked`);
         return el ? parseInt(el.value) : 0;
     };
     const score = val('rDistancia') + val('rClima') + val('rVehiculos') + val('rVia') + val('rCom') + val('rFatiga') + val('rHora');
-    
+
     const pointsEl = document.getElementById('totalPoints');
     const levelEl = document.getElementById('riskLevel');
     const cardEl = document.getElementById('riskScoreCard');
+    const warningEl = document.getElementById('riskWarning');
 
-    if(pointsEl) pointsEl.innerText = score;
-    
-    let levelText = "BAJO";
-    let levelClass = "risk-low";
+    if (pointsEl) pointsEl.innerText = score;
+
+    let levelText = "RIESGO BAJO (AUTORIZACIÓN NORMAL)";
+    let levelClass = "bg-emerald-50 text-emerald-700 border-emerald-300";
 
     if (score > 23) {
-        levelText = "ALTO";
-        levelClass = "risk-high";
+        levelText = "RIESGO ALTO (AUTORIZACIÓN GERENCIA REQUERIDA)";
+        levelClass = "bg-red-50 text-red-700 border-red-300";
+        if (warningEl) warningEl.classList.remove('hidden');
     } else if (score > 15) {
-        levelText = "MEDIO";
-        levelClass = "risk-medium";
+        levelText = "RIESGO MEDIO (VISTO BUENO HSEQ OBLIGATORIO)";
+        levelClass = "bg-amber-50 text-amber-700 border-amber-300";
+        if (warningEl) warningEl.classList.add('hidden');
+    } else {
+        if (warningEl) warningEl.classList.add('hidden');
     }
-    
-    if(levelEl) levelEl.innerText = `RIESGO ${levelText}`;
-    if(cardEl) {
-        cardEl.classList.remove('risk-low', 'risk-medium', 'risk-high', 'bg-white');
-        cardEl.classList.add(levelClass);
+
+    if (levelEl) {
+        levelEl.innerText = levelText;
+        levelEl.className = `text-base font-black tracking-tight mt-1 ${score > 23 ? 'text-red-700' : score > 15 ? 'text-amber-700' : 'text-emerald-700'}`;
     }
-    
-    checkSignatures(score);
-    return { score, level: `RIESGO ${levelText}` };
+    if (cardEl) {
+        cardEl.className = `mt-6 p-5 rounded-2xl border-2 text-center transition-all duration-300 shadow-sm ${levelClass}`;
+    }
+
+    return { score, level: levelText };
 }
 
-function checkSignatures(currentScore) {
-    const gerenciaContainer = document.getElementById('containerFirmaGerencia');
-    const score = currentScore !== undefined ? currentScore : (parseInt(document.getElementById('totalPoints')?.innerText) || 0);
-
-    if (gerenciaContainer) {
-        // Solo mostrar firma de Gerencia si:
-        // 1. El riesgo es ALTO (>23) Y
-        // 2. El viaje YA existe (currentTripId !== null) — es decir, estamos editando/aprobando
-        // 3. El viaje NO está ya autorizado (skipGerenciaSignature === false)
-        if (score > 23 && currentTripId && !skipGerenciaSignature) {
-            gerenciaContainer.classList.remove('hidden');
-        } else {
-            gerenciaContainer.classList.add('hidden');
-        }
-    }
-}
-
-// --- RUTOGRAMA ---
-function previewRutograma(event) {
-    const file = event.target.files[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const img = new Image();
-            img.onload = function() {
-                const canvas = document.createElement('canvas');
-                const maxSize = 1200;
-                let width = img.width;
-                let height = img.height;
-                
-                if (width > height) {
-                    if (width > maxSize) {
-                        height *= maxSize / width;
-                        width = maxSize;
-                    }
-                } else {
-                    if (height > maxSize) {
-                        width *= maxSize / height;
-                        height = maxSize;
-                    }
-                }
-                
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-                
-                let quality = 0.7;
-                let compressed = canvas.toDataURL('image/jpeg', quality);
-                while (compressed.length > 900000 && quality > 0.1) {
-                    quality -= 0.1;
-                    compressed = canvas.toDataURL('image/jpeg', quality);
-                }
-                
-                document.getElementById('rutogramaImg').src = compressed;
-                document.getElementById('rutogramaPreview').classList.remove('hidden');
-                document.querySelector('label[for="rutogramaFile"]').classList.add('hidden');
-            }
-            img.src = e.target.result;
-        }
-        reader.readAsDataURL(file);
-    }
-}
-
-function removeRutograma() {
-    document.getElementById('rutogramaFile').value = "";
-    document.getElementById('rutogramaImg').src = "";
-    document.getElementById('rutogramaPreview').classList.add('hidden');
-    document.querySelector('label[for="rutogramaFile"]').classList.remove('hidden');
-}
-
-// --- AUTOCOMPLETADO Y PUNTOS DE CONTROL ---
-async function searchVehicle() {
-    const placaInput = document.getElementById('vPlaca');
-    if(!placaInput) return;
-    const placa = placaInput.value.trim().toUpperCase();
-    placaInput.value = placa; 
-    if (placa.length < 3) return;
-
-    try {
-        placaInput.classList.add('opacity-50', 'cursor-wait');
-        const trips = await db.getTripsByPlaca(placa);
-
-        if (trips.length > 0) {
-            const data = trips[0];
-            if (data.vModelo) document.getElementById('vModelo').value = data.vModelo;
-            if (data.vColor) document.getElementById('vColor').value = data.vColor;
-            if (data.vTipo) document.getElementById('vTipo').value = data.vTipo;
-            if (data.vEmpresa) document.getElementById('vEmpresa').value = data.vEmpresa;
-        }
-    } catch (err) {
-        console.log("No se encontraron datos", err);
-    } finally {
-        placaInput.classList.remove('opacity-50', 'cursor-wait');
-    }
-}
-
+// ============================================================
+// PUNTOS DE CONTROL Y RUTOGRAMA
+// ============================================================
 function addControlPoint() {
     const container = document.getElementById('puntosControlContainer');
-    if(!container) return;
+    if (!container) return;
     const index = container.children.length + 1;
     const div = document.createElement('div');
-    div.className = "p-3 bg-white rounded-xl flex items-center gap-3 border-2 border-slate-300 shadow-sm transition-all group";
+    div.className = "p-3 bg-white rounded-xl flex items-center gap-3 border-2 border-slate-300 shadow-sm transition-all";
     div.innerHTML = `
-        <span class="font-extrabold text-slate-900 w-6 text-center index-number">${index}</span>
-        <input type="text" name="pc_lugar[]" list="ciudades" placeholder="Lugar o peaje" class="input-moderno flex-1">
-        <input type="time" name="pc_hora[]" class="input-moderno !w-auto !px-3">
-        <button type="button" onclick="removeControlPoint(this)" class="text-red-600 hover:bg-red-50 p-2 rounded-xl border border-red-200 transition-colors" title="Eliminar punto"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+        <span class="font-black text-slate-900 w-6 text-center index-number">${index}</span>
+        <input type="text" name="pc_lugar[]" list="divipolaList" placeholder="Lugar, peaje o punto DIVIPOLA" class="input-moderno flex-1 text-xs">
+        <input type="time" name="pc_hora[]" class="input-moderno !w-auto !px-2 text-xs">
+        <button type="button" onclick="removeControlPoint(this)" class="text-red-600 hover:bg-red-50 p-2 rounded-xl transition-colors" title="Eliminar"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
     `;
     container.appendChild(div);
-    if(typeof lucide !== 'undefined') lucide.createIcons();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function removeControlPoint(btn) {
     const row = btn.closest('div');
     const container = document.getElementById('puntosControlContainer');
-    if (container && container.children.length > 0) {
+    if (container && row) {
         row.remove();
         Array.from(container.children).forEach((child, idx) => {
-            child.querySelector('.index-number').innerText = idx + 1;
+            const num = child.querySelector('.index-number');
+            if (num) num.innerText = idx + 1;
         });
     }
 }
 
-// --- SUBMIT Y GUARDADO ---
-async function handleSubmit(e) {
-    e.preventDefault();
+function previewRutograma(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const imgEl = document.getElementById('rutogramaImg');
+            if (imgEl) imgEl.src = e.target.result;
+            document.getElementById('rutogramaPreview')?.classList.remove('hidden');
+            document.querySelector('label[for="rutogramaFile"]')?.classList.add('hidden');
+        };
+        reader.readAsDataURL(file);
+    }
+}
 
-    // Asegurar que currentConductor esté cargado antes de guardar
-    if (!currentConductor?.id) {
-        console.warn('currentConductor no cargado. Intentando cargar...');
-        await initAuth();
-        if (!currentConductor?.id) {
-            TS.toastError("No se pudo cargar la información del conductor. Por favor recarga la página e intenta de nuevo. Si el problema persiste, verifica que tu registro se completó correctamente.");
-            return;
+function removeRutograma() {
+    const f = document.getElementById('rutogramaFile');
+    if (f) f.value = "";
+    const img = document.getElementById('rutogramaImg');
+    if (img) img.src = "";
+    document.getElementById('rutogramaPreview')?.classList.add('hidden');
+    document.querySelector('label[for="rutogramaFile"]')?.classList.remove('hidden');
+}
+
+// ============================================================
+// CANVAS DE FIRMAS DIGITALES
+// ============================================================
+function resizeCanvas(id) {
+    const c = document.getElementById(id);
+    if (!c) return;
+    const r = c.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) {
+        // Guardar dibujo previo si existe
+        const isSigned = c.getAttribute('data-signed') === 'true';
+        let prevData = null;
+        if (isSigned) {
+            try { prevData = c.toDataURL(); } catch (e) { }
+        }
+        c.width = r.width;
+        c.height = r.height;
+        if (prevData) {
+            const img = new Image();
+            img.onload = () => c.getContext('2d').drawImage(img, 0, 0);
+            img.src = prevData;
         }
     }
-    
-    console.log('Guardando viaje. Conductor:', currentConductor?.id, 'Email:', currentConductor?.email);
+}
 
-    const getVal = (id) => document.getElementById(id)?.value || '';
+function setupCanvas(id) {
+    const c = document.getElementById(id);
+    if (!c || c.getAttribute('data-setup') === 'true') return;
+    c.setAttribute('data-setup', 'true');
+
+    const ctx = c.getContext('2d');
+    let drawing = false;
+
+    const startDrawing = (e) => {
+        drawing = true;
+        draw(e);
+    };
+
+    const stopDrawing = () => {
+        if (drawing) {
+            drawing = false;
+            ctx.beginPath();
+            c.setAttribute('data-signed', 'true');
+
+            // Actualizar fecha de firma
+            const nowStr = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+            if (id === 'signatureCanvasConductor') {
+                const f1 = document.getElementById('firma1Fecha');
+                if (f1) f1.innerText = `Firmado hoy ${nowStr}`;
+                updateNavigation(currentStep);
+            } else if (id === 'signatureCanvasGerencia') {
+                const f3 = document.getElementById('firma3Fecha');
+                if (f3) f3.innerText = `Firmado hoy ${nowStr}`;
+            } else if (id === 'signatureCanvasHSE_Modal') {
+                const btn = document.getElementById('btnHSEAuth');
+                if (btn) btn.disabled = false;
+            }
+        }
+    };
+
+    const draw = (e) => {
+        if (!drawing) return;
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = "#0F172A";
+        e.preventDefault();
+        const r = c.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const x = clientX - r.left;
+        const y = clientY - r.top;
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+    };
+
+    c.addEventListener('mousedown', startDrawing);
+    c.addEventListener('mouseup', stopDrawing);
+    c.addEventListener('mouseout', stopDrawing);
+    c.addEventListener('mousemove', draw);
+
+    c.addEventListener('touchstart', startDrawing, { passive: false });
+    c.addEventListener('touchend', stopDrawing, { passive: false });
+    c.addEventListener('touchcancel', stopDrawing, { passive: false });
+    c.addEventListener('touchmove', draw, { passive: false });
+}
+
+function clearSignature(id) {
+    const c = document.getElementById(id);
+    if (c) {
+        c.getContext('2d').clearRect(0, 0, c.width, c.height);
+        c.removeAttribute('data-signed');
+        if (id === 'signatureCanvasConductor') {
+            const f1 = document.getElementById('firma1Fecha');
+            if (f1) f1.innerText = 'Pendiente';
+        }
+    }
+    if (currentStep === totalSteps - 1) updateNavigation(currentStep);
+}
+
+// ============================================================
+// ENVÍO, GUARDADO Y AUTORIZACIÓN (100% POSTGRESQL / RAILWAY)
+// ============================================================
+async function handleSubmit(e) {
+    if (e && e.preventDefault) e.preventDefault();
+
+    const getVal = (id) => (document.getElementById(id)?.value || '').trim();
     const getCheck = (id) => document.getElementById(id)?.checked || false;
     const getNum = (id) => {
         const v = document.getElementById(id)?.value;
@@ -422,1289 +862,507 @@ async function handleSubmit(e) {
         return el ? el.getAttribute('data-signed') === 'true' : false;
     };
 
+    // Validar firma del conductor en viajes nuevos
     if (!currentTripId && !checkSig('signatureCanvasConductor')) {
-        TS.toastWarning("La firma del conductor es obligatoria para registrar el viaje.");
+        TS.toastWarning("La firma digital del conductor es obligatoria para despachar el viaje.");
         return;
+    }
+
+    const nextBtn = document.getElementById('nextBtn');
+    if (nextBtn) {
+        nextBtn.disabled = true;
+        nextBtn.innerHTML = 'Guardando en Railway... <i class="animate-spin w-4 h-4 ml-2 inline-block" data-lucide="loader-2"></i>';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    const signaturesObj = {};
+    if (checkSig('signatureCanvasConductor')) {
+        signaturesObj.conductor = document.getElementById('signatureCanvasConductor').toDataURL();
+        signaturesObj.conductor_fecha = new Date().toISOString();
+    }
+    if (checkSig('signatureCanvasGerencia')) {
+        signaturesObj.gerencia = document.getElementById('signatureCanvasGerencia').toDataURL();
+        signaturesObj.gerencia_fecha = new Date().toISOString();
     }
 
     const formData = {
         id: currentTripId || undefined,
-        conductor_id: currentConductor?.id || null,
-        fecha: getVal('fecha') || null, hora_salida: getVal('horaSalida') || null, hora_llegada: getVal('horaLlegada') || null,
-        origen: getVal('origen'), destino: getVal('destino'), km_salida: getNum('kmSalida'),
-        distancia_km: getNum('distanciaEstimada'), km_llegada: getNum('kmLlegada'),
-        vehiculo_placa: getVal('vPlaca'), vehiculo_modelo: getVal('vModelo'), vehiculo_color: getVal('vColor'),
-        vehiculo_tipo: getVal('vTipo'), vehiculo_empresa: getVal('vEmpresa'), 
-        conductor_nombre: getVal('cNombre') || currentProfile?.nombre_completo || '',
-        conductor_licencia: getVal('cLicencia').trim(), 
-        conductor_categoria: getVal('cCat'), 
-        conductor_vencimiento: getVal('cVence') || null, 
-        conductor_telefono: getVal('cTelefono'),
-        rutograma: document.getElementById('rutogramaImg')?.getAttribute('src') || null,
-        risk_score: riskData.score,
-        risk_level: riskData.level,
-        gps_salida: gpsData.salida,
-        gps_llegada: gpsData.llegada,
+        conductorId: currentConductor?.id || null,
+        conductorNombre: getVal('cNombre'),
+        conductorDocumento: getVal('cLicencia'),
+        conductorLicencia: getVal('cLicencia'),
+        conductorCategoria: getVal('cCat'),
+        conductorVencimiento: getVal('cVence') || null,
+        conductorTelefono: getVal('cTelefono'),
+        placa: getVal('vPlaca'),
+        vehiculoTipo: getVal('vTipo'),
+        vehiculoModelo: getVal('vModelo'),
+        vehiculoColor: getVal('vColor'),
+        vehiculoEmpresa: getVal('vEmpresa'),
+        origen: getVal('origen'),
+        origenDivipola: getVal('origenDivipola') || (getVal('origen').match(/^(\d{5})/) ? getVal('origen').match(/^(\d{5})/)[1] : null),
+        destino: getVal('destino'),
+        destinoDivipola: getVal('destinoDivipola') || (getVal('destino').match(/^(\d{5})/) ? getVal('destino').match(/^(\d{5})/)[1] : null),
+        fechaSalida: getVal('fecha'),
+        horaSalida: getVal('horaSalida'),
+        distanciaKm: getNum('distanciaEstimada'),
+        kmSalida: getNum('kmSalida'),
+        kmLlegada: getNum('kmLlegada'),
+        gpsSalida: gpsData.salida,
+        gpsLlegada: gpsData.llegada,
         medio: document.querySelector('input[name="medio"]:checked')?.value || 'Celular',
-        
-        puntos_control: Array.from(document.querySelectorAll('#puntosControlContainer > div')).map(row => ({
-            l: row.querySelector('input[name="pc_lugar[]"]')?.value || '', 
-            h: row.querySelector('input[name="pc_hora[]"]')?.value || ''
-        })).filter(p => p.l !== ''),
+        rutograma: document.getElementById('rutogramaImg')?.getAttribute('src') || null,
+        puntosControl: Array.from(document.querySelectorAll('#puntosControlContainer > div')).map(row => ({
+            lugar: row.querySelector('input[name="pc_lugar[]"]')?.value || '',
+            hora: row.querySelector('input[name="pc_hora[]"]')?.value || ''
+        })).filter(p => p.lugar !== ''),
         previaje: {
-            riesgos: getCheck('cp_riesgos'), personal: getCheck('cp_personal'),
-            inspeccion: getCheck('cp_inspeccion'), cinturon: getCheck('cp_cinturon')
+            riesgos: getCheck('cp_riesgos'),
+            personal: getCheck('cp_personal'),
+            inspeccion: getCheck('cp_inspeccion'),
+            cinturon: getCheck('cp_cinturon')
         },
         fatiga: {
-            sustancias: getCheck('tf_sustancias'), descanso: getCheck('tf_descanso'),
-            condiciones: getCheck('tf_condiciones'), peligros: getCheck('tf_peligros'), celular: getCheck('tf_celular')
+            sustancias: getCheck('tf_sustancias'),
+            descanso: getCheck('tf_descanso'),
+            condiciones: getCheck('tf_condiciones'),
+            celular: getCheck('tf_celular'),
+            alcoholimetria: getVal('alcoholimetriaValor') || null
         },
         control: {
-            dia1: getCheck('dia1'), dia2: getCheck('dia2'), fechaRHA: getVal('fechaRHA')
+            dias: document.querySelector('input[name="diasTrabajados"]:checked')?.value || 'dia1',
+            fechaRHA: getVal('fechaRHA')
         },
-        risk_inputs: {
-            rDistancia: parseInt(document.querySelector('input[name="rDistancia"]:checked')?.value) || 0,
-            rClima: parseInt(document.querySelector('input[name="rClima"]:checked')?.value) || 0,
-            rVehiculos: parseInt(document.querySelector('input[name="rVehiculos"]:checked')?.value) || 0,
-            rVia: parseInt(document.querySelector('input[name="rVia"]:checked')?.value) || 0,
+        riskScore: riskData.score,
+        riskLevel: riskData.level,
+        riskInputs: {
+            rDistancia: parseInt(document.querySelector('input[name="rDistancia"]:checked')?.value) || 1,
+            rClima: parseInt(document.querySelector('input[name="rClima"]:checked')?.value) || 2,
+            rVehiculos: parseInt(document.querySelector('input[name="rVehiculos"]:checked')?.value) || 1,
+            rVia: parseInt(document.querySelector('input[name="rVia"]:checked')?.value) || 1,
             rCom: parseInt(document.querySelector('input[name="rCom"]:checked')?.value) || 0,
-            rFatiga: parseInt(document.querySelector('input[name="rFatiga"]:checked')?.value) || 0,
-            rHora: parseInt(document.querySelector('input[name="rHora"]:checked')?.value) || 0
+            rFatiga: parseInt(document.querySelector('input[name="rFatiga"]:checked')?.value) || 1,
+            rHora: parseInt(document.querySelector('input[name="rHora"]:checked')?.value) || 1
         },
-        created_at: new Date().toISOString()
+        signatures: signaturesObj
     };
 
-    // Captura GPS de llegada automáticamente al finalizar el viaje
-    if (formData.km_llegada && parseFloat(formData.km_llegada) > 0 && !gpsData.llegada) {
-        await getGPSAsync('llegada');
-        formData.gps_llegada = gpsData.llegada;
-    }
-
-    if (checkSig('signatureCanvasConductor')) {
-        formData.signatures = { conductor: document.getElementById('signatureCanvasConductor').toDataURL() };
-    }
-
-    // Determinar estado según progreso y nivel de riesgo
-    if (formData.km_llegada && parseFloat(formData.km_llegada) > 0) {
+    // Determinar estado según progreso y riesgo
+    if (formData.kmLlegada && parseFloat(formData.kmLlegada) > 0) {
         formData.estado = "Finalizado";
     } else if (riskData.score > 15) {
         formData.estado = "Pendiente HSE";
     } else {
-        formData.estado = "Pendiente";
+        formData.estado = "Autorizado";
     }
 
-    // Guardar risk_score para usarlo después
-    const savedRiskScore = riskData.score;
-    const savedRiskLevel = riskData.level;
-
     try {
-        const btnSubmit = document.getElementById('nextBtn');
-        btnSubmit.disabled = true;
-        btnSubmit.innerHTML = 'Guardando... <i class="animate-spin w-4 h-4 ml-2" data-lucide="loader-2"></i>';
-        lucide.createIcons();
-
-        // Detectar si estamos editando un viaje existente ANTES de guardar
-        const isEditing = !!currentTripId;
-
         const savedTrip = await db.saveTrip(formData);
+        const tripId = savedTrip.id || savedTrip.viaje?.id;
 
-        if (!savedTrip?.id) {
-            throw new Error('No se pudo guardar el viaje');
+        if (!tripId) {
+            throw new Error("No se recibió el identificador del viaje guardado.");
         }
 
-        currentTripId = savedTrip.id;
+        currentTripId = tripId;
+        TS.toastSuccess(`Viaje ${formData.origen} → ${formData.destino} registrado con éxito en Railway.`);
 
-        if (isEditing) {
-            // Editando viaje existente: solo guardar, no WhatsApp
-            const esFinalizado = formData.km_llegada && parseFloat(formData.km_llegada) > 0;
-            TS.toastSuccess(esFinalizado ? "Viaje finalizado correctamente" : "Viaje actualizado correctamente");
-            resetFormAndExit();
-        } else if (savedRiskScore > 15) {
-            // MEDIO o ALTO (nuevo viaje): mostrar modal HSE para firma inmediata
-            hseModalActive = true;
-            const hseModal = document.getElementById('hseSignModal');
-            hseModal.classList.remove('hidden');
-            hseModal.style.display = 'flex';
-            TS.toastSuccess(`Viaje registrado con ${savedRiskLevel}. Por favor, estampe la firma HSE.`);
+        // Alerta de Alto Riesgo / Nocturno
+        if (savedTrip.alerta?.requiereAlerta && savedTrip.alerta?.whatsappUrl) {
+            setTimeout(() => {
+                if (confirm(`🚨 ALERTA PESV: ${savedTrip.alerta.titulo}\n\n¿Deseas enviar el reporte formal de despacho a Gerencia y HSEQ vía WhatsApp ahora?`)) {
+                    window.open(savedTrip.alerta.whatsappUrl, '_blank');
+                }
+            }, 500);
+        }
+
+        // Si el riesgo es Medio o Alto y es un viaje nuevo, abrir modal de autorización HSE
+        if (riskData.score > 15 && !formData.kmLlegada) {
+            openHSEModal();
         } else {
-            // BAJO (nuevo viaje): enviar WhatsApp y resetear
-            const whatsappMessage = `🚛 *VIAJE INICIADO*\n\n` +
-                `📍 Ruta: ${formData.origen} → ${formData.destino}\n` +
-                `🚗 Placa: ${formData.vehiculo_placa}\n` +
-                `👤 Conductor: ${formData.conductor_nombre}\n` +
-                `⏰ Hora Salida: ${formData.hora_salida}\n` +
-                `📊 KM Inicial: ${formData.km_salida}\n` +
-                `⚠️ Riesgo: ${savedRiskLevel} (${savedRiskScore} pts)`;
-
-            window.open(`https://wa.me/3136332887?text=${encodeURIComponent(whatsappMessage)}`, '_blank');
-            TS.toastSuccess(`Viaje registrado con ${savedRiskLevel}. Notificación enviada a HSE.`);
+            // Riesgo bajo o viaje finalizado: generar PDF automáticamente
+            try {
+                await generatePDF({ ...formData, id: tripId });
+            } catch (pdfErr) {
+                console.warn("Aviso generando PDF:", pdfErr);
+            }
             resetFormAndExit();
         }
-
     } catch (error) {
-        console.error(error);
-        TS.toastError("Hubo un problema al guardar: " + error.message);
+        console.error("Error al guardar viaje:", error);
+        TS.toastError("Error al guardar el viaje: " + error.message);
     } finally {
-        const btnSubmit = document.getElementById('nextBtn');
-        if (btnSubmit) {
-            btnSubmit.disabled = false;
+        if (nextBtn) {
+            nextBtn.disabled = false;
             updateNavigation(currentStep);
         }
     }
 }
 
-// --- PIN AUTH (HSE / Gerencia) ---
-let pinAuthCallback = null;
-
-function openPinAuthModal(callback) {
-    pinAuthCallback = callback;
-    const modal = document.getElementById('pinAuthModal');
-    const input = document.getElementById('pinAuthInput');
-    const errorEl = document.getElementById('pinAuthError');
-    
+// ============================================================
+// MODAL AUTORIZACIÓN HSE & GERENCIA CON PIN
+// ============================================================
+function openHSEModal() {
+    const modal = document.getElementById('hseSignModal');
     if (modal) {
         modal.classList.remove('hidden');
         modal.style.display = 'flex';
+        setupCanvas('signatureCanvasHSE_Modal');
+        setTimeout(() => resizeCanvas('signatureCanvasHSE_Modal'), 100);
     }
-    if (input) {
-        input.value = '';
-        input.focus();
-        // Permitir enviar con Enter
-        input.onkeydown = (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                submitPinAuth();
-            }
-        };
-    }
-    if (errorEl) errorEl.classList.add('hidden');
 }
 
-function closePinAuthModal() {
-    const modal = document.getElementById('pinAuthModal');
+window.closeHSEModal = function() {
+    const modal = document.getElementById('hseSignModal');
     if (modal) {
         modal.classList.add('hidden');
         modal.style.display = 'none';
     }
-    pinAuthCallback = null;
-}
+};
 
-async function submitPinAuth() {
-    const input = document.getElementById('pinAuthInput');
-    const errorEl = document.getElementById('pinAuthError');
-    const pin = input?.value?.trim();
-
-    if (!pin) {
-        if (errorEl) {
-            errorEl.textContent = 'Ingrese el PIN';
-            errorEl.classList.remove('hidden');
-        }
+window.submitHSEAuth = function() {
+    const canvasModal = document.getElementById('signatureCanvasHSE_Modal');
+    if (canvasModal?.getAttribute('data-signed') !== 'true') {
+        TS.toastWarning("Por favor estampe la firma del profesional HSEQ.");
         return;
     }
-
-    const btn = document.getElementById('btnPinVerify');
-    if (btn) {
-        btn.textContent = 'Verificando...';
-        btn.disabled = true;
-    }
-
-    console.log('[PIN] Verificando PIN...');
-
-    try {
-        const isValid = await verifyPinAdmin(pin);
-        console.log('[PIN] Resultado verifyPinAdmin:', isValid);
-
-        if (isValid) {
-            console.log('[PIN] PIN válido.');
-            const callback = pinAuthCallback; // Capturar ANTES de cerrar modal
-            if (typeof callback === 'function') {
-                console.log('[PIN] Ejecutando callback...');
-                TS.toastInfo('PIN correcto. Procesando autorización...');
-                closePinAuthModal();
-                await callback();
-                console.log('[PIN] Callback ejecutado correctamente.');
-            } else {
-                console.warn('[PIN] PIN válido pero callback no es función:', callback);
-                TS.toastWarning('PIN válido, pero no hay acción definida.');
-                closePinAuthModal();
-            }
-        } else {
-            console.warn('[PIN] PIN incorrecto.');
-            if (errorEl) {
-                errorEl.textContent = 'PIN incorrecto. Intente nuevamente.';
-                errorEl.classList.remove('hidden');
-            }
-            if (input) {
-                input.value = '';
-                input.focus();
-            }
-        }
-    } catch (e) {
-        console.error('[PIN] Error verificando PIN:', e);
-        const msg = 'Error al verificar: ' + (e.message || 'Intente nuevamente.');
-        if (errorEl) {
-            errorEl.textContent = msg;
-            errorEl.classList.remove('hidden');
-        }
-        TS.toastError(msg);
-    } finally {
-        if (btn) {
-            btn.textContent = 'Verificar';
-            btn.disabled = false;
-        }
-    }
-}
-
-window.closePinAuthModal = closePinAuthModal;
-window.submitPinAuth = submitPinAuth;
-
-// Cerrar modal PIN con Escape
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closePinAuthModal();
-});
-
-// --- AUTORIZACIÓN HSE ---
-async function submitHSEAuth() {
-    if (!currentTripId) return TS.toastWarning("Error: No hay viaje activo.");
-    
-    const btnAuth = document.getElementById('btnHSEAuth');
-    const canvasModal = document.getElementById('signatureCanvasHSE_Modal');
-    
-    if (canvasModal.getAttribute('data-signed') !== 'true') {
-        return TS.toastWarning("Por favor, estampe la firma antes de autorizar.");
-    }
-
-    // Pedir PIN antes de proceder
     openPinAuthModal(async () => {
         await executeHSEAuth();
     });
-}
+};
 
 async function executeHSEAuth() {
-    const btnAuth = document.getElementById('btnHSEAuth');
-    
+    if (!currentTripId) return;
     try {
-        if (btnAuth) {
-            btnAuth.disabled = true;
-            btnAuth.innerHTML = 'Procesando... <i class="animate-spin" data-lucide="loader-2"></i>';
-        }
+        const hseSig = document.getElementById('signatureCanvasHSE_Modal').toDataURL();
+        const trip = await getViajeById(currentTripId);
+        const existingSignatures = trip?.signatures || {};
 
-        // Obtener datos completos del viaje
-        const { data: tripData, error: fetchError } = await supabase
-            .from('operacion.viajes')
-            .select('*')
-            .eq('id', currentTripId)
-            .single();
-        
-        if (fetchError) throw fetchError;
-
-        const existingSignatures = tripData?.signatures || {};
-        const newSignatures = {
-            ...existingSignatures,
-            hse: document.getElementById('signatureCanvasHSE_Modal').toDataURL()
-        };
-
-        // Determinar siguiente estado según nivel de riesgo
-        const isHighRisk = (tripData?.risk_score || 0) > 23;
-        const nextEstado = isHighRisk ? "Pendiente Gerencia" : "Autorizado";
-
-        await db.saveTrip({
-            id: currentTripId,
-            signatures: newSignatures,
-            estado: nextEstado
+        const updated = await updateViaje(currentTripId, {
+            estado: "Autorizado",
+            signatures: {
+                ...existingSignatures,
+                hse: hseSig,
+                hse_fecha: new Date().toISOString()
+            }
         });
 
-        const vPlaca = document.getElementById('vPlaca')?.value || '';
+        closeHSEModal();
+        TS.toastSuccess("¡Viaje autorizado por HSEQ exitosamente!");
         
-        hseModalActive = false;
-        document.getElementById('hseSignModal').classList.add('hidden');
-        document.getElementById('hseSignModal').style.display = 'none';
-        
-        if (isHighRisk) {
-            // ALTO: enviar WhatsApp solicitando autorización y resetear
-            const whatsappMessage = `🚨 *SOLICITUD DE AUTORIZACIÓN - VIAJE ALTO RIESGO*\n\n` +
-                `📍 Ruta: ${tripData.origen} → ${tripData.destino}\n` +
-                `🚗 Placa: ${tripData.vehiculo_placa}\n` +
-                `👤 Conductor: ${tripData.conductor_nombre}\n` +
-                `⏰ Hora Salida: ${tripData.hora_salida}\n` +
-                `📊 KM Inicial: ${tripData.km_salida}\n` +
-                `⚠️ Riesgo: ${tripData.risk_level} (${tripData.risk_score} pts)\n\n` +
-                `⚠️ Este viaje requiere autorización de Gerencia antes de iniciar.`;
+        // Generar PDF oficial firmado
+        try {
+            await generatePDF(updated);
+        } catch (e) { }
 
-            window.open(`https://wa.me/3136332887?text=${encodeURIComponent(whatsappMessage)}`, '_blank');
-            TS.toastSuccess(`Viaje autorizado por HSE. Solicitud enviada a Gerencia para riesgo ${tripData.risk_level}.`);
-            resetFormAndExit();
-
-        } else {
-            // MEDIO: enviar WhatsApp de inicio de viaje y resetear
-            const whatsappMessage = `🚛 *VIAJE INICIADO*\n\n` +
-                `📍 Ruta: ${tripData.origen} → ${tripData.destino}\n` +
-                `🚗 Placa: ${tripData.vehiculo_placa}\n` +
-                `👤 Conductor: ${tripData.conductor_nombre}\n` +
-                `⏰ Hora Salida: ${tripData.hora_salida}\n` +
-                `📊 KM Inicial: ${tripData.km_salida}\n` +
-                `⚠️ Riesgo: ${tripData.risk_level} (${tripData.risk_score} pts)`;
-
-            window.open(`https://wa.me/3136332887?text=${encodeURIComponent(whatsappMessage)}`, '_blank');
-            TS.toastSuccess("¡Viaje autorizado por HSE! Notificación enviada.");
-            resetFormAndExit();
-        }
-
-    } catch (err) {
-        TS.toastError("Error al autorizar: " + err.message);
-    } finally {
-        btnAuth.disabled = false;
-        btnAuth.innerHTML = 'AUTORIZAR VIAJE Y NOTIFICAR <i data-lucide="send" class="w-4 h-4 ml-2"></i>';
-    }
-}
-
-// --- AUTORIZACIÓN GERENCIA ---
-async function submitGerenciaAuth() {
-    if (!currentTripId) return TS.toastWarning("Error: No hay viaje activo.");
-    
-    const canvasGerencia = document.getElementById('signatureCanvasGerencia');
-    if (!canvasGerencia || canvasGerencia.getAttribute('data-signed') !== 'true') {
-        return TS.toastWarning("Por favor, estampe la firma de Gerencia antes de aprobar.");
-    }
-
-    // Pedir PIN antes de proceder
-    openPinAuthModal(async () => {
-        await executeGerenciaAuth();
-    });
-}
-
-async function executeGerenciaAuth() {
-    try {
-        const canvasGerencia = document.getElementById('signatureCanvasGerencia');
-        
-        // Obtener firmas existentes para mergear
-        const { data: existingTrip, error: fetchError } = await supabase
-            .from('operacion.viajes')
-            .select('signatures, risk_level')
-            .eq('id', currentTripId)
-            .single();
-        
-        if (fetchError) throw fetchError;
-
-        const existingSignatures = existingTrip?.signatures || {};
-        const newSignatures = {
-            ...existingSignatures,
-            gerencia: canvasGerencia.toDataURL()
-        };
-
-        await db.saveTrip({
-            id: currentTripId,
-            signatures: newSignatures,
-            estado: "Autorizado"
-        });
-
-        TS.toastSuccess("¡Viaje aprobado por Gerencia!");
         resetFormAndExit();
-
-    } catch (err) {
-        TS.toastError("Error al aprobar: " + err.message);
+    } catch (e) {
+        console.error("Error en autorización HSE:", e);
+        TS.toastError("Error en autorización: " + e.message);
     }
 }
 
-// --- FIRMAS Y CANVAS ---
-function autoSignHSEModal() {
-    const cMod = document.getElementById('signatureCanvasHSE_Modal');
-    if (!cMod) {
-        console.error("No se encontró el canvas del modal");
-        TS.toastError("Error: No se encontró el canvas");
+// ============================================================
+// PIN INSTITUCIONAL
+// ============================================================
+function openPinAuthModal(callback) {
+    pinAuthCallback = callback;
+    const modal = document.getElementById('pinAuthModal');
+    const input = document.getElementById('pinAuthInput');
+    const err = document.getElementById('pinAuthError');
+    if (modal) modal.classList.remove('hidden');
+    if (input) {
+        input.value = '';
+        setTimeout(() => input.focus(), 100);
+    }
+    if (err) err.classList.add('hidden');
+}
+
+window.closePinAuthModal = function() {
+    document.getElementById('pinAuthModal')?.classList.add('hidden');
+    pinAuthCallback = null;
+};
+
+window.submitPinAuth = async function() {
+    const input = document.getElementById('pinAuthInput');
+    const err = document.getElementById('pinAuthError');
+    const pin = input?.value?.trim();
+
+    const valid = await verifyPinAdmin(pin);
+    if (!valid) {
+        if (err) err.classList.remove('hidden');
         return;
     }
 
-    // Primero redimensionar el canvas
-    const rect = cMod.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) {
-        cMod.width = 340;
-        cMod.height = 160;
-    } else {
-        cMod.width = rect.width;
-        cMod.height = rect.height;
+    closePinAuthModal();
+    if (pinAuthCallback) {
+        const cb = pinAuthCallback;
+        pinAuthCallback = null;
+        await cb();
     }
+};
 
-    const ctxMod = cMod.getContext('2d');
-    
-    // Dibujar firma profesional
-    ctxMod.clearRect(0, 0, cMod.width, cMod.height);
-    
-    // Fondo
-    ctxMod.fillStyle = '#ffffff';
-    ctxMod.fillRect(0, 0, cMod.width, cMod.height);
-    
-    // Borde azul
-    ctxMod.strokeStyle = '#1e40af';
-    ctxMod.lineWidth = 3;
-    ctxMod.strokeRect(5, 5, cMod.width-10, cMod.height-10);
-    
-    // Línea decorativa superior
-    ctxMod.fillStyle = '#1e40af';
-    ctxMod.fillRect(15, 15, cMod.width-30, 3);
-    
-    // Título empresa
-    ctxMod.fillStyle = '#1e3a8a';
-    ctxMod.font = 'bold 16px Arial';
-    ctxMod.textAlign = 'center';
-    ctxMod.fillText('TRANS SERVICES A&B', cMod.width/2, 35);
-    
-    // Subtítulo
-    ctxMod.fillStyle = '#64748b';
-    ctxMod.font = '11px Arial';
-    ctxMod.fillText('Autorización HSE', cMod.width/2, 50);
-    
-    // Línea separadora
-    ctxMod.strokeStyle = '#e2e8f0';
-    ctxMod.lineWidth = 1;
-    ctxMod.beginPath();
-    ctxMod.moveTo(15, 60);
-    ctxMod.lineTo(cMod.width-15, 60);
-    ctxMod.stroke();
-    
-    // Firma estilizada
-    ctxMod.fillStyle = '#0f172a';
-    ctxMod.font = 'italic 28px "Brush Script MT", cursive';
-    ctxMod.fillText('Owen Alvares Zuñiga', cMod.width/2, 105);
-    
-    // Cargo
-    ctxMod.fillStyle = '#64748b';
-    ctxMod.font = 'bold 12px Arial';
-    ctxMod.fillText('Profesional HSE / Coordinador de Seguridad Vial', cMod.width/2, 125);
-    
-    // Fecha automática
-    const fecha = new Date().toLocaleDateString('es-CO');
-    ctxMod.fillStyle = '#94a3b8';
-    ctxMod.font = '10px Arial';
-    ctxMod.fillText(`Firmado digitalmente: ${fecha}`, cMod.width/2, cMod.height - 15);
-    
-    cMod.setAttribute('data-signed', 'true');
-    
-    const btnAuth = document.getElementById('btnHSEAuth');
-    if(btnAuth) {
-        btnAuth.disabled = false;
-        btnAuth.classList.remove('opacity-50', 'cursor-not-allowed');
-    }
-    if(typeof lucide !== 'undefined') lucide.createIcons();
-}
-
-function autoSignGerencia() {
-    const cGer = document.getElementById('signatureCanvasGerencia');
-    if (!cGer) {
-        console.error("No se encontró el canvas de Gerencia");
-        TS.toastError("Error: No se encontró el canvas de Gerencia");
-        return;
-    }
-
-    // Redimensionar el canvas
-    const rect = cGer.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) {
-        cGer.width = 340;
-        cGer.height = 128;
-    } else {
-        cGer.width = rect.width;
-        cGer.height = rect.height;
-    }
-
-    const ctxGer = cGer.getContext('2d');
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    
-    img.onload = function() {
-        // Limpiar canvas
-        ctxGer.clearRect(0, 0, cGer.width, cGer.height);
-        
-        // Dibujar imagen de firma ajustada al canvas
-        ctxGer.drawImage(img, 0, 0, cGer.width, cGer.height);
-        
-        cGer.setAttribute('data-signed', 'true');
-        
-        // Ocultar el overlay del botón
-        const overlay = document.getElementById('gerenciaAutoSignOverlay');
-        if (overlay) overlay.style.display = 'none';
-        
-        TS.toastSuccess("Firma de Gerencia estampada correctamente.");
-    };
-    
-    img.onerror = function() {
-        console.error("Error cargando imagen de firma");
-        // Fallback: dibujar texto
-        ctxGer.clearRect(0, 0, cGer.width, cGer.height);
-        ctxGer.fillStyle = '#ffffff';
-        ctxGer.fillRect(0, 0, cGer.width, cGer.height);
-        ctxGer.fillStyle = '#1e3a8a';
-        ctxGer.font = 'bold 16px Arial';
-        ctxGer.textAlign = 'center';
-        ctxGer.fillText('APROBACIÓN GERENCIA', cGer.width/2, cGer.height/2);
-        cGer.setAttribute('data-signed', 'true');
-        const overlay = document.getElementById('gerenciaAutoSignOverlay');
-        if (overlay) overlay.style.display = 'none';
-    };
-    
-    img.src = './assets/firma-gerencia.png';
-}
-
-function clearSignature(id) {
-    const c = document.getElementById(id);
-    if(c) {
-        c.getContext('2d').clearRect(0, 0, c.width, c.height);
-        c.removeAttribute('data-signed');
-        
-        if (id === 'signatureCanvasHSE_Modal') {
-            const btnAuth = document.getElementById('btnHSEAuth');
-            if(btnAuth) {
-                btnAuth.disabled = true;
-                btnAuth.classList.add('opacity-50', 'cursor-not-allowed');
-            }
-        }
-    }
-    checkSignatures();
-    if (currentStep === totalSteps - 1) updateNavigation(currentStep);
-}
-
-function resizeCanvas(id) {
-    const c = document.getElementById(id);
-    if (!c) return;
-    const r = c.getBoundingClientRect();
-    if (r.width > 0 && r.height > 0) {
-        c.width = r.width;
-        c.height = r.height;
-    }
-}
-
-function setupCanvas(id) {
-    const c = document.getElementById(id);
-    if (!c) return;
-    
-    if (c.getAttribute('data-setup') === 'true') return;
-    c.setAttribute('data-setup', 'true');
-
-    const ctx = c.getContext('2d');
-    let drawing = false;
-
-    const startDrawing = (e) => { drawing = true; draw(e); };
-    const stopDrawing = () => { 
-        if (drawing) {
-            drawing = false; 
-            ctx.beginPath(); 
-            c.setAttribute('data-signed', 'true');
-            
-            if (id === 'signatureCanvasHSE_Modal') {
-                const btnAuth = document.getElementById('btnHSEAuth');
-                if(btnAuth) {
-                    btnAuth.disabled = false;
-                    btnAuth.classList.remove('opacity-50', 'cursor-not-allowed');
-                }
-            } else {
-                if (currentStep === totalSteps - 1) updateNavigation(currentStep);
-            }
-        }
-    };
-    const draw = (e) => {
-        if (!drawing) return;
-        ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = "#000";
-        e.preventDefault(); 
-        const r = c.getBoundingClientRect();
-        const x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
-        const y = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
-        ctx.lineTo(x, y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y);
-    };
-
-    c.addEventListener('mousedown', startDrawing);
-    c.addEventListener('mouseup', stopDrawing);
-    c.addEventListener('mouseout', stopDrawing);
-    c.addEventListener('mousemove', draw);
-    
-    c.addEventListener('touchstart', startDrawing, {passive: false});
-    c.addEventListener('touchend', stopDrawing, {passive: false});
-    c.addEventListener('touchcancel', stopDrawing, {passive: false});
-    c.addEventListener('touchmove', draw, {passive: false});
-}
-
+// ============================================================
+// REINICIAR FORMULARIO
+// ============================================================
 function resetFormAndExit() {
     document.getElementById("travelForm")?.reset();
     currentTripId = null;
-    skipGerenciaSignature = false;
     currentStep = 0;
-    ['signatureCanvasConductor', 'signatureCanvasHSE_Modal', 'signatureCanvasGerencia'].forEach(clearSignature);
-    
-    const formInputs = document.querySelectorAll('#travelForm input, #travelForm select, #travelForm textarea');
-    formInputs.forEach(el => el.disabled = false);
-    
-    const kmLlegada = document.getElementById('kmLlegada');
-    if (kmLlegada) kmLlegada.setAttribute('readonly', 'true');
-    
-    // Restaurar botón nextBtn a su función original
-    const nextBtn = document.getElementById('nextBtn');
-    if(nextBtn) {
-        nextBtn.onclick = function() { nextPrev(1); };
-    }
-    
-    // Mostrar container del conductor de nuevo
-    const conductorContainer = document.getElementById('containerFirmaConductor');
-    if (conductorContainer) conductorContainer.style.display = '';
-    
+    ['signatureCanvasConductor', 'signatureCanvasGerencia', 'signatureCanvasHSE_Modal'].forEach(clearSignature);
     showStep(0);
     updateRisk();
 }
 
-// --- HISTORIAL ---
-function toggleHistory() {
+// ============================================================
+// HISTORIAL DE VIAJES (100% POSTGRESQL / RAILWAY)
+// ============================================================
+window.toggleHistory = async function() {
     const modal = document.getElementById('historyModal');
+    if (!modal) return;
     if (modal.classList.contains('hidden')) {
         modal.classList.remove('hidden');
-        loadHistory();
+        await loadHistory();
     } else {
         modal.classList.add('hidden');
     }
-}
+};
 
 async function loadHistory() {
     const list = document.getElementById('historyList');
-    list.innerHTML = `<div class="text-center text-blue-600 py-10"><i class="animate-spin" data-lucide="loader-2"></i> Cargando...</div>`;
-    if(typeof lucide !== 'undefined') lucide.createIcons();
+    if (list) list.innerHTML = `<div class="text-center py-8 text-blue-600 font-bold"><i class="animate-spin w-6 h-6 mx-auto mb-2" data-lucide="loader-2"></i> Cargando viajes desde Railway...</div>`;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 
     try {
-        currentHistoryData = await db.getTrips();
+        currentHistoryData = await getViajes();
         historyDataMap = currentHistoryData.reduce((acc, curr) => { acc[curr.id] = curr; return acc; }, {});
         renderHistoryList();
-    } catch (err) {
-        console.error("Error loading history:", err);
-        list.innerHTML = `<div class="text-center text-red-500 py-10">Error al cargar historial</div>`;
+    } catch (e) {
+        console.error("Error cargando historial:", e);
+        if (list) list.innerHTML = `<div class="text-center py-8 text-red-500 font-bold">Error al consultar viajes de Railway.</div>`;
     }
 }
 
 function renderHistoryList() {
-    const escapeHTML = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    const listContainer = document.getElementById('historyList');
+    const list = document.getElementById('historyList');
+    if (!list) return;
+
     if (currentHistoryData.length === 0) {
-        listContainer.innerHTML = `<p class="p-10 text-center text-gray-500">No hay viajes registrados.</p>`;
+        list.innerHTML = `<div class="p-8 text-center text-slate-500 font-bold">No hay viajes registrados aún en la base de datos.</div>`;
         return;
     }
-    listContainer.innerHTML = currentHistoryData.map(t => {
-        const isFinalized = t.estado === 'Finalizado' || (t.km_llegada && parseFloat(t.km_llegada) > 0);
-        const statusColor = isFinalized ? 'text-emerald-600' : 'text-amber-600';
 
+    list.innerHTML = currentHistoryData.map(t => {
+        const isFinal = t.estado === 'Finalizado' || (t.km_llegada && parseFloat(t.km_llegada) > 0);
         return `
-        <div class="p-4 border-b border-gray-100 hover:bg-blue-50 flex justify-between items-center transition-colors">
-            <div onclick="editTrip('${escapeHTML(t.id)}')" class="cursor-pointer flex-1">
-                <p class="font-bold text-gray-900">${escapeHTML(t.origen || 'S/O')} → ${escapeHTML(t.destino || 'S/D')}</p>
-                <p class="text-xs text-gray-500">${escapeHTML(t.vehiculo_placa)} | <span class="${statusColor} font-bold">${escapeHTML(t.estado || 'Registrado')}</span></p>
+        <div class="p-3 bg-white rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between gap-2 hover:bg-slate-50 transition-colors">
+            <div onclick="editTrip('${t.id}')" class="cursor-pointer flex-1">
+                <p class="font-black text-slate-900 text-sm">${t.origen || 'Origen'} → ${t.destino || 'Destino'}</p>
+                <p class="text-xs text-slate-500 font-medium">Placa: <strong class="text-slate-800">${t.vehiculo_placa || 'N/A'}</strong> · ${t.conductor_nombre || 'Conductor'}</p>
+                <span class="inline-block px-2 py-0.5 mt-1 rounded-md text-[10px] font-black ${isFinal ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'}">${t.estado || 'En curso'}</span>
             </div>
-            <div class="flex gap-2">
-                ${isFinalized 
-                    ? `<button onclick="exportTripPDF('${escapeHTML(t.id)}')" class="p-2 text-red-600 hover:bg-red-100 rounded-full" title="Descargar PDF"><i data-lucide="file-down" class="w-5 h-5"></i></button>` 
-                    : `<button onclick="editTrip('${escapeHTML(t.id)}')" class="p-2 text-blue-600 hover:bg-blue-100 rounded-full" title="Registrar KM Final"><i data-lucide="eye" class="w-5 h-5"></i></button>`}
+            <div class="flex items-center gap-1">
+                <button onclick="exportTripPDF('${t.id}')" class="p-2 text-red-600 hover:bg-red-50 rounded-xl" title="Descargar PDF STE-F-010">
+                    <i data-lucide="file-text" class="w-4 h-4"></i>
+                </button>
             </div>
         </div>
-    `}).join('');
-    
-    if(typeof lucide !== 'undefined') lucide.createIcons();
+        `;
+    }).join('');
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-async function editTrip(id) {
-    toggleHistory(); 
-    const nextBtn = document.getElementById("nextBtn");
-    if(nextBtn) nextBtn.innerHTML = 'Cargando... <i class="ml-2 animate-spin" data-lucide="loader-2"></i>';
-    
-    try {
-        const { data: tripData, error } = await supabase.from('operacion.viajes').select('*').eq('id', id).single();
-        if (error || !tripData) return TS.toastError("Viaje no encontrado");
-        
-        const data = tripData;
-        currentTripId = id; 
-
-        const setVal = (id, val) => { if(document.getElementById(id)) document.getElementById(id).value = val ?? ''; };
-        const setRadio = (name, val) => {
-            if (val == null) return;
-            const radio = document.querySelector(`input[name="${name}"][value="${val}"]`);
-            if (radio) radio.checked = true;
-        };
-        
-        setVal('fecha', data.fecha); setVal('horaSalida', data.hora_salida); 
-        setVal('origen', data.origen); setVal('destino', data.destino); 
-        setVal('kmSalida', data.km_salida); setVal('vPlaca', data.vehiculo_placa); 
-        setVal('cNombre', data.conductor_nombre);
-
-        // Determinar si el viaje ya fue autorizado/firmado para omitir firma de Gerencia
-        skipGerenciaSignature = (
-            data.estado === "Autorizado" ||
-            data.estado === "Finalizado" ||
-            !!data.signatures?.gerencia
-        );
-
-        // Restaurar análisis de riesgo desde risk_inputs
-        if (data.risk_inputs) {
-            setRadio('rDistancia', data.risk_inputs.rDistancia);
-            setRadio('rClima', data.risk_inputs.rClima);
-            setRadio('rVehiculos', data.risk_inputs.rVehiculos);
-            setRadio('rVia', data.risk_inputs.rVia);
-            setRadio('rCom', data.risk_inputs.rCom);
-            setRadio('rFatiga', data.risk_inputs.rFatiga);
-            setRadio('rHora', data.risk_inputs.rHora);
-            updateRisk(); // Recalcular risk_score y risk_level con los valores restaurados
-        }
-
-        currentStep = 0;
-        showStep(currentStep);
-
-        const formInputs = document.querySelectorAll('#travelForm input:not([type="hidden"]), #travelForm select, #travelForm textarea');
-        formInputs.forEach(el => el.disabled = true);
-
-        if (data.estado === "Finalizado" || (data.km_llegada && parseFloat(data.km_llegada) > 0)) {
-            setVal('kmLlegada', data.km_llegada);
-            TS.toastInfo("Este viaje ya está finalizado. Se muestra en modo lectura.");
-        } else if (data.estado === "Pendiente Gerencia") {
-            // Modo aprobación de Gerencia: saltar al paso 7
-            currentStep = totalSteps - 1;
-            showStep(currentStep);
-            TS.toast(`Viaje pendiente de aprobación de Gerencia (${data.risk_level}). Por favor estampe la firma y apruebe.`);
-            
-            // Ocultar firma del conductor, mostrar solo Gerencia
-            const conductorContainer = document.getElementById('containerFirmaConductor');
-            if (conductorContainer) conductorContainer.style.display = 'none';
-            
-            // Asegurar que el contenedor de Gerencia esté visible
-            const gerenciaContainer = document.getElementById('containerFirmaGerencia');
-            if (gerenciaContainer) {
-                gerenciaContainer.classList.remove('hidden');
-                gerenciaContainer.style.display = 'block';
-            }
-
-            // Mantener botón de auto-firma visible para estampar firma de Gerencia
-            const autoSignOverlay = document.getElementById('gerenciaAutoSignOverlay');
-            if (autoSignOverlay) autoSignOverlay.style.display = 'flex';
-
-            // Mantener canvas bloqueado para dibujo manual — solo auto-firma permitida
-            const canvasGerencia = document.getElementById('signatureCanvasGerencia');
-            if (canvasGerencia) {
-                canvasGerencia.classList.add('pointer-events-none');
-                canvasGerencia.style.pointerEvents = 'none';
-            }
-
-            // Cambiar texto del botón para reflejar acción de Gerencia
-            if(nextBtn) {
-                nextBtn.innerHTML = 'Guardar y Autorizar <i class="ml-2" data-lucide="check-circle"></i>';
-                nextBtn.onclick = function() { submitGerenciaAuth(); };
-            }
-            
-            return; // Salir temprano, no ejecutar lógica de conductor
-        } else if (data.estado === "Autorizado") {
-            // Viaje ya autorizado: saltar firma de Gerencia y permitir solo KM final
-            skipGerenciaSignature = true;
-            TS.toast(`Viaje autorizado (${data.risk_level}). Por favor ingrese el Kilometraje Final para cerrar.`);
-            setTimeout(() => {
-                const kmInput = document.getElementById('kmLlegada');
-                if(kmInput) {
-                    kmInput.disabled = false;
-                    kmInput.removeAttribute('readonly');
-                    kmInput.addEventListener('input', () => {
-                        calcKm();
-                        updateNavigation(currentStep);
-                    });
-                    kmInput.focus();
-                }
-            }, 500);
-        } else {
-            TS.toast(`Viaje en curso (${data.estado}). Por favor ingrese el Kilometraje Final.`);
-            setTimeout(() => {
-                const kmInput = document.getElementById('kmLlegada');
-                if(kmInput) {
-                    kmInput.disabled = false;
-                    kmInput.removeAttribute('readonly');
-                    kmInput.addEventListener('input', () => {
-                        calcKm();
-                        updateNavigation(currentStep);
-                    });
-                    kmInput.focus();
-                }
-            }, 500);
-        }
-    } catch (e) {
-        console.error(e);
-        TS.toastError("Error al cargar viaje: " + e.message);
-    } finally {
-        updateNavigation(currentStep);
-    }
-}
-
-async function exportTripPDF(id) {
-    const data = historyDataMap[id];
-    if (data && typeof generatePDF === 'function') await generatePDF(data);
-    else TS.toastError("Generador de PDF no disponible o viaje no encontrado.");
-}
-
-function filterHistory() {
-    const filter = document.getElementById('historyFilter')?.value;
-    if (!filter || filter === 'all') {
+window.filterHistorySearch = function() {
+    const q = (document.getElementById('historySearch')?.value || '').toLowerCase().trim();
+    if (!q) {
         currentHistoryData = Object.values(historyDataMap);
     } else {
-        currentHistoryData = Object.values(historyDataMap).filter(t => t.estado === filter);
+        currentHistoryData = Object.values(historyDataMap).filter(t => 
+            (t.origen || '').toLowerCase().includes(q) ||
+            (t.destino || '').toLowerCase().includes(q) ||
+            (t.vehiculo_placa || '').toLowerCase().includes(q) ||
+            (t.conductor_nombre || '').toLowerCase().includes(q)
+        );
     }
     renderHistoryList();
-}
-
-async function createNewTrip() {
-    if (await TS.confirm("¿Desea iniciar un nuevo viaje? Se perderán los datos no guardados.")) resetFormAndExit();
-}
-function openEmergencyPanel() { document.getElementById('emergencyModal')?.classList.remove('hidden'); }
-function closeEmergencyPanel() { document.getElementById('emergencyModal')?.classList.add('hidden'); }
-async function logout() {
-    if (!(await TS.confirm('¿Cerrar sesión?'))) return;
-    
-    // Deshabilitar botones durante logout
-    const logoutBtns = document.querySelectorAll('button[onclick*="logout"]');
-    logoutBtns.forEach(btn => btn.disabled = true);
-    
-    try {
-        await signOut();
-    } catch (e) {
-        console.warn('SignOut error:', e);
-    }
-    
-    // Pequeño delay para asegurar limpieza, luego redirigir
-    setTimeout(() => {
-        window.location.replace('./login.html');
-    }, 300);
-}
-
-// --- EXPORTACIÓN A PDF (delegado a pdf-generator.js) ---
-// La función generatePDF se importa desde './pdf-generator.js'
-
-// --- INICIO ---
-window.onload = () => {
-    showStep(currentStep);
-    if(typeof lucide !== 'undefined') lucide.createIcons();
-    getGPS('salida'); 
-    
-    setupCanvas('signatureCanvasConductor');
-    setupCanvas('signatureCanvasHSE_Modal');
-    setupCanvas('signatureCanvasGerencia');
-    updateRisk();
-
-    // Mostrar formulario inmediatamente
-    const loading = document.getElementById('loadingScreen');
-    const main = document.getElementById('mainContainer');
-    if(loading) loading.style.display = 'none';
-    if(main) main.style.display = 'block';
-    
-    // Inicializar auth en背景 (sin bloquear)
-    initAuth().catch(console.error);
 };
 
-// --- EXPORTAR FUNCIONES AL SCOPE GLOBAL ---
-window.showStep = showStep;
-window.nextPrev = nextPrev;
-window.updateNavigation = updateNavigation;
-window.updateProgressBar = updateProgressBar;
-window.getGPS = getGPS;
-window.calcKm = calcKm;
-window.updateRisk = updateRisk;
-window.checkSignatures = checkSignatures;
-window.previewRutograma = previewRutograma;
-window.removeRutograma = removeRutograma;
-window.searchVehicle = searchVehicle;
-window.addControlPoint = addControlPoint;
-window.removeControlPoint = removeControlPoint;
-window.handleSubmit = handleSubmit;
-window.submitHSEAuth = submitHSEAuth;
-window.executeHSEAuth = executeHSEAuth;
-window.autoSignHSEModal = autoSignHSEModal;
-window.autoSignGerencia = autoSignGerencia;
-window.submitGerenciaAuth = submitGerenciaAuth;
-window.executeGerenciaAuth = executeGerenciaAuth;
-window.clearSignature = clearSignature;
-window.resizeCanvas = resizeCanvas;
-window.setupCanvas = setupCanvas;
-window.resetFormAndExit = resetFormAndExit;
-window.toggleHistory = toggleHistory;
-window.loadHistory = loadHistory;
-window.renderHistoryList = renderHistoryList;
-window.editTrip = editTrip;
-window.exportTripPDF = exportTripPDF;
-window.createNewTrip = createNewTrip;
-window.openEmergencyPanel = openEmergencyPanel;
-window.closeEmergencyPanel = closeEmergencyPanel;
-window.logout = logout;
-window.generatePDF = generatePDF;
-window.filterHistory = filterHistory;
-window.openPinAuthModal = openPinAuthModal;
-window.closePinAuthModal = closePinAuthModal;
-window.submitPinAuth = submitPinAuth;
-
-// ==================== NUEVAS FUNCIONES ====================
-
-// --- AUTENTICACIÓN ---
-// (currentUser, currentProfile, currentConductor ya declarados al inicio)
-
-async function initAuth() {
+window.editTrip = async function(id) {
+    toggleHistory();
     try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user) {
-            console.warn('initAuth: No hay sesión activa');
-            return;
-        }
-        
-        currentUser = session.user;
-        console.log('initAuth: Sesión encontrada. Email:', currentUser.email);
-        
-        // Cargar perfil
-        const { data: profile, error: profileError } = await supabase
-            .from('core.personas')
-            .select('*')
-            .eq('id', currentUser.id)
-            .maybeSingle();
-        if (profileError) console.error('initAuth: Error cargando perfil:', profileError);
-        currentProfile = profile;
-        
-        // Cargar conductor (búsqueda insensible a mayúsculas/minúsculas)
-        const { data: conductores, error: conductorError } = await supabase
-            .from('core.conductores')
-            .select('*')
-            .ilike('email', currentUser.email);
-        if (conductorError) console.error('initAuth: Error cargando conductor:', conductorError);
-        currentConductor = conductores?.[0] || null;
-        
-        if (!currentConductor) {
-            console.warn('initAuth: No se encontró conductor para:', currentUser.email);
-            
-            // Intentar auto-crear conductor desde datos del perfil
-            if (currentProfile?.nombre_completo) {
-                console.log('initAuth: Intentando auto-crear conductor...');
-                const palabras = currentProfile.nombre_completo.trim().split(/\s+/);
-                const nombres = palabras[0] || currentProfile.nombre_completo;
-                const apellidos = palabras.slice(1).join(' ') || '';
-                
-                try {
-                    const { data: newConductor, error: createError } = await supabase
-                        .from('core.conductores')
-                        .insert({
-                            email: currentUser.email,
-                            nombres,
-                            apellidos,
-                            numero_documento: currentUser.id.substring(0, 12),
-                            estado: 'activo'
-                        })
-                        .select()
-                        .single();
-                    
-                    if (createError) {
-                        console.error('initAuth: Error auto-creando conductor:', createError);
-                        TS.toastError('Error: No se encontró tu registro de conductor. Por favor contacta al administrador.');
-                    } else {
-                        currentConductor = newConductor;
-                        console.log('initAuth: Conductor auto-creado:', newConductor.id);
-                    }
-                } catch (e) {
-                    console.error('initAuth: Error auto-creando conductor:', e);
-                    TS.toastError('Error: No se encontró tu registro de conductor. Por favor contacta al administrador.');
-                }
-            } else {
-                TS.toastError('Error: No se encontró tu registro de conductor. Por favor contacta al administrador.');
-            }
+        const trip = await getViajeById(id);
+        if (!trip) return TS.toastError("Viaje no encontrado en Railway.");
+
+        currentTripId = id;
+        const setVal = (fid, val) => { if (document.getElementById(fid)) document.getElementById(fid).value = val ?? ''; };
+
+        setVal('fecha', trip.fecha_salida ? trip.fecha_salida.split('T')[0] : '');
+        setVal('horaSalida', trip.hora_salida);
+        setVal('origen', trip.origen);
+        setVal('origenDivipola', trip.origen_divipola);
+        setVal('destino', trip.destino);
+        setVal('destinoDivipola', trip.destino_divipola);
+        setVal('kmSalida', trip.km_salida);
+        setVal('kmLlegada', trip.km_llegada);
+        setVal('vPlaca', trip.vehiculo_placa);
+        setVal('vModelo', trip.vehiculo_modelo);
+        setVal('vColor', trip.vehiculo_color);
+        setVal('vTipo', trip.vehiculo_tipo);
+        setVal('vEmpresa', trip.vehiculo_empresa);
+        setVal('cNombre', trip.conductor_nombre);
+        setVal('cLicencia', trip.conductor_licencia);
+        setVal('cCat', trip.conductor_categoria);
+        setVal('cVence', trip.conductor_vencimiento);
+        setVal('cTelefono', trip.conductor_telefono);
+
+        showStep(0);
+        updateRisk();
+        TS.toastInfo(`Viaje ${trip.origen} cargado para edición o cierre de odómetro.`);
+    } catch (e) {
+        console.error("Error al cargar viaje:", e);
+        TS.toastError("Error al cargar viaje: " + e.message);
+    }
+};
+
+window.exportTripPDF = async function(id) {
+    try {
+        const trip = await getViajeById(id);
+        if (trip) {
+            await generatePDF(trip);
         } else {
-            console.log('initAuth: Conductor cargado:', currentConductor?.id, currentConductor?.email);
+            TS.toastError("No se encontró el viaje.");
         }
     } catch (e) {
-        console.error('initAuth: Error general:', e);
+        console.error("Error generando PDF:", e);
+        TS.toastError("Error al generar PDF: " + e.message);
     }
+};
+
+window.exportHistoryExcel = function() {
+    if (!currentHistoryData || currentHistoryData.length === 0) {
+        TS.toastWarning("No hay datos en el historial para exportar.");
+        return;
+    }
+    const rows = currentHistoryData.map(t => ({
+        Fecha: t.fecha_salida ? t.fecha_salida.split('T')[0] : '',
+        Hora_Salida: t.hora_salida || '',
+        Origen: t.origen || '',
+        DIVIPOLA_Origen: t.origen_divipola || '',
+        Destino: t.destino || '',
+        DIVIPOLA_Destino: t.destino_divipola || '',
+        Placa: t.vehiculo_placa || '',
+        Conductor: t.conductor_nombre || '',
+        Licencia: t.conductor_licencia || '',
+        KM_Salida: t.km_salida || 0,
+        KM_Llegada: t.km_llegada || 0,
+        Riesgo: t.risk_level || 'BAJO',
+        Estado: t.estado || 'Registrado'
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Viajes_PESV");
+    XLSX.writeFile(wb, `Gerenciamiento_Viajes_STE-F-010_${new Date().toISOString().split('T')[0]}.xlsx`);
+};
+
+// ============================================================
+// REPORTES & PERFIL DE USUARIO
+// ============================================================
+async function initAuth() {
+    currentUser = await getCurrentUser();
+    currentProfile = await getCurrentProfile();
 }
 
-// --- PANEL DE USUARIO ---
-window.openUserPanel = function() {
-    document.getElementById('userPanel').classList.remove('hidden');
-    renderUserPanel();
-    lucide.createIcons();
+window.openUserPanel = async function() {
+    const modal = document.getElementById('userPanel');
+    const content = document.getElementById('userPanelContent');
+    if (!modal || !content) return;
+    modal.classList.remove('hidden');
+
+    const prof = await getCurrentProfile();
+    const user = await getCurrentUser();
+
+    content.innerHTML = `
+        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200">
+            <p class="font-black text-slate-900 text-sm">${prof?.nombre || 'Usuario Conductor'}</p>
+            <p class="text-xs text-slate-500 font-medium">${user?.email || 'portal@transservices.com'}</p>
+            <span class="inline-block mt-2 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-800">
+                Rol: ${prof?.rol?.toUpperCase() || 'CONDUCTOR'}
+            </span>
+        </div>
+        <button type="button" onclick="signOut()" class="w-full py-2.5 bg-red-50 text-red-600 font-bold rounded-xl border border-red-200 hover:bg-red-100 transition-colors text-xs flex items-center justify-center gap-1">
+            <i data-lucide="log-out" class="w-4 h-4"></i> Cerrar Sesión
+        </button>
+    `;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 };
 
 window.closeUserPanel = function() {
-    document.getElementById('userPanel').classList.add('hidden');
+    document.getElementById('userPanel')?.classList.add('hidden');
 };
 
-async function renderUserPanel() {
-    const content = document.getElementById('userPanelContent');
-    
-    if (!currentUser) {
-        content.innerHTML = '<div class="text-center py-10"><p class="text-slate-400">No has iniciado sesión</p><a href="login.html" class="text-primary block mt-2">Iniciar Sesión</a></div>';
-        return;
-    }
-    
-    const { data: trips } = await supabase.from('operacion.viajes').select('*').eq('conductor_id', currentConductor?.id);
-    const stats = {
-        total: trips?.length || 0,
-        completed: trips?.filter(t => t.estado === 'Finalizado' || t.km_llegada).length || 0,
-        totalKm: trips?.reduce((acc, t) => acc + (parseFloat(t.distancia_km) || 0), 0) || 0
-    };
-    stats.inProgress = stats.total - stats.completed;
-    
-    content.innerHTML = `
-        <div class="space-y-4">
-            <div class="apple-card p-4">
-                <div class="flex items-center gap-4">
-                    <div class="w-14 h-14 rounded-full bg-primary flex items-center justify-center text-white text-xl font-bold">
-                        ${currentUser.email?.charAt(0).toUpperCase() || 'U'}
-                    </div>
-                    <div>
-                        <p class="font-semibold text-[17px]">${currentProfile?.nombre_completo || currentUser.email}</p>
-                        <p class="text-[13px] text-slate-400">${currentUser.email}</p>
-                        <span class="apple-badge ${currentProfile?.rol === 'admin' ? 'apple-badge-danger' : 'apple-badge-info'}">${currentProfile?.rol === 'admin' ? 'Admin' : 'Conductor'}</span>
-                    </div>
-                </div>
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-                <div class="apple-card p-4 text-center">
-                    <p class="text-[12px] text-slate-400">Mis Viajes</p>
-                    <p class="text-2xl font-bold">${stats.total}</p>
-                </div>
-                <div class="apple-card p-4 text-center">
-                    <p class="text-[12px] text-slate-400">KM</p>
-                    <p class="text-2xl font-bold">${Math.round(stats.totalKm).toLocaleString()}</p>
-                </div>
-            </div>
-            ${currentConductor ? `
-            <div class="apple-card p-4">
-                <h4 class="font-semibold text-[15px] mb-3">Datos del Conductor</h4>
-                <div class="space-y-2 text-[14px]">
-                    <div class="flex justify-between"><span class="text-slate-400">Licencia:</span><span>${currentConductor.licencia_conducir || 'N/A'}</span></div>
-                    <div class="flex justify-between"><span class="text-slate-400">Categoría:</span><span>${currentConductor.categoria_licencia || 'N/A'}</span></div>
-                    <div class="flex justify-between"><span class="text-slate-400">Teléfono:</span><span>${currentConductor.telefono || 'N/A'}</span></div>
-                </div>
-            </div>
-            ` : ''}
-            <button onclick="logout()" class="btn bg-danger text-white w-full">
-                <i data-lucide="log-out" class="w-5 h-5"></i> Cerrar Sesión
-            </button>
-        </div>
-    `;
-    lucide.createIcons();
-}
-
-window.logout = async function() {
-    if (!(await TS.confirm('¿Cerrar sesión?'))) return;
-    
-    try {
-        await signOut();
-    } catch (e) {
-        console.warn('SignOut error:', e);
-    }
-    
-    setTimeout(() => {
-        window.location.replace('./login.html');
-    }, 300);
-};
-
-// --- REPORTES ---
-window.openReportsPanel = function() {
-    document.getElementById('reportsModal').classList.remove('hidden');
-    loadReport('today');
-    lucide.createIcons();
+window.openReportsPanel = async function() {
+    const modal = document.getElementById('reportsModal');
+    if (modal) modal.classList.remove('hidden');
+    await loadReport('all');
 };
 
 window.closeReportsPanel = function() {
-    document.getElementById('reportsModal').classList.add('hidden');
+    document.getElementById('reportsModal')?.classList.add('hidden');
 };
 
 window.loadReport = async function(period) {
     const content = document.getElementById('reportsContent');
-    content.innerHTML = '<div class="flex justify-center py-10"><i class="animate-spin w-8 h-8 text-primary" data-lucide="loader-2"></i></div>';
-    lucide.createIcons();
+    if (!content) return;
 
-    document.querySelectorAll('.apple-tab').forEach(t => t.classList.remove('apple-tab-active'));
-    document.getElementById(`tab-${period}`)?.classList.add('apple-tab-active');
+    content.innerHTML = `<div class="text-center py-8 text-blue-600"><i class="animate-spin w-6 h-6 mx-auto mb-2" data-lucide="loader-2"></i> Calculando métricas...</div>`;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 
-    try {
-        let query = supabase.from('operacion.viajes').select('*');
-        
-        if (currentProfile?.rol !== 'admin' && currentConductor?.id) {
-            query = query.eq('conductor_id', currentConductor.id);
-        }
-        
-        const { data: trips } = await query.order('created_at', { ascending: false });
-        
-        const total = trips?.length || 0;
-        const finalized = trips?.filter(t => t.estado === 'Finalizado' || t.km_llegada).length || 0;
-        const totalKm = trips?.reduce((acc, t) => acc + (parseFloat(t.distancia_km) || 0), 0) || 0;
+    const trips = await getViajes();
+    const total = trips.length;
+    const finalizados = trips.filter(t => t.estado === 'Finalizado' || t.km_llegada).length;
+    const enCurso = total - finalizados;
 
-        const riskLevels = { bajo: 0, medio: 0, alto: 0 };
-        trips?.forEach(t => {
-            const score = t.risk?.score || 0;
-            if (score > 23) riskLevels.alto++;
-            else if (score > 15) riskLevels.medio++;
-            else riskLevels.bajo++;
-        });
-
-        content.innerHTML = `
-            <div class="grid grid-cols-2 gap-3 mb-6">
-                <div class="apple-card p-4"><p class="text-[12px] text-slate-400 mb-1">Total</p><p class="text-2xl font-bold">${total}</p></div>
-                <div class="apple-card p-4"><p class="text-[12px] text-slate-400 mb-1">KM</p><p class="text-2xl font-bold">${Math.round(totalKm).toLocaleString()}</p></div>
-                <div class="apple-card p-4"><p class="text-[12px] text-slate-400 mb-1">Finalizados</p><p class="text-2xl font-bold text-success">${finalized}</p></div>
-                <div class="apple-card p-4"><p class="text-[12px] text-slate-400 mb-1">En Curso</p><p class="text-2xl font-bold text-warning">${total - finalized}</p></div>
+    content.innerHTML = `
+        <div class="grid grid-cols-3 gap-3 mb-4">
+            <div class="p-3 bg-blue-50 rounded-2xl border border-blue-200 text-center">
+                <p class="text-[10px] font-bold text-blue-700 uppercase">Total Viajes</p>
+                <p class="text-2xl font-black text-blue-900">${total}</p>
             </div>
-            <div class="apple-section mb-4">
-                <div class="px-4 py-3 border-b border-slate-200"><h4 class="font-semibold text-[15px]">Nivel de Riesgo</h4></div>
-                <div class="p-4 flex gap-4 justify-center">
-                    <div class="text-center"><div class="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center mb-1"><span class="text-lg font-bold text-success">${riskLevels.bajo}</span></div><span class="text-[11px] text-slate-400">Bajo</span></div>
-                    <div class="text-center"><div class="w-12 h-12 rounded-full bg-warning/10 flex items-center justify-center mb-1"><span class="text-lg font-bold text-warning">${riskLevels.medio}</span></div><span class="text-[11px] text-slate-400">Medio</span></div>
-                    <div class="text-center"><div class="w-12 h-12 rounded-full bg-danger/10 flex items-center justify-center mb-1"><span class="text-lg font-bold text-danger">${riskLevels.alto}</span></div><span class="text-[11px] text-slate-400">Alto</span></div>
-                </div>
+            <div class="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 text-center">
+                <p class="text-[10px] font-bold text-emerald-700 uppercase">Finalizados</p>
+                <p class="text-2xl font-black text-emerald-900">${finalizados}</p>
             </div>
-            <div class="apple-section mb-4">
-                <div class="px-4 py-3 border-b border-slate-200"><h4 class="font-semibold text-[15px]">Últimos Viajes</h4></div>
-                <div class="divide-y divide-slate-200">
-                    ${trips?.slice(0, 5).map(t => `
-                        <div class="apple-list-item">
-                            <div><p class="font-medium text-[15px]">${t.origen} → ${t.destino}</p><p class="text-[12px] text-slate-400">${t.fecha || ''}</p></div>
-                            <span class="apple-badge ${t.km_llegada ? 'apple-badge-success' : 'apple-badge-warning'}">${t.km_llegada ? 'Finalizado' : 'En curso'}</span>
-                        </div>
-                    `).join('') || '<div class="p-4 text-center text-slate-400">Sin viajes</div>'}
-                </div>
+            <div class="p-3 bg-amber-50 rounded-2xl border border-amber-200 text-center">
+                <p class="text-[10px] font-bold text-amber-700 uppercase">En Ruta</p>
+                <p class="text-2xl font-black text-amber-900">${enCurso}</p>
             </div>
-        `;
-        lucide.createIcons();
-    } catch (err) {
-        content.innerHTML = `<div class="text-center text-danger py-10">Error al cargar</div>`;
-    }
-};
-
-// --- PLANTILLAS ---
-window.openTemplatesPanel = function() {
-    document.getElementById('templatesModal').classList.remove('hidden');
-    loadTemplates();
-    lucide.createIcons();
-};
-
-window.loadTemplates = function() {
-    const list = document.getElementById('templatesList');
-    const templates = JSON.parse(localStorage.getItem('tripTemplates') || '[]');
-    
-    if (templates.length === 0) {
-        list.innerHTML = '<div class="text-center py-10"><i data-lucide="bookmark" class="w-12 h-12 text-slate-400 mx-auto mb-3"></i><p class="text-slate-400">No hay plantillas</p></div>';
-    } else {
-        list.innerHTML = templates.map((t, i) => `
-            <div class="apple-card mb-3 cursor-pointer" onclick="applyTemplate(${i})">
-                <div class="p-4">
-                    <p class="font-semibold text-[15px]">${t.nombre || 'Sin nombre'}</p>
-                    <p class="text-[12px] text-slate-400">${t.origen || ''} → ${t.destino || ''}</p>
-                </div>
-            </div>
-        `).join('');
-    }
-    lucide.createIcons();
-};
-
-window.saveAsTemplate = function() {
-    const nombre = prompt('Nombre de la plantilla:');
-    if (!nombre) return;
-    const getVal = (id) => document.getElementById(id)?.value || '';
-    const template = { nombre, origen: getVal('origen'), destino: getVal('destino'), vPlaca: getVal('vPlaca'), cNombre: getVal('cNombre') };
-    const templates = JSON.parse(localStorage.getItem('tripTemplates') || '[]');
-    templates.push(template);
-    localStorage.setItem('tripTemplates', JSON.stringify(templates));
-    loadTemplates();
-};
-
-window.applyTemplate = function(index) {
-    const templates = JSON.parse(localStorage.getItem('tripTemplates') || '[]');
-    const t = templates[index];
-    if (!t) return;
-    ['origen', 'destino', 'vPlaca', 'cNombre'].forEach(f => {
-        if (t[f] && document.getElementById(f)) document.getElementById(f).value = t[f];
-    });
-    document.getElementById('templatesModal').classList.add('hidden');
-};
-
-// --- EXPORTAR ---
-window.exportHistoryExcel = async function() {
-    try {
-        const { data: trips } = await supabase.from('operacion.viajes').select('*').order('created_at', { ascending: false });
-        const data = trips.map(t => ({
-            Fecha: t.fecha || '', Origen: t.origen || '', Destino: t.destino || '',
-            Placa: t.vehiculo_placa || '', Conductor: t.conductor_nombre || '', 'Distancia (KM)': t.distancia_km || '',
-            Estado: t.estado || ''
-        }));
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Viajes');
-        XLSX.writeFile(wb, `Viajes_${new Date().toISOString().split('T')[0]}.xlsx`);
-    } catch (err) {
-        TS.toastError('Error al exportar: ' + err.message);
-    }
-};
-
-// --- AUTO-GUARDADO ---
-window.initAutoSave = function() {
-    setInterval(() => {
-        const formData = {};
-        document.querySelectorAll('#travelForm input, #travelForm select, #travelForm textarea').forEach(input => {
-            if (input.id && input.value) formData[input.id] = input.value;
-        });
-        if (Object.keys(formData).length > 0) {
-            localStorage.setItem('tripDraft', JSON.stringify({ data: formData, step: currentStep, timestamp: new Date().toISOString() }));
-        }
-    }, 30000);
-};
-
-window.loadDraft = async function() {
-    const draft = JSON.parse(localStorage.getItem('tripDraft'));
-    if (draft?.data && (await TS.confirm('¿Restaurar borrador?'))) {
-        Object.entries(draft.data).forEach(([key, value]) => {
-            const el = document.getElementById(key);
-            if (el) el.value = value;
-        });
-        currentStep = draft.step || 0;
-        showStep(currentStep);
-    }
-    localStorage.removeItem('tripDraft');
-};
-
-// --- INICIALIZAR ---
-window.initNewFeatures = function() {
-    loadDraft();
-    initAutoSave();
-    checkAlerts();
-};
-
-window.checkAlerts = async function() {
-    // Función de alertas
-};
-
-window.closeAlertsPanel = function() {
-    document.getElementById('alertsModal')?.classList.add('hidden');
-};
-
-// Exportar funciones al scope global
-window.openUserPanel = openUserPanel;
-window.closeUserPanel = closeUserPanel;
-window.openReportsPanel = openReportsPanel;
-window.closeReportsPanel = closeReportsPanel;
-window.loadReport = loadReport;
-window.openTemplatesPanel = openTemplatesPanel;
-window.loadTemplates = loadTemplates;
-window.saveAsTemplate = saveAsTemplate;
-window.applyTemplate = applyTemplate;
-window.exportHistoryExcel = exportHistoryExcel;
-window.initAutoSave = initAutoSave;
-window.loadDraft = loadDraft;
-window.initNewFeatures = initNewFeatures;
-window.checkAlerts = checkAlerts;
-window.initAuth = initAuth;
-window.toggleHistory = toggleHistory;
-window.createNewTrip = createNewTrip;
-window.logout = logout;
-
-// --- MENÚ MOBILE ---
-window.toggleMobileMenu = function() {
-    const menu = document.getElementById('mobileMenu');
-    const icon = document.getElementById('menuIcon');
-    
-    if (!menu || !icon) return;
-    
-    if (menu.classList.contains('hidden')) {
-        menu.classList.remove('hidden');
-        icon.setAttribute('data-lucide', 'x');
-    } else {
-        menu.classList.add('hidden');
-        icon.setAttribute('data-lucide', 'menu');
-    }
+        </div>
+        <p class="text-xs text-slate-500 font-bold text-center">Conectado a PostgreSQL en Railway (Prisma)</p>
+    `;
     if (typeof lucide !== 'undefined') lucide.createIcons();
 };
+
+window.openEmergencyPanel = function() {
+    document.getElementById('emergencyModal')?.classList.remove('hidden');
+};
+
+window.closeEmergencyPanel = function() {
+    document.getElementById('emergencyModal')?.classList.add('hidden');
+};
+
+// Exportar funciones globales
+window.showStep = showStep;
+window.nextPrev = nextPrev;
+window.calcKm = calcKm;
+window.updateRisk = updateRisk;
+window.previewRutograma = previewRutograma;
+window.removeRutograma = removeRutograma;
+window.addControlPoint = addControlPoint;
+window.removeControlPoint = removeControlPoint;
+window.clearSignature = clearSignature;
+window.resizeCanvas = resizeCanvas;
+window.setupCanvas = setupCanvas;
+window.handleSubmit = handleSubmit;
+window.signOut = signOut;

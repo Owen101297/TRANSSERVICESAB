@@ -39,12 +39,27 @@ export default async function PESVPage() {
             Resolución 40595 de 2022 (Ministerio de Transporte) — 4 fases y 24 pasos articulados con SG-SST.
           </p>
         </div>
-        <Link
-          href="/pesv/indicadores"
-          className="inline-flex items-center gap-2 rounded-md border border-line-600 bg-asphalt-800 px-4 py-2 text-sm text-mist-200 hover:bg-asphalt-700 transition-colors"
-        >
-          <BarChart3 size={16} /> Indicadores (VIGIA2 · Formulario 2)
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/pesv/conductores"
+            className="inline-flex items-center gap-2 rounded-md border border-line-600 bg-asphalt-800 px-4 py-2 text-sm text-paper-50 hover:bg-asphalt-700 transition-colors"
+          >
+            Conductores & Scorecard
+          </Link>
+          <Link
+            href="/pesv/indicadores"
+            className="inline-flex items-center gap-2 rounded-md border border-line-600 bg-asphalt-800 px-4 py-2 text-sm text-mist-200 hover:bg-asphalt-700 transition-colors"
+          >
+            <BarChart3 size={16} /> Indicadores (VIGIA2)
+          </Link>
+          <a
+            href="/api/reportes/sisi-pesv?format=csv"
+            download
+            className="inline-flex items-center gap-2 rounded-md border border-radar-cyan/30 bg-radar-cyan-dim px-4 py-2 text-sm text-radar-cyan hover:bg-radar-cyan/20 transition-colors"
+          >
+            SISI-PESV (Excel/CSV)
+          </a>
+        </div>
       </div>
 
       <div className="rounded-lg border border-signal-amber/30 bg-signal-amber-dim p-4 text-sm text-mist-200">

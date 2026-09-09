@@ -36,6 +36,8 @@ function normalizeTripData(data) {
         horaLlegada: data.hora_llegada || data.horaLlegada || '',
         origen: data.origen || '',
         destino: data.destino || '',
+        origenDivipola: data.origen_divipola || data.origenDivipola || '',
+        destinoDivipola: data.destino_divipola || data.destinoDivipola || '',
         kmSalida: data.km_salida != null ? String(data.km_salida) : (data.kmSalida || ''),
         kmLlegada: data.km_llegada != null ? String(data.km_llegada) : (data.kmLlegada || ''),
         distanciaEstimada: data.distancia_km != null ? String(data.distancia_km) : (data.distanciaEstimada || ''),
@@ -127,6 +129,16 @@ function formatDate(dateStr) {
     return dateStr;
 }
 
+async function generateQrBase64(text) {
+    if (!text) return null;
+    if (window.QRCode && typeof window.QRCode.toDataURL === 'function') {
+        try {
+            return await window.QRCode.toDataURL(text, { width: 140, margin: 1 });
+        } catch (e) { }
+    }
+    return null;
+}
+
 // Paleta oficial de ingeniería documental SIG HSEQ
 const PALETTE = {
     headerGreen: [217, 234, 211],   // Verde institucional de sección #D9EAD3
@@ -184,6 +196,8 @@ export async function generatePDF(data) {
             horaLlegada: gv('horaLlegada'),
             origen: gv('origen'),
             destino: gv('destino'),
+            origenDivipola: gv('origenDivipola') || '',
+            destinoDivipola: gv('destinoDivipola') || '',
             kmSalida: gv('kmSalida'),
             kmLlegada: gv('kmLlegada'),
             distanciaEstimada: gv('distanciaEstimada'),
@@ -372,8 +386,10 @@ export async function generatePDF(data) {
     y += rH;
 
     // Fila 2: ORIGEN | DESTINO
-    drawGridCell('ORIGEN', d.origen || '—', m, y, cw * 0.5, rH, 20);
-    drawGridCell('DESTINO', d.destino || '—', m + cw * 0.5, y, cw * 0.5, rH, 28);
+    const origenLabel = d.origenDivipola ? `${d.origen || ''} [DIVIPOLA: ${d.origenDivipola}]` : (d.origen || '—');
+    const destinoLabel = d.destinoDivipola ? `${d.destino || ''} [DIVIPOLA: ${d.destinoDivipola}]` : (d.destino || '—');
+    drawGridCell('ORIGEN', origenLabel, m, y, cw * 0.5, rH, 20);
+    drawGridCell('DESTINO', destinoLabel, m + cw * 0.5, y, cw * 0.5, rH, 28);
     y += rH;
 
     // Fila 3: KM ABIERTO | HORA SALIDA | KM CERRADO | HORA LLEGADA | KM RECORRIDOS
@@ -835,24 +851,35 @@ export async function generatePDF(data) {
     y += sigH;
 
     // =========================================================
-    // NOTA LEGAL Y PIE INSTITUCIONAL
+    // NOTA LEGAL Y PIE INSTITUCIONAL CON QR DE VERIFICACIÓN
     // =========================================================
+    const qrUrl = d.id ? `${window.location.origin}/verificar/viaje/${d.id}` : `https://erp.transservicesab.com/verificar/viaje/${encodeURIComponent(d.vPlaca || 'TS')}`;
+    const qrBase64 = await generateQrBase64(qrUrl);
+
     doc.setFillColor(248, 248, 248);
-    doc.rect(m, y, cw, 6.5, 'FD');
-    doc.setFontSize(3.6);
+    doc.rect(m, y, cw, 7.0, 'FD');
+    doc.setFontSize(3.5);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(...PALETTE.textBlack);
-    const notaLegal = 'NOTA: Un Gerenciamiento de Viajes debe ser preparado para todos los viajes, operaciones, o en areas remotas o bajo condiciones inclementes o adversas, hacia o desde locaciones en campo con las siguientes excepciones (Entre poblaciones o ciudades con vias pavimentadas; Dentro del lugar de trabajo) o Entre el taladro, campamento, o las comunicaciones de radio estan disponibles, o el gerenciamiento de viajes con riesgo alto ( color rojo, mayor a 23) debera ser autorizado por Gerencia por via radio comunicacion o telefono celular.';
-    doc.text(notaLegal, m + 1, y + 1.8, { maxWidth: cw - 2, align: 'justify' });
-    y += 6.5;
+    const notaLegal = 'NOTA: Un Gerenciamiento de Viajes debe ser preparado para todos los viajes u operaciones en areas remotas o bajo condiciones inclementes. Los viajes con riesgo alto (mayor a 23 pts) deberan ser autorizados por Gerencia por via radio o celular. Este documento cuenta con validez electronica bajo la Ley 527 de 1999 y la Res. 40595 de 2022.';
+    
+    if (qrBase64) {
+        doc.text(notaLegal, m + 1, y + 1.8, { maxWidth: cw - 12, align: 'justify' });
+        try {
+            doc.addImage(qrBase64, 'PNG', m + cw - 9.5, y + 0.5, 6.0, 6.0);
+        } catch (e) { }
+    } else {
+        doc.text(notaLegal, m + 1, y + 1.8, { maxWidth: cw - 2, align: 'justify' });
+    }
+    y += 7.0;
 
     doc.setFontSize(4.6);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(...PALETTE.textBlack);
-    doc.text('"COOPERATIVA DE TRANSPORTES Y SERVICIOS A&B"', m + 2, ph - 2.5);
+    doc.text('"COOPERATIVA DE TRANSPORTES Y SERVICIOS A&B" · NIT 900.778.421-1', m + 2, ph - 2.5);
     doc.setFont('helvetica', 'normal');
     doc.text('Villagarzon Putumayo · transserviceshseq.ab@gmail.com', pw / 2, ph - 2.5, { align: 'center' });
-    doc.text('No.52B/Fatima', pw - m - 2, ph - 2.5, { align: 'right' });
+    doc.text('SIG-HSEQ · STE-F-010', pw - m - 2, ph - 2.5, { align: 'right' });
 
     // =========================================================
     // DESCARGA AUTOMÁTICA DEL PDF

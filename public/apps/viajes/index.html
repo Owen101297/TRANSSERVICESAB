@@ -3,128 +3,176 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerenciamiento de Viajes | Trans Services A&B</title>
-    <!-- Favicons unificados -->
-    <link rel="icon" type="image/png" href="./assets/favicon-96x96.png" sizes="96x96" />
-    <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg" />
-    <link rel="shortcut icon" href="./assets/favicon.ico" />
-    <link rel="apple-touch-icon" sizes="180x180" href="./assets/apple-touch-icon.png" />
-    <meta name="apple-mobile-web-app-title" content="TRANS SERVICES A&B" />
-    <link rel="manifest" href="./assets/site.webmanifest" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Plan de Gerenciamiento del Viaje · Trans Services A&B</title>
+    <link rel="icon" type="image/png" href="../../favicon.png">
 
-    <link rel="stylesheet" href="./css/style.css">
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Tailwind CSS (Diseño Moderno y Responsivo) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="../shared/auth-bridge.js"></script>
+    <link rel="stylesheet" href="css/theme.css?v=57">
+
+    <!-- Iconos Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Librerías para Exportación de Documentos (PDF, Excel, QR) -->
+    <script src="../../lib/jspdf.umd.min.js"></script>
+    <script src="../../lib/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+
+    <!-- Notificaciones Toast -->
+    <script src="js/toast.js?v=57"></script>
 </head>
 
-<body class="bg-[#F8FAFC] pb-32 text-slate-900 antialiased font-sans">
+<body class="min-h-screen bg-slate-100 text-slate-900 pb-28">
 
-    <div id="offlineToast"
-        class="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full text-sm font-medium shadow-lg hidden z-[60] flex items-center gap-3 transition-all duration-300">
-        <i data-lucide="wifi-off" class="w-4 h-4"></i> <span>Modo sin conexión. Se sincronizará al recuperar internet.</span>
-    </div>
-
-    <!-- Pantalla de carga inicial para evitar parpadeo -->
-    <div id="loadingScreen" class="fixed inset-0 bg-white z-50 flex items-center justify-center">
-        <div class="text-center">
-            <i data-lucide="loader-2" class="w-10 h-10 animate-spin text-[#1E40AF] mx-auto"></i>
-            <p class="mt-4 text-slate-600 font-semibold text-sm">Cargando Gerenciamiento de Viaje...</p>
-        </div>
-    </div>
-
-    <main class="max-w-xl mx-auto px-4 sm:px-6 mt-4 pb-32" id="mainContainer" style="display:none" tabindex="-1">
-
-        <div class="flex items-center justify-between mb-4 pt-1">
-            <div>
-                <h1 class="text-xl font-black text-slate-900 tracking-tight">Gerenciamiento de Viaje</h1>
-                <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Formato STE-F-010 · PESV</p>
+    <!-- Encabezado Superior -->
+    <header class="bg-white border-b-2 border-slate-300 sticky top-0 z-40 shadow-sm">
+        <div class="max-w-xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <img src="assets/logo.png" alt="Trans Services A&B" class="h-9 w-auto object-contain"
+                    onerror="this.style.display='none'; document.getElementById('altLogo').style.display='flex';">
+                <div id="altLogo"
+                    class="h-9 w-9 bg-[#1E40AF] text-white font-extrabold rounded-xl items-center justify-center text-sm shadow-sm hidden">
+                    TS
+                </div>
+                <div>
+                    <h1 class="text-sm font-black text-slate-900 leading-tight tracking-tight">TRANS SERVICES A&B</h1>
+                    <p class="text-[11px] font-bold text-slate-700 tracking-wider">Plan de Gerenciamiento de Viajes (STE-F-010 · PESV)</p>
+                </div>
             </div>
-            <button type="button" onclick="toggleHistory()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 text-slate-800 hover:bg-slate-50 text-xs font-bold rounded-xl shadow-sm transition-colors">
-                <i data-lucide="history" class="w-4 h-4 text-[#1E40AF]"></i> Historial
-            </button>
-        </div>
-
-        <div class="mb-6">
-            <div class="flex justify-between mb-1.5">
-                <span id="progressText"
-                    class="text-xs font-bold text-slate-600 uppercase tracking-wider">Paso 1 de 7</span>
-                <span class="text-xs font-bold text-[#1E40AF]"><span id="progressPercent">17</span>%</span>
-            </div>
-            <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-                <div id="progressBar" class="bg-[#1E40AF] h-2 rounded-full transition-all duration-500 ease-out"
-                    style="width: 16.6%"></div>
+            <div class="flex items-center gap-1">
+                <button type="button" onclick="openUserPanel()" title="Perfil"
+                    class="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors relative">
+                    <i data-lucide="user" class="w-5 h-5"></i>
+                </button>
+                <button type="button" onclick="toggleHistory()" title="Historial"
+                    class="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors relative">
+                    <i data-lucide="clock" class="w-5 h-5"></i>
+                </button>
+                <button type="button" onclick="openReportsPanel()" title="Reportes"
+                    class="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-colors">
+                    <i data-lucide="bar-chart-2" class="w-5 h-5"></i>
+                </button>
             </div>
         </div>
 
-        <form id="travelForm" onsubmit="handleSubmit(event)">
+        <!-- Barra de Progreso del Formulario -->
+        <div class="w-full bg-slate-200 h-1.5">
+            <div id="progressBar" class="bg-[#1E40AF] h-1.5 transition-all duration-300" style="width: 14.28%;"></div>
+        </div>
+    </header>
+
+    <!-- Contenido Principal -->
+    <main class="max-w-xl mx-auto px-4 pt-4 pb-8">
+
+        <!-- Indicador de Paso Actual -->
+        <div class="mb-4 flex items-center justify-between text-xs font-extrabold text-slate-900 px-1">
+            <span id="progressText" class="text-slate-900">Paso 1 de 7</span>
+            <div class="flex items-center gap-2">
+                <span class="text-slate-700 font-bold"><span id="progressPercent">14</span>% completado</span>
+                <span id="connectionStatus"
+                    class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[#D1FAE5] text-[#065F46] border border-[#A7F3D0]">
+                    <span class="w-1.5 h-1.5 rounded-full bg-[#059669]"></span> Sistema Listo
+                </span>
+            </div>
+        </div>
+
+        <form id="travelForm" novalidate onsubmit="handleSubmit(event)">
 
             <!-- Paso 1: Ruta del Viaje -->
             <div class="form-step">
                 <section class="card-paso">
                     <h2 class="text-xl font-extrabold text-slate-900 mb-6 flex items-center gap-3 tracking-tight border-b-2 border-slate-200 pb-3">
                         <div class="p-2.5 bg-[#DBEAFE] rounded-xl border border-[#BFDBFE]"><i data-lucide="map-pin" class="w-5 h-5 text-[#1E40AF]"></i></div>
-                        1. Ruta del Viaje
+                        1. Ruta del Viaje & DIVIPOLA
                     </h2>
                     
                     <div class="space-y-6">
+                        <!-- Sub-apartado: Rutas Frecuentes Asistidas -->
+                        <div class="p-4 bg-blue-50/80 rounded-2xl border-2 border-blue-200 shadow-sm space-y-2">
+                            <label for="rutaFrecuenteSelect" class="text-xs font-black text-[#1E40AF] uppercase tracking-wider flex items-center gap-2">
+                                <i data-lucide="sparkles" class="w-4 h-4"></i> Rutas Frecuentes de Operación (Autocompletar)
+                            </label>
+                            <select id="rutaFrecuenteSelect" class="input-moderno" onchange="onRutaFrecuenteSelected(this.value)">
+                                <option value="">-- Seleccionar Ruta Frecuente (Opcional) --</option>
+                                <option value="vg-mocoa">🛣️ Villagarzón ↔ Mocoa (18 km · 30 min · Pavimentada)</option>
+                                <option value="vg-ptoasis">🛣️ Villagarzón ↔ Puerto Asís (68 km · 1.5 hrs · Pavimentada)</option>
+                                <option value="vg-orito">🛣️ Villagarzón ↔ Orito (110 km · 2.5 hrs · Mixta)</option>
+                                <option value="vg-lahormiga">🛣️ Villagarzón ↔ La Hormiga / Valle Guamuez (140 km · 3.0 hrs · Mixta)</option>
+                                <option value="vg-ptoguzman">🛣️ Villagarzón ↔ Puerto Guzmán (48 km · 1.25 hrs · Mixta)</option>
+                                <option value="mocoa-sibundoy">🛣️ Mocoa ↔ Sibundoy / San Francisco (80 km · 2.75 hrs · Montaña)</option>
+                                <option value="vg-pitalito">🛣️ Villagarzón ↔ Pitalito / Huila (155 km · 3.5 hrs · Pavimentada)</option>
+                                <option value="vg-neiva">🛣️ Villagarzón ↔ Neiva (340 km · 7.0 hrs · Pavimentada)</option>
+                                <option value="vg-pasto">🛣️ Villagarzón ↔ Pasto (160 km · 5.0 hrs · Mixta/Montaña)</option>
+                                <option value="vg-florencia">🛣️ Villagarzón ↔ Florencia / Caquetá (235 km · 5.0 hrs · Pavimentada)</option>
+                                <option value="vg-bogota">🛣️ Villagarzón ↔ Bogotá D.C. (650 km · 13.0 hrs · Troncal)</option>
+                            </select>
+                        </div>
+
                         <!-- Sub-apartado: Datos del Trayecto -->
                         <div class="p-5 bg-slate-50/60 rounded-2xl border-2 border-slate-300 shadow-sm space-y-4">
                             <h3 class="text-xs font-black text-[#1E40AF] uppercase tracking-wider flex items-center gap-2">
-                                <i data-lucide="compass" class="w-4 h-4"></i> Datos del Trayecto
+                                <i data-lucide="compass" class="w-4 h-4"></i> Datos del Trayecto y Codificación DANE
                             </h3>
                             <div class="input-group">
                                 <label for="fecha" class="label">Fecha del viaje</label>
-                                <input type="date" id="fecha" required class="input-moderno">
+                                <input type="date" id="fecha" class="input-moderno">
                             </div>
                             <div class="grid grid-cols-2 gap-4">
                                 <div class="input-group">
                                     <label for="horaSalida" class="label">Hora de Salida</label>
-                                    <input type="time" id="horaSalida" required class="input-moderno">
+                                    <input type="time" id="horaSalida" class="input-moderno" onchange="checkHorarioNocturno()">
                                 </div>
                                 <div class="input-group">
                                     <label for="horaLlegada" class="label">Hora de Llegada</label>
-                                    <input type="time" id="horaLlegada" readonly class="input-moderno">
+                                    <input type="time" id="horaLlegada" readonly class="input-moderno bg-slate-100" placeholder="Automática al cerrar">
                                 </div>
                             </div>
+
+                            <!-- Alerta de Horario Nocturno -->
+                            <div id="nocturnoAlert" class="hidden p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-900 font-bold flex items-center gap-2">
+                                <i data-lucide="moon" class="w-4 h-4 text-amber-600 flex-shrink-0"></i>
+                                <span>Atención: Desplazamiento en horario nocturno (18:00 - 06:00). Se sumarán 8 pts al riesgo según STE-F-010.</span>
+                            </div>
+
                             <div class="input-group">
-                                <label for="origen" class="label">Origen</label>
-                                <input type="text" id="origen" list="ciudades" placeholder="Ej: Villagarzón" required
-                                    class="input-moderno">
+                                <label for="origen" class="label">Origen (Municipio - DIVIPOLA)</label>
+                                <input type="text" id="origen" list="divipolaList" placeholder="Ej: 86885 - Villagarzón (Putumayo)"
+                                    class="input-moderno" oninput="onOrigenChange(this.value)">
+                                <input type="hidden" id="origenDivipola">
                             </div>
                             <div class="input-group">
-                                <label for="destino" class="label">Destino</label>
-                                <input type="text" id="destino" list="ciudades" placeholder="Ej: Puerto Asís" required
-                                    class="input-moderno">
+                                <label for="destino" class="label">Destino (Municipio - DIVIPOLA)</label>
+                                <input type="text" id="destino" list="divipolaList" placeholder="Ej: 86568 - Puerto Asís (Putumayo)"
+                                    class="input-moderno" oninput="onDestinoChange(this.value)">
+                                <input type="hidden" id="destinoDivipola">
                             </div>
                         </div>
 
                         <!-- Sub-apartado: Registro de Kilometraje -->
                         <div class="p-5 bg-slate-50/60 rounded-2xl border-2 border-slate-300 shadow-sm space-y-4">
                             <h3 class="text-xs font-black text-[#1E40AF] uppercase tracking-wider flex items-center gap-2">
-                                <i data-lucide="gauge" class="w-4 h-4"></i> Registro de Kilometraje
+                                <i data-lucide="gauge" class="w-4 h-4"></i> Registro de Odómetro / Kilometraje
                             </h3>
                             <div class="grid grid-cols-3 gap-3">
                                 <div class="input-group">
                                     <label for="kmSalida" class="label">KM Inicial</label>
                                     <input type="number" id="kmSalida" oninput="calcKm()" inputmode="numeric"
-                                        pattern="[0-9]*" placeholder="00000" required class="input-moderno">
+                                        placeholder="00000" class="input-moderno">
                                     <div id="gpsSalidaStatus" class="text-xs mt-1 text-slate-700 font-semibold"></div>
                                 </div>
                                 <div class="input-group">
-                                    <label for="distanciaEstimada" class="label">KM Recorridos</label>
-                                    <input type="number" id="distanciaEstimada" readonly class="input-moderno"
+                                    <label for="distanciaEstimada" class="label">KM Estimados</label>
+                                    <input type="number" id="distanciaEstimada" class="input-moderno"
                                         placeholder="0" inputmode="numeric">
                                 </div>
                                 <div class="input-group">
                                     <label for="kmLlegada" class="label">KM Final</label>
-                                    <input type="number" id="kmLlegada" readonly class="input-moderno" inputmode="numeric"
-                                        placeholder="Pendiente">
+                                    <input type="number" id="kmLlegada" class="input-moderno" inputmode="numeric"
+                                        placeholder="Al finalizar" oninput="calcKm()">
                                     <div id="gpsLlegadaStatus" class="text-xs mt-1 text-slate-700 font-semibold"></div>
-                                    <p id="kmError" class="text-red-600 text-xs mt-1 hidden font-bold">El KM de llegada no puede ser menor al de salida.</p>
+                                    <p id="kmError" class="text-red-600 text-xs mt-1 hidden font-bold">KM llegada < salida</p>
                                 </div>
                             </div>
                         </div>
@@ -148,17 +196,36 @@
                             <div class="grid grid-cols-2 gap-4">
                                 <div class="input-group">
                                     <label for="vPlaca" class="label">Placa</label>
-                                    <input type="text" id="vPlaca" placeholder="Placa" required class="input-moderno"
+                                    <input type="text" id="vPlaca" placeholder="Ej: WGM212" class="input-moderno uppercase"
                                         onblur="searchVehicle()">
                                 </div>
                                 <div class="input-group">
-                                    <label for="vModelo" class="label">Modelo</label>
-                                    <input type="text" id="vModelo" placeholder="Modelo" required class="input-moderno">
+                                    <label for="vModelo" class="label">Modelo / Año</label>
+                                    <input type="text" id="vModelo" placeholder="Ej: 2024" class="input-moderno">
                                 </div>
                             </div>
+
+                            <!-- Banner de Estado Preoperacional del Día -->
+                            <div id="preoperacionalBanner" class="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-2 text-xs font-bold text-blue-900">
+                                <i data-lucide="shield" class="w-4 h-4 text-blue-600 flex-shrink-0"></i>
+                                <span id="preoperacionalText">Ingresa la placa para verificar el preoperacional del día.</span>
+                            </div>
+
+                            <!-- Semáforo de Vigencias Documentales (SOAT / RTM) -->
+                            <div id="vehiculoVigencias" class="hidden p-3 bg-slate-100 rounded-xl border border-slate-200 text-xs space-y-1 font-bold">
+                                <div class="flex justify-between items-center text-slate-700">
+                                    <span>SOAT Vehículo:</span>
+                                    <span id="badgeSoat" class="font-mono px-2 py-0.5 rounded text-[11px] bg-slate-200 text-slate-800">Verificando...</span>
+                                </div>
+                                <div class="flex justify-between items-center text-slate-700">
+                                    <span>Tecnomecánica (RTM):</span>
+                                    <span id="badgeRtm" class="font-mono px-2 py-0.5 rounded text-[11px] bg-slate-200 text-slate-800">Verificando...</span>
+                                </div>
+                            </div>
+
                             <div class="input-group">
                                 <label for="vColor" class="label">Color</label>
-                                <input type="text" id="vColor" placeholder="Color" required class="input-moderno">
+                                <input type="text" id="vColor" placeholder="Ej: Blanco" class="input-moderno">
                             </div>
                             <div class="input-group">
                                 <label for="vTipo" class="label">Tipo de Vehículo</label>
@@ -168,11 +235,13 @@
                                     <option value="Camión">Camión</option>
                                     <option value="Turbo">Turbo</option>
                                     <option value="Automóvil">Automóvil</option>
+                                    <option value="Microbús">Microbús / Van</option>
+                                    <option value="Buseta">Buseta / Bus</option>
                                 </select>
                             </div>
                             <div class="input-group">
-                                <label for="vEmpresa" class="label">Empresa Dueña/Contratista</label>
-                                <input type="text" id="vEmpresa" placeholder="Empresa Dueña/Contratista" required
+                                <label for="vEmpresa" class="label">Empresa Dueña / Contratista</label>
+                                <input type="text" id="vEmpresa" placeholder="TRANS SERVICES COOPERATIVA A&B"
                                     class="input-moderno">
                             </div>
                         </div>
@@ -184,27 +253,28 @@
                             </h3>
                             <div class="input-group">
                                 <label for="cNombre" class="label">Nombre del Conductor</label>
-                                <input type="text" id="cNombre" placeholder="Nombre Completo" required
-                                    class="input-moderno">
+                                <input type="text" id="cNombre" placeholder="Nombre Completo"
+                                    class="input-moderno" list="conductoresList">
                             </div>
                             <div class="grid grid-cols-2 gap-4">
                                 <div class="input-group">
-                                    <label for="cLicencia" class="label">Licencia</label>
-                                    <input type="text" id="cLicencia" placeholder="Licencia" required
+                                    <label for="cLicencia" class="label">Cédula / Licencia</label>
+                                    <input type="text" id="cLicencia" placeholder="Número Documento"
                                         class="input-moderno">
                                 </div>
                                 <div class="input-group">
                                     <label for="cCat" class="label">Categoría</label>
-                                    <input type="text" id="cCat" placeholder="Categoría" required class="input-moderno">
+                                    <input type="text" id="cCat" placeholder="Ej: C1 / C2" class="input-moderno">
                                 </div>
                             </div>
                             <div class="input-group">
                                 <label for="cVence" class="label">Vencimiento Licencia</label>
-                                <input type="date" id="cVence" required class="input-moderno">
+                                <input type="date" id="cVence" class="input-moderno" onchange="checkLicenciaVencimiento()">
+                                <div id="badgeLicencia" class="hidden mt-1 p-2 rounded-lg text-xs font-bold font-mono"></div>
                             </div>
                             <div class="input-group">
                                 <label for="cTelefono" class="label">Teléfono de Contacto</label>
-                                <input type="tel" id="cTelefono" placeholder="Celular de contacto" required
+                                <input type="tel" id="cTelefono" placeholder="Celular de contacto"
                                     class="input-moderno">
                             </div>
                         </div>
@@ -217,24 +287,24 @@
                 <section class="card-paso">
                     <h2 class="text-xl font-extrabold text-slate-900 mb-6 flex items-center gap-3 tracking-tight">
                         <div class="p-2.5 bg-[#DBEAFE] rounded-xl border border-[#BFDBFE]"><i data-lucide="map" class="w-5 h-5 text-[#1E40AF]"></i></div>
-                        3. Rutograma
+                        3. Rutograma & Puntos Críticos
                     </h2>
                     <div class="space-y-4">
                         <div class="p-4 bg-[#EFF6FF] rounded-xl border-2 border-[#BFDBFE] mb-4">
                             <p class="text-sm text-[#1E40AF] font-bold">
                                 <i data-lucide="info" class="inline-block w-4 h-4 mr-1 align-text-bottom"></i>
-                                Sube una imagen del mapa demarcando la ruta y las señalizaciones de tránsito importantes.
+                                Sube una imagen del mapa o rutograma demarcando la ruta, puntos críticos y señalizaciones viales.
                             </p>
                         </div>
 
                         <div class="flex items-center justify-center w-full">
                             <label for="rutogramaFile"
-                                class="flex flex-col items-center justify-center w-full h-64 border-2 border-slate-400 border-dashed rounded-2xl cursor-pointer bg-white hover:bg-slate-50 transition-all">
+                                class="flex flex-col items-center justify-center w-full h-56 border-2 border-slate-400 border-dashed rounded-2xl cursor-pointer bg-white hover:bg-slate-50 transition-all">
                                 <div class="flex flex-col items-center justify-center pt-5 pb-6 text-center p-4">
                                     <i data-lucide="image-plus"
-                                        class="w-12 h-12 mb-4 text-[#1E40AF]"></i>
-                                    <p class="mb-2 text-sm text-slate-900 font-bold"><span
-                                            class="text-[#1E40AF] underline">Haz clic para subir</span> o arrastra la imagen</p>
+                                        class="w-12 h-12 mb-3 text-[#1E40AF]"></i>
+                                    <p class="mb-1 text-sm text-slate-900 font-bold"><span
+                                            class="text-[#1E40AF] underline">Haz clic para subir imagen</span> o arrastra el archivo</p>
                                     <p class="text-xs text-slate-700 font-semibold">PNG, JPG o JPEG (Máx. 5MB)</p>
                                 </div>
                                 <input id="rutogramaFile" type="file" class="hidden" accept="image/*"
@@ -242,9 +312,9 @@
                             </label>
                         </div>
 
-                        <div id="rutogramaPreview" class="hidden mt-6 relative group">
+                        <div id="rutogramaPreview" class="hidden mt-4 relative group">
                             <img id="rutogramaImg" src="" alt="Vista previa del rutograma"
-                                class="w-full rounded-2xl shadow-md border-2 border-slate-300 object-cover max-h-[400px]">
+                                class="w-full rounded-2xl shadow-md border-2 border-slate-300 object-cover max-h-[350px]">
                             <button type="button" onclick="removeRutograma()"
                                 class="absolute top-4 right-4 p-2 bg-red-600 text-white rounded-full shadow-lg hover:bg-red-700 transition-colors">
                                 <i data-lucide="trash-2" class="w-5 h-5"></i>
@@ -254,19 +324,24 @@
                 </section>
             </div>
 
-            <!-- Paso 4: Puntos de Control -->
+            <!-- Paso 4: Puntos de Control y Paradas -->
             <div class="form-step hidden">
                 <section class="card-paso">
-                    <h2 class="text-xl font-extrabold text-slate-900 mb-4 flex items-center gap-3 tracking-tight">
-                        <div class="p-2.5 bg-[#DBEAFE] rounded-xl border border-[#BFDBFE]"><i data-lucide="flag" class="w-5 h-5 text-[#1E40AF]"></i></div>
-                        4. Puntos de Control
-                    </h2>
-                    <p class="text-sm font-bold text-slate-800 mb-4">Sitios de reporte y descanso (para viajes superiores a 2 horas)</p>
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                        <h2 class="text-xl font-extrabold text-slate-900 flex items-center gap-3 tracking-tight">
+                            <div class="p-2.5 bg-[#DBEAFE] rounded-xl border border-[#BFDBFE]"><i data-lucide="flag" class="w-5 h-5 text-[#1E40AF]"></i></div>
+                            4. Puntos de Control & Pausas Activas
+                        </h2>
+                        <button type="button" onclick="sugerirPuntosDescanso()" class="p-2 bg-blue-100 hover:bg-blue-200 text-[#1E40AF] rounded-xl text-xs font-black flex items-center gap-1.5 transition-all">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Sugerir Puntos según Ruta
+                        </button>
+                    </div>
+                    <p class="text-sm font-bold text-slate-800 mb-4">Sitios de reporte, peajes y descanso (Resolución 40595: pausas activas obligatorias cada 2 horas de conducción)</p>
                     <div id="puntosControlContainer" class="space-y-3">
                     </div>
                     <button type="button" onclick="addControlPoint()"
                         class="mt-4 text-sm font-bold text-[#1E40AF] hover:text-[#1E3A8A] flex items-center gap-2 transition-colors">
-                        <i data-lucide="plus-circle" class="w-4 h-4"></i> Agregar otro punto
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i> Agregar otro punto de control
                     </button>
                 </section>
             </div>
@@ -276,15 +351,15 @@
                 <section class="card-paso">
                     <h2 class="text-xl font-extrabold text-slate-900 mb-6 flex items-center gap-3 tracking-tight">
                         <div class="p-2.5 bg-[#DBEAFE] rounded-xl border border-[#BFDBFE]"><i data-lucide="shield-alert" class="w-5 h-5 text-[#1E40AF]"></i></div>
-                        5. Análisis de Riesgo
+                        5. Matriz de Valoración de Riesgo STE-F-010
                     </h2>
                     <div class="space-y-6" id="riskGrid">
 
                         <div>
-                            <label for="rDistancia" class="label">A. Distancia a Recorrer</label>
+                            <label class="label">A. Distancia a Recorrer</label>
                             <div class="grid grid-cols-2 gap-2">
                                 <label class="cursor-pointer"><input type="radio" name="rDistancia" value="1"
-                                        class="peer sr-only" onchange="updateRisk()" required>
+                                        class="peer sr-only" onchange="updateRisk()" checked>
                                     <div
                                         class="p-3 rounded-xl bg-white border-2 border-slate-300 text-slate-900 font-extrabold peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:border-[#1E40AF] peer-checked:shadow-md transition-all text-center text-sm hover:bg-slate-50">
                                         &lt; 50 KM</div>
@@ -311,10 +386,10 @@
                         </div>
 
                         <div>
-                            <label for="rClima" class="label">B. Clima</label>
+                            <label class="label">B. Condiciones de Clima</label>
                             <div class="grid grid-cols-3 gap-2">
                                 <label class="cursor-pointer"><input type="radio" name="rClima" value="2"
-                                        class="peer sr-only" onchange="updateRisk()" required>
+                                        class="peer sr-only" onchange="updateRisk()" checked>
                                     <div
                                         class="p-3 rounded-xl bg-white border-2 border-slate-300 text-slate-900 font-extrabold peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:border-[#1E40AF] peer-checked:shadow-md transition-all text-center text-sm hover:bg-slate-50">
                                         Seco</div>
@@ -329,20 +404,20 @@
                                         class="peer sr-only" onchange="updateRisk()">
                                     <div
                                         class="p-3 rounded-xl bg-white border-2 border-slate-300 text-slate-900 font-extrabold peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:border-[#1E40AF] peer-checked:shadow-md transition-all text-center text-sm hover:bg-slate-50">
-                                        Lluvia Fuerte</div>
+                                        Tormenta</div>
                                 </label>
                             </div>
                         </div>
 
                         <div>
-                            <label for="rVehiculos" class="label">C. Vehículos y Personas</label>
+                            <label class="label">C. Vehículos y Personas</label>
                             <div class="grid grid-cols-1 gap-2">
                                 <label class="cursor-pointer flex items-center">
                                     <input type="radio" name="rVehiculos" value="1" class="peer sr-only"
-                                        onchange="updateRisk()" required>
+                                        onchange="updateRisk()" checked>
                                     <div
                                         class="w-full p-3.5 rounded-xl bg-white border-2 border-slate-300 text-slate-900 font-extrabold peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:border-[#1E40AF] peer-checked:shadow-md transition-all text-center hover:bg-slate-50">
-                                        <span class="text-sm font-bold">1 Vehículo / 1 Persona</span>
+                                        <span class="text-sm font-bold">1 Vehículo / 1 Conductor</span>
                                     </div>
                                 </label>
                                 <label class="cursor-pointer flex items-center">
@@ -350,7 +425,7 @@
                                         onchange="updateRisk()">
                                     <div
                                         class="w-full p-3.5 rounded-xl bg-white border-2 border-slate-300 text-slate-900 font-extrabold peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:border-[#1E40AF] peer-checked:shadow-md transition-all text-center hover:bg-slate-50">
-                                        <span class="text-sm font-bold">1 Vehículo / 2+ Personas</span>
+                                        <span class="text-sm font-bold">1 Vehículo / 2+ Pasajeros</span>
                                     </div>
                                 </label>
                                 <label class="cursor-pointer flex items-center">
@@ -358,7 +433,7 @@
                                         onchange="updateRisk()">
                                     <div
                                         class="w-full p-3.5 rounded-xl bg-white border-2 border-slate-300 text-slate-900 font-extrabold peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:border-[#1E40AF] peer-checked:shadow-md transition-all text-center hover:bg-slate-50">
-                                        <span class="text-sm font-bold">2+ Vehículos / 1+ Persona</span>
+                                        <span class="text-sm font-bold">2+ Vehículos (Caravana Pequeña)</span>
                                     </div>
                                 </label>
                                 <label class="cursor-pointer flex items-center">
@@ -366,17 +441,17 @@
                                         onchange="updateRisk()">
                                     <div
                                         class="w-full p-3.5 rounded-xl bg-white border-2 border-slate-300 text-slate-900 font-extrabold peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:border-[#1E40AF] peer-checked:shadow-md transition-all text-center hover:bg-slate-50">
-                                        <span class="text-sm font-bold">2+ Vehículos / 2+ Personas</span>
+                                        <span class="text-sm font-bold">2+ Vehículos (Caravana Grande)</span>
                                     </div>
                                 </label>
                             </div>
                         </div>
 
                         <div>
-                            <label for="rVia" class="label">D. Condiciones de la Vía</label>
+                            <label class="label">D. Condiciones de la Vía</label>
                             <div class="grid grid-cols-3 gap-2">
                                 <label class="cursor-pointer"><input type="radio" name="rVia" value="1"
-                                        class="peer sr-only" onchange="updateRisk()" required>
+                                        class="peer sr-only" onchange="updateRisk()" checked>
                                     <div
                                         class="p-3 rounded-xl bg-white border-2 border-slate-300 text-slate-900 font-extrabold peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:border-[#1E40AF] peer-checked:shadow-md transition-all text-center text-sm hover:bg-slate-50">
                                         Pavimentada</div>
@@ -391,20 +466,20 @@
                                         class="peer sr-only" onchange="updateRisk()">
                                     <div
                                         class="p-3 rounded-xl bg-white border-2 border-slate-300 text-slate-900 font-extrabold peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:border-[#1E40AF] peer-checked:shadow-md transition-all text-center text-sm hover:bg-slate-50">
-                                        No Pavim.</div>
+                                        Trocha / Destapada</div>
                                 </label>
                             </div>
                         </div>
 
                         <div>
-                            <label for="rCom" class="label">E. Comunicaciones Disponibles</label>
+                            <label class="label">E. Comunicaciones Disponibles</label>
                             <div class="grid grid-cols-1 gap-2">
                                 <label class="cursor-pointer flex items-center">
                                     <input type="radio" name="rCom" value="0" class="peer sr-only"
-                                        onchange="updateRisk()" required>
+                                        onchange="updateRisk()" checked>
                                     <div
                                         class="w-full p-3.5 rounded-xl bg-white border-2 border-slate-300 text-slate-900 font-extrabold peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:border-[#1E40AF] peer-checked:shadow-md transition-all text-center hover:bg-slate-50">
-                                        <span class="text-sm font-bold">Teléfono Celular</span>
+                                        <span class="text-sm font-bold">Señal Celular Completa</span>
                                     </div>
                                 </label>
                                 <label class="cursor-pointer flex items-center">
@@ -412,7 +487,7 @@
                                         onchange="updateRisk()">
                                     <div
                                         class="w-full p-3.5 rounded-xl bg-white border-2 border-slate-300 text-slate-900 font-extrabold peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:border-[#1E40AF] peer-checked:shadow-md transition-all text-center hover:bg-slate-50">
-                                        <span class="text-sm font-bold">Sin comunicación (Caravana)</span>
+                                        <span class="text-sm font-bold">Sin señal (Comunicación en Caravana)</span>
                                     </div>
                                 </label>
                                 <label class="cursor-pointer flex items-center">
@@ -420,17 +495,17 @@
                                         onchange="updateRisk()">
                                     <div
                                         class="w-full p-3.5 rounded-xl bg-white border-2 border-slate-300 text-slate-900 font-extrabold peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:border-[#1E40AF] peer-checked:shadow-md transition-all text-center hover:bg-slate-50">
-                                        <span class="text-sm font-bold">Sin comunicación (Solo)</span>
+                                        <span class="text-sm font-bold">Sin señal (Vehículo Solo)</span>
                                     </div>
                                 </label>
                             </div>
                         </div>
 
                         <div>
-                            <label for="rFatiga" class="label">F. Hrs. Trabajadas + Tiempo Viaje</label>
+                            <label class="label">F. Jornada Laboral + Tiempo de Viaje</label>
                             <div class="grid grid-cols-3 gap-2">
                                 <label class="cursor-pointer"><input type="radio" name="rFatiga" value="1"
-                                        class="peer sr-only" onchange="updateRisk()" required>
+                                        class="peer sr-only" onchange="updateRisk()" checked>
                                     <div
                                         class="p-3 rounded-xl bg-white border-2 border-slate-300 text-slate-900 font-extrabold peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:border-[#1E40AF] peer-checked:shadow-md transition-all text-center text-sm hover:bg-slate-50">
                                         &lt; 12 Hrs</div>
@@ -445,44 +520,47 @@
                                         class="peer sr-only" onchange="updateRisk()">
                                     <div
                                         class="p-3 rounded-xl bg-white border-2 border-slate-300 text-slate-900 font-extrabold peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:border-[#1E40AF] peer-checked:shadow-md transition-all text-center text-sm hover:bg-slate-50">
-                                        &lt; 16 Hrs</div>
+                                        ≥ 14 Hrs</div>
                                 </label>
                             </div>
                         </div>
 
                         <div>
-                            <label for="rHora" class="label">G. Hora de Traslado</label>
+                            <label class="label">G. Horario de Traslado</label>
                             <div class="grid grid-cols-2 gap-2">
                                 <label class="cursor-pointer"><input type="radio" name="rHora" value="1"
-                                        class="peer sr-only" onchange="updateRisk()" required>
+                                        class="peer sr-only" onchange="updateRisk()" checked>
                                     <div
                                         class="p-3 rounded-xl bg-white border-2 border-slate-300 text-slate-900 font-extrabold peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:border-[#1E40AF] peer-checked:shadow-md transition-all text-center text-sm hover:bg-slate-50">
-                                        Día (6-18)</div>
+                                        Diurno (06:00 a 18:00)</div>
                                 </label>
                                 <label class="cursor-pointer"><input type="radio" name="rHora" value="8"
                                         class="peer sr-only" onchange="updateRisk()">
                                     <div
                                         class="p-3 rounded-xl bg-white border-2 border-slate-300 text-slate-900 font-extrabold peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:border-[#1E40AF] peer-checked:shadow-md transition-all text-center text-sm hover:bg-slate-50">
-                                        Noche (18-6)</div>
+                                        Nocturno (18:00 a 06:00)</div>
                                 </label>
                             </div>
                         </div>
                     </div>
                     <div id="riskScoreCard"
                         class="mt-8 p-6 rounded-2xl border-2 border-slate-300 text-center transition-all duration-300 shadow-md bg-white">
-                        <p class="text-sm uppercase font-extrabold tracking-widest text-slate-900 mb-1">Nivel de Riesgo</p>
-                        <div class="text-4xl font-black text-slate-900 mb-2"><span id="totalPoints">0</span> Puntos</div>
-                        <div class="text-lg font-black tracking-tight" id="riskLevel">CALCULANDO...</div>
+                        <p class="text-sm uppercase font-extrabold tracking-widest text-slate-900 mb-1">Nivel de Riesgo Calculado</p>
+                        <div class="text-4xl font-black text-slate-900 mb-2"><span id="totalPoints">7</span> Puntos</div>
+                        <div class="text-lg font-black tracking-tight text-emerald-600" id="riskLevel">RIESGO BAJO (AUTORIZACIÓN NORMAL)</div>
+                        <div id="riskWarning" class="hidden mt-3 p-3 bg-red-50 border border-red-300 rounded-xl text-xs text-red-900 font-bold">
+                            ⚠️ ATENCIÓN: El puntaje clasifica como RIESGO ALTO (≥ 24 pts). La Resolución 40595 de 2022 y el formato STE-F-010 exigen obligatoriamente la autorización expresa de GERENCIA GENERAL.
+                        </div>
                     </div>
                 </section>
             </div>
 
-            <!-- Paso 6: Verificaciones Pre-Viaje -->
+            <!-- Paso 6: Verificaciones Pre-Viaje y Test de Fatiga -->
             <div class="form-step hidden">
                 <section class="card-paso">
                     <h2 class="text-xl font-extrabold text-slate-900 mb-6 flex items-center gap-3 tracking-tight">
                         <div class="p-2.5 bg-[#DBEAFE] rounded-xl border border-[#BFDBFE]"><i data-lucide="clipboard-check" class="w-5 h-5 text-[#1E40AF]"></i></div>
-                        6. Verificaciones Pre-Viaje
+                        6. Verificaciones Pre-Viaje & Aptitud
                     </h2>
 
                     <div class="space-y-8">
@@ -496,9 +574,9 @@
                                     class="flex items-start p-4 bg-white hover:bg-[#EFF6FF] rounded-2xl transition-all cursor-pointer border-2 border-slate-300 hover:border-[#1E40AF] shadow-sm">
                                     <div class="flex-1 mr-4">
                                         <span class="block text-[15px] font-extrabold text-slate-900 mb-1">Conocimiento de riesgos locales</span>
-                                        <span class="block text-xs text-slate-700 font-semibold leading-relaxed">Conozco el estado de las vías, clima, peatones, animales, etc.</span>
+                                        <span class="block text-xs text-slate-700 font-semibold leading-relaxed">Conozco el estado de las vías, clima, peatones, animales y pasos urbanos.</span>
                                     </div>
-                                    <input type="checkbox" id="cp_riesgos"
+                                    <input type="checkbox" id="cp_riesgos" checked
                                         class="w-6 h-6 text-[#1E40AF] rounded-md border-2 border-slate-400 focus:ring-[#1E40AF] mt-1">
                                 </label>
                                 <label
@@ -507,25 +585,25 @@
                                         <span class="block text-[15px] font-extrabold text-slate-900 mb-1">Transporte de personal</span>
                                         <span class="block text-xs text-slate-700 font-semibold leading-relaxed">Estoy informado que es prohibido transportar personal ajeno a la empresa.</span>
                                     </div>
-                                    <input type="checkbox" id="cp_personal"
+                                    <input type="checkbox" id="cp_personal" checked
                                         class="w-6 h-6 text-[#1E40AF] rounded-md border-2 border-slate-400 focus:ring-[#1E40AF] mt-1">
                                 </label>
                                 <label
                                     class="flex items-start p-4 bg-white hover:bg-[#EFF6FF] rounded-2xl transition-all cursor-pointer border-2 border-slate-300 hover:border-[#1E40AF] shadow-sm">
                                     <div class="flex-1 mr-4">
                                         <span class="block text-[15px] font-extrabold text-slate-900 mb-1">Inspección del vehículo</span>
-                                        <span class="block text-xs text-slate-700 font-semibold leading-relaxed">Se realizó la inspección con la lista pre-operacional.</span>
+                                        <span class="block text-xs text-slate-700 font-semibold leading-relaxed">Se realizó la inspección con la lista pre-operacional obligatoria.</span>
                                     </div>
-                                    <input type="checkbox" id="cp_inspeccion"
+                                    <input type="checkbox" id="cp_inspeccion" checked
                                         class="w-6 h-6 text-[#1E40AF] rounded-md border-2 border-slate-400 focus:ring-[#1E40AF] mt-1">
                                 </label>
                                 <label
                                     class="flex items-start p-4 bg-white hover:bg-[#EFF6FF] rounded-2xl transition-all cursor-pointer border-2 border-slate-300 hover:border-[#1E40AF] shadow-sm">
                                     <div class="flex-1 mr-4">
                                         <span class="block text-[15px] font-extrabold text-slate-900 mb-1">Cinturón de seguridad</span>
-                                        <span class="block text-xs text-slate-700 font-semibold leading-relaxed">Se encuentra en buen estado.</span>
+                                        <span class="block text-xs text-slate-700 font-semibold leading-relaxed">Se encuentra en perfecto estado y su uso es obligatorio.</span>
                                     </div>
-                                    <input type="checkbox" id="cp_cinturon"
+                                    <input type="checkbox" id="cp_cinturon" checked
                                         class="w-6 h-6 text-[#1E40AF] rounded-md border-2 border-slate-400 focus:ring-[#1E40AF] mt-1">
                                 </label>
                             </div>
@@ -534,66 +612,65 @@
                         <div>
                             <h3 class="font-extrabold text-slate-900 mb-4 text-lg flex items-center gap-2">
                                 <span class="bg-[#DBEAFE] text-[#1E40AF] text-xs font-black px-2.5 py-1 rounded-lg border border-[#BFDBFE]">B</span>
-                                Test de Fatiga
+                                Test de Fatiga y Aptitud Psicofísica
                             </h3>
                             <div class="space-y-3">
                                 <label
                                     class="flex items-start p-4 bg-white hover:bg-[#EFF6FF] rounded-2xl transition-all cursor-pointer border-2 border-slate-300 hover:border-[#1E40AF] shadow-sm">
                                     <div class="flex-1 mr-4">
                                         <span class="block text-[15px] font-extrabold text-slate-900 mb-1">Ausencia de Sustancias</span>
-                                        <span class="block text-xs text-slate-700 font-semibold leading-relaxed">Certifico que NO estoy consumiendo licor, drogas o medicamentos que alteren mi capacidad.</span>
+                                        <span class="block text-xs text-slate-700 font-semibold leading-relaxed">Certifico que NO he consumido alcohol, drogas ni medicamentos que causen somnolencia.</span>
                                     </div>
-                                    <input type="checkbox" id="tf_sustancias"
+                                    <input type="checkbox" id="tf_sustancias" checked
                                         class="w-6 h-6 text-[#1E40AF] rounded-md border-2 border-slate-400 focus:ring-[#1E40AF] mt-1">
                                 </label>
                                 <label
                                     class="flex items-start p-4 bg-white hover:bg-[#EFF6FF] rounded-2xl transition-all cursor-pointer border-2 border-slate-300 hover:border-[#1E40AF] shadow-sm">
                                     <div class="flex-1 mr-4">
-                                        <span class="block text-[15px] font-extrabold text-slate-900 mb-1">Descanso</span>
-                                        <span class="block text-xs text-slate-700 font-semibold leading-relaxed">Dormí por lo menos 8 horas antes de realizar el viaje.</span>
+                                        <span class="block text-[15px] font-extrabold text-slate-900 mb-1">Descanso Previo Suficiente</span>
+                                        <span class="block text-xs text-slate-700 font-semibold leading-relaxed">Dormí y descansé por lo menos 8 horas continuas antes de este viaje.</span>
                                     </div>
-                                    <input type="checkbox" id="tf_descanso"
+                                    <input type="checkbox" id="tf_descanso" checked
                                         class="w-6 h-6 text-[#1E40AF] rounded-md border-2 border-slate-400 focus:ring-[#1E40AF] mt-1">
                                 </label>
                                 <label
                                     class="flex items-start p-4 bg-white hover:bg-[#EFF6FF] rounded-2xl transition-all cursor-pointer border-2 border-slate-300 hover:border-[#1E40AF] shadow-sm">
                                     <div class="flex-1 mr-4">
-                                        <span class="block text-[15px] font-extrabold text-slate-900 mb-1">Condiciones óptimas</span>
-                                        <span class="block text-xs text-slate-700 font-semibold leading-relaxed">Me siento en óptimas condiciones para realizar este viaje.</span>
+                                        <span class="block text-[15px] font-extrabold text-slate-900 mb-1">Condiciones Óptimas de Salud</span>
+                                        <span class="block text-xs text-slate-700 font-semibold leading-relaxed">Me encuentro en óptimas condiciones físicas y mentales para conducir.</span>
                                     </div>
-                                    <input type="checkbox" id="tf_condiciones"
+                                    <input type="checkbox" id="tf_condiciones" checked
                                         class="w-6 h-6 text-[#1E40AF] rounded-md border-2 border-slate-400 focus:ring-[#1E40AF] mt-1">
                                 </label>
                                 <label
                                     class="flex items-start p-4 bg-white hover:bg-[#EFF6FF] rounded-2xl transition-all cursor-pointer border-2 border-slate-300 hover:border-[#1E40AF] shadow-sm">
                                     <div class="flex-1 mr-4">
-                                        <span class="block text-[15px] font-extrabold text-slate-900 mb-1">Conocimiento de peligros</span>
-                                        <span class="block text-xs text-slate-700 font-semibold leading-relaxed">Tengo conocimiento de los peligros a los que me expongo.</span>
+                                        <span class="block text-[15px] font-extrabold text-slate-900 mb-1">Prohibición de Celular al Volante</span>
+                                        <span class="block text-xs text-slate-700 font-semibold leading-relaxed">Sé que está prohibido manipular celulares o dispositivos mientras conduzco.</span>
                                     </div>
-                                    <input type="checkbox" id="tf_peligros"
+                                    <input type="checkbox" id="tf_celular" checked
                                         class="w-6 h-6 text-[#1E40AF] rounded-md border-2 border-slate-400 focus:ring-[#1E40AF] mt-1">
                                 </label>
-                                <label
-                                    class="flex items-start p-4 bg-white hover:bg-[#EFF6FF] rounded-2xl transition-all cursor-pointer border-2 border-slate-300 hover:border-[#1E40AF] shadow-sm">
-                                    <div class="flex-1 mr-4">
-                                        <span class="block text-[15px] font-extrabold text-slate-900 mb-1">Uso de dispositivos</span>
-                                        <span class="block text-xs text-slate-700 font-semibold leading-relaxed">Sé que está prohibido usar celulares mientras conduzco.</span>
-                                    </div>
-                                    <input type="checkbox" id="tf_celular"
-                                        class="w-6 h-6 text-[#1E40AF] rounded-md border-2 border-slate-400 focus:ring-[#1E40AF] mt-1">
-                                </label>
+
+                                <!-- Registro Opcional de Alcoholimetría -->
+                                <div class="p-4 bg-slate-50 rounded-2xl border-2 border-slate-300 space-y-2">
+                                    <label for="alcoholimetriaValor" class="text-xs font-extrabold text-slate-800 uppercase flex items-center gap-2">
+                                        <i data-lucide="wine-off" class="w-4 h-4 text-[#1E40AF]"></i> Prueba de Alcoholimetría / Alcohosensor (Opcional)
+                                    </label>
+                                    <input type="text" id="alcoholimetriaValor" placeholder="Ej: 0.0 mg/L (Negativo)" class="input-moderno">
+                                </div>
                             </div>
                         </div>
                     </div>
                 </section>
             </div>
 
-            <!-- Paso 7: Autorización y Seguimiento -->
+            <!-- Paso 7: Autorización y Firmas -->
             <div class="form-step hidden">
                 <section class="card-paso">
                     <h2 class="text-xl font-extrabold text-slate-900 mb-6 flex items-center gap-3 tracking-tight">
                         <div class="p-2.5 bg-[#DBEAFE] rounded-xl border border-[#BFDBFE]"><i data-lucide="check-square" class="w-5 h-5 text-[#1E40AF]"></i></div>
-                        7. Autorización y Seguimiento
+                        7. Autorización, Firmas & Directorio
                     </h2>
                     <div class="space-y-6">
 
@@ -606,7 +683,7 @@
                                     <label class="label mb-2">Días Trabajados</label>
                                     <div class="flex gap-3">
                                         <label class="cursor-pointer flex-1">
-                                            <input type="radio" id="dia1" name="diasTrabajados" value="dia1" class="peer sr-only">
+                                            <input type="radio" id="dia1" name="diasTrabajados" value="dia1" class="peer sr-only" checked>
                                             <div class="p-3 text-center rounded-xl bg-white text-slate-900 border-2 border-slate-300 hover:border-[#1E40AF] peer-checked:bg-[#1E40AF] peer-checked:text-white peer-checked:border-[#1E40AF] transition-all text-sm font-extrabold shadow-sm">
                                                 Día 1
                                             </div>
@@ -626,7 +703,7 @@
                             </div>
 
                             <div class="input-group mt-6">
-                                <label class="label">Medio de Reporte</label>
+                                <label class="label">Medio de Reporte en Ruta</label>
                                 <div class="flex flex-wrap gap-3">
                                     <label class="flex items-center gap-3 p-4 bg-white rounded-2xl cursor-pointer hover:bg-[#EFF6FF] transition-all flex-1 min-w-[120px] border-2 border-slate-300 hover:border-[#1E40AF] shadow-sm">
                                         <input type="radio" name="medio" value="Celular" class="text-[#1E40AF] w-5 h-5 focus:ring-[#1E40AF]" checked>
@@ -634,52 +711,47 @@
                                     </label>
                                     <label class="flex items-center gap-3 p-4 bg-white rounded-2xl cursor-pointer hover:bg-[#EFF6FF] transition-all flex-1 min-w-[120px] border-2 border-slate-300 hover:border-[#1E40AF] shadow-sm">
                                         <input type="radio" name="medio" value="Radio" class="text-[#1E40AF] w-5 h-5 focus:ring-[#1E40AF]">
-                                        <span class="font-extrabold text-slate-900">Radio</span>
+                                        <span class="font-extrabold text-slate-900">Radio VHF</span>
                                     </label>
                                     <label class="flex items-center gap-3 p-4 bg-white rounded-2xl cursor-pointer hover:bg-[#EFF6FF] transition-all flex-1 min-w-[120px] border-2 border-slate-300 hover:border-[#1E40AF] shadow-sm">
                                         <input type="radio" name="medio" value="Físico" class="text-[#1E40AF] w-5 h-5 focus:ring-[#1E40AF]">
-                                        <span class="font-extrabold text-slate-900">Físico</span>
+                                        <span class="font-extrabold text-slate-900">Físico / Puesto Control</span>
                                     </label>
                                 </div>
                             </div>
                         </div>
 
+                        <!-- Botón Directorio de Emergencias -->
                         <div class="mt-6">
                             <h3 class="font-extrabold text-slate-900 mb-4 text-lg border-b-2 border-slate-200 pb-2">
-                                Directorio de Emergencias
+                                Directorio de Emergencias Viales
                             </h3>
-                            <button type="button" onclick="openEmergencyPanel()" class="btn btn-secondary shadow-sm">
-                                Ver Directorio <i data-lucide="phone-forwarded" class="w-4 h-4"></i>
+                            <button type="button" onclick="openEmergencyPanel()" class="btn btn-secondary shadow-sm w-full py-3">
+                                <i data-lucide="phone-call" class="w-5 h-5 text-[#1E40AF]"></i> Ver Directorio de Emergencias
                             </button>
                         </div>
 
-                        <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <!-- Sección de Firmas Digitales -->
+                        <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div id="containerFirmaConductor">
-                                <label class="label">Firma 1: Conductor</label>
+                                <label class="label">Firma Obligatoria: Conductor</label>
                                 <div class="border-2 border-slate-300 rounded-xl p-3 bg-white shadow-sm">
                                     <canvas id="signatureCanvasConductor"
-                                        class="w-full h-32 border-2 border-slate-200 rounded-lg bg-slate-50 touch-none block"></canvas>
+                                        class="w-full h-36 border-2 border-slate-200 rounded-lg bg-slate-50 touch-none block"></canvas>
                                     <div class="flex justify-between items-center mt-2">
-                                        <span id="firma1Fecha" class="text-[11px] text-slate-700 font-bold"></span>
+                                        <span id="firma1Fecha" class="text-[11px] text-slate-700 font-bold">Pendiente</span>
                                         <button type="button" onclick="clearSignature('signatureCanvasConductor')"
-                                            class="text-xs text-[#1E40AF] font-extrabold hover:underline">Limpiar</button>
+                                            class="text-xs text-[#1E40AF] font-extrabold hover:underline">Limpiar Firma</button>
                                     </div>
                                 </div>
                             </div>
                             <div id="containerFirmaGerencia">
-                                <label class="label">Firma 3: Jefe Gerencia</label>
+                                <label class="label">Firma Autorización: HSE / Gerencia</label>
                                 <div class="border-2 border-slate-300 rounded-xl p-3 bg-white shadow-sm relative">
                                     <canvas id="signatureCanvasGerencia"
-                                        class="w-full h-32 border-2 border-slate-200 rounded-lg bg-slate-50 touch-none block pointer-events-none"></canvas>
-                                    <div id="gerenciaAutoSignOverlay"
-                                        class="absolute inset-0 flex items-center justify-center z-10">
-                                        <button type="button" onclick="autoSignGerencia()"
-                                            class="bg-[#1E40AF] hover:bg-[#1D4ED8] text-white text-sm font-extrabold py-3 px-8 rounded-full shadow-xl transition-transform transform hover:scale-105 flex items-center gap-2 border-2 border-[#1E3A8A]">
-                                            <i data-lucide="check-circle" class="w-4 h-4"></i> APROBACIÓN GERENCIA
-                                        </button>
-                                    </div>
+                                        class="w-full h-36 border-2 border-slate-200 rounded-lg bg-slate-50 touch-none block"></canvas>
                                     <div class="flex justify-between items-center mt-2">
-                                        <span id="firma3Fecha" class="text-[11px] text-slate-700 font-bold"></span>
+                                        <span id="firma3Fecha" class="text-[11px] text-slate-700 font-bold">Riesgo Alto / Medio</span>
                                         <button type="button" onclick="clearSignature('signatureCanvasGerencia')"
                                             class="text-xs text-[#1E40AF] font-extrabold hover:underline">Limpiar</button>
                                     </div>
@@ -687,94 +759,101 @@
                             </div>
                         </div>
 
-                        <div class="mt-8 p-8 bg-[#ECFDF5] rounded-3xl text-center border-2 border-[#A7F3D0] shadow-sm">
-                            <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto shadow-sm mb-4 border border-[#A7F3D0]">
+                        <div class="mt-8 p-6 bg-[#ECFDF5] rounded-3xl text-center border-2 border-[#A7F3D0] shadow-sm">
+                            <div class="w-14 h-14 bg-white rounded-full flex items-center justify-center mx-auto shadow-sm mb-3 border border-[#A7F3D0]">
                                 <i data-lucide="shield-check" class="w-8 h-8 text-[#059669]"></i>
                             </div>
-                            <h3 class="text-xl font-extrabold text-[#065F46] mb-2">Todo Listo para el Viaje</h3>
-                            <p class="text-[15px] text-[#047857] font-bold">Al finalizar, se guardará el registro y se generarán los reportes PDF y Excel.</p>
+                            <h3 class="text-lg font-extrabold text-[#065F46] mb-1">Gerenciamiento de Viaje Listo</h3>
+                            <p class="text-xs text-[#047857] font-bold">Al registrar se sincroniza con PostgreSQL en Railway y se genera el PDF STE-F-010.</p>
                         </div>
                     </div>
                 </section>
             </div>
         </form>
 
-        <!-- Modal Directorio de Emergencia -->
+        <!-- Modal Directorio de Emergencia con Llamadas Directas -->
         <div id="emergencyModal"
-            class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4 animate-fadeIn">
+            class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4 animate-fadeIn">
             <div
                 class="bg-white rounded-3xl w-full max-w-md max-h-[85vh] overflow-hidden flex flex-col shadow-2xl m-4 border border-slate-200">
                 <div
                     class="p-5 border-b border-slate-200 flex justify-between items-center bg-white">
-                    <h3 class="font-bold text-xl text-slate-900 tracking-tight">Directorio de Emergencia</h3>
+                    <h3 class="font-bold text-xl text-slate-900 tracking-tight flex items-center gap-2">
+                        <i data-lucide="phone-call" class="w-5 h-5 text-[#1E40AF]"></i> Directorio de Emergencia
+                    </h3>
                     <button type="button" onclick="closeEmergencyPanel()"
                         class="text-slate-500 p-2 rounded-full hover:bg-slate-100"><i
                             data-lucide="x" class="w-5 h-5"></i></button>
                 </div>
-                <div class="flex-1 overflow-y-auto p-6">
-                    <div class="grid grid-cols-1 gap-4">
+                <div class="flex-1 overflow-y-auto p-5 space-y-3">
+                    <a href="tel:3102160080" class="flex items-center justify-between p-3.5 bg-slate-50 rounded-2xl border border-slate-200 hover:bg-blue-50 transition-colors">
                         <div>
-                            <p class="font-bold text-slate-900">GERENTE:</p>
-                            <p class="text-slate-600 font-semibold"><i data-lucide="phone" class="inline-block w-4 h-4 mr-1 align-text-bottom"></i> 3102160080</p>
+                            <p class="font-black text-slate-900 text-sm">GERENCIA OPERATIVA</p>
+                            <p class="text-slate-600 text-xs">310 216 0080</p>
                         </div>
+                        <span class="p-2 bg-[#1E40AF] text-white rounded-xl text-xs font-bold flex items-center gap-1">Llamar <i data-lucide="phone" class="w-3.5 h-3.5"></i></span>
+                    </a>
+                    <a href="tel:3136332887" class="flex items-center justify-between p-3.5 bg-slate-50 rounded-2xl border border-slate-200 hover:bg-blue-50 transition-colors">
                         <div>
-                            <p class="font-bold text-slate-900">HSE:</p>
-                            <p class="text-slate-600 font-semibold"><i data-lucide="phone" class="inline-block w-4 h-4 mr-1 align-text-bottom"></i> 3136332887</p>
+                            <p class="font-black text-slate-900 text-sm">COORDINACIÓN HSEQ / PESV</p>
+                            <p class="text-slate-600 text-xs">313 633 2887</p>
                         </div>
+                        <span class="p-2 bg-[#1E40AF] text-white rounded-xl text-xs font-bold flex items-center gap-1">Llamar <i data-lucide="phone" class="w-3.5 h-3.5"></i></span>
+                    </a>
+                    <a href="tel:767" class="flex items-center justify-between p-3.5 bg-amber-50 rounded-2xl border border-amber-200 hover:bg-amber-100 transition-colors">
                         <div>
-                            <p class="font-bold text-slate-900">BOMBEROS:</p>
-                            <p class="text-slate-600 font-semibold"><i data-lucide="phone" class="inline-block w-4 h-4 mr-1 align-text-bottom"></i> 3105699619</p>
+                            <p class="font-black text-amber-900 text-sm">POLICÍA DE CARRETERAS (INVÍAS)</p>
+                            <p class="text-amber-700 text-xs">#767 (Desde Celular)</p>
                         </div>
+                        <span class="p-2 bg-amber-600 text-white rounded-xl text-xs font-bold flex items-center gap-1">Llamar #767</span>
+                    </a>
+                    <a href="tel:3214922157" class="flex items-center justify-between p-3.5 bg-slate-50 rounded-2xl border border-slate-200 hover:bg-blue-50 transition-colors">
                         <div>
-                            <p class="font-bold text-slate-900">CRUZ ROJA:</p>
-                            <p class="text-slate-600 font-semibold"><i data-lucide="phone" class="inline-block w-4 h-4 mr-1 align-text-bottom"></i> 3105770698</p>
+                            <p class="font-black text-slate-900 text-sm">POLICÍA NACIONAL</p>
+                            <p class="text-slate-600 text-xs">321 492 2157</p>
                         </div>
+                        <span class="p-2 bg-[#1E40AF] text-white rounded-xl text-xs font-bold flex items-center gap-1">Llamar <i data-lucide="phone" class="w-3.5 h-3.5"></i></span>
+                    </a>
+                    <a href="tel:3105699619" class="flex items-center justify-between p-3.5 bg-slate-50 rounded-2xl border border-slate-200 hover:bg-blue-50 transition-colors">
                         <div>
-                            <p class="font-bold text-slate-900">EMERGENCIAS GTE.:</p>
-                            <p class="text-slate-600 font-semibold"><i data-lucide="phone" class="inline-block w-4 h-4 mr-1 align-text-bottom"></i> 3213500500</p>
+                            <p class="font-black text-slate-900 text-sm">CUERPO DE BOMBEROS</p>
+                            <p class="text-slate-600 text-xs">310 569 9619</p>
                         </div>
+                        <span class="p-2 bg-red-600 text-white rounded-xl text-xs font-bold flex items-center gap-1">Llamar <i data-lucide="phone" class="w-3.5 h-3.5"></i></span>
+                    </a>
+                    <a href="tel:3186156525" class="flex items-center justify-between p-3.5 bg-slate-50 rounded-2xl border border-slate-200 hover:bg-blue-50 transition-colors">
                         <div>
-                            <p class="font-bold text-slate-900">DEFENSA CIVIL:</p>
-                            <p class="text-slate-600 font-semibold"><i data-lucide="phone" class="inline-block w-4 h-4 mr-1 align-text-bottom"></i> 6014206074</p>
+                            <p class="font-black text-slate-900 text-sm">HOSPITAL SAN GABRIEL ARCÁNGEL</p>
+                            <p class="text-slate-600 text-xs">318 615 6525</p>
                         </div>
-                        <div>
-                            <p class="font-bold text-slate-900">POLICIA:</p>
-                            <p class="text-slate-600 font-semibold"><i data-lucide="phone" class="inline-block w-4 h-4 mr-1 align-text-bottom"></i> 3214922157</p>
-                        </div>
-                        <div>
-                            <p class="font-bold text-slate-900">HOSPITAL S.G.A:</p>
-                            <p class="text-slate-600 font-semibold"><i data-lucide="phone" class="inline-block w-4 h-4 mr-1 align-text-bottom"></i> 3186156525</p>
-                        </div>
-                    </div>
+                        <span class="p-2 bg-emerald-600 text-white rounded-xl text-xs font-bold flex items-center gap-1">Llamar <i data-lucide="phone" class="w-3.5 h-3.5"></i></span>
+                    </a>
                 </div>
             </div>
         </div>
 
-        <!-- Modal Autorización HSE -->
+        <!-- Modal Autorización HSE / Gerencia -->
         <div id="hseSignModal"
-            class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-[110] flex items-center justify-center p-4 animate-fadeIn">
+            class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden z-[110] flex items-center justify-center p-4 animate-fadeIn">
             <div
                 class="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl border border-slate-200">
-                <h3 class="text-xl font-bold text-slate-900 mb-4 text-center">Autorización HSE</h3>
-                <p class="text-sm text-slate-600 text-center mb-6">Por favor, el profesional HSE debe firmar para autorizar el inicio del viaje.</p>
+                <h3 class="text-xl font-bold text-slate-900 mb-2 text-center">Autorización de Seguridad Vial</h3>
+                <p class="text-xs text-slate-600 text-center mb-5">El profesional HSEQ o Gerencia debe autorizar el viaje debido al nivel de riesgo detectado.</p>
 
-                <button type="button" onclick="autoSignHSEModal()"
-                    class="mb-4 w-full bg-[#D1FAE5] text-[#047857] hover:bg-[#A7F3D0] font-bold py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 transition-colors">
-                    <i data-lucide="pen-tool" class="w-4 h-4"></i> Auto-Firma (Estampar)
-                </button>
-
-                <div class="border border-slate-200 rounded-xl p-3 bg-slate-50 mb-6">
+                <div class="border-2 border-slate-300 rounded-2xl p-3 bg-slate-50 mb-5">
                     <canvas id="signatureCanvasHSE_Modal"
-                        class="w-full h-40 border border-slate-200 rounded-lg bg-white touch-none block"></canvas>
+                        class="w-full h-36 border border-slate-200 rounded-xl bg-white touch-none block"></canvas>
                     <div class="flex justify-end mt-2">
                         <button type="button" onclick="clearSignature('signatureCanvasHSE_Modal')"
-                            class="text-xs text-[#1E40AF] font-semibold hover:underline">Limpiar Firma</button>
+                            class="text-xs text-[#1E40AF] font-bold hover:underline">Limpiar Firma</button>
                     </div>
                 </div>
 
-                <button type="button" id="btnHSEAuth" onclick="submitHSEAuth()" disabled
-                    class="btn btn-primary w-full opacity-50">AUTORIZAR VIAJE Y NOTIFICAR <i data-lucide="send"
-                        class="w-4 h-4 ml-2"></i></button>
+                <div class="flex gap-3">
+                    <button type="button" onclick="closeHSEModal()" class="flex-1 py-3 text-slate-700 font-bold hover:bg-slate-100 rounded-xl transition-colors">Cancelar</button>
+                    <button type="button" id="btnHSEAuth" onclick="submitHSEAuth()"
+                        class="flex-1 btn btn-primary py-3">AUTORIZAR <i data-lucide="shield-check" class="w-4 h-4 ml-1"></i></button>
+                </div>
             </div>
         </div>
 
@@ -792,21 +871,21 @@
         <div id="pinAuthModal"
             class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-[120] flex items-center justify-center p-4">
             <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200">
-                <div class="text-center mb-6">
+                <div class="text-center mb-5">
                     <div class="w-12 h-12 bg-[#FEF3C7] rounded-full flex items-center justify-center mx-auto mb-3">
-                        <i data-lucide="shield-check" class="w-6 h-6 text-[#D97706]"></i>
+                        <i data-lucide="lock" class="w-6 h-6 text-[#D97706]"></i>
                     </div>
-                    <h3 class="text-lg font-bold text-slate-900">Autorización Requerida</h3>
-                    <p class="text-sm text-slate-500 mt-1">Ingrese el PIN de administrador para autorizar.</p>
+                    <h3 class="text-lg font-bold text-slate-900">PIN de Autorización HSEQ</h3>
+                    <p class="text-xs text-slate-500 mt-1">Ingrese el PIN institucional para certificar la autorización.</p>
                 </div>
                 <div class="space-y-4">
                     <input type="password" id="pinAuthInput" maxlength="10" inputmode="numeric" pattern="[0-9]*" autocomplete="off"
-                        class="w-full text-center text-2xl tracking-[0.5em] font-mono py-3 px-4 border-2 border-slate-200 rounded-xl focus:border-[#1E40AF] focus:outline-none focus:ring-4 focus:ring-primary-focus"
+                        class="w-full text-center text-2xl tracking-[0.5em] font-mono py-3 px-4 border-2 border-slate-200 rounded-xl focus:border-[#1E40AF] focus:outline-none"
                         placeholder="••••" aria-label="PIN de administrador">
-                    <div id="pinAuthError" class="text-red-500 text-sm text-center hidden font-bold">PIN incorrecto. Intente nuevamente.</div>
+                    <div id="pinAuthError" class="text-red-500 text-xs text-center hidden font-bold">PIN incorrecto. Intente nuevamente.</div>
                     <div class="flex gap-3">
-                        <button type="button" onclick="closePinAuthModal()" class="flex-1 py-3 text-slate-700 font-bold hover:bg-slate-50 rounded-xl transition-colors">Cancelar</button>
-                        <button type="button" id="btnPinVerify" onclick="submitPinAuth()" class="flex-1 py-3 bg-[#1E40AF] text-white font-bold rounded-xl hover:bg-[#1D4ED8] transition-colors">Verificar</button>
+                        <button type="button" onclick="closePinAuthModal()" class="flex-1 py-3 text-slate-700 font-bold hover:bg-slate-50 rounded-xl transition-colors text-sm">Cancelar</button>
+                        <button type="button" id="btnPinVerify" onclick="submitPinAuth()" class="flex-1 py-3 bg-[#1E40AF] text-white font-bold rounded-xl hover:bg-[#1D4ED8] transition-colors text-sm">Validar PIN</button>
                     </div>
                 </div>
             </div>
@@ -819,7 +898,9 @@
                 class="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border-t border-slate-200 sm:border">
                 <div
                     class="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
-                    <h3 class="font-bold text-[17px] text-slate-900">Historial de Viajes</h3>
+                    <h3 class="font-bold text-[17px] text-slate-900 flex items-center gap-2">
+                        <i data-lucide="history" class="w-5 h-5 text-[#1E40AF]"></i> Historial de Viajes en Railway
+                    </h3>
                     <div class="flex items-center gap-2">
                         <button onclick="exportHistoryExcel()" title="Exportar Excel"
                             class="text-[#059669] p-2 hover:bg-[#059669]/10 rounded-xl">
@@ -831,11 +912,11 @@
                         </button>
                     </div>
                 </div>
-                <div class="px-4 pb-2">
-                    <input type="text" id="historySearch" placeholder="Buscar por placa, conductor..."
-                        class="input-moderno text-sm" onkeyup="filterHistorySearch()">
+                <div class="px-4 py-2 border-b border-slate-100">
+                    <input type="text" id="historySearch" placeholder="Buscar por placa, conductor, origen..."
+                        class="input-moderno text-xs py-2" onkeyup="filterHistorySearch()">
                 </div>
-                <div class="flex-1 overflow-y-auto" id="historyList">
+                <div class="flex-1 overflow-y-auto p-4 space-y-3" id="historyList">
                 </div>
             </div>
         </div>
@@ -847,7 +928,7 @@
                 class="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border-t border-slate-200 sm:border">
                 <div
                     class="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
-                    <h3 class="font-bold text-[17px] text-slate-900">Reportes y Estadísticas</h3>
+                    <h3 class="font-bold text-[17px] text-slate-900">Métricas & Estadísticas PESV</h3>
                     <button type="button" onclick="closeReportsPanel()"
                         class="text-slate-500 p-2 hover:bg-slate-100 rounded-full">
                         <i data-lucide="x" class="w-5 h-5"></i>
@@ -866,65 +947,35 @@
             </div>
         </div>
 
-        <!-- Panel de Plantillas -->
-        <div id="templatesModal"
-            class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
-            <div
-                class="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border-t border-slate-200 sm:border">
-                <div
-                    class="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
-                    <h3 class="font-bold text-[17px] text-slate-900">Viajes Frecuentes</h3>
-                    <button type="button" onclick="saveAsTemplate()"
-                        class="text-[#1E40AF] text-[15px] font-bold">Guardar</button>
+        <!-- Panel de Usuario -->
+        <div id="userPanel" class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden z-[100] flex items-center justify-center p-4">
+            <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl border border-slate-200">
+                <div class="flex justify-between items-center mb-4 border-b pb-3">
+                    <h3 class="font-bold text-lg text-slate-900 flex items-center gap-2">
+                        <i data-lucide="user-check" class="w-5 h-5 text-[#1E40AF]"></i> Perfil de Conductor
+                    </h3>
+                    <button onclick="closeUserPanel()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
                 </div>
-                <div class="flex-1 overflow-y-auto p-4" id="templatesList">
+                <div id="userPanelContent" class="space-y-3 text-sm">
                 </div>
             </div>
         </div>
 
-        <!-- Panel de Alertas -->
-        <div id="alertsModal"
-            class="fixed inset-0 bg-black/40 backdrop-blur-sm hidden z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
-            <div
-                class="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border-t border-slate-200 sm:border">
-                <div
-                    class="p-4 border-b border-slate-200 flex justify-between items-center bg-white">
-                    <div class="flex items-center gap-2">
-                        <i data-lucide="bell" class="w-5 h-5 text-[#D97706]"></i>
-                        <h3 class="font-bold text-[17px] text-slate-900">Alertas</h3>
-                        <span id="alertsCount" class="bg-[#DC2626] text-white text-[12px] font-bold px-2 py-0.5 rounded-full">0</span>
-                    </div>
-                    <button type="button" onclick="closeAlertsPanel()"
-                        class="text-slate-500 p-2 hover:bg-slate-100 rounded-full">
-                        <i data-lucide="x" class="w-5 h-5"></i>
-                    </button>
-                </div>
-                <div class="flex-1 overflow-y-auto p-4" id="alertsList">
-                </div>
-            </div>
-        </div>
     </main>
 
-    <datalist id="ciudades">
-        <option value="Villagarzón"></option>
-        <option value="Mocoa"></option>
-        <option value="Puerto Asís"></option>
-        <option value="Orito"></option>
-        <option value="Bogotá"></option>
-        <option value="Neiva"></option>
-        <option value="Pitalito"></option>
-        <option value="Pasto"></option>
-        <option value="Cali"></option>
-        <option value="Villavicencio"></option>
-        <option value="Florencia"></option>
+    <!-- Datalist Dinámico DIVIPOLA DANE (100% Municipios Codificados) -->
+    <datalist id="divipolaList">
+    </datalist>
+
+    <datalist id="conductoresList">
     </datalist>
 
     <footer class="mt-8 text-center text-xs text-slate-500 max-w-lg mx-auto px-4 pb-8">
-        <p class="font-medium mb-1">COOPERATIVA DE TRANSPORTES Y SERVICIOS A & B</p>
-        <p class="text-slate-400">NIT 900778421-1 | Calle 2 N° 2-52 B/ Fátima Villagarzón Putumayo</p>
+        <p class="font-bold text-slate-700 mb-1">COOPERATIVA DE TRANSPORTES Y SERVICIOS A & B S.A.S.</p>
+        <p class="text-slate-500">NIT 900778421-1 · Formato STE-F-010 · SISI-PESV MinTransporte</p>
     </footer>
 
-    <script type="module" src="js/app.js?v=57"></script>
+    <script type="module" src="js/app.js?v=58"></script>
 </body>
 
 </html>

@@ -91,10 +91,14 @@ export async function getViajeByIdDb(id: string): Promise<Viaje | undefined> {
       fechaSalida: v.fechaSalida.toISOString(),
       duracionEstimadaHoras: v.duracionEstimadaHoras,
       fechaLlegadaReal: v.fechaLlegadaReal ? v.fechaLlegadaReal.toISOString() : undefined,
+      horaSalida: v.horaSalida || undefined,
+      horaLlegada: v.horaLlegada || undefined,
       estado: (v.estado as EstadoViaje) || "en_curso",
       observaciones: v.observaciones ?? undefined,
       riskScore: v.riskScore ?? undefined,
       riskLevel: v.riskLevel ?? undefined,
+      riskInputs: v.riskInputs ?? undefined,
+      signatures: v.signatures ?? undefined,
       distanciaKm: v.distanciaKm ?? undefined,
       novedades: (v.novedades || []).map((n: any) => ({
         id: n.id,
@@ -231,23 +235,39 @@ export async function registrarNovedadViajeAction(
  * Server Action para finalizar un viaje en curso
  */
 export async function finalizarViajeAction(
-  viajeId: string
+  viajeId: string,
+  kmLlegada?: number,
+  horaLlegada?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const hoy = new Date().toISOString();
+    const now = new Date();
+    const hoy = now.toISOString();
+    const horaLocal = horaLlegada || now.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false });
     const index = localViajesState.findIndex((v) => v.id === viajeId);
     if (index >= 0) {
       localViajesState[index].estado = "finalizado";
       localViajesState[index].fechaLlegadaReal = hoy;
+      localViajesState[index].horaLlegada = horaLocal;
     }
 
     if (process.env.DATABASE_URL) {
       try {
+        const viajeActual = await (prisma as any).viaje.findUnique({
+          where: { id: viajeId },
+        });
+
+        const currentRiskInputs = (viajeActual?.riskInputs as any) || {};
+        if (kmLlegada !== undefined && kmLlegada !== null) {
+          currentRiskInputs.kmLlegada = Number(kmLlegada);
+        }
+
         await (prisma as any).viaje.update({
           where: { id: viajeId },
           data: {
             estado: "finalizado",
-            fechaLlegadaReal: new Date(),
+            fechaLlegadaReal: now,
+            horaLlegada: horaLocal,
+            riskInputs: currentRiskInputs,
           },
         });
       } catch (err) {
