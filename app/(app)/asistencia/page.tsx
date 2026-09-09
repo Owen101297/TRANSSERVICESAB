@@ -93,6 +93,7 @@ export default function AsistenciaAdminPage() {
   const [deletingRecord, setDeletingRecord] = useState<boolean>(false);
   const [renameModal, setRenameModal] = useState<{ open: boolean; oldName: string; newName: string } | null>(null);
   const [renamingRecord, setRenamingRecord] = useState<boolean>(false);
+  const [assigningHseqId, setAssigningHseqId] = useState<string | null>(null);
   const [manualModal, setManualModal] = useState<boolean>(false);
   const [manualForm, setManualForm] = useState({
     documento: "",
@@ -103,6 +104,7 @@ export default function AsistenciaAdminPage() {
     fecha: getTodayColombia(),
     evento: "",
     estado: "presente",
+    firmarConHseq: true,
   });
   const [searchingPersona, setSearchingPersona] = useState<boolean>(false);
   const [savingManual, setSavingManual] = useState<boolean>(false);
@@ -408,6 +410,75 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
     }
   };
 
+  // Asignar firma oficial HSEQ a un registro individual (1 Clic)
+  const handleAssignHseqSignature = async (recordId: string, nombre?: string) => {
+    setAssigningHseqId(recordId);
+    try {
+      const res = await fetch("/api/apps/asistencia", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "assign_hseq_signature",
+          id: recordId,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setRegistros((prev) =>
+          prev.map((r) => (r.id === recordId ? { ...r, firmaUrl: "/firma-hseq.png" } : r))
+        );
+      } else {
+        alert(data.error || "No se pudo asignar la firma HSEQ.");
+      }
+    } catch (err: any) {
+      alert("Error de conexión al asignar firma HSEQ: " + err.message);
+    } finally {
+      setAssigningHseqId(null);
+    }
+  };
+
+  // Asignar firma oficial HSEQ en lote a todos los registros visibles sin firma (o a todos)
+  const handleAssignHseqAll = async () => {
+    const unassigned = filteredRegistros.filter((r) => !r.firmaUrl);
+    const targetIds = unassigned.length > 0 
+      ? unassigned.map((r) => r.id) 
+      : filteredRegistros.map((r) => r.id);
+
+    if (targetIds.length === 0) {
+      return alert("No hay registros en la lista actual para firmar.");
+    }
+
+    const confirmMsg = unassigned.length > 0
+      ? `¿Deseas asignar con 1 clic la Firma Oficial HSEQ a los ${targetIds.length} participantes que aún no tienen firma?`
+      : `¿Deseas asignar con 1 clic la Firma Oficial HSEQ a los ${targetIds.length} participantes de esta lista?`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    setAssigningHseqId("all");
+    try {
+      const res = await fetch("/api/apps/asistencia", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "assign_hseq_signature",
+          ids: targetIds,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setRegistros((prev) =>
+          prev.map((r) => (targetIds.includes(r.id) ? { ...r, firmaUrl: "/firma-hseq.png" } : r))
+        );
+      } else {
+        alert(data.error || "Error al asignar firmas HSEQ en lote.");
+      }
+    } catch (err: any) {
+      alert("Error al conectar con el servidor: " + err.message);
+    } finally {
+      setAssigningHseqId(null);
+    }
+  };
+
   // Guardar asistente manual
   const handleSaveManualAsistente = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -426,6 +497,9 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
           fecha: manualForm.fecha || fecha || getTodayColombia(),
           horaLlegada: manualForm.hora || "08:00",
           estado: manualForm.estado,
+          firmaUrl: manualForm.firmarConHseq ? "/firma-hseq.png" : null,
+          firma_url: manualForm.firmarConHseq ? "/firma-hseq.png" : null,
+          firma_base64: manualForm.firmarConHseq ? "/firma-hseq.png" : null,
           observaciones: JSON.stringify({
             cedula: manualForm.documento,
             nombre: manualForm.nombre,
@@ -433,6 +507,8 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
             proyecto: manualForm.proyecto,
             actividad: manualForm.evento || temaActivo,
             manual: true,
+            firmadoHseq: manualForm.firmarConHseq,
+            firma: manualForm.firmarConHseq ? "/firma-hseq.png" : null,
           }),
         }),
       });
@@ -448,6 +524,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
           fecha: getTodayColombia(),
           evento: "",
           estado: "presente",
+          firmarConHseq: true,
         });
         await fetchData();
         fetchDatesSummary();
@@ -1217,9 +1294,21 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                 className="w-full pl-9 pr-4 py-2 bg-asphalt-900 border border-line-600 rounded-xl text-xs text-paper-50 placeholder-fog-400 outline-none focus:border-radar-cyan transition-colors"
               />
             </div>
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+              <button
+                type="button"
+                onClick={handleAssignHseqAll}
+                disabled={assigningHseqId === "all" || filteredRegistros.length === 0}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 font-bold text-xs rounded-xl border border-emerald-500/30 transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+                title="Asignar la Firma Oficial HSEQ con un solo clic a los participantes"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>{assigningHseqId === "all" ? "Firmando..." : "✍️ Asignar Firma HSEQ (1 Clic)"}</span>
+              </button>
 
-            <div className="text-xs font-mono text-fog-400">
-              Mostrando {paginatedRegistros.length} de {filteredRegistros.length} registros ({fecha})
+              <div className="text-xs font-mono text-fog-400">
+                Mostrando {paginatedRegistros.length} de {filteredRegistros.length} registros ({fecha})
+              </div>
             </div>
           </div>
 
@@ -1243,13 +1332,13 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                 title="No hay registros de asistencia"
                 description={
                   searchQuery || proyecto !== "TODOS" || tipoEvento !== "TODOS" || actividadFiltro !== "TODAS"
-                    ? `No se encontraron registros que coincidan con la búsqueda para el día ${fecha}.`
-                    : `No se registraron firmas ni asistencias para el día ${fecha}. Prueba seleccionando otra fecha en el calendario.`
+                    ? "No se encontraron participantes que coincidan con los filtros aplicados."
+                    : `No se registraron firmas ni asistencias para el día ${fecha}. Prueba seleccionando otra fecha en el calendario superior o añade un asistente de forma manual.`
                 }
                 actionLabel={
                   searchQuery || proyecto !== "TODOS" || tipoEvento !== "TODOS" || actividadFiltro !== "TODAS"
-                    ? "Restablecer Filtros"
-                    : "Sincronizar Datos"
+                    ? "Limpiar Filtros"
+                    : "+ Asistente Manual"
                 }
                 onAction={() => {
                   if (searchQuery || proyecto !== "TODOS" || tipoEvento !== "TODOS" || actividadFiltro !== "TODAS") {
@@ -1258,7 +1347,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                     setTipoEvento("TODOS");
                     setActividadFiltro("TODAS");
                   } else {
-                    fetchData(true);
+                    setManualModal(true);
                   }
                 }}
               />
@@ -1267,39 +1356,34 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
             <>
               {/* Tabla */}
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-asphalt-950 text-fog-400 font-mono text-[11px] uppercase tracking-wider border-b border-line-600">
-                    <tr>
-                      <th className="px-3 py-3 w-10 text-center">#</th>
-                      <th className="px-3 py-3">Nombre y Apellidos</th>
-                      <th className="px-3 py-3">Cédula</th>
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-line-600 bg-asphalt-950 text-fog-400 text-xs font-mono uppercase tracking-wider">
+                      <th className="px-3 py-3 w-12 text-center">#</th>
+                      <th className="px-3 py-3">Participante</th>
+                      <th className="px-3 py-3">Documento</th>
                       <th className="px-3 py-3">Cargo</th>
                       <th className="px-3 py-3">Proyecto</th>
-                      <th className="px-3 py-3">Tema / Actividad</th>
+                      <th className="px-3 py-3">Actividad / Charla</th>
                       <th className="px-3 py-3">Hora</th>
                       <th className="px-3 py-3 text-center">Evidencias</th>
                       <th className="px-3 py-3 text-center">Estado</th>
-                      <th className="px-3 py-3 text-center w-14">Acciones</th>
+                      <th className="px-3 py-3 text-center">Acciones</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-line-600/50 text-mist-200 font-[family-name:var(--font-body)]">
+                  <tbody className="divide-y divide-line-600/50">
                     {paginatedRegistros.map((r, idx) => {
-                      const rowNum = (currentPage - 1) * PAGE_SIZE + idx + 1;
+                      const itemNumber = (currentPage - 1) * PAGE_SIZE + idx + 1;
                       return (
-                        <tr key={r.id || idx} className="hover:bg-asphalt-800/50 transition-colors">
-                          <td className="px-3 py-3 text-center font-mono text-fog-400 text-[11px]">{rowNum}</td>
-                          <td className="px-3 py-3 font-medium text-paper-50 uppercase">{r.personaNombre}</td>
-                          <td className="px-3 py-3 font-mono font-bold text-paper-50">{r.personaDocumento || "—"}</td>
-                          <td className="px-3 py-3">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-asphalt-950 border border-line-600 text-mist-200 uppercase">
-                              {r.cargo || "CONDUCTOR"}
-                            </span>
-                          </td>
-                          <td className="px-3 py-3">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-asphalt-800 border border-line-500 text-radar-cyan uppercase">
-                              {r.proyecto || "TRANS SERVICES"}
-                            </span>
-                          </td>
+                        <tr
+                          key={r.id || idx}
+                          className="hover:bg-asphalt-800/40 transition-colors group"
+                        >
+                          <td className="px-3 py-3 text-center font-mono text-xs text-fog-400">{itemNumber}</td>
+                          <td className="px-3 py-3 font-bold text-xs text-paper-50 uppercase">{r.personaNombre}</td>
+                          <td className="px-3 py-3 font-mono text-xs text-fog-400">{r.personaDocumento || "—"}</td>
+                          <td className="px-3 py-3 text-xs text-mist-200">{r.cargo}</td>
+                          <td className="px-3 py-3 text-xs text-mist-200 font-medium">{r.proyecto}</td>
                           <td className="px-3 py-3">
                             <span
                               className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-asphalt-950 border border-line-600 text-mist-200 block truncate max-w-[180px]"
@@ -1312,17 +1396,36 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                           <td className="px-3 py-3 text-center">
                             <div className="flex items-center justify-center gap-1.5">
                               {r.firmaUrl ? (
+                                <div className="inline-flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => setSignatureModal(r.firmaUrl!)}
+                                    className="inline-flex items-center gap-1 px-2 py-1 bg-radar-cyan/10 hover:bg-radar-cyan/20 text-radar-cyan font-bold rounded-lg border border-radar-cyan/30 transition-colors text-[11px]"
+                                    title="Ver Firma Digital"
+                                  >
+                                    <PenTool className="w-3 h-3" />
+                                    <span>Firma</span>
+                                  </button>
+                                  {r.firmaUrl.includes("firma-hseq") && (
+                                    <span
+                                      className="px-1 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-mono font-bold"
+                                      title="Firmado Oficialmente por HSEQ"
+                                    >
+                                      HSEQ
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
                                 <button
                                   type="button"
-                                  onClick={() => setSignatureModal(r.firmaUrl!)}
-                                  className="inline-flex items-center gap-1 px-2 py-1 bg-radar-cyan/10 hover:bg-radar-cyan/20 text-radar-cyan font-bold rounded-lg border border-radar-cyan/30 transition-colors text-[11px]"
-                                  title="Ver Firma Digital"
+                                  onClick={() => handleAssignHseqSignature(r.id, r.personaNombre)}
+                                  disabled={assigningHseqId === r.id}
+                                  className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-500/15 hover:bg-emerald-500/30 text-emerald-400 font-bold rounded-lg border border-emerald-500/40 transition-colors text-[10px] shadow-2xs"
+                                  title="Asignar Firma Oficial HSEQ con 1 Clic"
                                 >
-                                  <PenTool className="w-3 h-3" />
-                                  <span>Firma</span>
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  <span>{assigningHseqId === r.id ? "..." : "Firma HSEQ"}</span>
                                 </button>
-                              ) : (
-                                <span className="text-fog-400 font-mono text-[10px]">Sin firma</span>
                               )}
 
                               {r.fotoUrl ? (
@@ -1498,12 +1601,13 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                 >
                   {/* Encabezado Institucional */}
                   <div className="grid grid-cols-[160px_1fr_160px] border-2 border-black min-h-[75px] text-center">
-                    <div className="border-r-2 border-black p-2 flex flex-col items-center justify-center">
-                      <div className="text-[11px] font-black tracking-tight text-blue-900 leading-none uppercase">
-                        TRANS SERVICES A&amp;B
-                      </div>
-                      <div className="text-[8px] font-bold text-slate-700 tracking-wider">S.A.S.</div>
-                      <div className="text-[7px] text-slate-500 font-mono mt-0.5">NIT: 901.621.579-2</div>
+                    <div className="border-r-2 border-black p-1.5 flex flex-col items-center justify-center">
+                      <img
+                        src="/brand/logo.png"
+                        alt="Trans Services A&B"
+                        className="max-h-11 max-w-[130px] object-contain block mx-auto mb-1"
+                      />
+                      <div className="text-[7.5px] font-bold text-slate-800 font-mono">NIT: 901.621.579-2</div>
                     </div>
 
                     <div className="flex flex-col justify-center">
@@ -1607,21 +1711,26 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                     </table>
                   </div>
 
-                  {/* Cuadro Inferior de Cierre y Responsables */}
-                  <div className="border-2 border-t-0 border-black p-3 grid grid-cols-2 gap-8 text-[10px] mt-0 bg-slate-50/50">
-                    <div className="border-t border-black pt-1 text-center">
-                      <div className="font-bold uppercase">{formatoMeta.facilitador}</div>
-                      <div className="text-slate-500 text-[9px]">Firma del Facilitador / Capacitador</div>
-                    </div>
-                    <div className="border-t border-black pt-1 text-center">
-                      <div className="font-bold uppercase">RESPONSABLE HSEQ / PESV</div>
-                      <div className="text-slate-500 text-[9px]">Firma y Sello de Verificación</div>
+                  {/* Cuadro Inferior de Cierre: Única Firma Oficial HSEQ */}
+                  <div className="border-2 border-t-0 border-black p-2 flex justify-center text-[10px] mt-0 bg-slate-50/50">
+                    <div className="w-72 text-center py-1">
+                      <div className="h-12 flex items-center justify-center mb-1">
+                        <img
+                          src="/firma-hseq.png"
+                          alt="Firma HSEQ"
+                          className="max-h-12 max-w-[170px] mx-auto object-contain block"
+                        />
+                      </div>
+                      <div className="border-t border-black pt-1 font-black uppercase text-[10px] tracking-wider">
+                        RESPONSABLE HSEQ / PESV
+                      </div>
+                      <div className="text-slate-600 font-bold text-[8.5px]">TRANS SERVICES A&amp;B S.A.S.</div>
                     </div>
                   </div>
 
                   {/* Pie de Página de Hoja */}
-                  <div className="flex items-center justify-between text-[8px] text-slate-400 font-mono mt-2 pt-1 border-t border-slate-200">
-                    <span>COOPERATIVA DE TRANSPORTES TRANS SERVICES A&B R.L.</span>
+                  <div className="flex items-center justify-between text-[8px] text-slate-500 font-mono mt-2 pt-1 border-t border-slate-200">
+                    <span>TRANS SERVICES A&amp;B S.A.S. • NIT 901.621.579-2 • SIG HSEQ-PESV</span>
                     <span>Página {pageIdx + 1} de {printPages.length}</span>
                   </div>
                 </div>
@@ -1952,6 +2061,25 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                     <option value="ausente">AUSENTE</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Opción de Asignar Firma Oficial HSEQ */}
+              <div className="p-3 rounded-xl bg-asphalt-950 border border-line-600 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-paper-50">Asignar Firma Oficial HSEQ</div>
+                    <div className="text-[10px] text-fog-400">Estampa la firma oficial de HSEQ automáticamente en el registro.</div>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={manualForm.firmarConHseq}
+                  onChange={(e) => setManualForm((prev) => ({ ...prev, firmarConHseq: e.target.checked }))}
+                  className="w-4 h-4 accent-emerald-500 cursor-pointer"
+                />
               </div>
 
               <div className="flex items-center gap-2 pt-3 border-t border-line-600">

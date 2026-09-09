@@ -2,6 +2,8 @@
 // Generador Oficial Corporativo de PDF TH-FOR-03 (Registro de Asistencia y Capacitación / Charla 5 Minutos) para Trans Services A&B S.A.S.
 // Formato profesional de alta densidad según normas HSEQ, PESV y Ministerio de Transporte.
 
+import { LOGO_TRANSSERVICES_BASE64, FIRMA_HSEQ_BASE64, COMPANY_INFO } from "./companyAssets";
+
 export interface AsistenciaPdfItem {
   id?: string;
   personaNombre: string;
@@ -45,27 +47,6 @@ const PALETTE = {
   amberBg: [254, 252, 232] as [number, number, number],
 };
 
-async function loadLogoImage(): Promise<string | null> {
-  if (typeof window === "undefined") return null;
-  const urls = ["/logo.png", "./logo.png", "/brand/logo.png", "/assets/logo.png"];
-  for (const u of urls) {
-    try {
-      const resp = await fetch(u);
-      if (resp.ok) {
-        const blob = await resp.blob();
-        return await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.readAsDataURL(blob);
-        });
-      }
-    } catch {
-      // Intentar siguiente ruta
-    }
-  }
-  return null;
-}
-
 export async function generateAsistenciaPDF(
   asistentes: AsistenciaPdfItem[],
   meta: AsistenciaPdfMeta
@@ -83,7 +64,6 @@ export async function generateAsistenciaPDF(
   const pageHeight = 279.4;
   const marginX = 10;
   const contentWidth = pageWidth - marginX * 2; // 195.9 mm
-  const logoData = await loadLogoImage();
 
   const ITEMS_PER_PAGE = 18;
   const totalItems = asistentes.length > 0 ? asistentes.length : 1;
@@ -103,23 +83,20 @@ export async function generateAsistenciaPDF(
     doc.setFillColor(...PALETTE.white);
     doc.rect(marginX, currentY, contentWidth, headerHeight, "FD");
 
-    // Col 1: Logo (42mm)
+    // Col 1: Logo Oficial de la Empresa y NIT (42mm) - Bien ajustado sin salirse
     const col1Width = 42;
-    if (logoData) {
-      try {
-        doc.addImage(logoData, "PNG", marginX + 3, currentY + 2.5, 36, 15, undefined, "FAST");
-      } catch {
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(8.5);
-        doc.setTextColor(...PALETTE.primary);
-        doc.text("TRANS SERVICES A&B", marginX + col1Width / 2, currentY + 11, { align: "center" });
-      }
-    } else {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(8.5);
-      doc.setTextColor(...PALETTE.primary);
-      doc.text("TRANS SERVICES A&B", marginX + col1Width / 2, currentY + 11, { align: "center" });
+    try {
+      // Estampar el logo corporativo centrado en la parte superior del cuadro
+      doc.addImage(LOGO_TRANSSERVICES_BASE64, "PNG", marginX + 3.5, currentY + 1.2, 35, 12.5, undefined, "FAST");
+    } catch (err) {
+      console.warn("Fallo al estampar logo corporativo en PDF:", err);
     }
+
+    // NIT debajo del logo, centrado en los 42mm sin textos invasivos
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(6.5);
+    doc.setTextColor(...PALETTE.textMain);
+    doc.text(COMPANY_INFO.nit, marginX + col1Width / 2, currentY + 17.5, { align: "center" });
 
     doc.line(marginX + col1Width, currentY, marginX + col1Width, currentY + headerHeight);
 
@@ -375,9 +352,13 @@ export async function generateAsistenciaPDF(
       doc.line(cellX, rowY, cellX, rowY + rowHeight);
 
       // 6. Firma Digital
-      if (item?.firmaUrl) {
+      const firmaToRender = (item?.firmaUrl === "/firma-hseq.png" || item?.firmaUrl?.includes("firma-hseq"))
+        ? FIRMA_HSEQ_BASE64
+        : item?.firmaUrl;
+
+      if (firmaToRender) {
         try {
-          doc.addImage(item.firmaUrl, "PNG", cellX + 3, rowY + 1, colW.firma - 6, rowHeight - 2, undefined, "FAST");
+          doc.addImage(firmaToRender, "PNG", cellX + 2, rowY + 0.8, colW.firma - 4, rowHeight - 1.6, undefined, "FAST");
         } catch {
           doc.setFont("helvetica", "italic");
           doc.setFontSize(5.5);
@@ -394,37 +375,32 @@ export async function generateAsistenciaPDF(
 
     currentY += ITEMS_PER_PAGE * rowHeight + 3;
 
-    // 4. FIRMAS DE CIERRE Y RESPONSABILIDAD (En la última página o en cada página)
+    // 4. FIRMA DE CIERRE Y RESPONSABILIDAD: ÚNICA FIRMA OFICIAL HSEQ
     const signBoxY = currentY;
-    const signBoxHeight = 16;
-    const signColWidth = (contentWidth - 8) / 2;
+    const signBoxHeight = 22;
+    const signBoxWidth = 85;
+    const signBoxX = marginX + (contentWidth - signBoxWidth) / 2;
 
-    // Facilitador / Expositor
     doc.setDrawColor(...PALETTE.border);
     doc.setFillColor(...PALETTE.white);
-    doc.rect(marginX, signBoxY, signColWidth, signBoxHeight, "FD");
+    doc.rect(signBoxX, signBoxY, signBoxWidth, signBoxHeight, "FD");
 
-    doc.line(marginX + 6, signBoxY + 10, marginX + signColWidth - 6, signBoxY + 10);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(6.5);
-    doc.setTextColor(...PALETTE.textMain);
-    doc.text(meta.facilitador.toUpperCase(), marginX + signColWidth / 2, signBoxY + 12.5, { align: "center" });
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(5.5);
-    doc.setTextColor(...PALETTE.textMuted);
-    doc.text("FACILITADOR / RESPONSABLE HSEQ DE LA ACTIVIDAD", marginX + signColWidth / 2, signBoxY + 15, { align: "center" });
+    // Estampar la firma gráfica oficial de HSEQ centrada
+    try {
+      doc.addImage(FIRMA_HSEQ_BASE64, "PNG", signBoxX + (signBoxWidth - 36) / 2, signBoxY + 1.2, 36, 11, undefined, "FAST");
+    } catch (err) {
+      console.warn("Fallo al estampar firma HSEQ:", err);
+    }
 
-    // Director / Supervisor de Operaciones
-    doc.rect(marginX + signColWidth + 8, signBoxY, signColWidth, signBoxHeight, "FD");
-    doc.line(marginX + signColWidth + 14, signBoxY + 10, marginX + contentWidth - 6, signBoxY + 10);
+    doc.line(signBoxX + 8, signBoxY + 13, signBoxX + signBoxWidth - 8, signBoxY + 13);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(6.5);
+    doc.setFontSize(7);
     doc.setTextColor(...PALETTE.textMain);
-    doc.text("COORDINADOR DE OPERACIONES / TALENTO HUMANO", marginX + signColWidth + 8 + signColWidth / 2, signBoxY + 12.5, { align: "center" });
+    doc.text(COMPANY_INFO.hseqRole, signBoxX + signBoxWidth / 2, signBoxY + 16.5, { align: "center" });
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(5.5);
+    doc.setFontSize(6);
     doc.setTextColor(...PALETTE.textMuted);
-    doc.text("REVISIÓN, CONFORMIDAD Y CUSTODIA DEL REGISTRO", marginX + signColWidth + 8 + signColWidth / 2, signBoxY + 15, { align: "center" });
+    doc.text(COMPANY_INFO.name, signBoxX + signBoxWidth / 2, signBoxY + 19.5, { align: "center" });
 
     // Pie de página institucional
     doc.setFont("helvetica", "normal");

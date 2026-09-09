@@ -572,7 +572,57 @@ export async function PATCH(req: Request) {
       });
     }
 
-    // Caso B: Actualizar registro individual
+    // Caso B: Asignar firma oficial HSEQ (1 Clic)
+    if (action === "assign_hseq_signature") {
+      const targetId = id || body.id;
+      const ids: string[] = Array.isArray(body.ids) && body.ids.length > 0 
+        ? body.ids.filter(Boolean) 
+        : (targetId ? [String(targetId)] : []);
+
+      if (ids.length === 0) {
+        return NextResponse.json({ success: false, error: "ID(s) de registro requerido(s)" }, { status: 400 });
+      }
+
+      // 1. Actualizar columna nativa firmaUrl en PostgreSQL
+      await prisma.asistenciaRegistro.updateMany({
+        where: { id: { in: ids } },
+        data: {
+          firmaUrl: "/firma-hseq.png",
+        },
+      });
+
+      // 2. Sincronizar también campo observaciones (JSON) para que persista intacto
+      const recordsToSync = await prisma.asistenciaRegistro.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, observaciones: true },
+      });
+
+      for (const rec of recordsToSync) {
+        let obsObj: any = {};
+        if (rec.observaciones && rec.observaciones.startsWith("{")) {
+          try {
+            obsObj = JSON.parse(rec.observaciones);
+          } catch {}
+        }
+        obsObj.firma = "/firma-hseq.png";
+        obsObj.firmaTipo = "HSEQ_OFICIAL";
+        obsObj.firmadoPorHseq = true;
+        obsObj.fechaFirmaHseq = new Date().toISOString();
+
+        await prisma.asistenciaRegistro.update({
+          where: { id: rec.id },
+          data: { observaciones: JSON.stringify(obsObj) },
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `Firma oficial HSEQ asignada a ${ids.length} participante(s)`,
+        count: ids.length,
+      });
+    }
+
+    // Caso C: Actualizar registro individual
     if (action === "update_record" || id) {
       const targetId = id || body.id;
       if (!targetId) {
@@ -587,6 +637,7 @@ export async function PATCH(req: Request) {
       if (data?.evento) updateData.evento = String(data.evento).trim();
       if (data?.horaLlegada) updateData.horaLlegada = String(data.horaLlegada).trim();
       if (data?.estado) updateData.estado = String(data.estado).trim();
+      if (data?.firmaUrl) updateData.firmaUrl = String(data.firmaUrl).trim();
 
       const updated = await prisma.asistenciaRegistro.update({
         where: { id: targetId },

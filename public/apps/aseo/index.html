@@ -12,6 +12,7 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="../shared/auth-bridge.js"></script>
+    <script src="../shared/firma-hseq-helper.js"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Google Fonts: Inter -->
@@ -301,10 +302,16 @@
                             <i data-lucide="pen-tool" class="w-4 h-4 text-teal-600"></i>
                             <span>05 · Firma del Conductor / Responsable *</span>
                         </div>
-                        <button type="button" onclick="clearSignature()"
-                            class="text-[11px] font-bold text-red-500 hover:text-red-700 transition-colors">
-                            Limpiar
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="asignarFirmaHSEQ(document.getElementById('signature-pad'))"
+                                class="text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-300 transition-colors shadow-2xs">
+                                ✍️ Firma HSEQ (1 Clic)
+                            </button>
+                            <button type="button" onclick="clearSignature()"
+                                class="text-[11px] font-bold text-red-500 hover:text-red-700 transition-colors">
+                                Limpiar
+                            </button>
+                        </div>
                     </div>
 
                     <div class="rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-2 cursor-crosshair">
