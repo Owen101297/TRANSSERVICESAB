@@ -3,7 +3,7 @@
  * Versión 1.5: Network-First para apps móviles y exclusión total de rutas administrativas.
  */
 
-const CACHE_NAME = "transservices-pwa-v1.5";
+const CACHE_NAME = "transservices-pwa-v2.0";
 
 // Assets exclusivos para el funcionamiento offline del Portal Conductor y Apps Satélite
 const MOBILE_PWA_ASSETS = [

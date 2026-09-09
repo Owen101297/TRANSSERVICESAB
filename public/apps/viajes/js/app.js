@@ -22,7 +22,7 @@ import {
     signOut,
     verifyPinAdmin,
     checkPreoperacionalDia
-} from './supabase-client.js';
+} from './api-client.js';
 
 import {
     DIVIPOLA_COLOMBIA,

@@ -1,4 +1,4 @@
-import { createAsistencia, getConductorByDocumento, fechaLocal, horaLocal } from './supabase-client.js';
+import { createAsistencia, getConductorByDocumento, fechaLocal, horaLocal } from './api-client.js';
 
 // --- ESTADO LOCAL ---
 let fotoEvidenciaBase64 = null;

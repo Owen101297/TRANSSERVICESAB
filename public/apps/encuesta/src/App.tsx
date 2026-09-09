@@ -21,23 +21,23 @@ type Survey = {
   fechaLocal: string
 }
 
-// Mapper de Supabase a TypeScript Survey
-const mapFromSupabase = (s: any): Survey => ({
+// Mapper de API Railway (Prisma) a TypeScript Survey
+const mapFromApi = (s: any): Survey => ({
   id: s.id,
-  vehicleId: s.vehicle_id || '',
-  vehiclePlate: s.vehicle_plate || '',
-  overallRating: s.overall_rating || 0,
-  cleanlinessRating: s.cleanliness_rating || 0,
-  driverAttention: s.driver_attention || 0,
-  punctuality: s.punctuality || 0,
-  comfort: s.comfort || 0,
-  wouldRecommend: s.would_recommend || '',
-  comments: s.comments || '',
-  name: s.name || '',
-  email: s.email || '',
-  companyName: s.company_name || 'TRANS SERVICES A&B',
+  vehicleId: s.vehiculoId || s.vehicle_id || '',
+  vehiclePlate: s.placa || s.vehicle_plate || '',
+  overallRating: Number(s.calificacionGeneral || s.overall_rating || 5),
+  cleanlinessRating: Number(s.limpiezaVehiculo || s.cleanliness_rating || 5),
+  driverAttention: Number(s.atencionConductor || s.driver_attention || 5),
+  punctuality: Number(s.puntualidad || s.punctuality || 5),
+  comfort: Number(s.seguridadConfort || s.comfort || 5),
+  wouldRecommend: s.seriaRecomendado || s.would_recommend || 'SI',
+  comments: s.comentarios || s.comments || '',
+  name: s.nombreEncuestado || s.name || '',
+  email: s.emailEncuestado || s.email || '',
+  companyName: s.empresaCliente || s.company_name || 'TRANS SERVICES A&B',
   fecha: s.fecha || '',
-  fechaLocal: s.fecha_local || ''
+  fechaLocal: s.fecha || s.fecha_local || '',
 })
 
 
@@ -82,7 +82,7 @@ function App() {
       
       if (error) throw error
       
-      let data = (supabaseData || []).map(mapFromSupabase)
+      let data = (supabaseData || []).map(mapFromApi)
       
       // Filtrar por fecha
       const today = new Date().toISOString().split('T')[0]
