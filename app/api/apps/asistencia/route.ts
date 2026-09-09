@@ -118,24 +118,8 @@ async function ensureHistoricalSeeded(force = false) {
   try {
     const count = await prisma.asistenciaRegistro.count();
     if (count === 0 || force) {
-      const candidates = [
-        path.join(process.cwd(), "lib/data/historical-asistencias.json"),
-        path.resolve("lib/data/historical-asistencias.json"),
-        path.join(__dirname ?? "", "../lib/data/historical-asistencias.json"),
-        path.join(__dirname ?? "", "lib/data/historical-asistencias.json"),
-      ];
-      let historicalPath = "";
-      for (const p of candidates) {
-        try {
-          if (p && fs.existsSync(p)) {
-            historicalPath = p;
-            break;
-          }
-        } catch {}
-      }
-
-      console.log(`[API Asistencia] Buscando archivo histórico... Encontrado: ${historicalPath || "NO"}`);
-      if (historicalPath) {
+      const historicalPath = path.join(process.cwd(), "lib", "data", "historical-asistencias.json");
+      if (fs.existsSync(historicalPath)) {
         const raw = fs.readFileSync(historicalPath, "utf-8").replace(/^\uFEFF/, "").trim();
         const records = JSON.parse(raw);
         if (Array.isArray(records) && records.length > 0) {
