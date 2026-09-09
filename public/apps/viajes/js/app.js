@@ -36,7 +36,7 @@ import {
     findRuta
 } from './rutas-data.js';
 
-import { generatePDF } from './pdf-generator.js?v=58';
+import { generatePDF } from './pdf-generator.js?v=2.0.1';
 
 // --- ESTADO GLOBAL DE LA APLICACIÓN ---
 let currentUser = null;
@@ -70,6 +70,51 @@ const db = {
 // ============================================================
 // INICIALIZACIÓN DE LA APLICACIÓN
 // ============================================================
+async function initAuth() {
+    try {
+        const user = await getCurrentUser();
+        const prof = await getCurrentProfile();
+        currentUser = user;
+        currentProfile = prof;
+        
+        if (user) {
+            const isAdm = await isAdmin();
+            console.log(`[Viajes A&B] Sesión activa: ${user.nombre || user.email || 'Conductor'} (${isAdm ? 'ADMIN' : 'CONDUCTOR'})`);
+
+            // Si hay datos de conductor precargados
+            if (user.nombre && document.getElementById('cNombre') && !document.getElementById('cNombre').value) {
+                document.getElementById('cNombre').value = user.nombre;
+            }
+            if (user.documento && document.getElementById('cLicencia') && !document.getElementById('cLicencia').value) {
+                document.getElementById('cLicencia').value = user.documento;
+            }
+            if (user.placa && document.getElementById('vPlaca') && !document.getElementById('vPlaca').value) {
+                document.getElementById('vPlaca').value = user.placa;
+            }
+
+            // Buscar datos detallados en base de datos PostgreSQL
+            if (user.documento) {
+                const cond = await getConductorById(user.documento);
+                if (cond) {
+                    currentConductor = cond;
+                    if (cond.nombre && document.getElementById('cNombre')) document.getElementById('cNombre').value = cond.nombre;
+                    if (cond.cedula && document.getElementById('cLicencia')) document.getElementById('cLicencia').value = cond.cedula;
+                    if (cond.categoria && document.getElementById('cCat')) document.getElementById('cCat').value = cond.categoria;
+                    if (cond.vencimiento && document.getElementById('cVence')) {
+                        document.getElementById('cVence').value = cond.vencimiento.split('T')[0];
+                        if (typeof window.checkLicenciaVencimiento === 'function') {
+                            window.checkLicenciaVencimiento();
+                        }
+                    }
+                    if (cond.telefono && document.getElementById('cTelefono')) document.getElementById('cTelefono').value = cond.telefono;
+                }
+            }
+        }
+    } catch (e) {
+        console.warn("[Viajes A&B] Aviso en initAuth:", e);
+    }
+}
+
 window.onload = async () => {
     try {
         initDivipolaList();

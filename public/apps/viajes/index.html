@@ -9,19 +9,32 @@
 
     <!-- Tailwind CSS (Diseño Moderno y Responsivo) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="css/theme.css?v=57">
+    <link rel="stylesheet" href="css/theme.css?v=2.0.1">
 
     <!-- Iconos Lucide -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <!-- Librerías para Exportación de Documentos (PDF, Excel, QR) -->
-    <script src="../../lib/jspdf.umd.min.js"></script>
-    <script src="../../lib/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
     <!-- Notificaciones Toast -->
-    <script src="js/toast.js?v=57"></script>
+    <script src="js/toast.js?v=2.0.1"></script>
+
+    <!-- Limpieza automática de Service Workers y Cachés obsoletos en móviles -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for (var reg of registrations) {
+            if (reg.scope && reg.scope.includes('/apps/viajes')) {
+              reg.unregister();
+            }
+          }
+        });
+      }
+    </script>
 </head>
 
 <body class="min-h-screen bg-slate-100 text-slate-900 pb-28">
@@ -975,7 +988,7 @@
         <p class="text-slate-500">NIT 900778421-1 · Formato STE-F-010 · SISI-PESV MinTransporte</p>
     </footer>
 
-    <script type="module" src="js/app.js?v=2.0.0"></script>
+    <script type="module" src="js/app.js?v=2.0.1"></script>
 </body>
 
 </html>
