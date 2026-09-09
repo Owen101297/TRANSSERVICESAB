@@ -1173,9 +1173,11 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
         </div>
       </div>
 
-      {/* Contenedor Principal: Vista Tabla vs Vista Formato Oficial */}
-      {viewMode === "tabla" ? (
-        <div className="bg-asphalt-900 border border-line-600 rounded-2xl overflow-hidden shadow-lg">
+      {/* ============================================================ */}
+      {/* VISTA 1: TABLA DINÁMICA INTERACTIVA                         */}
+      {/* ============================================================ */}
+      {viewMode === "tabla" && (
+        <Card className="no-print p-0 overflow-hidden border-line-600 bg-asphalt-900 shadow-xl">
           {/* Barra de búsqueda interna */}
           <div className="p-4 border-b border-line-600 bg-asphalt-950/50 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="relative w-full sm:w-80">
@@ -1363,7 +1365,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
               )}
             </>
           )}
-        </div>
+        </Card>
       )}
 
       {/* ============================================================ */}
