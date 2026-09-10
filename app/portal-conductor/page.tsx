@@ -25,6 +25,10 @@ import {
   Navigation,
   LifeBuoy,
   GraduationCap,
+  Camera,
+  CheckCircle2,
+  ExternalLink,
+  ShieldCheck,
 } from "lucide-react";
 
 interface AppCategory {
@@ -47,12 +51,23 @@ const CATEGORIAS_APPS: AppCategory[] = [
     category: "Operación & Ruta Diaria",
     apps: [
       {
+        id: "turno",
+        title: "Apertura de Turno",
+        subtitle: "Fotos de vehículo y odómetro para control de salida",
+        icon: Camera,
+        href: "/portal-conductor/turno",
+        badge: "Paso 1",
+        iconBg: "bg-blue-50 border-blue-200/60 text-[#007AFF]",
+        iconColor: "text-[#007AFF]",
+        badgeColor: "bg-blue-100/70 text-blue-800 border-blue-300/60",
+      },
+      {
         id: "preoperacional",
         title: "Preoperacional Diario",
         subtitle: "Checklist técnico-mecánico obligatorio de inicio de turno",
         icon: ClipboardCheck,
         href: "/portal-conductor/preoperacional",
-        badge: "Obligatorio",
+        badge: "Paso 2",
         iconBg: "bg-amber-50 border-amber-200/60 text-[#FF9500]",
         iconColor: "text-[#FF9500]",
         badgeColor: "bg-amber-100/70 text-amber-800 border-amber-300/60",
@@ -63,10 +78,10 @@ const CATEGORIAS_APPS: AppCategory[] = [
         subtitle: "Gerenciamiento de ruta, pasajeros y evaluación HSE",
         icon: Truck,
         href: "/apps/viajes/index.html",
-        badge: "Prioritario",
-        iconBg: "bg-blue-50 border-blue-200/60 text-[#007AFF]",
-        iconColor: "text-[#007AFF]",
-        badgeColor: "bg-blue-100/70 text-blue-800 border-blue-300/60",
+        badge: "Paso 3",
+        iconBg: "bg-indigo-50 border-indigo-200/60 text-[#5856D6]",
+        iconColor: "text-[#5856D6]",
+        badgeColor: "bg-indigo-100/70 text-indigo-800 border-indigo-300/60",
       },
       {
         id: "asistencia",
@@ -184,6 +199,13 @@ export default function PortalConductorMobilePage() {
   const [vehicleSearch, setVehicleSearch] = useState("");
   const [isSubmittingVehicle, setIsSubmittingVehicle] = useState(false);
   const [vehicleFeedback, setVehicleFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const [turnoHoy, setTurnoHoy] = useState<{
+    id: string;
+    hora: string;
+    odometroInicial: number;
+    fotoOdometroUrl: string;
+    fotoVehiculoUrl: string;
+  } | null>(null);
 
   useEffect(() => {
     // 0. Registrar Service Worker para PWA Offline
@@ -202,7 +224,7 @@ export default function PortalConductorMobilePage() {
             nombre: u.nombre,
             documento: u.documento,
             placa: u.placaAsignada || null,
-            rol: u.rol || "conductor",
+            rol: u.rol || u.rolPrincipal || "conductor",
           };
           setDriver(sessionObj);
           localStorage.setItem("transservices_conductor", JSON.stringify(sessionObj));
@@ -234,6 +256,23 @@ export default function PortalConductorMobilePage() {
       .catch(() => {});
   }, []);
 
+  // 3. Consultar turno de hoy cuando el conductor y placa están disponibles
+  useEffect(() => {
+    if (driver?.placa || driver?.documento) {
+      const params = new URLSearchParams();
+      if (driver.placa) params.set("placa", driver.placa);
+      if (driver.documento) params.set("documento", driver.documento);
+      fetch(`/api/portal-conductor/turno?${params.toString()}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.turnoHoy) {
+            setTurnoHoy(data.turnoHoy);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [driver?.placa, driver?.documento]);
+
   const handleLogout = async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
@@ -248,7 +287,12 @@ export default function PortalConductorMobilePage() {
       localStorage.setItem("transservices_conductor", JSON.stringify(driver));
     }
     const separator = href.includes("?") ? "&" : "?";
-    const cacheBustedHref = href.startsWith("/apps/") ? `${href}${separator}v=2.1.0&t=${Date.now()}` : href;
+    const roleParam = driver?.rol || "conductor";
+    const placaParam = driver?.placa || "";
+    const docParam = driver?.documento || "";
+    const cacheBustedHref = href.startsWith("/apps/")
+      ? `${href}${separator}rol=${encodeURIComponent(roleParam)}&placa=${encodeURIComponent(placaParam)}&doc=${encodeURIComponent(docParam)}&v=2.1.0&t=${Date.now()}`
+      : href;
     window.location.href = cacheBustedHref;
   };
 
@@ -351,27 +395,145 @@ export default function PortalConductorMobilePage() {
 
       {/* Contenido Principal */}
       <main className="flex-1 max-w-xl w-full mx-auto p-4 space-y-4 relative z-10">
-        {/* Dynamic Island / Live Activity Widget de Turno */}
-        <div className="bg-white/95 border border-slate-200/90 rounded-[24px] p-4 backdrop-blur-2xl shadow-[0_4px_20px_rgba(0,0,0,0.04)] flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full bg-[#FF9500] animate-pulse shadow-[0_0_8px_#FF9500]" />
+        {/* Banner Modo Administrador / Auditoría */}
+        {(driver?.rol?.toLowerCase() === "admin" ||
+          driver?.rol?.toLowerCase() === "superadmin" ||
+          driver?.rol?.toLowerCase() === "administrativo") && (
+          <div className="rounded-[26px] bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-900 text-white p-4 shadow-xl border border-purple-500/30 backdrop-blur-xl space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-purple-400 animate-pulse" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-purple-200 bg-purple-900/80 px-2.5 py-0.5 rounded-full border border-purple-400/40">
+                  Modo Administrador & Auditoría
+                </span>
+              </div>
+              <span className="text-[10px] font-mono text-purple-300">Auditor Global</span>
+            </div>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Turno en Curso · {new Date().toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short" })}
+              <h3 className="text-xs font-bold tracking-tight text-white">Consola de Control ERP</h3>
+              <p className="text-[11px] text-purple-200/80 leading-relaxed">
+                Acceso irrestricto para auditar los 10 formatos móviles, simular turnos y alternar entre cualquier placa.
               </p>
-              <h3 className="text-xs font-bold text-[#0F172A] tracking-tight">
-                Inspección Preoperacional Requerida
-              </h3>
+            </div>
+            <div className="flex items-center gap-2 pt-1 flex-wrap">
+              <button
+                type="button"
+                onClick={() => router.push("/dashboard")}
+                className="px-3 py-1.5 rounded-xl bg-white text-purple-950 font-bold text-xs hover:bg-purple-50 active:scale-95 transition-all flex items-center gap-1.5 shadow-sm"
+              >
+                <span>ERP Central</span>
+                <ExternalLink size={12} />
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push("/dashboard/vehiculos")}
+                className="px-3 py-1.5 rounded-xl bg-purple-900/80 hover:bg-purple-800 text-white font-semibold text-xs border border-purple-400/30 transition-all"
+              >
+                <span>Flota & Odómetros</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push("/portal-conductor/turno")}
+                className="px-3 py-1.5 rounded-xl bg-purple-900/80 hover:bg-purple-800 text-white font-semibold text-xs border border-purple-400/30 transition-all flex items-center gap-1"
+              >
+                <Camera size={12} />
+                <span>Test Turno</span>
+              </button>
             </div>
           </div>
-          <button
-            onClick={() => router.push("/portal-conductor/preoperacional")}
-            className="px-3.5 py-1.5 rounded-full bg-[#FF9500] hover:bg-[#FF9500]/90 active:scale-95 text-white font-bold text-xs shadow-[0_2px_10px_rgba(255,149,0,0.3)] transition-all flex items-center gap-1 shrink-0"
-          >
-            <span>Iniciar</span>
-            <ChevronRight size={14} />
-          </button>
-        </div>
+        )}
+
+        {/* Banner Modo Supervisión / HSEQ */}
+        {(driver?.rol?.toLowerCase() === "hseq" ||
+          driver?.rol?.toLowerCase() === "supervisor" ||
+          driver?.rol?.toLowerCase() === "coordinador") && (
+          <div className="rounded-[26px] bg-gradient-to-r from-emerald-950 via-teal-950 to-slate-900 text-white p-4 shadow-xl border border-emerald-500/30 backdrop-blur-xl space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-200 bg-emerald-900/80 px-2.5 py-0.5 rounded-full border border-emerald-400/40">
+                  Supervisión HSEQ Operativa
+                </span>
+              </div>
+              <span className="text-[10px] font-mono text-emerald-300">En Terreno</span>
+            </div>
+            <div>
+              <h3 className="text-xs font-bold tracking-tight text-white">Monitoreo de Despacho</h3>
+              <p className="text-[11px] text-emerald-200/80 leading-relaxed">
+                Supervisa el cumplimiento de aperturas con fotos de odómetro e inspecciones preoperacionales diarias.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 pt-1 flex-wrap">
+              <button
+                type="button"
+                onClick={() => router.push("/dashboard/vehiculos")}
+                className="px-3 py-1.5 rounded-xl bg-white text-emerald-950 font-bold text-xs hover:bg-emerald-50 active:scale-95 transition-all flex items-center gap-1.5 shadow-sm"
+              >
+                <span>Odómetros Flota</span>
+                <ExternalLink size={12} />
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push("/dashboard/inspecciones")}
+                className="px-3 py-1.5 rounded-xl bg-emerald-900/80 hover:bg-emerald-800 text-white font-semibold text-xs border border-emerald-400/30 transition-all"
+              >
+                <span>Preoperacionales</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Dynamic Island / Live Activity Widget de Turno & Preoperacional */}
+        {turnoHoy ? (
+          <div className="bg-emerald-50/80 border border-emerald-200/90 rounded-[24px] p-4 backdrop-blur-2xl shadow-[0_4px_20px_rgba(16,185,129,0.06)] flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-100 border border-emerald-200 text-emerald-600 flex items-center justify-center shrink-0 shadow-2xs">
+                <CheckCircle2 size={20} />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+                    Turno Abierto · {turnoHoy.hora}
+                  </span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                </div>
+                <h3 className="text-xs font-bold text-[#0F172A] tracking-tight">
+                  Odómetro: {turnoHoy.odometroInicial?.toLocaleString()} km (Certificado)
+                </h3>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push("/portal-conductor/preoperacional")}
+              className="px-3.5 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all flex items-center gap-1 shrink-0"
+            >
+              <span>Paso 2</span>
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        ) : (
+          <div className="bg-white/95 border border-amber-200/90 rounded-[24px] p-4 backdrop-blur-2xl shadow-[0_4px_20px_rgba(255,149,0,0.08)] flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-100 border border-amber-200 text-[#FF9500] flex items-center justify-center shrink-0 animate-pulse shadow-2xs">
+                <Camera size={20} />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#FF9500]">
+                  Paso 1 Obligatorio · {new Date().toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short" })}
+                </p>
+                <h3 className="text-xs font-bold text-[#0F172A] tracking-tight">
+                  Apertura de Turno (Fotos & Odómetro)
+                </h3>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push("/portal-conductor/turno")}
+              className="px-3.5 py-1.5 rounded-full bg-[#FF9500] hover:bg-[#FF9500]/90 active:scale-95 text-white font-bold text-xs shadow-[0_2px_10px_rgba(255,149,0,0.3)] transition-all flex items-center gap-1 shrink-0"
+            >
+              <span>Abrir</span>
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        )}
 
         {/* Apple Card Widget: Conductor & Vehículo Activo */}
         <div className="bg-white border border-slate-200/90 rounded-[28px] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] relative overflow-hidden">

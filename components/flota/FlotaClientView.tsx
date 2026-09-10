@@ -15,6 +15,7 @@ import {
   Search,
   Filter,
   Zap,
+  Camera,
 } from "lucide-react";
 import {
   Vehiculo,
@@ -221,6 +222,40 @@ export function FlotaClientView({
           <span className="text-xs font-semibold text-paper-50">
             {conductor}
           </span>
+        );
+      },
+    },
+    {
+      header: "Odómetro Actual",
+      accessor: "odometroActual",
+      render: (_v, row) => {
+        if (!row.odometroActual) {
+          return <span className="text-[11px] text-fog-400 font-mono">Sin fotos hoy</span>;
+        }
+        return (
+          <div className="flex items-center gap-1.5">
+            <div>
+              <span className="text-xs font-mono font-bold text-radar-cyan block leading-tight">
+                {row.odometroActual.toLocaleString()} km
+              </span>
+              {row.odometroFecha && (
+                <span className="text-[10px] text-fog-400 font-mono block leading-tight">
+                  {new Date(row.odometroFecha).toLocaleDateString("es-CO", { day: "numeric", month: "short" })}
+                </span>
+              )}
+            </div>
+            {row.odometroFotoUrl && (
+              <a
+                href={row.odometroFotoUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="p-1 rounded bg-asphalt-800 hover:bg-asphalt-700 text-radar-cyan border border-line-600 transition-colors shrink-0"
+                title="Ver evidencia fotográfica del odómetro"
+              >
+                <Camera size={12} />
+              </a>
+            )}
+          </div>
         );
       },
     },

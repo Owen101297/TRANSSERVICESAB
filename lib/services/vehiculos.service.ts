@@ -42,6 +42,9 @@ export async function getVehiculosDb(): Promise<Vehiculo[]> {
             rtmVencimiento: v.rtmVencimiento ? v.rtmVencimiento.toISOString().split("T")[0] : undefined,
             polizaVencimiento: v.polizaVencimiento ? v.polizaVencimiento.toISOString().split("T")[0] : undefined,
           },
+          odometroActual: v.odometroActual ?? undefined,
+          odometroFecha: v.odometroFecha ? v.odometroFecha.toISOString() : undefined,
+          odometroFotoUrl: v.odometroFotoUrl ?? undefined,
         }));
       }
     }
@@ -80,6 +83,9 @@ export async function getVehiculoByIdDb(id: string): Promise<Vehiculo | undefine
             rtmVencimiento: v.rtmVencimiento ? v.rtmVencimiento.toISOString().split("T")[0] : undefined,
             polizaVencimiento: v.polizaVencimiento ? v.polizaVencimiento.toISOString().split("T")[0] : undefined,
           },
+          odometroActual: v.odometroActual ?? undefined,
+          odometroFecha: v.odometroFecha ? v.odometroFecha.toISOString() : undefined,
+          odometroFotoUrl: v.odometroFotoUrl ?? undefined,
         };
       }
     }

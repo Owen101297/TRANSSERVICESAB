@@ -21,6 +21,7 @@ export const metadata: Metadata = {
       { url: "/brand/logo.png" },
     ],
   },
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

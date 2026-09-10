@@ -1,0 +1,25 @@
+{
+  "name": "Portal del Conductor - Trans Services A&B",
+  "short_name": "Portal A&B",
+  "description": "Portal móvil operativo, apertura de turnos y formatos digitales para conductores Trans Services A&B",
+  "start_url": "/portal-conductor",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F8FAFC",
+  "theme_color": "#007AFF",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/brand/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/brand/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

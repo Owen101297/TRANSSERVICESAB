@@ -86,6 +86,24 @@ export default async function VehiculoDetailPage({
                 {vehiculo.contratistaNombre}
               </span>
             </div>
+            {vehiculo.odometroActual ? (
+              <div className="flex justify-between border-t border-line-600/60 pt-2">
+                <span className="text-fog-400">Odómetro Certificado:</span>
+                <div className="text-right">
+                  <span className="text-radar-cyan font-bold block">{vehiculo.odometroActual.toLocaleString()} km</span>
+                  {vehiculo.odometroFotoUrl && (
+                    <a
+                      href={vehiculo.odometroFotoUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[10px] text-signal-amber hover:underline font-mono inline-block mt-0.5"
+                    >
+                      [Foto Verificada]
+                    </a>
+                  )}
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="border-t border-line-600 pt-3">

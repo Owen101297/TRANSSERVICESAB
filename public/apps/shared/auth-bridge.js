@@ -11,22 +11,31 @@
       const urlNombre = urlParams.get('nombre');
       const urlPlaca = urlParams.get('placa');
       const urlId = urlParams.get('conductorId') || urlParams.get('id');
+      const urlRol = urlParams.get('rol');
 
-      if (urlDoc && urlNombre) {
-        const sessionFromUrl = {
-          id: urlId || '',
-          documento: urlDoc,
-          nombre: decodeURIComponent(urlNombre),
-          placa: urlPlaca || 'SIN ASIGNAR',
-          vehiculoId: urlParams.get('vehiculoId') || ''
-        };
-        localStorage.setItem('transservices_conductor', JSON.stringify(sessionFromUrl));
-        return sessionFromUrl;
-      }
-
+      let sessionObj = null;
       const raw = localStorage.getItem('transservices_conductor');
       if (raw) {
-        return JSON.parse(raw);
+        try { sessionObj = JSON.parse(raw); } catch {}
+      }
+
+      if (urlDoc || urlPlaca || urlRol) {
+        if (!sessionObj) sessionObj = {};
+        if (urlDoc) sessionObj.documento = urlDoc;
+        if (urlNombre) sessionObj.nombre = decodeURIComponent(urlNombre);
+        if (urlPlaca) sessionObj.placa = urlPlaca;
+        if (urlId) sessionObj.id = urlId;
+        if (urlRol) sessionObj.rol = urlRol;
+        if (!sessionObj.nombre) sessionObj.nombre = 'Usuario ' + (urlRol || 'Conductor');
+        localStorage.setItem('transservices_conductor', JSON.stringify(sessionObj));
+      }
+
+      if (sessionObj) {
+        const r = (sessionObj.rol || '').toLowerCase();
+        if (r === 'admin' || r === 'superadmin' || r === 'administrativo') {
+          window.ADMIN_AUDIT_MODE = true;
+        }
+        return sessionObj;
       }
     } catch (e) {
       console.warn('Error al leer sesión del conductor:', e);
@@ -84,6 +93,7 @@
         </div>
       </div>
       <div style="display:flex; align-items:center; gap:8px;">
+        ${window.ADMIN_AUDIT_MODE ? '<span style="background:#FAF5FF; color:#7E22CE; font-weight:800; font-size:10px; padding:3px 8px; border-radius:6px; border:1px solid #E9D5FF; letter-spacing:0.5px;">ADMIN AUDITOR</span>' : ''}
         <span style="background:#EFF6FF; color:#1E40AF; font-family:ui-monospace, monospace; font-weight:800; font-size:12px; padding:4px 10px; border-radius:8px; letter-spacing:0.5px; border:1px solid #BFDBFE;">
           ${placa}
         </span>
@@ -100,6 +110,7 @@
   // 4. Autocompletar campos en los formularios existentes
   function autoFillFields() {
     if (!session) return;
+    const isReadOnly = !window.ADMIN_AUDIT_MODE;
 
     const selectors = {
       conductor: ['conductor', 'conductor_nombre', 'nombre_conductor', 'conductorNombre', 'driver_name', 'nombre'],
@@ -111,7 +122,7 @@
       const el = document.getElementById(id) || document.querySelector(`[name="${id}"]`);
       if (el && !el.value) {
         el.value = session.nombre;
-        if (el.tagName === 'INPUT') el.readOnly = true;
+        if (el.tagName === 'INPUT' && isReadOnly) el.readOnly = true;
       }
     });
 
@@ -119,7 +130,7 @@
       const el = document.getElementById(id) || document.querySelector(`[name="${id}"]`);
       if (el && !el.value) {
         el.value = session.documento;
-        if (el.tagName === 'INPUT') el.readOnly = true;
+        if (el.tagName === 'INPUT' && isReadOnly) el.readOnly = true;
       }
     });
 
@@ -127,7 +138,7 @@
       const el = document.getElementById(id) || document.querySelector(`[name="${id}"]`);
       if (el && !el.value && session.placa) {
         el.value = session.placa;
-        if (el.tagName === 'INPUT') el.readOnly = true;
+        if (el.tagName === 'INPUT' && isReadOnly) el.readOnly = true;
       }
     });
   }

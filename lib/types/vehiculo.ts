@@ -36,6 +36,9 @@ export interface Vehiculo {
     rtmVencimiento?: string; // ISO o undefined si está pendiente
     polizaVencimiento?: string; // ISO o undefined si está pendiente
   };
+  odometroActual?: number;
+  odometroFecha?: string;
+  odometroFotoUrl?: string;
 }
 
 export const TIPO_LABELS: Record<TipoVehiculo, string> = {

@@ -147,7 +147,13 @@ model Vehiculo {
   rtmVencimiento    DateTime?
   polizaVencimiento DateTime?
 
+  // Control de Odómetro y Fotos de Turno
+  odometroActual    Float?       @default(0)
+  odometroFecha     DateTime?
+  odometroFotoUrl   String?
+
   asignaciones      Asignacion[]
+  turnosDespacho    TurnoDespacho[]
 
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
@@ -795,4 +801,39 @@ model DocumentoDigital {
   @@index([tipoDocumento])
   @@index([fechaVencimiento])
   @@index([entidadNombre])
+}
+
+// --------------------------------------------------------
+// MÓDULO TURNO DESPACHO Y CONTROL FOTOGRÁFICO DE ODÓMETRO
+// --------------------------------------------------------
+
+model TurnoDespacho {
+  id                   String    @id @default(cuid())
+  conductorId          String?
+  conductorNombre      String
+  conductorDocumento   String
+  placa                String
+  vehiculoId           String?
+  vehiculo             Vehiculo? @relation(fields: [vehiculoId], references: [id], onDelete: SetNull)
+  fecha                DateTime  @default(now())
+  hora                 String    // HH:mm
+  odometroInicial      Float
+  fotoOdometroUrl      String    // WebP base64 / URL
+  fotoVehiculoUrl      String    // WebP base64 / URL
+  latitud              Float?
+  longitud             Float?
+  ubicacion            String?
+  estado               String    @default("activo") // activo, cerrado
+  odometroFinal        Float?
+  fotoOdometroFinalUrl String?
+  horaCierre           String?
+  observaciones        String?
+
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([placa])
+  @@index([conductorDocumento])
+  @@index([fecha])
+  @@index([estado])
 }

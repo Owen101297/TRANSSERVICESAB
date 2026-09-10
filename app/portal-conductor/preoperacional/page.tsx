@@ -49,16 +49,36 @@ export default function PreoperacionalDriverPage() {
   const [submitResult, setSubmitResult] = useState<any>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Cargar sesión del Portal del Conductor
+  // Cargar sesión del Portal del Conductor y Odómetro Verificado
   useEffect(() => {
     try {
       const storedConductor = localStorage.getItem("transservices_conductor");
+      let currentPlaca = "WGM-212";
       if (storedConductor) {
         const parsed = JSON.parse(storedConductor);
         if (parsed.nombre) setDriverName(parsed.nombre);
         if (parsed.documento) setDriverDoc(parsed.documento);
         if (parsed.id) setDriverId(parsed.id);
-        if (parsed.placa && parsed.placa !== "SIN ASIGNAR") setSelectedPlaca(parsed.placa);
+        if (parsed.placa && parsed.placa !== "SIN ASIGNAR") {
+          setSelectedPlaca(parsed.placa);
+          currentPlaca = parsed.placa;
+        }
+      }
+
+      const storedOdometro = localStorage.getItem("transservices_odometro_actual");
+      if (storedOdometro) {
+        setKilometraje(storedOdometro);
+      } else if (currentPlaca) {
+        fetch(`/api/portal-conductor/turno?placa=${currentPlaca}`)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (data?.turnoHoy?.odometroInicial) {
+              setKilometraje(String(data.turnoHoy.odometroInicial));
+            } else if (data?.odometroReferencia) {
+              setKilometraje(String(data.odometroReferencia));
+            }
+          })
+          .catch(() => {});
       }
     } catch (e) {
       console.warn("No se pudo leer la sesión activa:", e);
