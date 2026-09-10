@@ -574,7 +574,7 @@ export default function AperturaTurnoPage() {
               value={observaciones}
               onChange={(e) => setObservaciones(e.target.value)}
               placeholder="Novedad u observación inicial (opcional)..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-[#007AFF] focus:outline-none transition-all"
+              className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-3 text-base sm:text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-[#007AFF] focus:outline-none transition-all touch-manipulation"
             />
           </div>
 

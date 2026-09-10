@@ -248,4 +248,25 @@
       return await res.json();
     }
   };
+
+  // 6. Centinela de Auto-Actualización PWA e Invalidación de Caché en Móviles
+  if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+    // Al volver a la app tras usar WhatsApp, Waze o Maps:
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        navigator.serviceWorker.getRegistration().then((reg) => {
+          if (reg) reg.update().catch(() => {});
+        });
+      }
+    });
+
+    // Cuando el nuevo Service Worker toma control en segundo plano:
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
+    });
+  }
 })();

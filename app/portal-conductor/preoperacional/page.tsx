@@ -504,7 +504,7 @@ export default function PreoperacionalDriverPage() {
             value={observaciones}
             onChange={(e) => setObservaciones(e.target.value)}
             placeholder="Reporta aquí ruidos extraños, llantas bajas de aire o novedades del recorrido..."
-            className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs text-[#0F172A] placeholder:text-slate-400 focus:border-[#007AFF] focus:bg-white focus:outline-none transition-all"
+            className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-base sm:text-xs text-[#0F172A] placeholder:text-slate-400 focus:border-[#007AFF] focus:bg-white focus:outline-none transition-all touch-manipulation"
           />
         </div>
 

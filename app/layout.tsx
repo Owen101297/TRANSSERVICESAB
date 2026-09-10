@@ -1,10 +1,18 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 // Nota: las fuentes se cargan vía @import en globals.css en lugar de next/font/google.
 // Si prefieres next/font/google (recomendado en producción: self-hosting automático,
 // sin request externo del navegador), cambia esto cuando tengas el proyecto corriendo
 // con acceso normal a internet — es un cambio de una línea.
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   title: "TRANS SERVICES A&B",

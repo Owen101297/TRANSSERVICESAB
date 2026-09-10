@@ -28,21 +28,30 @@
 
       if (canvas) {
         const ctx = canvas.getContext("2d");
+        // Aislar estado y resetear a espacio de píxeles físicos 1:1 (Evita doble escala Retina/DevicePixelRatio)
+        ctx.save();
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
         const aspect = img.width / img.height;
-        let w = canvas.width * 0.75;
+        let w = canvas.width * 0.72;
         let h = w / aspect;
-        if (h > canvas.height * 0.8) {
-          h = canvas.height * 0.8;
+        if (h > canvas.height * 0.75) {
+          h = canvas.height * 0.75;
           w = h * aspect;
         }
         const x = (canvas.width - w) / 2;
         const y = (canvas.height - h) / 2;
         ctx.drawImage(img, x, y, w, h);
+        ctx.restore();
 
         if (pad) {
+          if (typeof pad.clear === "function") {
+            // Limpiar datos vectoriales para que no haya trazos previos colisionando
+            pad._data = [];
+          }
+          pad._isEmpty = false;
           if (typeof pad.isEmpty === "function") pad.isEmpty = () => false;
-          if (pad._data) pad._data = [{}];
         }
         if (typeof window.showToast === "function") {
           window.showToast("Firma oficial HSEQ asignada", "success");

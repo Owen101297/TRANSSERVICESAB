@@ -374,9 +374,12 @@
       const canvas = document.getElementById("signature-pad");
       function resizeCanvas() {
         const ratio = Math.max(window.devicePixelRatio || 1, 1);
-        canvas.width = canvas.offsetWidth * ratio;
-        canvas.height = canvas.offsetHeight * ratio;
-        canvas.getContext("2d").scale(ratio, ratio);
+        const w = canvas.offsetWidth || canvas.parentElement?.offsetWidth || 340;
+        const h = canvas.offsetHeight || 144;
+        canvas.width = w * ratio;
+        canvas.height = h * ratio;
+        const ctx = canvas.getContext("2d");
+        ctx.scale(ratio, ratio);
       }
       window.addEventListener("resize", resizeCanvas);
       resizeCanvas();

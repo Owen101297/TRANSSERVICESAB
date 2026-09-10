@@ -127,3 +127,47 @@ body {
   );
   height: 1px;
 }
+
+/* ── REGLA UNIVERSAL ZERO-ZOOM MÓVIL (iOS Safari & Android Chrome) ── */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+html, body, button, a {
+  touch-action: manipulation;
+}
+
+/* ── NORMALIZACIÓN PARA INPUTS DE FECHA Y HORA ── */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  line-height: 1.3 !important;
+}
+
+input[type="date"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value {
+  display: block !important;
+  text-align: left !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 100% !important;
+  min-height: 1.25em !important;
+  box-sizing: border-box !important;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  display: inline-block !important;
+  cursor: pointer !important;
+  opacity: 0.75 !important;
+  padding: 0 !important;
+  margin: 0 0 0 auto !important;
+  flex-shrink: 0 !important;
+  width: 20px !important;
+  height: 20px !important;
+}

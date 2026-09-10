@@ -210,7 +210,17 @@ export default function PortalConductorMobilePage() {
   useEffect(() => {
     // 0. Registrar Service Worker para PWA Offline
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
+      navigator.serviceWorker.register("/sw.js").then((reg) => {
+        reg.update().catch(() => {});
+      }).catch(() => {});
+
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
+      });
     }
 
     // 1. Obtener sesión de API /api/auth/me o localStorage
