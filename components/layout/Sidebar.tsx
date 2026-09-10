@@ -116,7 +116,21 @@ export function Sidebar({ isCollapsed = false, onToggleCollapse }: SidebarProps)
             <ul className="space-y-1">
               {group.items.map((item) => {
                 const Icon = ICONS[item.icon] ?? Home;
-                const active = pathname === item.href;
+                const isHseqInspection = [
+                  "/lavado",
+                  "/aseo",
+                  "/extintores",
+                  "/botiquines",
+                  "/hseq/preoperacionales",
+                  "/asistencia",
+                  "/encuestas",
+                ].some((p) => pathname === p || pathname.startsWith(p + "/"));
+                const active =
+                  item.id === "inspecciones"
+                    ? isHseqInspection
+                    : item.href === "/dashboard"
+                    ? pathname === "/dashboard"
+                    : pathname === item.href || pathname.startsWith(item.href + "/");
                 return (
                   <li key={item.id}>
                     <Link

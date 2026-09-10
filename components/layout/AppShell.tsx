@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const currentBuildIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     // 1. Restaurar estado colapsado de sidebar
@@ -14,29 +15,62 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       setIsSidebarCollapsed(true);
     }
 
-    // 2. Desregistrar automáticamente Service Workers en el ERP Administrativo
-    // y limpiar cachés obsoletas para garantizar datos 100% en vivo sin hydration error.
+    // 2. Centinela de auto-actualización en vivo para todos los dispositivos
+    const checkForUpdates = async () => {
+      try {
+        const res = await fetch(`/api/version?_t=${Date.now()}`, {
+          cache: "no-store",
+          headers: { Pragma: "no-cache" },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const incomingBuildId = data.buildId;
+
+        if (!incomingBuildId) return;
+
+        if (currentBuildIdRef.current === null) {
+          currentBuildIdRef.current = incomingBuildId;
+          sessionStorage.setItem("transservices_active_build", incomingBuildId);
+        } else if (currentBuildIdRef.current !== incomingBuildId) {
+          console.info("[ERP Auto-Update] Nueva versión detectada en servidor:", incomingBuildId);
+          if ("caches" in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((k) => caches.delete(k)));
+          }
+          window.location.reload();
+        }
+      } catch {
+        // Silencioso ante pérdidas temporales de red
+      }
+    };
+
+    checkForUpdates();
+    const interval = setInterval(checkForUpdates, 20000);
+
+    const onVisibleOrFocus = () => {
+      if (document.visibilityState === "visible") {
+        checkForUpdates();
+      }
+    };
+
+    window.addEventListener("focus", onVisibleOrFocus);
+    document.addEventListener("visibilitychange", onVisibleOrFocus);
+
+    // 3. Desregistrar automáticamente Service Workers en el ERP Administrativo
+    // y purgar cachés residuales de versiones previas.
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
       navigator.serviceWorker.getRegistrations().then((registrations) => {
         for (const registration of registrations) {
-          registration.unregister().then((unregistered) => {
-            if (unregistered) {
-              console.log("Service Worker administrativo desregistrado exitosamente.");
-            }
-          });
+          registration.unregister().catch(() => {});
         }
       });
-
-      if ("caches" in window) {
-        caches.keys().then((keys) => {
-          keys.forEach((key) => {
-            if (!key.startsWith("transservices-pwa-")) {
-              caches.delete(key);
-            }
-          });
-        });
-      }
     }
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", onVisibleOrFocus);
+      document.removeEventListener("visibilitychange", onVisibleOrFocus);
+    };
   }, []);
 
   const toggleSidebar = () => {
