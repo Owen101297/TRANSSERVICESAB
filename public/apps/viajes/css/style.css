@@ -94,6 +94,9 @@
   /* Input moderno unificado con borde visible y tipografía negra */
   .input-moderno {
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     min-height: 48px;
     padding: 10px 14px;
     background-color: #FFFFFF;

@@ -443,19 +443,19 @@
               </div>
             </div>
 
-            <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/60">
+            <div class="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-slate-200/60">
               <div class="flex items-center gap-2">
-                <label class="text-[10px] font-bold uppercase text-slate-500">Cantidad encontrada:</label>
-                <input type="number" id="cant-${item.id}" value="${item.req}" min="0" oninput="actualizarResumen()" class="w-14 h-7 text-center font-mono font-bold text-xs bg-white border border-slate-200 rounded-md focus:outline-none focus:border-brand-500" />
+                <label class="text-[11px] font-bold uppercase text-slate-500">Cantidad:</label>
+                <input type="number" id="cant-${item.id}" value="${item.req}" min="0" oninput="actualizarResumen()" class="w-16 h-8 text-center font-mono font-bold text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-brand-500 touch-manipulation" />
               </div>
 
               ${item.venc ? `
                 <div class="flex items-center gap-2">
-                  <span class="text-[10px] font-bold text-orange-600 uppercase">Vencimiento:</span>
-                  <input type="date" id="venc-${item.id}" onchange="actualizarResumen()" class="h-7 text-[11px] font-mono bg-white border border-slate-200 rounded-md px-1.5 focus:outline-none focus:border-brand-500" />
+                  <span class="text-[11px] font-bold text-orange-600 uppercase">Vencimiento:</span>
+                  <input type="date" id="venc-${item.id}" onchange="actualizarResumen()" class="h-8 text-xs font-mono bg-white border border-slate-300 rounded-lg px-2 focus:outline-none focus:border-brand-500 touch-manipulation" />
                 </div>
               ` : `
-                <span class="text-[10px] text-slate-400 font-medium">No perecedero</span>
+                <span class="text-[11px] text-slate-400 font-medium">No perecedero</span>
               `}
             </div>
           </div>

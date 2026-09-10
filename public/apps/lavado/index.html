@@ -107,17 +107,18 @@
             max-width: 1080px;
             margin: 0 auto;
             padding: 0 16px;
-            height: 64px;
+            height: 56px;
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: flex-start;
             gap: 12px;
         }
 
         .nav-left {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+            min-width: 0;
         }
 
         .btn-back-portal {
@@ -133,6 +134,7 @@
             font-weight: 700;
             transition: all 0.2s ease;
             border: 1px solid var(--line-subtle);
+            flex-shrink: 0;
         }
 
         .btn-back-portal:hover {
@@ -144,6 +146,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            min-width: 0;
         }
 
         .nav-logo {
@@ -154,14 +157,18 @@
             background: #FFFFFF;
             padding: 2px;
             border: 1px solid var(--line-subtle);
+            flex-shrink: 0;
         }
 
         .nav-title {
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: 800;
             color: var(--text-main);
             letter-spacing: -0.3px;
-            line-height: 1.1;
+            line-height: 1.15;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .nav-subtitle {
@@ -169,26 +176,38 @@
             font-weight: 600;
             color: var(--text-muted);
             font-family: var(--font-mono);
+            line-height: 1;
+            margin-top: 2px;
         }
 
         /* ── SEGMENTED CONTROL TABS (APPLE STYLE) ── */
+        .tabs-container {
+            max-width: 680px;
+            width: 100%;
+            margin: 14px auto 0;
+            padding: 0 16px;
+        }
+
         .segmented-control {
             display: flex;
             background: #E2E8F0;
             padding: 4px;
             border-radius: var(--radius-pill);
-            gap: 2px;
+            gap: 4px;
+            width: 100%;
         }
 
         .tab-btn {
+            flex: 1;
+            justify-content: center;
             font-family: var(--font-main);
-            font-size: 0.8rem;
+            font-size: 0.82rem;
             font-weight: 700;
             color: var(--text-secondary);
             background: transparent;
             border: none;
             cursor: pointer;
-            padding: 6px 14px;
+            padding: 8px 14px;
             border-radius: var(--radius-pill);
             transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
             display: flex;
@@ -328,9 +347,16 @@
             gap: 12px;
         }
 
-        @media (max-width: 480px) {
+        @media (max-width: 640px) {
             .form-grid-2 {
                 grid-template-columns: 1fr;
+            }
+            .apple-card {
+                padding: 20px 16px;
+                border-radius: 20px;
+            }
+            main {
+                padding: 16px 14px 40px;
             }
         }
 
@@ -338,6 +364,7 @@
             display: flex;
             flex-direction: column;
             gap: 6px;
+            min-width: 0;
         }
 
         .field-label {
@@ -358,6 +385,15 @@
             outline: none;
             transition: all 0.2s ease;
             width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+        }
+
+        select.field-input {
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            overflow: hidden;
         }
 
         .field-input:focus {
@@ -707,15 +743,6 @@
                     </div>
                 </div>
             </div>
-
-            <div class="segmented-control">
-                <button onclick="switchTab('registro')" id="btn-tab-registro" class="tab-btn active">
-                    <i class="fa-solid fa-pen"></i> Registro
-                </button>
-                <button onclick="switchTab('admin')" id="btn-tab-admin" class="tab-btn">
-                    <i class="fa-solid fa-table-list"></i> Historial
-                </button>
-            </div>
         </div>
     </nav>
 
@@ -723,6 +750,18 @@
     <div id="status-bar" class="status-bar">
         <span class="status-dot"></span>
         <span id="status-text">CONECTANDO CON EL ERP...</span>
+    </div>
+
+    <!-- TABS BAR (APPLE SEGMENTED FULL-WIDTH) -->
+    <div class="tabs-container">
+        <div class="segmented-control">
+            <button onclick="switchTab('registro')" id="btn-tab-registro" class="tab-btn active">
+                <i class="fa-solid fa-pen"></i> Registro
+            </button>
+            <button onclick="switchTab('admin')" id="btn-tab-admin" class="tab-btn">
+                <i class="fa-solid fa-table-list"></i> Historial
+            </button>
+        </div>
     </div>
 
     <!-- TOAST CONTAINER -->

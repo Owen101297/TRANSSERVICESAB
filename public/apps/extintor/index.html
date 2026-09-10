@@ -164,14 +164,14 @@
         <input type="text" id="inputConductor" aria-label="Nombre del Conductor" title="Nombre del Conductor" placeholder="Nombre completo del conductor" class="apple-input w-full px-3 py-2 text-xs text-[#0F172A] font-medium">
       </div>
 
-      <div class="grid grid-cols-2 gap-3">
-        <div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="min-w-0">
           <label for="inputDocumento" class="block text-[11px] font-semibold text-slate-500 mb-1">Cédula Conductor</label>
-          <input type="text" id="inputDocumento" aria-label="Cédula del Conductor" title="Cédula del Conductor" placeholder="Número de C.C." class="apple-input w-full px-3 py-2 text-xs font-mono text-[#0F172A]">
+          <input type="text" id="inputDocumento" aria-label="Cédula del Conductor" title="Cédula del Conductor" placeholder="Número de C.C." class="apple-input w-full px-3 py-2 text-xs font-mono text-[#0F172A] box-border">
         </div>
-        <div>
+        <div class="min-w-0">
           <label for="inputFecha" class="block text-[11px] font-semibold text-slate-500 mb-1">Fecha Inspección</label>
-          <input type="date" id="inputFecha" aria-label="Fecha de Inspección" title="Fecha de Inspección" class="apple-input w-full px-3 py-2 text-xs font-mono text-[#0F172A]">
+          <input type="date" id="inputFecha" aria-label="Fecha de Inspección" title="Fecha de Inspección" class="apple-input w-full px-3 py-2 text-xs font-mono text-[#0F172A] box-border">
         </div>
       </div>
     </div>
@@ -188,19 +188,19 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-2 gap-3">
-        <div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="min-w-0">
           <label for="selectTipoExtintor" class="block text-[11px] font-semibold text-slate-500 mb-1">Tipo de Extintor</label>
-          <select id="selectTipoExtintor" aria-label="Tipo de Extintor" title="Tipo de Extintor" class="apple-input w-full px-3 py-2 text-xs text-[#0F172A]">
+          <select id="selectTipoExtintor" aria-label="Tipo de Extintor" title="Tipo de Extintor" class="apple-input w-full px-3 py-2 text-xs text-[#0F172A] box-border truncate">
             <option value="ABC Polvo Químico Seco">ABC (Polvo Químico)</option>
             <option value="Solkaflam 123">Solkaflam (Agente Limpio)</option>
             <option value="CO2 Dióxido de Carbono">CO2 (Dióxido de Carbono)</option>
             <option value="Agua Presurizada">Agua Presurizada</option>
           </select>
         </div>
-        <div>
+        <div class="min-w-0">
           <label for="selectCapacidad" class="block text-[11px] font-semibold text-slate-500 mb-1">Capacidad</label>
-          <select id="selectCapacidad" aria-label="Capacidad del Extintor" title="Capacidad del Extintor" class="apple-input w-full px-3 py-2 text-xs text-[#0F172A]">
+          <select id="selectCapacidad" aria-label="Capacidad del Extintor" title="Capacidad del Extintor" class="apple-input w-full px-3 py-2 text-xs text-[#0F172A] box-border">
             <option value="5 lbs">5 lbs</option>
             <option value="10 lbs" selected>10 lbs</option>
             <option value="20 lbs">20 lbs</option>
@@ -209,29 +209,29 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-2 gap-3">
-        <div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="min-w-0">
           <label for="inputFechaUltimaRecarga" class="block text-[11px] font-semibold text-slate-500 mb-1">Última Recarga</label>
-          <input type="date" id="inputFechaUltimaRecarga" aria-label="Fecha de Última Recarga" title="Fecha de Última Recarga" placeholder="Última recarga" class="apple-input w-full px-3 py-2 text-xs font-mono text-[#0F172A]">
+          <input type="date" id="inputFechaUltimaRecarga" aria-label="Fecha de Última Recarga" title="Fecha de Última Recarga" placeholder="Última recarga" class="apple-input w-full px-3 py-2 text-xs font-mono text-[#0F172A] box-border">
         </div>
-        <div>
+        <div class="min-w-0">
           <label for="inputFechaVencimiento" class="block text-[11px] font-semibold text-slate-500 mb-1">Próximo Vencimiento *</label>
-          <input type="date" id="inputFechaVencimiento" aria-label="Próximo Vencimiento" title="Próximo Vencimiento" placeholder="Próximo vencimiento" class="apple-input w-full px-3 py-2 text-xs font-mono text-[#0F172A]">
+          <input type="date" id="inputFechaVencimiento" aria-label="Próximo Vencimiento" title="Próximo Vencimiento" placeholder="Próximo vencimiento" class="apple-input w-full px-3 py-2 text-xs font-mono text-[#0F172A] box-border">
         </div>
       </div>
 
       <div>
         <label class="block text-[11px] font-semibold text-slate-500 mb-1.5">Estado del Manómetro (Presión)</label>
-        <div class="grid grid-cols-3 gap-2">
-          <button type="button" onclick="setPresion('operativa')" id="btnPresionOperativa" class="p-2.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 text-xs font-bold flex flex-col items-center gap-1 transition-all shadow-xs">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <button type="button" onclick="setPresion('operativa')" id="btnPresionOperativa" class="p-2.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 text-xs font-bold flex sm:flex-col items-center justify-center gap-1.5 transition-all shadow-xs touch-manipulation">
             <span>🟢 OPERATIVO</span>
             <span class="text-[9px] font-normal text-emerald-600">Zona Verde</span>
           </button>
-          <button type="button" onclick="setPresion('baja')" id="btnPresionBaja" class="p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 text-xs font-bold flex flex-col items-center gap-1 transition-all">
+          <button type="button" onclick="setPresion('baja')" id="btnPresionBaja" class="p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 text-xs font-bold flex sm:flex-col items-center justify-center gap-1.5 transition-all touch-manipulation">
             <span>🔴 DESCARGA</span>
             <span class="text-[9px] font-normal text-slate-400">Baja Presión</span>
           </button>
-          <button type="button" onclick="setPresion('alta')" id="btnPresionAlta" class="p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 text-xs font-bold flex flex-col items-center gap-1 transition-all">
+          <button type="button" onclick="setPresion('alta')" id="btnPresionAlta" class="p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 text-xs font-bold flex sm:flex-col items-center justify-center gap-1.5 transition-all touch-manipulation">
             <span>⚠️ SOBREPRESIÓN</span>
             <span class="text-[9px] font-normal text-slate-400">Zona Roja Alta</span>
           </button>
