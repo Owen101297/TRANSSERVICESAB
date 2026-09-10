@@ -251,8 +251,15 @@
 
   // 6. Saneamiento de Service Workers y Centinela de Auto-Actualización en Vivo
   if (typeof window !== "undefined") {
-    // A. Desregistrar cualquier Service Worker en apps satélite
+    // A. Bloquear y desregistrar cualquier Service Worker en apps satélite
     if ("serviceWorker" in navigator) {
+      try {
+        navigator.serviceWorker.register = function () {
+          console.warn("[AuthBridge] Intento de registro de SW bloqueado. La plataforma opera en modo Live Real-Time.");
+          return Promise.reject(new Error("Service Workers deshabilitados por arquitectura"));
+        };
+      } catch (e) {}
+
       navigator.serviceWorker.getRegistrations().then((registrations) => {
         for (const reg of registrations) {
           reg.unregister().catch(() => {});

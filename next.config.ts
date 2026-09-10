@@ -26,6 +26,22 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async rewrites() {
+    return [
+      {
+        source: "/:path*/sw.js",
+        destination: "/sw.js",
+      },
+      {
+        source: "/:path*/service-worker.js",
+        destination: "/sw.js",
+      },
+      {
+        source: "/service-worker.js",
+        destination: "/sw.js",
+      },
+    ];
+  },
   async headers() {
     return [
       {

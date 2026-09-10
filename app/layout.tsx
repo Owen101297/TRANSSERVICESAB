@@ -31,10 +31,15 @@ export const metadata: Metadata = {
   },
 };
 
+import { ServiceWorkerSentinel } from "@/components/common/ServiceWorkerSentinel";
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="es" className="h-full antialiased" suppressHydrationWarning>
-      <body className="min-h-full flex flex-col bg-asphalt-950 text-paper-50" suppressHydrationWarning>{children}</body>
+      <body className="min-h-full flex flex-col bg-asphalt-950 text-paper-50" suppressHydrationWarning>
+        <ServiceWorkerSentinel />
+        {children}
+      </body>
     </html>
   );
 }

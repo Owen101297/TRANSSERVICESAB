@@ -9,8 +9,12 @@
     <link rel="icon" type="image/png" sizes="96x96" href="assets/favicon-96x96.png">
     <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
     <link rel="shortcut icon" href="assets/favicon.ico">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <!-- Centinela Anti-SW y Auto-Actualización en Vivo -->
+    <script src="/apps/shared/app-sentinel.js?v=2.1.0"></script>
     <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
-    <link rel="manifest" href="assets/site.webmanifest">
 
     <!-- Tailwind CSS (Diseño Moderno y Responsivo) -->
     <script>
@@ -38,18 +42,6 @@
     <!-- Notificaciones Toast Estilo Apple Dynamic Island -->
     <script src="js/toast.js?v=2.0.3"></script>
 
-    <!-- Limpieza automática de Service Workers y Cachés obsoletos en móviles -->
-    <script>
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(registrations) {
-          for (var reg of registrations) {
-            if (reg.scope && reg.scope.includes('/apps/viajes')) {
-              reg.unregister();
-            }
-          }
-        });
-      }
-    </script>
 </head>
 
 <body class="min-h-screen bg-slate-100 text-slate-900 pb-28">
