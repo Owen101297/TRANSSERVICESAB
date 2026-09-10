@@ -27,6 +27,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
 import { generateEncuestaIndividualPDF } from "@/lib/utils/pdfEncuestaGenerator";
+import { HseqSubNav } from "@/components/layout/HseqSubNav";
 
 interface EncuestaItem {
   id: string;
@@ -214,95 +215,102 @@ export default function EncuestasAdminPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* NAVEGACIÓN RÁPIDA HSEQ */}
+      <HseqSubNav activeTab="encuestas" />
+
       {/* HEADER PRINCIPAL */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-line-600 pb-5">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-line-600/70 pb-3">
         <div>
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400">
-              <FileQuestion className="w-6 h-6" />
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400">
+              <FileQuestion className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-mono text-xs px-2 py-0.5 rounded bg-asphalt-800 border border-line-600 text-radar-cyan">
+                <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-asphalt-800 border border-line-600 text-radar-cyan font-bold">
                   PESV & Calidad
                 </span>
-                <h1 className="font-display font-bold text-2xl md:text-3xl text-paper-50 tracking-wide">
+                <h1 className="font-[family-name:var(--font-display)] font-bold text-xl sm:text-2xl text-paper-50 tracking-wide">
                   Encuestas y Percepción de Servicio
                 </h1>
               </div>
-              <p className="font-body text-xs md:text-sm text-fog-400 mt-0.5">
+              <p className="font-body text-xs text-fog-400 mt-0.5">
                 Baterías de satisfacción al usuario, hábitos de conducción PESV y valoración del servicio de transporte
               </p>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           <Link
             href="/apps/encuesta/index.html"
             target="_blank"
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-asphalt-800 hover:bg-asphalt-700 border border-line-600 text-mist-200 hover:text-paper-50 text-xs font-semibold transition-all shadow-sm"
+            className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-xl bg-asphalt-800 hover:bg-asphalt-700 border border-line-600 text-mist-200 hover:text-paper-50 text-xs font-semibold transition-all shadow-sm"
           >
-            <ExternalLink className="w-4 h-4 text-indigo-400" />
+            <ExternalLink className="w-3.5 h-3.5 text-indigo-400" />
             <span>Abrir App Pasajeros</span>
           </Link>
 
           <Button
             onClick={() => setShowQRModal(true)}
             variant="ghost"
-            className="text-xs bg-asphalt-800 border border-line-600 text-mist-200 hover:text-paper-50"
+            className="h-8 px-2.5 text-xs bg-asphalt-800 border border-line-600 text-mist-200 hover:text-paper-50"
           >
-            <QrCode className="w-4 h-4 mr-1.5 text-radar-cyan" />
+            <QrCode className="w-3.5 h-3.5 mr-1 text-radar-cyan" />
             Generar QR Flota
           </Button>
 
           <Button
             onClick={exportToCSV}
             variant="ghost"
-            className="text-xs bg-asphalt-800 border border-line-600 text-mist-200 hover:text-paper-50"
+            className="h-8 px-2.5 text-xs bg-asphalt-800 border border-line-600 text-mist-200 hover:text-paper-50"
           >
-            <FileSpreadsheet className="w-4 h-4 mr-1.5 text-ok-green" />
+            <FileSpreadsheet className="w-3.5 h-3.5 mr-1 text-ok-green" />
             Exportar CSV
           </Button>
 
           <Button
             onClick={loadData}
             variant="ghost"
-            className="text-xs bg-asphalt-800 border border-line-600 text-mist-200 hover:text-paper-50"
+            className="h-8 px-2.5 text-xs bg-asphalt-800 border border-line-600 text-mist-200 hover:text-paper-50"
             disabled={loading}
           >
-            <RefreshCw className={`w-4 h-4 mr-1.5 ${loading ? "animate-spin text-radar-cyan" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 mr-1 ${loading ? "animate-spin text-radar-cyan" : ""}`} />
             Actualizar
           </Button>
         </div>
       </div>
 
       {/* STATS CARDS */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           label="Total Encuestas"
           value={stats.total}
           subtitle={`${stats.vehiculosEvaluados} vehículos calificados`}
-          icon={<FileQuestion className="w-5 h-5 text-indigo-400" />}
+          icon={<FileQuestion className="w-4 h-4 text-indigo-400" />}
+          compact
         />
         <StatCard
           label="Promedio Calificación"
           value={`${stats.avgOverall} / 5.0`}
           subtitle="Satisfacción global del servicio"
-          icon={<Star className="w-5 h-5 fill-amber-400 text-amber-400" />}
+          icon={<Star className="w-4 h-4 fill-amber-400 text-amber-400" />}
+          compact
         />
         <StatCard
           label="% Recomendación (NPS)"
           value={`${stats.pctRecomendacion}%`}
-          subtitle="Pasajeros que recomiendan el servicio"
-          icon={<ThumbsUp className="w-5 h-5 text-ok-green" />}
+          subtitle="Pasajeros que recomiendan"
+          icon={<ThumbsUp className="w-4 h-4 text-ok-green" />}
+          compact
         />
         <StatCard
           label="Atención Conductor"
           value={`${stats.avgAtencion} / 5.0`}
           subtitle={`Limpieza: ${stats.avgLimpieza} | Puntualidad: ${stats.avgPuntualidad}`}
-          icon={<Sparkles className="w-5 h-5 text-radar-cyan" />}
+          icon={<Sparkles className="w-4 h-4 text-radar-cyan" />}
+          compact
         />
       </div>
 

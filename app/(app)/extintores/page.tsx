@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
+import { HseqSubNav } from "@/components/layout/HseqSubNav";
 import { generateExtintorPDF } from "@/lib/utils/pdfExtintorGenerator";
 
 interface ChecklistItem {
@@ -227,30 +228,31 @@ export default function ExtintoresAdminPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-12">
-      {/* ── ENCABEZADO (Oculto en Impresión) ── */}
-      <div className="flex flex-wrap items-center justify-between gap-4 print:hidden">
+    <div className="space-y-4 animate-fadeIn pb-12">
+      {/* ── SUB-NAV SEGMENTADO APPLE PRO DE INSPECCIONES HSEQ ── */}
+      <div className="print:hidden">
+        <HseqSubNav activeTab="extintores" />
+      </div>
+
+      {/* ── ENCABEZADO Y ACCIONES COMPACTO (Oculto en Impresión) ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-600/70 pb-3 print:hidden">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-bold uppercase tracking-wider text-alert-red bg-alert-red-dim px-2 py-0.5 rounded border border-alert-red/30">
-              HSEQ & PREVENCIÓN DE EMERGENCIAS
-            </span>
-            <span className="text-xs text-fog-400 font-mono">HSEQ-F-034</span>
+          <div className="flex items-center gap-2 text-xs font-mono text-alert-red font-semibold uppercase tracking-wider">
+            <ShieldAlert size={15} className="text-alert-red" />
+            <span>Inspección de Extintores Vehiculares · HSEQ-F-034</span>
           </div>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight text-paper-50 uppercase mt-1">
-            Control e Inspección de Extintores
+          <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight text-paper-50 mt-0.5">
+            Control de Extintores
           </h1>
-          <p className="text-sm text-mist-200">
-            Registro mensual de operatividad, manómetro de presión, vigencia de recarga y estado físico de extintores vehiculares.
-          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={loadData}
-            className="flex items-center gap-1.5 text-xs"
+            className="flex items-center gap-1.5 text-xs h-8 px-2.5"
+            title="Recargar registros"
           >
             <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
             <span>Actualizar</span>
@@ -260,43 +262,48 @@ export default function ExtintoresAdminPage() {
             variant="outline"
             size="sm"
             onClick={exportToCSV}
-            className="flex items-center gap-1.5 text-xs text-ok-green hover:bg-ok-green-dim/30 border-ok-green/30"
+            className="flex items-center gap-1.5 text-xs text-ok-green hover:bg-ok-green-dim/30 border-ok-green/30 h-8 px-2.5"
+            title="Exportar a Excel (CSV)"
           >
             <FileSpreadsheet size={14} />
-            <span>Exportar CSV</span>
+            <span>Excel</span>
           </Button>
         </div>
       </div>
 
-      {/* ── STAT CARDS (Oculto en Impresión) ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
+      {/* ── STAT CARDS COMPACTAS (Oculto en Impresión) ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 print:hidden">
         <StatCard
-          label="TOTAL INSPECCIONES"
+          label="TOTAL AUDITORÍAS"
           value={stats.total}
           subtitle={`Mes ${selectedMes}`}
           icon={ShieldAlert}
           status="normal"
+          compact
         />
         <StatCard
-          label="CUMPLIMIENTO CONFORME"
+          label="CUMPLIMIENTO"
           value={`${stats.porcentajeCumplimiento}%`}
-          subtitle={`${stats.conformesCount} conformes / ${stats.noConformesCount} no conformes`}
+          subtitle={`${stats.conformesCount} conformes / ${stats.noConformesCount} fallas`}
           icon={ShieldCheck}
           status={stats.porcentajeCumplimiento >= 90 ? "normal" : "warning"}
+          compact
         />
         <StatCard
-          label="ALERTAS DE VENCIMIENTO"
+          label="ALERTAS VENCIMIENTO"
           value={stats.porVencerOVencidos}
-          subtitle="Vencidos o vencen en <30 días"
+          subtitle="Vencidos o <30 días"
           icon={AlertTriangle}
           status={stats.porVencerOVencidos > 0 ? "warning" : "normal"}
+          compact
         />
         <StatCard
-          label="AUDITADOS POR HSEQ"
+          label="AUDITADOS HSEQ"
           value={stats.aprobadosCount}
-          subtitle={`${stats.total - stats.aprobadosCount} pendientes de revisión`}
+          subtitle={`${stats.total - stats.aprobadosCount} pendientes`}
           icon={Award}
           status="normal"
+          compact
         />
       </div>
 

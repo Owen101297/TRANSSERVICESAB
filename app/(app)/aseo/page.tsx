@@ -28,6 +28,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
 import { CardSkeleton } from "@/components/ui/CardSkeleton";
+import { HseqSubNav } from "@/components/layout/HseqSubNav";
 import { generateAseoPDF } from "@/lib/utils/pdfAseoGenerator";
 
 interface ChecklistItem {
@@ -206,30 +207,31 @@ export default function AseoDesinfeccionPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-12">
-      {/* ── ENCABEZADO (Oculto en Impresión) ── */}
-      <div className="flex flex-wrap items-center justify-between gap-4 print:hidden">
+    <div className="space-y-4 animate-fadeIn pb-12">
+      {/* ── SUB-NAV SEGMENTADO APPLE PRO DE INSPECCIONES HSEQ ── */}
+      <div className="print:hidden">
+        <HseqSubNav activeTab="aseo" />
+      </div>
+
+      {/* ── ENCABEZADO Y ACCIONES COMPACTO (Oculto en Impresión) ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-600/70 pb-3 print:hidden">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-bold uppercase tracking-wider text-radar-cyan bg-radar-cyan/10 px-2 py-0.5 rounded border border-radar-cyan/30">
-              HSEQ & BIOSEGURIDAD
-            </span>
-            <span className="text-xs text-fog-400 font-mono">HSEQ-F-097</span>
+          <div className="flex items-center gap-2 text-xs font-mono text-radar-cyan font-semibold uppercase tracking-wider">
+            <Sparkles size={15} className="text-radar-cyan" />
+            <span>Aseo y Desinfección de Vehículos · HSEQ-F-097</span>
           </div>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight text-paper-50 uppercase mt-1">
-            Control de Aseo y Desinfección
+          <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight text-paper-50 mt-0.5">
+            Control de Aseo y Bioseguridad
           </h1>
-          <p className="text-sm text-mist-200">
-            Registro periódico de limpieza de cabina, desinfección de superficies, tapicería y protocolos de bioseguridad.
-          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={loadData}
-            className="flex items-center gap-1.5 text-xs"
+            className="flex items-center gap-1.5 text-xs h-8 px-2.5"
+            title="Recargar registros"
           >
             <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
             <span>Actualizar</span>
@@ -239,43 +241,48 @@ export default function AseoDesinfeccionPage() {
             variant="outline"
             size="sm"
             onClick={exportToCSV}
-            className="flex items-center gap-1.5 text-xs text-ok-green hover:bg-ok-green-dim/30 border-ok-green/30"
+            className="flex items-center gap-1.5 text-xs text-ok-green hover:bg-ok-green-dim/30 border-ok-green/30 h-8 px-2.5"
+            title="Exportar a Excel (CSV)"
           >
             <FileSpreadsheet size={14} />
-            <span>Exportar CSV</span>
+            <span>Excel</span>
           </Button>
         </div>
       </div>
 
-      {/* ── STAT CARDS (Oculto en Impresión) ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
+      {/* ── STAT CARDS COMPACTAS (Oculto en Impresión) ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 print:hidden">
         <StatCard
-          label="TOTAL INSPECCIONES"
+          label="TOTAL AUDITORÍAS"
           value={stats.total}
           subtitle={`Mes ${selectedMes}`}
           icon={Sparkles}
           status="normal"
+          compact
         />
         <StatCard
-          label="CUMPLIMIENTO CONFORME"
+          label="CUMPLIMIENTO"
           value={`${stats.porcentajeCumplimiento}%`}
-          subtitle={`${stats.conformesCount} conformes / ${stats.noConformesCount} no conformes`}
+          subtitle={`${stats.conformesCount} conformes / ${stats.noConformesCount} fallas`}
           icon={ShieldCheck}
           status={stats.porcentajeCumplimiento >= 90 ? "normal" : "warning"}
+          compact
         />
         <StatCard
-          label="VEHÍCULOS AUDITADOS"
+          label="VEHÍCULOS"
           value={stats.vehiculosUnicos}
-          subtitle="Placas registradas"
+          subtitle="Placas auditadas"
           icon={Car}
           status="normal"
+          compact
         />
         <StatCard
-          label="APROBADOS POR HSEQ"
+          label="APROBADOS HSEQ"
           value={stats.aprobadosCount}
-          subtitle={`${stats.total - stats.aprobadosCount} pendientes de revisión`}
+          subtitle={`${stats.total - stats.aprobadosCount} pendientes`}
           icon={Award}
           status="normal"
+          compact
         />
       </div>
 

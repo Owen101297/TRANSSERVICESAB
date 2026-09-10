@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { CardSkeleton } from "@/components/ui/CardSkeleton";
+import { HseqSubNav } from "@/components/layout/HseqSubNav";
 import {
   Capacitacion,
   TIPO_CAPACITACION_LABELS,
@@ -172,73 +173,78 @@ _Cumplimiento Normativo PESV Res. 40595/2022 y SG-SST Dec. 1072_`;
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-12">
-      {/* ── HEADER (Oculto en Impresión) ── */}
-      <div className="flex flex-wrap items-center justify-between gap-4 print:hidden">
+    <div className="space-y-4 animate-fadeIn pb-12">
+      {/* ── SUB-NAV SEGMENTADO APPLE PRO DE INSPECCIONES HSEQ ── */}
+      <div className="print:hidden">
+        <HseqSubNav activeTab="capacitaciones" />
+      </div>
+
+      {/* ── HEADER COMPACTO (Oculto en Impresión) ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-600/70 pb-3 print:hidden">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-bold uppercase tracking-wider text-signal-amber bg-signal-amber-dim px-2 py-0.5 rounded border border-signal-amber/30">
-              SG-SST & PESV
-            </span>
-            <span className="text-xs text-fog-400 font-mono">TH-FOR-04</span>
+          <div className="flex items-center gap-2 text-xs font-mono text-signal-amber font-semibold uppercase tracking-wider">
+            <GraduationCap size={15} className="text-signal-amber" />
+            <span>Formación Continua & Inducciones · TH-FOR-04</span>
           </div>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight text-paper-50 uppercase mt-1">
-            Capacitaciones & Charlas de Seguridad
+          <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight text-paper-50 mt-0.5">
+            Capacitaciones & Charlas
           </h1>
-          <p className="text-sm text-mist-200">
-            Control de formación continua, charlas semanales PESV, evidencias biométricas y planillas de auditoría.
-          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={loadCapacitaciones}
-            className="flex items-center gap-1.5 text-xs"
+            className="flex items-center gap-1.5 text-xs h-8 px-2.5"
+            title="Recargar capacitaciones"
           >
             <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
             <span>Actualizar</span>
           </Button>
 
           <Link href="/capacitaciones/nueva">
-            <Button variant="primary" size="sm" className="flex items-center gap-1.5 text-xs font-bold">
-              <Plus size={15} />
-              <span>Programar Charla / Capacitación</span>
+            <Button variant="primary" size="sm" className="flex items-center gap-1.5 text-xs font-bold h-8 px-3">
+              <Plus size={14} />
+              <span>Programar Charla</span>
             </Button>
           </Link>
         </div>
       </div>
 
-      {/* ── STAT CARDS (Oculto en Impresión) ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
+      {/* ── STAT CARDS COMPACTAS (Oculto en Impresión) ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 print:hidden">
         <StatCard
-          label="TOTAL PROGRAMAS"
+          label="PROGRAMAS TOTALES"
           value={stats.totalCount}
-          subtitle="Formaciones registradas"
+          subtitle="Capacitaciones"
           icon={GraduationCap}
           status="normal"
+          compact
         />
         <StatCard
-          label="PLAN PESV (SEG. VIAL)"
+          label="PLAN PESV"
           value={stats.totalPesv}
-          subtitle={`${stats.totalCharlas} charlas semanales`}
+          subtitle={`${stats.totalCharlas} charlas viales`}
           icon={ShieldCheck}
           status="normal"
+          compact
         />
         <StatCard
           label="PLAN SG-SST"
           value={stats.totalSgsst}
-          subtitle="Seguridad y salud laboral"
+          subtitle="Seguridad laboral"
           icon={Award}
           status="normal"
+          compact
         />
         <StatCard
-          label="ASISTENCIAS CON FIRMA/SELFIE"
+          label="ASISTENCIAS"
           value={stats.totalAsistenciasAcumuladas}
-          subtitle="Registros con evidencia digital"
+          subtitle="Con firma digital"
           icon={Users}
           status="normal"
+          compact
         />
       </div>
 

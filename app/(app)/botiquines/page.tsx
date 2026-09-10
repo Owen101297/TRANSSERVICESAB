@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
+import { HseqSubNav } from "@/components/layout/HseqSubNav";
 import { generateBotiquinPDF } from "@/lib/utils/pdfBotiquinGenerator";
 
 interface BotiquinChecklistItem {
@@ -256,86 +257,89 @@ export default function BotiquinesAdminPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* HEADER PRINCIPAL */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-line-600 pb-5">
+    <div className="space-y-4 animate-fadeIn pb-12">
+      {/* ── SUB-NAV SEGMENTADO APPLE PRO DE INSPECCIONES HSEQ ── */}
+      <div className="print:hidden">
+        <HseqSubNav activeTab="botiquines" />
+      </div>
+
+      {/* ── HEADER PRINCIPAL COMPACTO ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-600/70 pb-3 print:hidden">
         <div>
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-orange-500/10 border border-orange-500/30 text-orange-400">
-              <HeartPulse className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-xs px-2 py-0.5 rounded bg-asphalt-800 border border-line-600 text-radar-cyan">
-                  HSEQ-F-035 v04
-                </span>
-                <h1 className="font-display font-bold text-2xl md:text-3xl text-paper-50 tracking-wide">
-                  Inspección de Botiquines
-                </h1>
-              </div>
-              <p className="font-body text-xs md:text-sm text-fog-400 mt-0.5">
-                Control de 21 insumos de primeros auxilios, caducidad, dotación obligatoria y validación HSEQ
-              </p>
-            </div>
+          <div className="flex items-center gap-2 text-xs font-mono text-orange-400 font-semibold uppercase tracking-wider">
+            <HeartPulse size={15} className="text-orange-400" />
+            <span>Dotación y Primeros Auxilios · HSEQ-F-035 v04</span>
           </div>
+          <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight text-paper-50 mt-0.5">
+            Inspección de Botiquines
+          </h1>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           <Link
             href="/apps/botiquin/index.html"
             target="_blank"
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-asphalt-800 hover:bg-asphalt-700 border border-line-600 text-mist-200 hover:text-paper-50 text-xs font-semibold transition-all shadow-sm"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-asphalt-800 hover:bg-asphalt-700 border border-line-600 text-mist-200 hover:text-paper-50 text-xs font-semibold transition-all shadow-xs h-8"
+            title="Abrir formulario móvil para registrar botiquín"
           >
-            <ExternalLink className="w-4 h-4 text-orange-400" />
-            <span>Abrir App Móvil</span>
+            <ExternalLink size={13} className="text-orange-400" />
+            <span>App Móvil</span>
           </Link>
 
           <Button
-            onClick={exportToCSV}
-            variant="ghost"
-            className="text-xs bg-asphalt-800 border border-line-600 text-mist-200 hover:text-paper-50"
+            onClick={loadData}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-1.5 text-xs h-8 px-2.5"
+            disabled={loading}
+            title="Recargar registros"
           >
-            <FileSpreadsheet className="w-4 h-4 mr-1.5 text-ok-green" />
-            Exportar CSV
+            <RefreshCw size={13} className={loading ? "animate-spin text-radar-cyan" : ""} />
+            <span>Actualizar</span>
           </Button>
 
           <Button
-            onClick={loadData}
-            variant="ghost"
-            className="text-xs bg-asphalt-800 border border-line-600 text-mist-200 hover:text-paper-50"
-            disabled={loading}
+            onClick={exportToCSV}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-1.5 text-xs text-ok-green hover:bg-ok-green-dim/30 border-ok-green/30 h-8 px-2.5"
+            title="Exportar a Excel (CSV)"
           >
-            <RefreshCw className={`w-4 h-4 mr-1.5 ${loading ? "animate-spin text-radar-cyan" : ""}`} />
-            Actualizar
+            <FileSpreadsheet size={14} />
+            <span>Excel</span>
           </Button>
         </div>
       </div>
 
-      {/* STATS CARDS */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* ── STATS CARDS COMPACTAS ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 print:hidden">
         <StatCard
-          label="Total Inspecciones"
+          label="TOTAL AUDITORÍAS"
           value={stats.total}
-          subtitle={`${stats.vehiculosUnicos} vehículos inspeccionados`}
-          icon={<HeartPulse className="w-5 h-5 text-orange-400" />}
+          subtitle={`${stats.vehiculosUnicos} placas auditadas`}
+          icon={<HeartPulse className="w-4 h-4 text-orange-400" />}
+          compact
         />
         <StatCard
-          label="Dotación 100% Conforme"
+          label="DOTACIÓN CONFORME"
           value={stats.conformesCount}
-          subtitle={`${stats.porcentajeCumplimiento}% del total registrado`}
-          icon={<PackageCheck className="w-5 h-5 text-ok-green" />}
+          subtitle={`${stats.porcentajeCumplimiento}% conforme`}
+          icon={<PackageCheck className="w-4 h-4 text-ok-green" />}
+          compact
         />
         <StatCard
-          label="Con Novedad / Vencidos"
+          label="CON NOVEDADES"
           value={stats.noConformesCount}
           subtitle={`${stats.totalItemsVencidos} vencidos / ${stats.totalItemsFaltantes} faltantes`}
-          icon={<PackageX className="w-5 h-5 text-alert-red" />}
+          icon={<PackageX className="w-4 h-4 text-alert-red" />}
+          compact
         />
         <StatCard
-          label="Aprobados HSEQ"
+          label="APROBADOS HSEQ"
           value={stats.aprobadosCount}
-          subtitle={`${stats.total - stats.aprobadosCount} pendientes de firma`}
-          icon={<Award className="w-5 h-5 text-radar-cyan" />}
+          subtitle={`${stats.total - stats.aprobadosCount} pendientes`}
+          icon={<Award className="w-4 h-4 text-radar-cyan" />}
+          compact
         />
       </div>
 

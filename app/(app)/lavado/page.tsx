@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
+import { HseqSubNav } from "@/components/layout/HseqSubNav";
 import {
   generateLavadoPlanillaPDF,
   generateLavadoComprobantePDF,
@@ -231,28 +232,28 @@ export default function ControlLavadosPage() {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-12">
-      {/* ── ENCABEZADO Y ACCIONES (Oculto en Impresión) ── */}
-      <div className="flex flex-wrap items-center justify-between gap-4 print:hidden">
+    <div className="space-y-4 animate-fadeIn pb-12">
+      {/* ── SUB-NAV SEGMENTADO APPLE PRO DE INSPECCIONES HSEQ ── */}
+      <div className="print:hidden">
+        <HseqSubNav activeTab="lavado" />
+      </div>
+
+      {/* ── ENCABEZADO Y ACCIONES COMPACTO (Oculto en Impresión) ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-600/70 pb-3 print:hidden">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-bold uppercase tracking-wider text-signal-amber bg-signal-amber-dim px-2 py-0.5 rounded border border-signal-amber/30">
-              OPERACIÓN & FLOTA
-            </span>
-            <span className="text-xs text-fog-400 font-mono">OP-FOR-04</span>
+          <div className="flex items-center gap-2 text-xs font-mono text-signal-amber font-semibold uppercase tracking-wider">
+            <Droplets size={15} className="text-signal-amber" />
+            <span>Control de Lavado de Flota · OP-FOR-02 / 04</span>
           </div>
-          <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold tracking-tight text-paper-50 uppercase mt-1">
-            Control de Lavado de Flota
+          <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight text-paper-50 mt-0.5">
+            Planilla de Registro y Control de Lavadas
           </h1>
-          <p className="text-sm text-mist-200">
-            Registro, auditoría y liquidación mensual de lavados de vehículos.
-          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Selector de Mes */}
-          <div className="flex items-center gap-1.5 bg-asphalt-900 border border-line-600 rounded-xl px-3 py-1.5 shadow-sm">
-            <Calendar size={15} className="text-fog-400" />
+          <div className="flex items-center gap-1.5 bg-asphalt-900 border border-line-600 rounded-xl px-2.5 py-1 text-xs shadow-sm">
+            <Calendar size={14} className="text-fog-400" />
             <input
               type="month"
               value={selectedMonth}
@@ -265,7 +266,8 @@ export default function ControlLavadosPage() {
             variant="outline"
             size="sm"
             onClick={loadRecords}
-            className="flex items-center gap-1.5 text-xs"
+            className="flex items-center gap-1.5 text-xs h-8 px-2.5"
+            title="Recargar registros"
           >
             <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
             <span>Actualizar</span>
@@ -276,18 +278,19 @@ export default function ControlLavadosPage() {
             size="sm"
             onClick={handleDownloadPlanillaPDF}
             disabled={generatingPdf || filteredRecords.length === 0}
-            className="flex items-center gap-1.5 text-xs text-signal-amber hover:bg-signal-amber/10 border-signal-amber/40 shadow-sm"
-            title="Descargar Planilla Oficial Consolidada OP-FOR-02 en PDF (Carta Horizontal)"
+            className="flex items-center gap-1.5 text-xs text-signal-amber hover:bg-signal-amber/10 border-signal-amber/40 shadow-sm h-8 px-2.5"
+            title="Descargar Planilla Oficial OP-FOR-02 en PDF (Horizontal)"
           >
             <FileDown size={14} className={generatingPdf ? "animate-bounce" : ""} />
-            <span>{generatingPdf ? "Generando..." : "Descargar Planilla PDF"}</span>
+            <span>Planilla PDF</span>
           </Button>
 
           <Button
             variant="outline"
             size="sm"
             onClick={handleExportCSV}
-            className="flex items-center gap-1.5 text-xs text-ok-green hover:bg-ok-green/10 border-ok-green/30"
+            className="flex items-center gap-1.5 text-xs text-ok-green hover:bg-ok-green/10 border-ok-green/30 h-8 px-2.5"
+            title="Exportar a Excel (CSV)"
           >
             <FileSpreadsheet size={14} />
             <span>Excel</span>
@@ -297,7 +300,8 @@ export default function ControlLavadosPage() {
             variant="outline"
             size="sm"
             onClick={handlePrint}
-            className="flex items-center gap-1.5 text-xs text-radar-cyan hover:bg-radar-cyan/10 border-radar-cyan/30"
+            className="flex items-center gap-1.5 text-xs text-radar-cyan hover:bg-radar-cyan/10 border-radar-cyan/30 h-8 px-2.5"
+            title="Imprimir vista de auditoría"
           >
             <Printer size={14} />
             <span>Imprimir</span>
@@ -305,35 +309,39 @@ export default function ControlLavadosPage() {
         </div>
       </div>
 
-      {/* ── STAT CARDS (Oculto en Impresión) ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:hidden">
+      {/* ── STAT CARDS COMPACTAS (Oculto en Impresión) ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 print:hidden">
         <StatCard
-          label="TOTAL LAVADOS (MES)"
+          label="TOTAL LAVADOS"
           value={stats.totalCount}
-          subtitle={`En el período ${selectedMonth}`}
+          subtitle={`Período ${selectedMonth}`}
           icon={Droplets}
           status="normal"
+          compact
         />
         <StatCard
-          label="VALOR TOTAL RECAUDADO"
+          label="RECAUDO MES"
           value={formatCOP(stats.totalValor)}
-          subtitle="Facturación bruta de lavados"
+          subtitle="Facturación bruta"
           icon={DollarSign}
           status="normal"
+          compact
         />
         <StatCard
-          label="PROMEDIO POR VEHÍCULO"
+          label="PROMEDIO"
           value={formatCOP(stats.avgValor)}
-          subtitle="Tarifa promedio del mes"
+          subtitle="Tarifa promedio"
           icon={Car}
           status="normal"
+          compact
         />
         <StatCard
-          label="AUDITORÍA & APROBACIÓN"
-          value={`${stats.totalAprobados} / ${stats.totalCount}`}
-          subtitle={`${stats.totalRevisados} revisados formalmente`}
+          label="AUDITORÍA"
+          value={`${stats.totalAprobados}/${stats.totalCount}`}
+          subtitle={`${stats.totalRevisados} revisados`}
           icon={CheckCircle2}
           status={stats.totalAprobados === stats.totalCount && stats.totalCount > 0 ? "normal" : "warning"}
+          compact
         />
       </div>
 

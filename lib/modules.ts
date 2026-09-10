@@ -13,6 +13,7 @@ export interface ModuleGroup {
 
 // Estructura calcada del mapa de módulos del blueprint (CORE, PERSONAS, CONTRATISTAS,
 // FLOTA, OPERACIÓN, SG-SST, PESV, HSEQ, DOCUMENTOS, REPORTES, INTELLIGENCE, ADMINISTRACIÓN)
+// Estructura consolidada Apple Pro: 4 Hubs lógicos de alta densidad
 export const NAV_GROUPS: ModuleGroup[] = [
   {
     id: "general",
@@ -21,54 +22,36 @@ export const NAV_GROUPS: ModuleGroup[] = [
   },
   {
     id: "core-operativo",
-    label: "Operación",
+    label: "Operación & Flota",
     items: [
-      { id: "personas", label: "Personas", href: "/personas", icon: "users" },
-      { id: "contratistas", label: "Contratistas", href: "/contratistas", icon: "building" },
-      { id: "flota", label: "Flota", href: "/flota", icon: "truck" },
-      { id: "gps", label: "Telemetría GPS", href: "/gps", icon: "radio" },
+      { id: "flota", label: "Flota de Vehículos", href: "/flota", icon: "truck" },
       { id: "asignaciones", label: "Asignaciones", href: "/asignaciones", icon: "link" },
-      { id: "operacion", label: "Viajes", href: "/operacion", icon: "route" },
+      { id: "gps", label: "Telemetría GPS", href: "/gps", icon: "radio" },
+      { id: "operacion", label: "Viajes & Despacho", href: "/operacion", icon: "route" },
+      { id: "personas", label: "Personal & Conductores", href: "/personas", icon: "users" },
+      { id: "contratistas", label: "Contratistas", href: "/contratistas", icon: "building" },
     ],
   },
   {
     id: "seguridad",
-    label: "Seguridad y cumplimiento",
+    label: "HSEQ & Seguridad Vial",
     items: [
-      { id: "sgsst", label: "SG-SST", href: "/sgsst", icon: "shield" },
-      { id: "pesv", label: "PESV", href: "/pesv", icon: "road" },
-      { id: "hseq", label: "HSEQ", href: "/hseq", icon: "leaf" },
-    ],
-  },
-  {
-    id: "digitalizacion",
-    label: "Formularios digitalizados",
-    items: [
-      { id: "preoperacionales", label: "Preoperacionales", href: "/hseq/preoperacionales", icon: "clipboard" },
+      { id: "inspecciones", label: "Inspecciones Diarias", href: "/lavado", icon: "clipboard" },
       { id: "capacitaciones", label: "Capacitaciones", href: "/capacitaciones", icon: "graduation" },
-      { id: "encuestas", label: "Encuestas PESV", href: "/encuestas", icon: "clipboard" },
-      { id: "asistencia", label: "Asistencia Diaria", href: "/asistencia", icon: "check" },
-      { id: "lavado", label: "Control de Lavado", href: "/lavado", icon: "droplets" },
-      { id: "aseo", label: "Aseo y Desinfección", href: "/aseo", icon: "sparkles" },
-      { id: "extintores", label: "Extintores", href: "/extintores", icon: "shield" },
-      { id: "botiquines", label: "Botiquines", href: "/botiquines", icon: "heart" },
+      { id: "pesv", label: "PESV Seguridad Vial", href: "/pesv", icon: "road" },
+      { id: "sgsst", label: "SG-SST Laboral", href: "/sgsst", icon: "shield" },
+      { id: "hseq", label: "Auditoría HSEQ", href: "/hseq", icon: "leaf" },
     ],
   },
   {
     id: "gestion",
-    label: "Gestión",
+    label: "Gestión & Sistema",
     items: [
       { id: "documentos", label: "Documentos", href: "/documentos", icon: "file" },
       { id: "reportes", label: "Reportes", href: "/reportes", icon: "chart" },
-      { id: "intelligence", label: "Intelligence", href: "/intelligence", icon: "cpu" },
-    ],
-  },
-  {
-    id: "sistema",
-    label: "Sistema",
-    items: [
-      { id: "administracion", label: "Administración", href: "/administracion", icon: "settings" },
-      { id: "portal-conductor", label: "Portal Conductor", href: "/portal-conductor", icon: "smartphone" },
+      { id: "intelligence", label: "Intelligence IA", href: "/intelligence", icon: "cpu" },
+      { id: "portal-conductor", label: "Portal del Conductor", href: "/portal-conductor", icon: "smartphone" },
+      { id: "administracion", label: "Configuración", href: "/administracion", icon: "settings" },
     ],
   },
 ];

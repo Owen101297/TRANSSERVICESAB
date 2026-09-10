@@ -38,6 +38,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
 import { generateAsistenciaPDF } from "@/lib/utils/pdfAsistenciaGenerator";
+import { HseqSubNav } from "@/components/layout/HseqSubNav";
 
 const PRESET_TEMAS = [
   "CHARLA 5 MINUTOS: PREVENCIÓN DE FATIGA Y CONTROL DE MICROSUEÑOS",
@@ -633,20 +634,23 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* NAVEGACIÓN RÁPIDA HSEQ */}
+      <HseqSubNav activeTab="asistencia" />
+
       {/* ============================================================ */}
       {/* BARRA SUPERIOR DE HERRAMIENTAS Y CONTROL (NO-PRINT)          */}
       {/* ============================================================ */}
       <div className="no-print space-y-4">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-asphalt-900 border border-line-600 p-4 rounded-2xl shadow-xl">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-asphalt-900 border border-line-600 p-3 sm:p-3.5 rounded-2xl shadow-xl">
           <div>
-            <h1 className="font-[family-name:var(--font-display)] text-2xl lg:text-3xl font-bold text-paper-50 tracking-wide flex items-center gap-3">
-              <span className="p-2 bg-asphalt-800 rounded-xl border border-line-500 text-radar-cyan">
-                <FileText className="w-6 h-6" />
+            <h1 className="font-[family-name:var(--font-display)] text-xl sm:text-2xl font-bold text-paper-50 tracking-wide flex items-center gap-2.5">
+              <span className="p-1.5 bg-asphalt-800 rounded-xl border border-line-500 text-radar-cyan">
+                <FileText className="w-5 h-5" />
               </span>
               Control Maestro de Asistencia (TH-FOR-03)
             </h1>
-            <p className="mt-1 text-xs text-fog-400 font-medium">
+            <p className="mt-0.5 text-xs text-fog-400 font-medium">
               Gestión centralizada de asistencias, firmas digitales en alta definición y actas oficiales del SG-SST / PESV.
             </p>
           </div>
@@ -656,40 +660,40 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
               href="/asistir"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-asphalt-800 hover:bg-asphalt-700 text-mist-200 border border-line-500 font-bold text-xs rounded-xl shadow transition-colors"
+              className="inline-flex items-center gap-1.5 h-8 px-2.5 bg-asphalt-800 hover:bg-asphalt-700 text-mist-200 border border-line-500 font-bold text-xs rounded-xl shadow transition-colors"
             >
-              <PenTool className="w-4 h-4 text-signal-amber" />
+              <PenTool className="w-3.5 h-3.5 text-signal-amber" />
               <span>Toma de Firmas Móvil</span>
-              <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+              <ExternalLink className="w-3 h-3 opacity-70" />
             </a>
 
             <button
               onClick={handleDownloadPDF}
               disabled={generatingPdf || registros.length === 0}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-signal-amber hover:bg-amber-400 text-asphalt-950 font-black text-xs rounded-xl shadow-md transition-all disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98]"
+              className="inline-flex items-center gap-1.5 h-8 px-3 bg-signal-amber hover:bg-amber-400 text-asphalt-950 font-black text-xs rounded-xl shadow-md transition-all disabled:opacity-50 hover:scale-[1.02] active:scale-[0.98]"
               title="Descargar Planilla Oficial TH-FOR-03 en PDF Vectorial (Carta)"
             >
-              <FileDown className={`w-4 h-4 ${generatingPdf ? "animate-bounce" : ""}`} />
+              <FileDown className={`w-3.5 h-3.5 ${generatingPdf ? "animate-bounce" : ""}`} />
               <span>{generatingPdf ? "Generando PDF..." : "Descargar PDF (TH-FOR-03)"}</span>
             </button>
 
             <button
               onClick={handlePrint}
               disabled={registros.length === 0}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-asphalt-800 hover:bg-asphalt-700 text-paper-50 border border-line-500 font-bold text-xs rounded-xl shadow-sm transition-colors disabled:opacity-40"
+              className="inline-flex items-center gap-1.5 h-8 px-2.5 bg-asphalt-800 hover:bg-asphalt-700 text-paper-50 border border-line-500 font-bold text-xs rounded-xl shadow-sm transition-colors disabled:opacity-40"
               title="Abrir vista oficial e imprimir planilla física"
             >
-              <Printer className="w-4 h-4 text-radar-cyan" />
-              <span>Imprimir Planilla</span>
+              <Printer className="w-3.5 h-3.5 text-radar-cyan" />
+              <span>Imprimir</span>
             </button>
 
             <button
               onClick={exportCsv}
               disabled={registros.length === 0}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-asphalt-950 hover:bg-asphalt-800 text-mist-200 border border-line-600 font-bold text-xs rounded-xl shadow-sm transition-colors disabled:opacity-40"
+              className="inline-flex items-center gap-1.5 h-8 px-2.5 bg-asphalt-950 hover:bg-asphalt-800 text-mist-200 border border-line-600 font-bold text-xs rounded-xl shadow-sm transition-colors disabled:opacity-40"
               title="Descargar archivo Excel / CSV"
             >
-              <Download className="w-3.5 h-3.5 text-ok-green" />
+              <Download className="w-3 h-3 text-ok-green" />
               <span>CSV</span>
             </button>
           </div>
