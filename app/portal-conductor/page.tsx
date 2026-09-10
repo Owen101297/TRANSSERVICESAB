@@ -172,6 +172,7 @@ export default function PortalConductorMobilePage() {
     nombre: string;
     documento: string;
     placa: string | null;
+    rol?: string;
   } | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -201,6 +202,7 @@ export default function PortalConductorMobilePage() {
             nombre: u.nombre,
             documento: u.documento,
             placa: u.placaAsignada || null,
+            rol: u.rol || "conductor",
           };
           setDriver(sessionObj);
           localStorage.setItem("transservices_conductor", JSON.stringify(sessionObj));

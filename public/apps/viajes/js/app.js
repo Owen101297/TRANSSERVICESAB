@@ -43,6 +43,8 @@ let currentUser = null;
 let currentProfile = null;
 let currentConductor = null;
 let currentTripId = null;
+let currentTripIsFinalizado = false;
+let currentTripIsEnCurso = false;
 let currentStep = 0;
 let isAnimating = false;
 let historyDataMap = {};
@@ -53,6 +55,47 @@ let pinAuthCallback = null;
 
 const steps = document.getElementsByClassName("form-step");
 const totalSteps = steps.length;
+
+// Helper para renderizar firmas previas en el canvas
+function renderSignatureOnCanvas(canvasId, dataUrl) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !dataUrl) return;
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.setAttribute('data-signed', 'true');
+    };
+    img.src = dataUrl;
+}
+
+// Helper para bloquear o desbloquear formulario completo
+function setFormReadOnly(isReadOnly, options = {}) {
+    const form = document.getElementById("travelForm");
+    if (!form) return;
+    const elements = form.querySelectorAll("input, select, textarea");
+    elements.forEach(el => {
+        if (options.except && options.except.includes(el.id)) {
+            el.disabled = false;
+            el.readOnly = false;
+            return;
+        }
+        if (isReadOnly) {
+            el.disabled = true;
+        } else {
+            el.disabled = false;
+            el.readOnly = false;
+        }
+    });
+
+    // Ocultar botones de limpiar firmas si es solo lectura
+    const clearBtns = form.querySelectorAll("button[onclick*='clearSignature']");
+    clearBtns.forEach(b => {
+        b.style.display = isReadOnly ? 'none' : 'inline-block';
+    });
+}
 
 // Wrapper de base de datos para compatibilidad
 const db = {
@@ -81,32 +124,43 @@ async function initAuth() {
             const isAdm = await isAdmin();
             console.log(`[Viajes A&B] Sesión activa: ${user.nombre || user.email || 'Conductor'} (${isAdm ? 'ADMIN' : 'CONDUCTOR'})`);
 
-            // Si hay datos de conductor precargados
-            if (user.nombre && document.getElementById('cNombre') && !document.getElementById('cNombre').value) {
-                document.getElementById('cNombre').value = user.nombre;
-            }
-            if (user.documento && document.getElementById('cLicencia') && !document.getElementById('cLicencia').value) {
-                document.getElementById('cLicencia').value = user.documento;
-            }
-            if (user.placa && document.getElementById('vPlaca') && !document.getElementById('vPlaca').value) {
-                document.getElementById('vPlaca').value = user.placa;
+            // 1. Mostrar u ocultar barra de administración Apple Glassmorphism
+            const adminBanner = document.getElementById('adminModeBanner');
+            if (isAdm) {
+                if (adminBanner) adminBanner.classList.remove('hidden');
+            } else {
+                if (adminBanner) adminBanner.classList.add('hidden');
             }
 
-            // Buscar datos detallados en base de datos PostgreSQL
-            if (user.documento) {
-                const cond = await getConductorById(user.documento);
-                if (cond) {
-                    currentConductor = cond;
-                    if (cond.nombre && document.getElementById('cNombre')) document.getElementById('cNombre').value = cond.nombre;
-                    if (cond.cedula && document.getElementById('cLicencia')) document.getElementById('cLicencia').value = cond.cedula;
-                    if (cond.categoria && document.getElementById('cCat')) document.getElementById('cCat').value = cond.categoria;
-                    if (cond.vencimiento && document.getElementById('cVence')) {
-                        document.getElementById('cVence').value = cond.vencimiento.split('T')[0];
-                        if (typeof window.checkLicenciaVencimiento === 'function') {
-                            window.checkLicenciaVencimiento();
+            // 2. Si es Conductor, autocompletar su información de despacho
+            // Si es Administrador, no forzamos su nombre para permitir auditar y despachar cualquier unidad
+            if (!isAdm) {
+                if (user.nombre && document.getElementById('cNombre') && !document.getElementById('cNombre').value) {
+                    document.getElementById('cNombre').value = user.nombre;
+                }
+                if (user.documento && document.getElementById('cLicencia') && !document.getElementById('cLicencia').value) {
+                    document.getElementById('cLicencia').value = user.documento;
+                }
+                if (user.placa && document.getElementById('vPlaca') && !document.getElementById('vPlaca').value) {
+                    document.getElementById('vPlaca').value = user.placa;
+                }
+
+                // Buscar datos detallados en base de datos PostgreSQL
+                if (user.documento) {
+                    const cond = await getConductorById(user.documento);
+                    if (cond) {
+                        currentConductor = cond;
+                        if (cond.nombre && document.getElementById('cNombre')) document.getElementById('cNombre').value = cond.nombre;
+                        if (cond.cedula && document.getElementById('cLicencia')) document.getElementById('cLicencia').value = cond.cedula;
+                        if (cond.categoria && document.getElementById('cCat')) document.getElementById('cCat').value = cond.categoria;
+                        if (cond.vencimiento && document.getElementById('cVence')) {
+                            document.getElementById('cVence').value = cond.vencimiento.split('T')[0];
+                            if (typeof window.checkLicenciaVencimiento === 'function') {
+                                window.checkLicenciaVencimiento();
+                            }
                         }
+                        if (cond.telefono && document.getElementById('cTelefono')) document.getElementById('cTelefono').value = cond.telefono;
                     }
-                    if (cond.telefono && document.getElementById('cTelefono')) document.getElementById('cTelefono').value = cond.telefono;
                 }
             }
         }
@@ -381,14 +435,26 @@ function showStep(n) {
 async function nextPrev(n) {
     if (isAnimating) return;
 
-    // Si el usuario quiere avanzar hacia adelante, validamos el paso actual
-    if (n > 0) {
+    // Si es un viaje en curso y el conductor/admin pulsa el botón en el paso 1 (cierre de odómetro)
+    if (currentTripIsEnCurso && currentStep === 0 && n > 0) {
+        await finalizeInCourseTrip();
+        return;
+    }
+
+    // Si es un viaje finalizado y estamos en el último paso
+    if (currentTripIsFinalizado && currentStep === totalSteps - 1 && n > 0) {
+        if (currentTripId) await exportTripPDF(currentTripId);
+        return;
+    }
+
+    // Si el usuario quiere avanzar hacia adelante y no es solo lectura, validamos el paso actual
+    if (n > 0 && !currentTripIsFinalizado) {
         const isValid = validateStep(currentStep);
         if (!isValid) return;
     }
 
     // Si estamos en el último paso (firmas) y pulsa Siguiente / Guardar
-    if (currentStep === totalSteps - 1 && n > 0) {
+    if (currentStep === totalSteps - 1 && n > 0 && !currentTripIsFinalizado) {
         await handleSubmit();
         return;
     }
@@ -424,6 +490,9 @@ async function nextPrev(n) {
  * Validador robusto paso a paso (Resolución 40595 de 2022)
  */
 function validateStep(stepIndex) {
+    // Si el viaje está finalizado (solo lectura), se permite navegar sin bloqueos
+    if (currentTripIsFinalizado) return true;
+
     const getVal = (id) => (document.getElementById(id)?.value || '').trim();
 
     if (stepIndex === 0) {
@@ -507,6 +576,28 @@ function validateStep(stepIndex) {
         return true;
     }
 
+    if (stepIndex === 6) {
+        // Paso 7: Autorización y Firmas
+        const condSig = document.getElementById('signatureCanvasConductor');
+        const isCondSigned = condSig ? condSig.getAttribute('data-signed') === 'true' : false;
+        if (!isCondSigned) {
+            TS.toastWarning("La firma digital del conductor es obligatoria para despachar el viaje.");
+            return false;
+        }
+
+        const rsk = updateRisk();
+        // Si el riesgo es Medio o Alto, se requiere firma de HSEQ / Gerencia
+        if (rsk.score > 15) {
+            const gerSig = document.getElementById('signatureCanvasGerencia');
+            const isGerSigned = gerSig ? gerSig.getAttribute('data-signed') === 'true' : false;
+            if (!isGerSigned) {
+                TS.toastWarning(`Nivel de riesgo: ${rsk.level}. Se requiere estampar la firma de visto bueno de HSEQ o Gerencia.`);
+                return false;
+            }
+        }
+        return true;
+    }
+
     return true;
 }
 
@@ -515,6 +606,33 @@ function updateNavigation(n) {
     const prevBtn = document.getElementById("prevBtn");
     if (!nextBtn || !prevBtn) return;
 
+    // Modo A: Viaje Finalizado (Solo Lectura)
+    if (currentTripIsFinalizado) {
+        prevBtn.style.display = n === 0 ? "none" : "inline-flex";
+        prevBtn.className = "btn btn-secondary w-1/3 shadow-sm font-extrabold text-slate-900 border-2 border-slate-400 text-sm py-3.5";
+        if (n === totalSteps - 1) {
+            nextBtn.innerHTML = 'Descargar Certificado PDF <i class="ml-2 w-4 h-4 inline-block" data-lucide="file-text"></i>';
+            nextBtn.className = "btn btn-primary flex-1 shadow-xl font-black text-white bg-[#1E40AF] border-2 border-[#1E3A8A] text-base py-3.5";
+        } else {
+            nextBtn.innerHTML = 'Siguiente <i class="ml-2 w-4 h-4 inline-block" data-lucide="arrow-right"></i>';
+            nextBtn.className = n === 0 
+                ? "btn btn-primary w-full shadow-xl font-black text-white bg-[#1E40AF] border-2 border-[#1E3A8A] text-base py-3.5"
+                : "btn btn-primary flex-1 shadow-xl font-black text-white bg-[#1E40AF] border-2 border-[#1E3A8A] text-base py-3.5";
+        }
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    // Modo B: Viaje En Curso en Paso 1 (Cierre de Viaje con KM Final)
+    if (currentTripIsEnCurso && n === 0) {
+        prevBtn.style.display = "none";
+        nextBtn.innerHTML = 'Finalizar y Cerrar Viaje STE-F-010 <i class="ml-2 w-4 h-4 inline-block" data-lucide="check-circle"></i>';
+        nextBtn.className = "btn btn-primary w-full shadow-xl font-black text-white bg-emerald-600 border-2 border-emerald-700 text-base py-3.5 hover:bg-emerald-500";
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        return;
+    }
+
+    // Modo C: Creación Normal de Viaje
     if (n === 0) {
         prevBtn.style.display = "none";
         nextBtn.className = "btn btn-primary w-full shadow-xl font-black text-white bg-[#1E40AF] border-2 border-[#1E3A8A] text-base py-3.5";
@@ -528,19 +646,16 @@ function updateNavigation(n) {
         const condSig = document.getElementById('signatureCanvasConductor');
         const isSigned = condSig ? condSig.getAttribute('data-signed') === 'true' : false;
         const rsk = updateRisk();
+        const gerSig = document.getElementById('signatureCanvasGerencia');
+        const isGerSigned = gerSig ? gerSig.getAttribute('data-signed') === 'true' : false;
 
-        if (isSigned) {
-            if (rsk.score > 15) {
-                nextBtn.innerHTML = 'Guardar y Proceder a Autorización HSE <i class="ml-2 w-4 h-4 inline-block" data-lucide="shield-check"></i>';
-            } else {
-                nextBtn.innerHTML = 'Registrar y Finalizar Despacho <i class="ml-2 w-4 h-4 inline-block" data-lucide="save"></i>';
-            }
+        if (!isSigned) {
+            nextBtn.innerHTML = 'Firma de Conductor Requerida <i class="ml-2 w-4 h-4 inline-block" data-lucide="pen-tool"></i>';
+        } else if (rsk.score > 15 && !isGerSigned) {
+            nextBtn.innerHTML = 'Firma HSEQ Requerida <i class="ml-2 w-4 h-4 inline-block" data-lucide="shield-alert"></i>';
         } else {
-            nextBtn.innerHTML = 'Firma Requerida para Despachar <i class="ml-2 w-4 h-4 inline-block" data-lucide="pen-tool"></i>';
+            nextBtn.innerHTML = 'Registrar y Despachar Viaje <i class="ml-2 w-4 h-4 inline-block" data-lucide="save"></i>';
         }
-    } else if (n === 0 && currentTripId && parseFloat(document.getElementById('kmLlegada')?.value) > 0) {
-        nextBtn.innerHTML = 'Cerrar Viaje con KM Final <i class="ml-2 w-4 h-4 inline-block" data-lucide="check-circle"></i>';
-        nextBtn.classList.add('!bg-emerald-600', '!border-emerald-700');
     } else {
         nextBtn.innerHTML = 'Siguiente <i class="ml-2 w-4 h-4 inline-block" data-lucide="arrow-right"></i>';
     }
@@ -711,16 +826,38 @@ function updateRisk() {
     let levelText = "RIESGO BAJO (AUTORIZACIÓN NORMAL)";
     let levelClass = "bg-emerald-50 text-emerald-700 border-emerald-300";
 
+    const labelGerencia = document.getElementById('labelFirmaGerencia');
+    const autoBadge = document.getElementById('autoApprovalBadge');
+    const boxGerencia = document.getElementById('boxFirmaGerencia');
+    const f3Fecha = document.getElementById('firma3Fecha');
+    const gerCanvas = document.getElementById('signatureCanvasGerencia');
+    const isGerSigned = gerCanvas ? gerCanvas.getAttribute('data-signed') === 'true' : false;
+
     if (score > 23) {
         levelText = "RIESGO ALTO (AUTORIZACIÓN GERENCIA REQUERIDA)";
         levelClass = "bg-red-50 text-red-700 border-red-300";
         if (warningEl) warningEl.classList.remove('hidden');
+
+        if (autoBadge) { autoBadge.classList.add('hidden'); autoBadge.classList.remove('flex'); }
+        if (boxGerencia) boxGerencia.classList.remove('opacity-75');
+        if (labelGerencia) labelGerencia.innerText = '🚨 Firma Obligatoria: Autorización Gerencia / HSEQ (Riesgo Alto)';
+        if (f3Fecha && !isGerSigned) f3Fecha.innerText = 'Requerida Autorización Gerencial';
     } else if (score > 15) {
         levelText = "RIESGO MEDIO (VISTO BUENO HSEQ OBLIGATORIO)";
         levelClass = "bg-amber-50 text-amber-700 border-amber-300";
         if (warningEl) warningEl.classList.add('hidden');
+
+        if (autoBadge) { autoBadge.classList.add('hidden'); autoBadge.classList.remove('flex'); }
+        if (boxGerencia) boxGerencia.classList.remove('opacity-75');
+        if (labelGerencia) labelGerencia.innerText = 'Firma Obligatoria: Visto Bueno HSEQ (Riesgo Medio)';
+        if (f3Fecha && !isGerSigned) f3Fecha.innerText = 'Requerido Visto Bueno HSEQ';
     } else {
         if (warningEl) warningEl.classList.add('hidden');
+
+        if (autoBadge) { autoBadge.classList.remove('hidden'); autoBadge.classList.add('flex'); }
+        if (boxGerencia) boxGerencia.classList.add('opacity-75');
+        if (labelGerencia) labelGerencia.innerText = 'Firma Opcional: HSE / Gerencia (Autorización Automática)';
+        if (f3Fecha && !isGerSigned) f3Fecha.innerText = 'Auto-Aprobado (Riesgo ≤ 15)';
     }
 
     if (levelEl) {
@@ -889,10 +1026,84 @@ function clearSignature(id) {
 }
 
 // ============================================================
+// FINALIZACIÓN DE VIAJE EN CURSO (CIERRE DE ODÓMETRO & HORARIO)
+// ============================================================
+async function finalizeInCourseTrip() {
+    if (!currentTripId) {
+        TS.toastError("No se ha identificado el viaje en curso.");
+        return;
+    }
+
+    const kmLlegada = parseFloat(document.getElementById('kmLlegada')?.value);
+    const kmSalida = parseFloat(document.getElementById('kmSalida')?.value);
+    const horaLlegada = (document.getElementById('horaLlegada')?.value || '').trim();
+
+    if (isNaN(kmLlegada) || kmLlegada <= 0) {
+        TS.toastWarning("Por favor ingresa el Kilometraje Final (Odómetro de Llegada).");
+        document.getElementById('kmLlegada')?.focus();
+        return;
+    }
+
+    if (!isNaN(kmSalida) && kmLlegada < kmSalida) {
+        TS.toastWarning(`El kilometraje final (${kmLlegada} km) no puede ser menor al inicial (${kmSalida} km).`);
+        document.getElementById('kmLlegada')?.focus();
+        return;
+    }
+
+    const nextBtn = document.getElementById('nextBtn');
+    if (nextBtn) {
+        nextBtn.disabled = true;
+        nextBtn.innerHTML = 'Finalizando viaje en Railway... <i class="animate-spin w-4 h-4 ml-2 inline-block" data-lucide="loader-2"></i>';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    try {
+        const now = new Date();
+        const finalHora = horaLlegada || `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+        const updateData = {
+            kmLlegada: kmLlegada,
+            horaLlegada: finalHora,
+            fechaLlegadaReal: now.toISOString(),
+            gpsLlegada: gpsData.llegada || null,
+            estado: "Finalizado"
+        };
+
+        const updated = await updateViaje(currentTripId, updateData);
+        TS.toastSuccess("¡Viaje finalizado y certificado exitosamente en Railway!");
+
+        // Auto-generar PDF oficial finalizado
+        try {
+            await generatePDF(updated);
+        } catch (pdfErr) {
+            console.warn("Aviso generando PDF final:", pdfErr);
+        }
+
+        // Cargar inmediatamente en modo Finalizado (lectura protegida)
+        await editTrip(currentTripId);
+    } catch (err) {
+        console.error("Error al finalizar viaje:", err);
+        TS.toastError("Error al finalizar viaje: " + err.message);
+    } finally {
+        if (nextBtn) nextBtn.disabled = false;
+    }
+}
+
+// ============================================================
 // ENVÍO, GUARDADO Y AUTORIZACIÓN (100% POSTGRESQL / RAILWAY)
 // ============================================================
 async function handleSubmit(e) {
     if (e && e.preventDefault) e.preventDefault();
+
+    if (currentTripIsFinalizado) {
+        TS.toastInfo("Este viaje ya se encuentra finalizado y certificado.");
+        return;
+    }
+
+    if (currentTripIsEnCurso) {
+        await finalizeInCourseTrip();
+        return;
+    }
 
     const getVal = (id) => (document.getElementById(id)?.value || '').trim();
     const getCheck = (id) => document.getElementById(id)?.checked || false;
@@ -1241,33 +1452,216 @@ window.editTrip = async function(id) {
 
         currentTripId = id;
         const setVal = (fid, val) => { if (document.getElementById(fid)) document.getElementById(fid).value = val ?? ''; };
+        const setCheck = (fid, val) => { if (document.getElementById(fid)) document.getElementById(fid).checked = (val === true || val === 'true'); };
 
+        // 1. Datos Generales del Trayecto y Odómetro
         setVal('fecha', trip.fecha_salida ? trip.fecha_salida.split('T')[0] : '');
         setVal('horaSalida', trip.hora_salida);
+        setVal('horaLlegada', trip.hora_llegada || '');
         setVal('origen', trip.origen);
         setVal('origenDivipola', trip.origen_divipola);
         setVal('destino', trip.destino);
         setVal('destinoDivipola', trip.destino_divipola);
         setVal('kmSalida', trip.km_salida);
-        setVal('kmLlegada', trip.km_llegada);
+        setVal('distanciaEstimada', trip.distancia_km);
+        setVal('kmLlegada', trip.km_llegada || '');
+
+        // 2. Datos del Vehículo
         setVal('vPlaca', trip.vehiculo_placa);
         setVal('vModelo', trip.vehiculo_modelo);
         setVal('vColor', trip.vehiculo_color);
         setVal('vTipo', trip.vehiculo_tipo);
         setVal('vEmpresa', trip.vehiculo_empresa);
+
+        // 3. Datos del Conductor
         setVal('cNombre', trip.conductor_nombre);
         setVal('cLicencia', trip.conductor_licencia);
         setVal('cCat', trip.conductor_categoria);
-        setVal('cVence', trip.conductor_vencimiento);
+        setVal('cVence', trip.conductor_vencimiento ? trip.conductor_vencimiento.split('T')[0] : '');
         setVal('cTelefono', trip.conductor_telefono);
+
+        // 4. Checklists Pre-Viaje (Resolución 40595 / PESV)
+        const previaje = trip.previaje || {};
+        setCheck('cp_riesgos', previaje.riesgos ?? true);
+        setCheck('cp_personal', previaje.personal ?? true);
+        setCheck('cp_inspeccion', previaje.inspeccion ?? true);
+        setCheck('cp_cinturon', previaje.cinturon ?? true);
+
+        // 5. Test de Fatiga y Aptitud Psicofísica
+        const fatiga = trip.fatiga || {};
+        setCheck('tf_sustancias', fatiga.sustancias ?? true);
+        setCheck('tf_descanso', fatiga.descanso ?? true);
+        setCheck('tf_condiciones', fatiga.condiciones ?? true);
+        setCheck('tf_celular', fatiga.celular ?? true);
+        setVal('alcoholimetriaValor', fatiga.alcoholimetria || '');
+
+        // 6. Control y Medio de Reporte
+        const control = trip.control || {};
+        if (control.dias) {
+            const rDia = document.querySelector(`input[name="diasTrabajados"][value="${control.dias}"]`);
+            if (rDia) rDia.checked = true;
+        }
+        setVal('fechaRHA', control.fechaRHA || '');
+        if (trip.medio) {
+            const rMedio = document.querySelector(`input[name="medio"][value="${trip.medio}"]`);
+            if (rMedio) rMedio.checked = true;
+        }
+
+        // 7. Matriz de Riesgo STE-F-010
+        const rInputs = trip.risk_inputs || trip.riskInputs || {};
+        ['rDistancia', 'rClima', 'rVehiculos', 'rVia', 'rCom', 'rFatiga', 'rHora'].forEach(k => {
+            if (rInputs[k] != null) {
+                const rInput = document.querySelector(`input[name="${k}"][value="${rInputs[k]}"]`);
+                if (rInput) rInput.checked = true;
+            }
+        });
+
+        // 8. Puntos de Control en Ruta
+        const pcContainer = document.getElementById('puntosControlContainer');
+        if (pcContainer) {
+            pcContainer.innerHTML = '';
+            const points = trip.puntos_control || trip.puntosControl || [];
+            if (Array.isArray(points) && points.length > 0) {
+                points.forEach((pt, idx) => {
+                    const div = document.createElement('div');
+                    div.className = "p-3 bg-white rounded-xl flex items-center gap-3 border-2 border-slate-300 shadow-sm transition-all";
+                    div.innerHTML = `
+                        <span class="font-black text-slate-900 w-6 text-center index-number">${idx + 1}</span>
+                        <input type="text" name="pc_lugar[]" list="divipolaList" value="${pt.lugar || ''}" placeholder="Lugar o punto DIVIPOLA" class="input-moderno flex-1 text-xs">
+                        <input type="time" name="pc_hora[]" value="${pt.hora || ''}" class="input-moderno !w-auto !px-2 text-xs">
+                        <button type="button" onclick="removeControlPoint(this)" class="text-red-600 hover:bg-red-50 p-2 rounded-xl transition-colors" title="Eliminar"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    `;
+                    pcContainer.appendChild(div);
+                });
+            }
+        }
+
+        // 9. Renderizar Firmas Preexistentes en los Canvas
+        const sigs = trip.signatures || {};
+        if (sigs.conductor) {
+            renderSignatureOnCanvas('signatureCanvasConductor', sigs.conductor);
+            const f1 = document.getElementById('firma1Fecha');
+            if (f1) f1.innerText = sigs.conductor_fecha ? `Firmado ${new Date(sigs.conductor_fecha).toLocaleDateString('es-CO')}` : 'Firmado';
+        }
+        if (sigs.gerencia || sigs.hse) {
+            renderSignatureOnCanvas('signatureCanvasGerencia', sigs.gerencia || sigs.hse);
+            const f3 = document.getElementById('firma3Fecha');
+            if (f3) f3.innerText = (sigs.gerencia_fecha || sigs.hse_fecha) ? `Autorizado ${new Date(sigs.gerencia_fecha || sigs.hse_fecha).toLocaleDateString('es-CO')}` : 'Autorizado';
+        }
+
+        // 10. Evaluar Ciclo de Vida: Finalizado vs En Curso
+        const isFinal = trip.estado === 'Finalizado' || (trip.km_llegada && parseFloat(trip.km_llegada) > 0);
+        const statusBanner = document.getElementById('tripStatusBanner');
+        const statusIcon = document.getElementById('tripStatusIcon');
+        const statusTitle = document.getElementById('tripStatusTitle');
+        const statusSubtitle = document.getElementById('tripStatusSubtitle');
+        const statusActions = document.getElementById('tripStatusActions');
+
+        if (isFinal) {
+            currentTripIsFinalizado = true;
+            currentTripIsEnCurso = false;
+
+            // Bloquear 100% de los campos en modo auditoría (solo lectura)
+            setFormReadOnly(true);
+
+            if (statusBanner) {
+                statusBanner.className = "mb-4 p-4 rounded-2xl border-2 shadow-sm animate-fadeIn bg-emerald-50/90 border-emerald-300 text-emerald-950";
+                if (statusIcon) {
+                    statusIcon.className = "p-2.5 rounded-xl bg-emerald-600 text-white shadow-sm flex items-center justify-center";
+                    statusIcon.innerHTML = `<i data-lucide="shield-check" class="w-5 h-5"></i>`;
+                }
+                if (statusTitle) statusTitle.innerText = "🔒 VIAJE FINALIZADO Y AUDITADO (STE-F-010)";
+                if (statusSubtitle) statusSubtitle.innerText = `Vehículo: ${trip.vehiculo_placa || 'N/A'} · Conductor: ${trip.conductor_nombre || 'N/A'} · Odómetro Final: ${trip.km_llegada} km · Certificado en Railway`;
+                if (statusActions) {
+                    statusActions.innerHTML = `
+                        <button type="button" onclick="exportTripPDF('${trip.id}')" class="px-3 py-1.5 bg-[#1E40AF] text-white rounded-xl font-bold text-xs shadow-sm hover:bg-[#1D4ED8] flex items-center gap-1.5">
+                            <i data-lucide="file-text" class="w-3.5 h-3.5"></i> PDF Oficial
+                        </button>
+                        <button type="button" onclick="resetFormToNewTrip()" class="px-3 py-1.5 bg-white text-slate-800 border border-slate-300 rounded-xl font-bold text-xs shadow-sm hover:bg-slate-50 flex items-center gap-1.5">
+                            <i data-lucide="plus-circle" class="w-3.5 h-3.5 text-emerald-600"></i> Nuevo Viaje
+                        </button>
+                    `;
+                }
+                statusBanner.classList.remove('hidden');
+            }
+            TS.toastInfo(`Viaje finalizado ${trip.origen} → ${trip.destino} cargado en modo auditoría.`);
+        } else {
+            currentTripIsFinalizado = false;
+            currentTripIsEnCurso = true;
+
+            // Bloquear datos iniciales pero habilitar KM de llegada y Hora
+            setFormReadOnly(true, { except: ['kmLlegada', 'horaLlegada'] });
+
+            // Autocompletar hora de llegada con la hora actual si no la tiene
+            const hLlegadaInput = document.getElementById('horaLlegada');
+            if (hLlegadaInput && !hLlegadaInput.value) {
+                const now = new Date();
+                hLlegadaInput.value = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            }
+
+            if (statusBanner) {
+                statusBanner.className = "mb-4 p-4 rounded-2xl border-2 shadow-sm animate-fadeIn bg-amber-50/90 border-amber-300 text-amber-950";
+                if (statusIcon) {
+                    statusIcon.className = "p-2.5 rounded-xl bg-amber-500 text-white shadow-sm flex items-center justify-center";
+                    statusIcon.innerHTML = `<i data-lucide="truck" class="w-5 h-5"></i>`;
+                }
+                if (statusTitle) statusTitle.innerText = "🚗 VIAJE EN CURSO · Despacho Activo";
+                if (statusSubtitle) statusSubtitle.innerText = `Vehículo ${trip.vehiculo_placa || ''} en ruta desde ${trip.origen || ''}. Registre el Kilometraje Final para finalizar y cerrar el viaje.`;
+                if (statusActions) {
+                    statusActions.innerHTML = `
+                        <button type="button" onclick="resetFormToNewTrip()" class="px-3 py-1.5 bg-white text-slate-800 border border-slate-300 rounded-xl font-bold text-xs shadow-sm hover:bg-slate-50 flex items-center gap-1.5">
+                            <i data-lucide="plus" class="w-3.5 h-3.5 text-blue-600"></i> Nuevo Viaje
+                        </button>
+                    `;
+                }
+                statusBanner.classList.remove('hidden');
+            }
+
+            // Enfocar campo de KM final para comodidad táctil en móviles
+            setTimeout(() => {
+                document.getElementById('kmLlegada')?.focus();
+            }, 300);
+
+            TS.toastWarning(`Viaje en curso: Ingrese el KM final de llegada para certificar el cierre.`);
+        }
 
         showStep(0);
         updateRisk();
-        TS.toastInfo(`Viaje ${trip.origen} cargado para edición o cierre de odómetro.`);
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     } catch (e) {
         console.error("Error al cargar viaje:", e);
         TS.toastError("Error al cargar viaje: " + e.message);
     }
+};
+
+window.resetFormToNewTrip = function() {
+    currentTripId = null;
+    currentTripIsFinalizado = false;
+    currentTripIsEnCurso = false;
+
+    const statusBanner = document.getElementById('tripStatusBanner');
+    if (statusBanner) statusBanner.classList.add('hidden');
+
+    setFormReadOnly(false);
+    document.getElementById("travelForm")?.reset();
+
+    const pcContainer = document.getElementById('puntosControlContainer');
+    if (pcContainer) pcContainer.innerHTML = '';
+
+    ['signatureCanvasConductor', 'signatureCanvasGerencia', 'signatureCanvasHSE_Modal'].forEach(clearSignature);
+
+    const fechaInput = document.getElementById('fecha');
+    if (fechaInput) fechaInput.value = new Date().toISOString().split('T')[0];
+    const horaSalidaInput = document.getElementById('horaSalida');
+    if (horaSalidaInput) {
+        const now = new Date();
+        horaSalidaInput.value = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    }
+
+    initAuth().catch(console.warn);
+    showStep(0);
+    updateRisk();
+    TS.toastSuccess("Formulario reiniciado. Listo para registrar nuevo viaje STE-F-010.");
 };
 
 window.exportTripPDF = async function(id) {
@@ -1323,15 +1717,28 @@ window.openUserPanel = async function() {
 
     const prof = await getCurrentProfile();
     const user = await getCurrentUser();
+    const isAdm = await isAdmin();
 
     content.innerHTML = `
-        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200">
-            <p class="font-black text-slate-900 text-sm">${prof?.nombre || 'Usuario Conductor'}</p>
-            <p class="text-xs text-slate-500 font-medium">${user?.email || 'portal@transservices.com'}</p>
-            <span class="inline-block mt-2 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-800">
-                Rol: ${prof?.rol?.toUpperCase() || 'CONDUCTOR'}
+        <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+            <div>
+                <p class="font-black text-slate-900 text-sm">${prof?.nombre || (isAdm ? 'Administrador General' : 'Usuario Conductor')}</p>
+                <p class="text-xs text-slate-500 font-medium">${user?.email || 'portal@transservices.com'}</p>
+            </div>
+            <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black ${isAdm ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-blue-100 text-blue-800'}">
+                ROL: ${isAdm ? 'ADMINISTRADOR / AUDITOR' : (prof?.rol?.toUpperCase() || 'CONDUCTOR')}
             </span>
         </div>
+        ${isAdm ? `
+        <div class="space-y-2">
+            <a href="/dashboard" class="w-full py-2.5 bg-[#1E40AF] text-white font-bold rounded-xl hover:bg-[#1D4ED8] transition-colors text-xs flex items-center justify-center gap-1.5 shadow-sm">
+                <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Ir al Panel Central ERP
+            </a>
+            <a href="/portal-conductor" class="w-full py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-colors text-xs flex items-center justify-center gap-1.5">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i> Volver a Portal Conductor
+            </a>
+        </div>
+        ` : ''}
         <button type="button" onclick="signOut()" class="w-full py-2.5 bg-red-50 text-red-600 font-bold rounded-xl border border-red-200 hover:bg-red-100 transition-colors text-xs flex items-center justify-center gap-1">
             <i data-lucide="log-out" class="w-4 h-4"></i> Cerrar Sesión
         </button>
@@ -1406,4 +1813,6 @@ window.clearSignature = clearSignature;
 window.resizeCanvas = resizeCanvas;
 window.setupCanvas = setupCanvas;
 window.handleSubmit = handleSubmit;
+window.finalizeInCourseTrip = finalizeInCourseTrip;
+window.resetFormToNewTrip = resetFormToNewTrip;
 window.signOut = signOut;

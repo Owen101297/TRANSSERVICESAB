@@ -128,7 +128,8 @@ export async function getCurrentUser() {
                     email: parsed.email || `${parsed.documento}@transservicesab.com`,
                     nombre: parsed.nombre || "Conductor",
                     documento: parsed.documento || "",
-                    rol: "conductor",
+                    rol: parsed.rol || "conductor",
+                    placa: parsed.placa || null
                 };
             }
         }
@@ -138,7 +139,9 @@ export async function getCurrentUser() {
         const res = await fetch('/api/auth/me');
         if (res.ok) {
             const data = await res.json();
-            return data.user || null;
+            if (data?.authenticated && data.user) {
+                return data.user;
+            }
         }
     } catch (e) { }
     return null;

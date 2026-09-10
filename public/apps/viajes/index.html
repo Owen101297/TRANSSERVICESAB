@@ -5,11 +5,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Plan de Gerenciamiento del Viaje · Trans Services A&B</title>
-    <link rel="icon" type="image/png" href="../../favicon.png">
+    <!-- Favicon & PWA Icons Oficiales -->
+    <link rel="icon" type="image/png" sizes="96x96" href="assets/favicon-96x96.png">
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+    <link rel="shortcut icon" href="assets/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+    <link rel="manifest" href="assets/site.webmanifest">
 
     <!-- Tailwind CSS (Diseño Moderno y Responsivo) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="css/theme.css?v=2.0.2">
+    <link rel="stylesheet" href="css/theme.css?v=2.0.3">
 
     <!-- Iconos Lucide -->
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -21,7 +26,7 @@
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
     <!-- Notificaciones Toast Estilo Apple Dynamic Island -->
-    <script src="js/toast.js?v=2.0.2"></script>
+    <script src="js/toast.js?v=2.0.3"></script>
 
     <!-- Limpieza automática de Service Workers y Cachés obsoletos en móviles -->
     <script>
@@ -76,8 +81,40 @@
         </div>
     </header>
 
+    <!-- Banner Modo Administrador / Auditoría (Apple Glassmorphism) -->
+    <div id="adminModeBanner" class="hidden bg-slate-900 text-white px-4 py-2.5 shadow-md border-b border-slate-700 animate-fadeIn">
+        <div class="max-w-xl mx-auto flex items-center justify-between gap-3 text-xs">
+            <div class="flex items-center gap-2 font-bold">
+                <span class="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30 text-[10px] uppercase tracking-wider font-black">Admin / Auditor</span>
+                <span class="text-slate-200 hidden sm:inline">Modo Supervisión y Control</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button type="button" onclick="toggleHistory()" class="px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-white font-bold transition-all text-[11px] flex items-center gap-1 border border-white/10">
+                    <i data-lucide="history" class="w-3.5 h-3.5 text-blue-400"></i> Historial Flota
+                </button>
+                <a href="/portal-conductor" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 rounded-lg text-white font-bold transition-all text-[11px] flex items-center gap-1">
+                    <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Salir
+                </a>
+            </div>
+        </div>
+    </div>
+
     <!-- Contenido Principal -->
     <main class="max-w-xl mx-auto px-4 pt-4 pb-8">
+
+        <!-- Banner Dinámico de Estado del Viaje (En Curso / Finalizado) -->
+        <div id="tripStatusBanner" class="hidden mb-4 p-4 rounded-2xl border-2 shadow-sm animate-fadeIn">
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex items-start gap-3">
+                    <div id="tripStatusIcon" class="p-2 rounded-xl mt-0.5"></div>
+                    <div>
+                        <h3 id="tripStatusTitle" class="text-sm font-black tracking-tight"></h3>
+                        <p id="tripStatusSubtitle" class="text-xs font-medium mt-0.5 leading-relaxed"></p>
+                    </div>
+                </div>
+                <div id="tripStatusActions" class="flex flex-col gap-1.5 flex-shrink-0"></div>
+            </div>
+        </div>
 
         <!-- Indicador de Paso Actual -->
         <div class="mb-4 flex items-center justify-between text-xs font-extrabold text-slate-900 px-1">
@@ -139,7 +176,7 @@
                                 </div>
                                 <div class="input-group">
                                     <label for="horaLlegada" class="label">Hora de Llegada</label>
-                                    <input type="time" id="horaLlegada" readonly class="input-moderno bg-slate-100" placeholder="Automática al cerrar">
+                                    <input type="time" id="horaLlegada" class="input-moderno" placeholder="Al finalizar">
                                 </div>
                             </div>
 
@@ -759,8 +796,8 @@
                                 </div>
                             </div>
                             <div id="containerFirmaGerencia">
-                                <label class="label">Firma Autorización: HSE / Gerencia</label>
-                                <div class="border-2 border-slate-300 rounded-xl p-3 bg-white shadow-sm relative">
+                                <label id="labelFirmaGerencia" class="label">Firma Autorización: HSE / Gerencia</label>
+                                <div id="boxFirmaGerencia" class="border-2 border-slate-300 rounded-xl p-3 bg-white shadow-sm relative transition-all">
                                     <canvas id="signatureCanvasGerencia"
                                         class="w-full h-36 border-2 border-slate-200 rounded-lg bg-slate-50 touch-none block"></canvas>
                                     <div class="flex justify-between items-center mt-2">
@@ -768,6 +805,11 @@
                                         <button type="button" onclick="clearSignature('signatureCanvasGerencia')"
                                             class="text-xs text-[#1E40AF] font-extrabold hover:underline">Limpiar</button>
                                     </div>
+                                </div>
+                                <!-- Badge de Aprobación Automática en Riesgo Bajo -->
+                                <div id="autoApprovalBadge" class="hidden p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-xs text-emerald-900 font-bold items-center gap-2 mt-2">
+                                    <i data-lucide="check-circle" class="w-4 h-4 text-emerald-600 flex-shrink-0"></i>
+                                    <span>Autorización Automática: Riesgo Bajo (≤ 15 pts · Formato STE-F-010). No requiere firma de Gerencia.</span>
                                 </div>
                             </div>
                         </div>
@@ -988,7 +1030,7 @@
         <p class="text-slate-500">NIT 900778421-1 · Formato STE-F-010 · SISI-PESV MinTransporte</p>
     </footer>
 
-    <script type="module" src="js/app.js?v=2.0.2"></script>
+    <script type="module" src="js/app.js?v=2.0.3"></script>
 </body>
 
 </html>
