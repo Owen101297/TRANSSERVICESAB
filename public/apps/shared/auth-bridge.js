@@ -61,6 +61,43 @@
     }
   }
 
+  // Función universal para normalizar Viewport, eliminar auto-zoom y proteger Safe Area
+  function enforceMobileOptimization() {
+    try {
+      // 1. Normalizar meta viewport para iOS PWA y Android
+      let metaVp = document.querySelector('meta[name="viewport"]');
+      if (!metaVp) {
+        metaVp = document.createElement('meta');
+        metaVp.name = 'viewport';
+        document.head.appendChild(metaVp);
+      }
+      metaVp.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
+
+      // 2. Inyectar regla anti-zoom (16px) y anti-doble tap
+      if (!document.getElementById('ts-mobile-anti-zoom')) {
+        const style = document.createElement('style');
+        style.id = 'ts-mobile-anti-zoom';
+        style.textContent = `
+          @media screen and (max-width: 768px) {
+            input, select, textarea {
+              font-size: 16px !important;
+            }
+          }
+          html, body, button, a, label {
+            touch-action: manipulation;
+          }
+          html, body {
+            overflow-x: hidden;
+            max-width: 100vw;
+          }
+        `;
+        document.head.appendChild(style);
+      }
+    } catch (e) {
+      console.warn('Error al aplicar optimización móvil:', e);
+    }
+  }
+
   // 3. Inyectar Barra Superior Unificada con Logo de Trans Services y "Volver al Portal"
   function injectTopBar() {
     // Si la app ya cuenta con su propio header o navbar con enlace al portal, no duplicar
@@ -92,30 +129,34 @@
       -webkit-backdrop-filter: blur(16px);
       border-bottom: 1px solid #E2E8F0;
       padding: 10px 16px;
+      padding-top: max(10px, env(safe-area-inset-top, 0px));
       display: flex;
       align-items: center;
       justify-content: space-between;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       color: #0F172A;
       box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      box-sizing: border-box;
+      max-width: 100vw;
+      overflow-x: hidden;
     `;
 
     const nombre = session ? session.nombre : 'Conductor';
     const placa = session && session.placa ? session.placa : 'VEHÍCULO';
 
     bar.innerHTML = `
-      <div style="display:flex; align-items:center; gap:12px;">
-        <a href="/portal-conductor" style="display:inline-flex; align-items:center; gap:6px; background:#F1F5F9; color:#0F172A; padding:6px 12px; border-radius:10px; font-size:12px; font-weight:700; text-decoration:none; border:1px solid #E2E8F0; transition:all 0.15s ease;">
+      <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+        <a href="/portal-conductor" style="display:inline-flex; align-items:center; gap:5px; background:#F1F5F9; color:#0F172A; padding:6px 10px; border-radius:10px; font-size:12px; font-weight:700; text-decoration:none; border:1px solid #E2E8F0; transition:all 0.15s ease; flex-shrink:0;">
           <span style="font-size:14px; color:#1E40AF; font-weight:bold;">←</span> <span>Portal</span>
         </a>
-        <div style="display:flex; flex-direction:column;">
-          <span style="font-size:13px; font-weight:700; color:#0F172A; line-height:1.2;">${nombre}</span>
+        <div style="display:flex; flex-direction:column; min-width:0;">
+          <span style="font-size:13px; font-weight:700; color:#0F172A; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px;">${nombre}</span>
           <span style="font-size:10px; color:#64748B; font-family:ui-monospace, monospace;">C.C. ${session ? session.documento : '—'}</span>
         </div>
       </div>
-      <div style="display:flex; align-items:center; gap:8px;">
-        ${window.ADMIN_AUDIT_MODE ? '<span style="background:#FAF5FF; color:#7E22CE; font-weight:800; font-size:10px; padding:3px 8px; border-radius:6px; border:1px solid #E9D5FF; letter-spacing:0.5px;">ADMIN AUDITOR</span>' : ''}
-        <span style="background:#EFF6FF; color:#1E40AF; font-family:ui-monospace, monospace; font-weight:800; font-size:12px; padding:4px 10px; border-radius:8px; letter-spacing:0.5px; border:1px solid #BFDBFE;">
+      <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+        ${window.ADMIN_AUDIT_MODE ? '<span style="background:#FAF5FF; color:#7E22CE; font-weight:800; font-size:10px; padding:3px 6px; border-radius:6px; border:1px solid #E9D5FF; letter-spacing:0.5px;">ADMIN</span>' : ''}
+        <span style="background:#EFF6FF; color:#1E40AF; font-family:ui-monospace, monospace; font-weight:800; font-size:12px; padding:4px 8px; border-radius:8px; letter-spacing:0.5px; border:1px solid #BFDBFE;">
           ${placa}
         </span>
       </div>
@@ -165,8 +206,10 @@
   }
 
   // Ejecutar cuando el DOM esté listo
+  enforceMobileOptimization();
   if (document.readyState === 'loading') {
     window.addEventListener('DOMContentLoaded', () => {
+      enforceMobileOptimization();
       injectTopBar();
       autoFillFields();
     });

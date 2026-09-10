@@ -365,7 +365,7 @@ export default function PortalConductorMobilePage() {
       <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_50%_0%,rgba(0,122,255,0.03),transparent_50%),radial-gradient(circle_at_100%_20%,rgba(245,158,11,0.02),transparent_40%)]" />
 
       {/* Cabecera Estilo Apple Glass */}
-      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-2xl border-b border-slate-200/80 px-4 py-3 flex items-center justify-between shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-2xl border-b border-slate-200/80 px-4 py-3 pt-[max(12px,env(safe-area-inset-top))] flex items-center justify-between shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
         <div className="flex items-center gap-3">
           <div className="h-7 max-w-[110px] shrink-0 flex items-center">
             <img

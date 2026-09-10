@@ -37,6 +37,9 @@ html {
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   font-size: 14px;
+  overflow-x: hidden;
+  max-width: 100vw;
+  touch-action: manipulation;
 }
 
 body {
@@ -46,6 +49,9 @@ body {
   user-select: none;
   background-color: var(--color-bg);
   color: var(--color-text);
+  overflow-x: hidden;
+  max-width: 100vw;
+  touch-action: manipulation;
 }
 
 input, textarea, select {
@@ -53,6 +59,14 @@ input, textarea, select {
   font-size: inherit;
   -webkit-user-select: auto;
   user-select: auto;
+  touch-action: manipulation;
+}
+
+/* Regla Universal de Cero Zoom en Móviles (iOS Safari & Android Chrome) */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
 }
 
 /* ── CONTENEDOR & SQUIRCLE UTILITIES ── */
@@ -60,12 +74,13 @@ input, textarea, select {
 .squircle-sm { border-radius: 14px; }
 .squircle-lg { border-radius: 28px; }
 
-/* ── BARRA FLOTANTE / GLASSMORPHISM ── */
+/* ── BARRA FLOTANTE / GLASSMORPHISM (CON SOPORTE SAFE AREA NOTCH & HOME BAR) ── */
 .glass-nav {
   background: rgba(255, 255, 255, 0.88);
   -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  padding-top: max(10px, env(safe-area-inset-top, 0px));
 }
 
 .glass-floating {
@@ -74,6 +89,7 @@ input, textarea, select {
   backdrop-filter: blur(24px);
   border: 1px solid rgba(226, 232, 240, 0.85);
   box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.12), 0 0 1px 1px rgba(0, 0, 0, 0.05);
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
 }
 
 /* ── SOMBRAS APPLE ── */
@@ -86,6 +102,7 @@ button, a {
   cursor: pointer;
   text-decoration: none;
   color: inherit;
+  touch-action: manipulation;
 }
 
 button:active, a:active {

@@ -18,11 +18,18 @@
   --apple-radius: 24px;
 }
 
-body {
+html, body {
   font-family: var(--apple-font);
   background-color: #F8FAFC;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  max-width: 100vw;
+  touch-action: manipulation;
+}
+
+button, a, label {
+  touch-action: manipulation;
 }
 
 /* Tarjetas con curvas suaves y sombras difusas estilo iOS */
@@ -47,9 +54,21 @@ textarea {
   border-radius: 14px;
   border: 1.5px solid #E2E8F0;
   padding: 10px 14px;
-  font-size: 14px;
+  font-size: 16px;
   background-color: #FFFFFF;
   transition: all 0.2s ease-in-out;
+  touch-action: manipulation;
+}
+
+@media screen and (max-width: 768px) {
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
+  input[type="time"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }
 
 input:focus, select:focus, textarea:focus {
