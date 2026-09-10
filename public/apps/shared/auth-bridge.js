@@ -249,24 +249,43 @@
     }
   };
 
-  // 6. Centinela de Auto-Actualización PWA e Invalidación de Caché en Móviles
-  if (typeof window !== "undefined" && "serviceWorker" in navigator) {
-    // Al volver a la app tras usar WhatsApp, Waze o Maps:
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") {
-        navigator.serviceWorker.getRegistration().then((reg) => {
-          if (reg) reg.update().catch(() => {});
+  // 6. Saneamiento de Service Workers y Centinela de Auto-Actualización en Vivo
+  if (typeof window !== "undefined") {
+    // A. Desregistrar cualquier Service Worker en apps satélite
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        for (const reg of registrations) {
+          reg.unregister().catch(() => {});
+        }
+      });
+      if ("caches" in window) {
+        caches.keys().then((keys) => {
+          keys.forEach((k) => caches.delete(k));
         });
       }
-    });
+    }
 
-    // Cuando el nuevo Service Worker toma control en segundo plano:
-    let refreshing = false;
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (!refreshing) {
-        refreshing = true;
-        window.location.reload();
-      }
+    // B. Centinela de versión en vivo para apps móviles
+    let appBuildId = null;
+    const checkAppVersion = async () => {
+      try {
+        const res = await fetch("/api/version?_t=" + Date.now(), { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          if (!appBuildId) {
+            appBuildId = data.buildId;
+          } else if (appBuildId !== data.buildId) {
+            console.info("[App Satélite] Nueva versión detectada en servidor. Recargando...");
+            window.location.reload();
+          }
+        }
+      } catch (err) {}
+    };
+
+    checkAppVersion();
+    setInterval(checkAppVersion, 25000);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") checkAppVersion();
     });
   }
 })();

@@ -3,7 +3,7 @@
   "short_name": "Portal A&B",
   "description": "Portal móvil operativo, apertura de turnos y formatos digitales para conductores Trans Services A&B",
   "start_url": "/portal-conductor",
-  "scope": "/",
+  "scope": "/portal-conductor/",
   "display": "standalone",
   "background_color": "#F8FAFC",
   "theme_color": "#007AFF",
