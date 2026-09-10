@@ -1,0 +1,112 @@
+/**
+ * TRANS SERVICES A&B — Theme CSS (Estilo Apple iOS & Human Interface Guidelines)
+ * public/apps/viajes/css/theme.css
+ */
+
+@import url('./style.css');
+
+/* Refinamiento Estilo Apple Glassmorphism & iOS */
+:root {
+  --apple-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", sans-serif;
+  --apple-blue: #007AFF;
+  --apple-blue-hover: #0062CC;
+  --apple-green: #34C759;
+  --apple-orange: #FF9500;
+  --apple-red: #FF3B30;
+  --apple-card-bg: rgba(255, 255, 255, 0.92);
+  --apple-border: rgba(226, 232, 240, 0.85);
+  --apple-radius: 24px;
+}
+
+body {
+  font-family: var(--apple-font);
+  background-color: #F8FAFC;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Tarjetas con curvas suaves y sombras difusas estilo iOS */
+.card-apple, .form-card, section {
+  background: var(--apple-card-bg);
+  border: 1px solid var(--apple-border);
+  border-radius: var(--apple-radius);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Inputs y Selects táctiles mínimos de 44px según Apple HIG */
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+select,
+textarea {
+  min-height: 44px;
+  border-radius: 14px;
+  border: 1.5px solid #E2E8F0;
+  padding: 10px 14px;
+  font-size: 14px;
+  background-color: #FFFFFF;
+  transition: all 0.2s ease-in-out;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--apple-blue) !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+}
+
+/* Botones principales estilo iOS */
+button.btn-apple-primary,
+button[onclick*="nextPrev(1)"],
+#btnSubmit {
+  min-height: 48px;
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  background: #007AFF;
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(0, 122, 255, 0.25);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+button.btn-apple-primary:active,
+button[onclick*="nextPrev(1)"]:active,
+#btnSubmit:active {
+  transform: scale(0.97);
+  background: var(--apple-blue-hover);
+}
+
+/* Botones secundarios */
+button[onclick*="nextPrev(-1)"] {
+  min-height: 44px;
+  border-radius: 9999px;
+  font-weight: 600;
+  background: #F1F5F9;
+  color: #334155;
+  transition: all 0.2s ease;
+}
+
+button[onclick*="nextPrev(-1)"]:active {
+  transform: scale(0.97);
+  background: #E2E8F0;
+}
+
+/* Segmented Controls estilo Apple */
+.apple-tab {
+  border-radius: 9999px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748B;
+  transition: all 0.2s ease;
+}
+
+.apple-tab.active {
+  background: #FFFFFF;
+  color: #0F172A;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}

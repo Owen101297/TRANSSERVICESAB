@@ -1314,10 +1314,6 @@ window.exportHistoryExcel = function() {
 // ============================================================
 // REPORTES & PERFIL DE USUARIO
 // ============================================================
-async function initAuth() {
-    currentUser = await getCurrentUser();
-    currentProfile = await getCurrentProfile();
-}
 
 window.openUserPanel = async function() {
     const modal = document.getElementById('userPanel');

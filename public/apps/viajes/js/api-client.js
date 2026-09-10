@@ -252,49 +252,101 @@ export async function getViajeById(id) {
     return null;
 }
 
+// ============================================================
+// COLA OFFLINE Y SINCRONIZACIÓN AUTOMÁTICA EN SEGUNDO PLANO
+// ============================================================
+const OFFLINE_QUEUE_KEY = 'ts_viajes_offline_queue';
+
+function getOfflineQueue() {
+    try {
+        const raw = localStorage.getItem(OFFLINE_QUEUE_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+}
+
+function saveOfflineQueue(queue) {
+    try {
+        localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+    } catch (e) { console.warn('Error guardando cola offline:', e); }
+}
+
+export async function syncOfflineViajes() {
+    const queue = getOfflineQueue();
+    if (!queue.length) return;
+
+    console.log(`[Offline Sync] Sincronizando ${queue.length} viajes pendientes...`);
+    const remaining = [];
+
+    for (const item of queue) {
+        try {
+            const res = await fetch('/api/apps/viajes', {
+                method: item.method || 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(item.payload)
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        } catch (err) {
+            remaining.push(item);
+        }
+    }
+
+    saveOfflineQueue(remaining);
+    if (remaining.length < queue.length) {
+        if (typeof window !== 'undefined' && window.TS?.toastSuccess) {
+            window.TS.toastSuccess(`Sincronizados ${queue.length - remaining.length} viajes con Railway.`);
+        }
+    }
+}
+
+if (typeof window !== 'undefined') {
+    window.addEventListener('online', syncOfflineViajes);
+}
+
 export async function createViaje(viaje) {
+    const payload = {
+        conductorId: viaje.conductor_id || viaje.conductorId,
+        conductorNombre: viaje.conductor_nombre || viaje.conductorNombre,
+        conductorDocumento: viaje.conductor_documento || viaje.conductorDocumento || viaje.cLicencia,
+        conductorLicencia: viaje.conductor_licencia || viaje.cLicencia,
+        conductorCategoria: viaje.conductor_categoria || viaje.cCat,
+        conductorVencimiento: viaje.conductor_vencimiento || viaje.cVence,
+        conductorTelefono: viaje.conductor_telefono || viaje.cTelefono,
+        placa: viaje.vehiculo_placa || viaje.vPlaca || viaje.placa,
+        vehiculoTipo: viaje.vehiculo_tipo || viaje.vTipo,
+        vehiculoModelo: viaje.vehiculo_modelo || viaje.vModelo,
+        vehiculoColor: viaje.vehiculo_color || viaje.vColor,
+        vehiculoEmpresa: viaje.vehiculo_empresa || viaje.vEmpresa,
+        origen: viaje.origen,
+        origenDivipola: viaje.origen_divipola || viaje.origenDivipola,
+        destino: viaje.destino,
+        destinoDivipola: viaje.destino_divipola || viaje.destinoDivipola,
+        fechaSalida: viaje.fecha_salida || viaje.fecha,
+        horaSalida: viaje.hora_salida || viaje.horaSalida,
+        distanciaKm: viaje.distancia_km || viaje.distanciaEstimada,
+        duracionEstimadaHoras: viaje.duracion_estimada_horas || 2.0,
+        kmSalida: viaje.km_salida || viaje.kmSalida,
+        kmLlegada: viaje.km_llegada || viaje.kmLlegada,
+        gpsSalida: viaje.gps_salida || viaje.gpsSalida,
+        gpsLlegada: viaje.gps_llegada || viaje.gpsLlegada,
+        medio: viaje.medio || 'Celular',
+        rutograma: viaje.rutograma,
+        puntosControl: viaje.puntos_control || viaje.puntosControl || [],
+        previaje: viaje.previaje || {},
+        fatiga: viaje.fatiga || {},
+        control: viaje.control || {},
+        riskScore: viaje.risk_score || viaje.risk?.score,
+        riskLevel: viaje.risk_level || viaje.risk?.level,
+        riskInputs: viaje.risk_inputs || viaje.risk || {},
+        signatures: viaje.signatures || {},
+        estado: viaje.estado || 'en_curso',
+        observaciones: viaje.observaciones
+    };
+
     try {
         const res = await fetch('/api/apps/viajes', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                conductorId: viaje.conductor_id || viaje.conductorId,
-                conductorNombre: viaje.conductor_nombre || viaje.conductorNombre,
-                conductorDocumento: viaje.conductor_documento || viaje.conductorDocumento || viaje.cLicencia,
-                conductorLicencia: viaje.conductor_licencia || viaje.cLicencia,
-                conductorCategoria: viaje.conductor_categoria || viaje.cCat,
-                conductorVencimiento: viaje.conductor_vencimiento || viaje.cVence,
-                conductorTelefono: viaje.conductor_telefono || viaje.cTelefono,
-                placa: viaje.vehiculo_placa || viaje.vPlaca || viaje.placa,
-                vehiculoTipo: viaje.vehiculo_tipo || viaje.vTipo,
-                vehiculoModelo: viaje.vehiculo_modelo || viaje.vModelo,
-                vehiculoColor: viaje.vehiculo_color || viaje.vColor,
-                vehiculoEmpresa: viaje.vehiculo_empresa || viaje.vEmpresa,
-                origen: viaje.origen,
-                origenDivipola: viaje.origen_divipola || viaje.origenDivipola,
-                destino: viaje.destino,
-                destinoDivipola: viaje.destino_divipola || viaje.destinoDivipola,
-                fechaSalida: viaje.fecha_salida || viaje.fecha,
-                horaSalida: viaje.hora_salida || viaje.horaSalida,
-                distanciaKm: viaje.distancia_km || viaje.distanciaEstimada,
-                duracionEstimadaHoras: viaje.duracion_estimada_horas || 2.0,
-                kmSalida: viaje.km_salida || viaje.kmSalida,
-                kmLlegada: viaje.km_llegada || viaje.kmLlegada,
-                gpsSalida: viaje.gps_salida || viaje.gpsSalida,
-                gpsLlegada: viaje.gps_llegada || viaje.gpsLlegada,
-                medio: viaje.medio || 'Celular',
-                rutograma: viaje.rutograma,
-                puntosControl: viaje.puntos_control || viaje.puntosControl || [],
-                previaje: viaje.previaje || {},
-                fatiga: viaje.fatiga || {},
-                control: viaje.control || {},
-                riskScore: viaje.risk_score || viaje.risk?.score,
-                riskLevel: viaje.risk_level || viaje.risk?.level,
-                riskInputs: viaje.risk_inputs || viaje.risk || {},
-                signatures: viaje.signatures || {},
-                estado: viaje.estado || 'en_curso',
-                observaciones: viaje.observaciones
-            })
+            body: JSON.stringify(payload)
         });
 
         if (!res.ok) {
@@ -308,8 +360,26 @@ export async function createViaje(viaje) {
             alerta: data.alerta
         };
     } catch (error) {
-        console.error('Error creando viaje en Railway:', error);
-        throw error;
+        console.warn('Aviso de red al registrar viaje, guardando en cola offline:', error);
+        const queue = getOfflineQueue();
+        const offlineId = 'offline_' + Date.now();
+        queue.push({
+            id: offlineId,
+            timestamp: new Date().toISOString(),
+            method: 'POST',
+            payload
+        });
+        saveOfflineQueue(queue);
+
+        if (typeof window !== 'undefined' && window.TS?.toastWarning) {
+            window.TS.toastWarning('Sin conexión a internet: guardado en el móvil. Se sincronizará al recuperar señal.');
+        }
+
+        return {
+            id: offlineId,
+            ...payload,
+            offline: true
+        };
     }
 }
 
@@ -330,8 +400,8 @@ export async function updateViaje(id, updates) {
             ...(data.viaje || data)
         };
     } catch (error) {
-        console.error('Error actualizando viaje en Railway:', error);
-        throw error;
+        console.warn('Error de red al actualizar viaje:', error);
+        return { id, ...updates, offline: true };
     }
 }
 
