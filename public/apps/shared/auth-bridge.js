@@ -3,6 +3,13 @@
  * Gestiona la sesión unificada del conductor, la identidad de marca y la comunicación con el ERP
  */
 (function () {
+  // Suprimir advertencias de Tailwind CDN en consola
+  const _origWarn = console.warn;
+  console.warn = function (...args) {
+    if (typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return;
+    _origWarn.apply(console, args);
+  };
+
   // 1. Obtener sesión desde localStorage o parámetros de URL
   function getSession() {
     try {
@@ -56,6 +63,20 @@
 
   // 3. Inyectar Barra Superior Unificada con Logo de Trans Services y "Volver al Portal"
   function injectTopBar() {
+    // Si la app ya cuenta con su propio header o navbar con enlace al portal, no duplicar
+    const existingHeader = document.querySelector('header, nav, .glass-nav, .nav-inner');
+    if (existingHeader) {
+      if (window.ADMIN_AUDIT_MODE && !document.getElementById('ts-admin-badge')) {
+        const badge = document.createElement('span');
+        badge.id = 'ts-admin-badge';
+        badge.style.cssText = 'background:#FAF5FF; color:#7E22CE; font-weight:800; font-size:10px; padding:3px 8px; border-radius:6px; border:1px solid #E9D5FF; margin-left:8px; display:inline-block; vertical-align:middle; letter-spacing:0.5px;';
+        badge.textContent = 'ADMIN AUDITOR';
+        const targetContainer = existingHeader.querySelector('.nav-brand, .text-center, div') || existingHeader;
+        targetContainer.appendChild(badge);
+      }
+      return;
+    }
+
     if (document.getElementById('ts-sso-bar')) return;
 
     const bar = document.createElement('div');

@@ -14,6 +14,15 @@
   <link rel="stylesheet" href="../shared/app-theme.css" />
   
   <!-- CDN Scripts -->
+  <script>
+    (function() {
+      const _w = console.warn;
+      console.warn = function(...args) {
+        if (typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return;
+        _w.apply(console, args);
+      };
+    })();
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 

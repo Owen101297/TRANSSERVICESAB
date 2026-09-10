@@ -7,6 +7,15 @@
   <link rel="icon" type="image/png" href="/brand/logo.png">
   <link rel="apple-touch-icon" href="/brand/logo.png">
   <link rel="stylesheet" href="../shared/app-theme.css">
+  <script>
+    (function() {
+      const _w = console.warn;
+      console.warn = function(...args) {
+        if (typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) return;
+        _w.apply(console, args);
+      };
+    })();
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="../shared/vendor/signature_pad.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
