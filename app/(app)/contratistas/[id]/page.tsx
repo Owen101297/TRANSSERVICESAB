@@ -17,6 +17,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { EditContratistaTrigger } from "@/components/contratistas/EditContratistaTrigger";
 import { ContratistaDetailTabs } from "@/components/contratistas/ContratistaDetailTabs";
 import { evaluarAlertaContrato } from "@/lib/utils/alertas-contratos";
+import { formatFecha } from "@/lib/utils/formatters";
 
 const ESTADO_TO_STATUS: Record<EstadoContratista, "activo" | "cerrado"> = {
   activo: "activo",
@@ -102,7 +103,7 @@ export default async function ContratistaDetailPage({
             <InfoRow icon={<Mail size={15} />} label={contratista.contactoEmail || "Sin correo"} />
             <InfoRow
               icon={<Calendar size={15} />}
-              label={`Vinculado: ${new Date(contratista.fechaVinculacion).toLocaleDateString("es-CO")}`}
+              label={`Vinculado: ${formatFecha(contratista.fechaVinculacion)}`}
             />
           </div>
 

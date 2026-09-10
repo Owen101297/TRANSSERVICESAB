@@ -5,7 +5,7 @@
 // uno o más "perfiles" (Conductor, Empleado, Supervisor, HSEQ, Usuario).
 //
 // El vehículo que opera un conductor NUNCA vive aquí como campo fijo —
-// siempre se consulta la ASIGNACIÓN ACTIVA en el módulo Asignaciones.
+import { formatFecha } from "@/lib/utils/formatters";
 
 export type PerfilPersona =
   | "conductor"
@@ -162,12 +162,12 @@ export function evaluarAptitudConductor(persona: Persona): EvaluacionAptitud {
       const estadoLic = getEstadoVigenciaFecha(persona.licenciaConduccion.fechaVencimiento);
       if (estadoLic === "vencido") {
         alertas.push(
-          `Licencia de conducción (${persona.licenciaConduccion.categorias.join(", ")}) VENCIDA desde ${new Date(persona.licenciaConduccion.fechaVencimiento).toLocaleDateString("es-CO")}.`
+          `Licencia de conducción (${persona.licenciaConduccion.categorias.join(", ")}) VENCIDA desde ${formatFecha(persona.licenciaConduccion.fechaVencimiento)}.`
         );
         tieneCritico = true;
       } else if (estadoLic === "proximo") {
         alertas.push(
-          `Licencia de conducción (${persona.licenciaConduccion.categorias.join(", ")}) próxima a vencer el ${new Date(persona.licenciaConduccion.fechaVencimiento).toLocaleDateString("es-CO")}.`
+          `Licencia de conducción (${persona.licenciaConduccion.categorias.join(", ")}) próxima a vencer el ${formatFecha(persona.licenciaConduccion.fechaVencimiento)}.`
         );
         tieneAdvertencia = true;
       }
@@ -193,12 +193,12 @@ export function evaluarAptitudConductor(persona: Persona): EvaluacionAptitud {
       const estadoEMO = getEstadoVigenciaFecha(persona.examenMedico.fechaVigencia);
       if (estadoEMO === "vencido") {
         alertas.push(
-          `Examen médico periódico vencido desde ${new Date(persona.examenMedico.fechaVigencia).toLocaleDateString("es-CO")}.`
+          `Examen médico periódico vencido desde ${formatFecha(persona.examenMedico.fechaVigencia)}.`
         );
         tieneCritico = true;
       } else if (estadoEMO === "proximo") {
         alertas.push(
-          `Examen médico por vencer el ${new Date(persona.examenMedico.fechaVigencia).toLocaleDateString("es-CO")}.`
+          `Examen médico por vencer el ${formatFecha(persona.examenMedico.fechaVigencia)}.`
         );
         tieneAdvertencia = true;
       }

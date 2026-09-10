@@ -28,6 +28,7 @@ import { ProfileTag } from "@/components/ui/ProfileTag";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PlateTag } from "@/components/ui/PlateTag";
 import { TurnoTag } from "@/components/ui/TurnoTag";
+import { formatFecha } from "@/lib/utils/formatters";
 import { DocExpiryBadge } from "@/components/ui/DocExpiryBadge";
 import { ExpedienteDigital } from "@/components/personas/ExpedienteDigital";
 import { EditPersonaTrigger } from "@/components/personas/EditPersonaTrigger";
@@ -106,7 +107,7 @@ export default async function PersonaDetailPage({
               <InfoRow icon={<Mail size={15} />} label={persona.email} />
               <InfoRow
                 icon={<Calendar size={15} />}
-                label={`Ingreso: ${new Date(persona.fechaIngreso).toLocaleDateString("es-CO")}`}
+                label={`Ingreso: ${formatFecha(persona.fechaIngreso)}`}
               />
               {persona.contratistaNombre && (
                 <InfoRow icon={<Building2 size={15} />} label={persona.contratistaNombre} />
@@ -210,8 +211,8 @@ export default async function PersonaDetailPage({
                     ) : (
                       asignacionActiva.turno && <TurnoTag turno={asignacionActiva.turno} />
                     )}
-                    <span className="text-xs text-fog-400">
-                      Desde {new Date(asignacionActiva.fechaInicio).toLocaleDateString("es-CO")}
+                    <span className="text-xs text-fog-400" suppressHydrationWarning>
+                      Desde {formatFecha(asignacionActiva.fechaInicio)}
                     </span>
                   </div>
                 ) : (
@@ -233,9 +234,9 @@ export default async function PersonaDetailPage({
                         >
                           <div className="flex items-center gap-3">
                             <PlateTag plate={a.placa} />
-                            <span className="text-xs text-fog-400">
-                              {new Date(a.fechaInicio).toLocaleDateString("es-CO")}
-                              {a.fechaFin && ` → ${new Date(a.fechaFin).toLocaleDateString("es-CO")}`}
+                            <span className="text-xs text-fog-400" suppressHydrationWarning>
+                              {formatFecha(a.fechaInicio)}
+                              {a.fechaFin && ` → ${formatFecha(a.fechaFin)}`}
                             </span>
                           </div>
                           <StatusBadge status={ESTADO_ASIG_TO_STATUS[a.estado]}>

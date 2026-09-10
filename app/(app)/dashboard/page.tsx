@@ -26,6 +26,7 @@ import { getViajesDb } from "@/lib/services/operacion.service";
 import { getAsignacionesDb } from "@/lib/services/asignaciones.service";
 import { getEventosGPSConPaginacionDb, getResumenAlertasGPSDb } from "@/lib/services/gps.service";
 import { getEstadoDocumento } from "@/lib/types/vehiculo";
+import { formatFechaLarga } from "@/lib/utils/formatters";
 
 export const dynamic = "force-dynamic";
 
@@ -140,8 +141,8 @@ export default async function DashboardPage() {
         <div className="flex items-center gap-3">
           <div className="rounded-xl border border-line-600 bg-asphalt-900 px-3.5 py-2 text-right">
             <span className="text-[10px] font-mono text-fog-400 block leading-tight uppercase">Fecha del Sistema</span>
-            <span className="text-xs font-mono font-bold text-paper-50">
-              {hoy.toLocaleDateString("es-CO", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })}
+            <span className="text-xs font-mono font-bold text-paper-50" suppressHydrationWarning>
+              {formatFechaLarga(hoy, { weekday: "short", day: "2-digit", month: "short", year: "numeric" })}
             </span>
           </div>
         </div>

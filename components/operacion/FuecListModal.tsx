@@ -9,6 +9,7 @@ import { Fuec, ContratoTransporte } from "@/lib/types/fuec";
 import { Vehiculo } from "@/lib/types/vehiculo";
 import { Persona } from "@/lib/types/persona";
 import { NuevoFuecModal } from "@/components/operacion/NuevoFuecModal";
+import { formatFecha } from "@/lib/utils/formatters";
 
 interface FuecListModalProps {
   fuecs: Fuec[];
@@ -100,8 +101,8 @@ export function FuecListModal({
                   </div>
 
                   <div className="shrink-0 flex flex-col md:items-end gap-2 border-t md:border-t-0 border-line-600 pt-3 md:pt-0">
-                    <div className="font-[family-name:var(--font-mono)] text-xs text-mist-200">
-                      Vigencia: {new Date(f.fechaInicio).toLocaleDateString("es-CO")} → {new Date(f.fechaFin).toLocaleDateString("es-CO")}
+                    <div className="font-[family-name:var(--font-mono)] text-xs text-mist-200" suppressHydrationWarning>
+                      Vigencia: {formatFecha(f.fechaInicio)} → {formatFecha(f.fechaFin)}
                     </div>
                     <div className="inline-flex items-center gap-1.5 text-xs text-ok-green">
                       <CheckCircle2 size={13} /> Verificado QR RUNT

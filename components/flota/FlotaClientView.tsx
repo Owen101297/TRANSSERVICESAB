@@ -239,8 +239,8 @@ export function FlotaClientView({
                 {row.odometroActual.toLocaleString()} km
               </span>
               {row.odometroFecha && (
-                <span className="text-[10px] text-fog-400 font-mono block leading-tight">
-                  {new Date(row.odometroFecha).toLocaleDateString("es-CO", { day: "numeric", month: "short" })}
+                <span className="text-[10px] text-fog-400 font-mono block leading-tight" suppressHydrationWarning>
+                  {new Date(row.odometroFecha).toLocaleDateString("es-CO", { day: "numeric", month: "short", timeZone: "America/Bogota" })}
                 </span>
               )}
             </div>

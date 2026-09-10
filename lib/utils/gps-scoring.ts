@@ -291,6 +291,7 @@ export function generarMensajeCierreDiarioConductor(
     year: "numeric",
     month: "long",
     day: "numeric",
+    timeZone: "America/Bogota",
   });
 
   const excesosVelocidad = eventosDelDia.filter((e) => e.tipoEvento === "exceso_velocidad" && (e.velocidad || 0) > 80);

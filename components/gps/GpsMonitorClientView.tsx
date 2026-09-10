@@ -414,7 +414,9 @@ export function GpsMonitorClientView({
         return (
           <div className="flex flex-col font-mono text-xs">
             <div className="flex items-center gap-1.5">
-              <span className="font-medium text-paper-50">{d.toLocaleDateString("es-CO")}</span>
+              <span className="font-medium text-paper-50" suppressHydrationWarning>
+                {d.toLocaleDateString("es-CO", { timeZone: "America/Bogota" })}
+              </span>
               {esReciente && (
                 <span className="inline-flex items-center gap-1 px-1 rounded bg-ok-green-dim text-ok-green text-[9px] font-bold border border-ok-green/30 animate-pulse">
                   ● En Vivo

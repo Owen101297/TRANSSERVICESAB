@@ -20,6 +20,7 @@ import { ExpedienteVehiculoDigital } from "@/components/flota/ExpedienteVehiculo
 import { Card } from "@/components/ui/Card";
 import { PlateTag } from "@/components/ui/PlateTag";
 import { Avatar } from "@/components/ui/Avatar";
+import { formatFecha } from "@/lib/utils/formatters";
 
 interface VehiculoDetailTabsProps {
   vehiculo: Vehiculo;
@@ -131,8 +132,8 @@ export function VehiculoDetailTabs({
                     <p className="text-xs font-mono text-fog-400">
                       C.C. {asignacionActiva.conductorDocumento || "N/A"} · Turno: {asignacionActiva.turno || "Completo"}
                     </p>
-                    <p className="text-xs text-fog-400 mt-1">
-                      Fecha de Asignación: {new Date(asignacionActiva.fechaInicio || Date.now()).toLocaleDateString("es-CO")}
+                    <p className="text-xs text-fog-400 mt-1" suppressHydrationWarning>
+                      Fecha de Asignación: {formatFecha(asignacionActiva.fechaInicio || Date.now())}
                     </p>
                   </div>
                 </div>

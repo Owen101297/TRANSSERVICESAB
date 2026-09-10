@@ -141,11 +141,11 @@ export function PreoperacionalAdminClientView({
         const d = new Date(v as string);
         return (
           <div className="space-y-0.5 font-mono text-xs">
-            <span className="text-paper-50 font-semibold block">
-              {d.toLocaleDateString("es-CO")}
+            <span className="text-paper-50 font-semibold block" suppressHydrationWarning>
+              {d.toLocaleDateString("es-CO", { timeZone: "America/Bogota" })}
             </span>
-            <span className="text-fog-400 text-[11px] block">
-              {d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}
+            <span className="text-fog-400 text-[11px] block" suppressHydrationWarning>
+              {d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", timeZone: "America/Bogota" })}
             </span>
           </div>
         );

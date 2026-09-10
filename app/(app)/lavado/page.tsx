@@ -550,7 +550,7 @@ export default function ControlLavadosPage() {
             <div><strong>CÓDIGO:</strong> OP-FOR-02</div>
             <div><strong>VERSIÓN:</strong> 03</div>
             <div><strong>MES:</strong> {selectedMonth}</div>
-            <div><strong>FECHA:</strong> {new Date().toLocaleDateString("es-CO")}</div>
+            <div suppressHydrationWarning><strong>FECHA:</strong> {new Date().toLocaleDateString("es-CO", { timeZone: "America/Bogota" })}</div>
           </div>
         </div>
 

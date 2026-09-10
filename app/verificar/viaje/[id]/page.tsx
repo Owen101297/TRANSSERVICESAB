@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CheckCircle2, AlertTriangle, ShieldCheck, Clock, MapPin, Truck, User, Calendar, Award } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { formatFecha } from "@/lib/utils/formatters";
 
 export default async function VerificarViajePage(props: {
   params: Promise<{ id: string }>;
@@ -115,8 +116,8 @@ export default async function VerificarViajePage(props: {
           <div className="grid grid-cols-3 gap-2 text-center pt-2">
             <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800">
               <span className="text-[10px] text-slate-500 uppercase block font-semibold">Fecha Salida</span>
-              <span className="text-xs font-mono font-bold text-slate-200">
-                {new Date(viaje.fechaSalida).toLocaleDateString("es-CO")}
+              <span className="text-xs font-mono font-bold text-slate-200" suppressHydrationWarning>
+                {formatFecha(viaje.fechaSalida)}
               </span>
             </div>
             <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800">

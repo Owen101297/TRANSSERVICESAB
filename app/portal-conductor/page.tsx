@@ -527,8 +527,8 @@ export default function PortalConductorMobilePage() {
                 <Camera size={20} />
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[#FF9500]">
-                  Paso 1 Obligatorio · {new Date().toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short" })}
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#FF9500]" suppressHydrationWarning>
+                  Paso 1 Obligatorio · {new Date().toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short", timeZone: "America/Bogota" })}
                 </p>
                 <h3 className="text-xs font-bold text-[#0F172A] tracking-tight">
                   Apertura de Turno (Fotos & Odómetro)

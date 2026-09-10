@@ -376,13 +376,14 @@ _Cumplimiento Normativo PESV Res. 40595/2022 y SG-SST Dec. 1072_`;
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-fog-400">
                       <div className="flex items-center gap-1">
                         <Calendar size={13} className="text-fog-400" />
-                        <span className="font-mono">
+                        <span className="font-mono" suppressHydrationWarning>
                           {new Date(cap.fecha).toLocaleDateString("es-CO", {
                             day: "2-digit",
                             month: "short",
                             year: "numeric",
                             hour: "2-digit",
                             minute: "2-digit",
+                            timeZone: "America/Bogota",
                           })}
                         </span>
                       </div>
@@ -500,8 +501,8 @@ _Cumplimiento Normativo PESV Res. 40595/2022 y SG-SST Dec. 1072_`;
                   <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-signal-amber/10 text-signal-amber border border-signal-amber/30">
                     TH-FOR-04 • EVIDENCIAS
                   </span>
-                  <span className="text-xs text-fog-400 font-mono">
-                    {new Date(selectedCapacitacion.fecha).toLocaleDateString("es-CO")}
+                  <span className="text-xs text-fog-400 font-mono" suppressHydrationWarning>
+                    {new Date(selectedCapacitacion.fecha).toLocaleDateString("es-CO", { timeZone: "America/Bogota" })}
                   </span>
                 </div>
                 <h3 className="font-bold text-paper-50 text-base mt-1">
@@ -664,7 +665,7 @@ _Cumplimiento Normativo PESV Res. 40595/2022 y SG-SST Dec. 1072_`;
               <div className="col-span-3 p-2 text-[9px] space-y-1">
                 <div><strong>CÓDIGO:</strong> TH-FOR-04</div>
                 <div><strong>VERSIÓN:</strong> 02</div>
-                <div><strong>FECHA:</strong> {new Date().toLocaleDateString("es-CO")}</div>
+                <div suppressHydrationWarning><strong>FECHA:</strong> {new Date().toLocaleDateString("es-CO", { timeZone: "America/Bogota" })}</div>
               </div>
             </div>
 

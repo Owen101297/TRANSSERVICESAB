@@ -1,6 +1,6 @@
 /**
  * TRANS SERVICES A&B — Formateadores Deterministas
- * Garantizan 100% consistencia entre SSR (Node/Linux) y Client Hydration (V8/Browser)
+ * Garantizan 100% consistencia entre SSR (Node/Linux UTC) y Client Hydration (V8/Browser COT)
  * Eliminando los errores React #418 y #441 por desfase de locale o timezone.
  */
 
@@ -16,10 +16,29 @@ export function formatFecha(iso?: string | Date | null): string {
     }
     const d = new Date(iso);
     if (isNaN(d.getTime())) return "—";
-    const day = String(d.getUTCDate()).padStart(2, "0");
-    const month = String(d.getUTCMonth() + 1).padStart(2, "0");
-    const year = d.getUTCFullYear();
-    return `${day}/${month}/${year}`;
+    return d.toLocaleDateString("es-CO", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      timeZone: "America/Bogota",
+    });
+  } catch {
+    return "—";
+  }
+}
+
+export function formatFechaLarga(
+  iso?: string | Date | null,
+  options: Intl.DateTimeFormatOptions = { weekday: "short", day: "2-digit", month: "short", year: "numeric" }
+): string {
+  if (!iso) return "—";
+  try {
+    const d = typeof iso === "string" ? new Date(iso) : iso;
+    if (isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("es-CO", {
+      ...options,
+      timeZone: options.timeZone || "America/Bogota",
+    });
   } catch {
     return "—";
   }
@@ -28,14 +47,17 @@ export function formatFecha(iso?: string | Date | null): string {
 export function formatFechaHora(iso?: string | Date | null): string {
   if (!iso) return "—";
   try {
-    const d = new Date(iso);
+    const d = typeof iso === "string" ? new Date(iso) : iso;
     if (isNaN(d.getTime())) return "—";
-    const day = String(d.getDate()).padStart(2, "0");
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const year = d.getFullYear();
-    const hours = String(d.getHours()).padStart(2, "0");
-    const mins = String(d.getMinutes()).padStart(2, "0");
-    return `${day}/${month}/${year} ${hours}:${mins}`;
+    return d.toLocaleString("es-CO", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone: "America/Bogota",
+    });
   } catch {
     return "—";
   }
@@ -44,12 +66,16 @@ export function formatFechaHora(iso?: string | Date | null): string {
 export function formatHora(iso?: string | Date | null): string {
   if (!iso) return "—";
   try {
-    const d = new Date(iso);
+    const d = typeof iso === "string" ? new Date(iso) : iso;
     if (isNaN(d.getTime())) return "—";
-    const hours = String(d.getHours()).padStart(2, "0");
-    const mins = String(d.getMinutes()).padStart(2, "0");
-    return `${hours}:${mins}`;
+    return d.toLocaleTimeString("es-CO", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone: "America/Bogota",
+    });
   } catch {
     return "—";
   }
 }
+
