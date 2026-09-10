@@ -69,6 +69,11 @@
       border: 1px solid #E2E8F0;
       border-radius: 16px;
       transition: all 0.2s ease;
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
     }
     .apple-input:focus {
       background: #FFFFFF;
@@ -171,7 +176,7 @@
         </div>
         <div class="min-w-0">
           <label for="inputFecha" class="block text-[11px] font-semibold text-slate-500 mb-1">Fecha Inspección</label>
-          <input type="date" id="inputFecha" aria-label="Fecha de Inspección" title="Fecha de Inspección" class="apple-input w-full px-3 py-2 text-xs font-mono text-[#0F172A] box-border">
+          <input type="date" id="inputFecha" aria-label="Fecha de Inspección" title="Fecha de Inspección" class="apple-input block w-full min-w-0 max-w-full px-3 py-2 text-xs font-mono text-[#0F172A] box-border">
         </div>
       </div>
     </div>
@@ -212,11 +217,11 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div class="min-w-0">
           <label for="inputFechaUltimaRecarga" class="block text-[11px] font-semibold text-slate-500 mb-1">Última Recarga</label>
-          <input type="date" id="inputFechaUltimaRecarga" aria-label="Fecha de Última Recarga" title="Fecha de Última Recarga" placeholder="Última recarga" class="apple-input w-full px-3 py-2 text-xs font-mono text-[#0F172A] box-border">
+          <input type="date" id="inputFechaUltimaRecarga" aria-label="Fecha de Última Recarga" title="Fecha de Última Recarga" placeholder="Última recarga" class="apple-input block w-full min-w-0 max-w-full px-3 py-2 text-xs font-mono text-[#0F172A] box-border">
         </div>
         <div class="min-w-0">
           <label for="inputFechaVencimiento" class="block text-[11px] font-semibold text-slate-500 mb-1">Próximo Vencimiento *</label>
-          <input type="date" id="inputFechaVencimiento" aria-label="Próximo Vencimiento" title="Próximo Vencimiento" placeholder="Próximo vencimiento" class="apple-input w-full px-3 py-2 text-xs font-mono text-[#0F172A] box-border">
+          <input type="date" id="inputFechaVencimiento" aria-label="Próximo Vencimiento" title="Próximo Vencimiento" placeholder="Próximo vencimiento" class="apple-input block w-full min-w-0 max-w-full px-3 py-2 text-xs font-mono text-[#0F172A] box-border">
         </div>
       </div>
 

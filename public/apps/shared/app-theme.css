@@ -60,6 +60,7 @@ input, textarea, select {
   -webkit-user-select: auto;
   user-select: auto;
   touch-action: manipulation;
+  box-sizing: border-box;
 }
 
 /* Regla Universal de Cero Zoom en Móviles (iOS Safari & Android Chrome) */
@@ -67,6 +68,76 @@ input, textarea, select {
   input, select, textarea {
     font-size: 16px !important;
   }
+}
+
+/* ── NORMALIZACIÓN UNIVERSAL PARA SELECTORES DE FECHA Y HORA (iOS & Android) ── */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  line-height: 1.3 !important;
+}
+
+/* Normalización interna WebKit para iOS Safari */
+input[type="date"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value,
+input[type="datetime-local"]::-webkit-date-and-time-value {
+  display: block !important;
+  text-align: left !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  min-height: 1.25em !important;
+  box-sizing: border-box !important;
+}
+
+/* Wrapper y campos editables de WebKit */
+input[type="date"]::-webkit-datetime-edit,
+input[type="time"]::-webkit-datetime-edit,
+input[type="datetime-local"]::-webkit-datetime-edit {
+  padding: 0 !important;
+  margin: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+input[type="time"]::-webkit-datetime-edit-fields-wrapper {
+  padding: 0 !important;
+  margin: 0 !important;
+  min-width: 0 !important;
+}
+
+/* Icono indicador del calendario / reloj */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  display: inline-block !important;
+  cursor: pointer !important;
+  opacity: 0.75 !important;
+  padding: 0 !important;
+  margin: 0 0 0 auto !important;
+  flex-shrink: 0 !important;
+  width: 20px !important;
+  height: 20px !important;
+}
+
+/* Prevenir desbordes en contenedores flex y grid */
+.input-group, .field-box, .form-group {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 /* ── CONTENEDOR & SQUIRCLE UTILITIES ── */

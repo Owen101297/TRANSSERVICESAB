@@ -443,19 +443,19 @@
               </div>
             </div>
 
-            <div class="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-slate-200/60">
-              <div class="flex items-center gap-2">
-                <label class="text-[11px] font-bold uppercase text-slate-500">Cantidad:</label>
-                <input type="number" id="cant-${item.id}" value="${item.req}" min="0" oninput="actualizarResumen()" class="w-16 h-8 text-center font-mono font-bold text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-brand-500 touch-manipulation" />
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-slate-200/60 items-center">
+              <div class="flex items-center justify-between sm:justify-start gap-2 min-w-0">
+                <label class="text-[11px] font-bold uppercase text-slate-500 shrink-0">Cantidad:</label>
+                <input type="number" id="cant-${item.id}" value="${item.req}" min="0" oninput="actualizarResumen()" class="w-20 h-9 text-center font-mono font-bold text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-brand-500 touch-manipulation" />
               </div>
 
               ${item.venc ? `
-                <div class="flex items-center gap-2">
-                  <span class="text-[11px] font-bold text-orange-600 uppercase">Vencimiento:</span>
-                  <input type="date" id="venc-${item.id}" onchange="actualizarResumen()" class="h-8 text-xs font-mono bg-white border border-slate-300 rounded-lg px-2 focus:outline-none focus:border-brand-500 touch-manipulation" />
+                <div class="flex items-center justify-between sm:justify-start gap-2 min-w-0">
+                  <span class="text-[11px] font-bold text-orange-600 uppercase shrink-0">Vence:</span>
+                  <input type="date" id="venc-${item.id}" onchange="actualizarResumen()" class="h-9 w-full min-w-0 max-w-full text-xs font-mono bg-white border border-slate-300 rounded-lg px-2 focus:outline-none focus:border-brand-500 touch-manipulation block box-border" />
                 </div>
               ` : `
-                <span class="text-[11px] text-slate-400 font-medium">No perecedero</span>
+                <div class="flex items-center text-[11px] text-slate-400 font-medium">No perecedero</div>
               `}
             </div>
           </div>
