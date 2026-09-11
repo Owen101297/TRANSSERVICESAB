@@ -62,7 +62,8 @@ const formatCOP = (val: number) =>
 
 // 1. GENERADOR DE PLANILLA CONSOLIDADA MENSUAL (HORIZONTAL CARTA)
 export async function generateLavadoPlanillaPDF(records: LavadoPdfItem[], mesTitle: string): Promise<void> {
-  const { jsPDF } = await import("jspdf");
+  const jspdfModule = await import("jspdf");
+  const jsPDF = (jspdfModule as any).jsPDF || (jspdfModule as any).default || jspdfModule;
 
   const doc = new jsPDF({
     orientation: "landscape",
@@ -321,7 +322,8 @@ export async function generateLavadoPlanillaPDF(records: LavadoPdfItem[], mesTit
 
 // 2. GENERADOR DE COMPROBANTE INDIVIDUAL DE LAVADO (VERTICAL CARTA)
 export async function generateLavadoComprobantePDF(record: LavadoPdfItem): Promise<void> {
-  const { jsPDF } = await import("jspdf");
+  const jspdfModule = await import("jspdf");
+  const jsPDF = (jspdfModule as any).jsPDF || (jspdfModule as any).default || jspdfModule;
 
   const doc = new jsPDF({
     orientation: "portrait",

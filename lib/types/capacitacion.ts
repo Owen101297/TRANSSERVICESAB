@@ -23,14 +23,19 @@ export interface AsistenciaItem {
   id: string;
   personaId?: string | null;
   personaDocumento?: string | null;
+  conductorCedula?: string | null;
   personaNombre: string;
+  conductorNombre?: string;
   cargo?: string | null;
   estado: string;
   firmaUrl?: string | null;
+  firmaDigitalUrl?: string | null;
   fotoUrl?: string | null; // Selfie de evidencia
+  selfieUrl?: string | null; // Alias
   calificacion?: number | null;
   tiempoLectura?: number | null;
   fecha: string;
+  fechaRegistro?: string;
 }
 
 export interface Capacitacion {

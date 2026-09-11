@@ -73,7 +73,7 @@ export function ContratistaDetailTabs({
       render: (_v, row) => (
         <DocExpiryBadge
           label="SOAT"
-          vencimientoISO={row.documentos.soatVencimiento}
+          vencimientoISO={row.documentos?.soatVencimiento || (row as any).soatVencimiento || ""}
         />
       ),
     },
@@ -83,7 +83,7 @@ export function ContratistaDetailTabs({
       render: (_v, row) => (
         <DocExpiryBadge
           label="RTM"
-          vencimientoISO={row.documentos.rtmVencimiento}
+          vencimientoISO={row.documentos?.rtmVencimiento || (row as any).rtmVencimiento || ""}
         />
       ),
     },
@@ -93,7 +93,7 @@ export function ContratistaDetailTabs({
       render: (_v, row) => (
         <DocExpiryBadge
           label="Póliza"
-          vencimientoISO={row.documentos.polizaVencimiento}
+          vencimientoISO={row.documentos?.polizaVencimiento || (row as any).polizaVencimiento || ""}
         />
       ),
     },

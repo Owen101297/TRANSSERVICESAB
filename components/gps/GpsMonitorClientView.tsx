@@ -62,7 +62,7 @@ interface GpsMonitorClientViewProps {
 }
 
 type TabType = "eventos" | "reincidencias" | "nocturno" | "ranking" | "conexion";
-type RangoPreset = "hoy" | "24h" | "7d" | "mes" | "todos" | "personalizado";
+type RangoPreset = "hoy" | "24h" | "7d" | "15d" | "mes" | "todos" | "personalizado";
 
 export function GpsMonitorClientView({
   initialEventos,
@@ -287,12 +287,12 @@ export function GpsMonitorClientView({
     setIsExportingPdf(true);
     try {
       let rangoDesc = "Historial Completo";
-      if (rangoFecha === "hoy") rangoDesc = "Solo Hoy";
-      else if (rangoFecha === "24h") rangoDesc = "Últimas 24h";
-      else if (rangoFecha === "7d") rangoDesc = "Últimos 7 Días";
-      else if (rangoFecha === "15d") rangoDesc = "Últimos 15 Días";
-      else if (rangoFecha === "mes") rangoDesc = "Este Mes";
-      else if (rangoFecha === "personalizado") rangoDesc = `${fechaDesde || "Inicio"} a ${fechaHasta || "Fin"}`;
+      if (rangoPreset === "hoy") rangoDesc = "Solo Hoy";
+      else if (rangoPreset === "24h") rangoDesc = "Últimas 24h";
+      else if (rangoPreset === "7d") rangoDesc = "Últimos 7 Días";
+      else if (rangoPreset === "15d") rangoDesc = "Últimos 15 Días";
+      else if (rangoPreset === "mes") rangoDesc = "Este Mes";
+      else if (rangoPreset === "personalizado") rangoDesc = `${fechaDesde || "Inicio"} a ${fechaHasta || "Fin"}`;
 
       const vehDesc =
         selectedPlacas.length === 0
@@ -331,7 +331,7 @@ export function GpsMonitorClientView({
     setIsExportingExcel(true);
     try {
       generateTelemetriaExcel(filteredEventos, {
-        rangoFechas: rangoFecha,
+        rangoFechas: rangoPreset,
         vehiculosFiltrados: selectedPlacas.join(", ") || "Todos",
         eventosFiltrados: selectedTipos.join(", ") || "Todos",
       });

@@ -80,6 +80,7 @@ export interface Persona {
   contratistaId?: string;
   contratistaNombre?: string;
   fotoIniciales: string;
+  pin?: string;
   fechaRetiro?: string;
   motivoRetiro?: string;
   // Fase A: Expediente Conductor & Salud

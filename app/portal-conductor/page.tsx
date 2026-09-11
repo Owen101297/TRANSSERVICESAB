@@ -222,30 +222,6 @@ export default function PortalConductorMobilePage() {
       }
     }
 
-    // Centinela de auto-actualización en vivo para conductores
-    let activeBuildId: string | null = null;
-    const checkVersion = async () => {
-      try {
-        const res = await fetch(`/api/version?_t=${Date.now()}`, { cache: "no-store" });
-        if (res.ok) {
-          const data = await res.json();
-          if (!activeBuildId) {
-            activeBuildId = data.buildId;
-          } else if (activeBuildId !== data.buildId) {
-            console.info("[Portal Conductor] Nueva versión en servidor. Recargando...");
-            window.location.reload();
-          }
-        }
-      } catch {}
-    };
-    checkVersion();
-    const verInterval = setInterval(checkVersion, 25000);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") checkVersion();
-    };
-    window.addEventListener("focus", onVisible);
-    document.addEventListener("visibilitychange", onVisible);
-
     // 1. Obtener sesión de API /api/auth/me o localStorage
     fetch("/api/auth/me")
       .then((res) => (res.ok ? res.json() : null))
@@ -304,12 +280,6 @@ export default function PortalConductorMobilePage() {
         })
         .catch(() => {});
     }
-
-    return () => {
-      clearInterval(verInterval);
-      window.removeEventListener("focus", onVisible);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
   }, [driver?.placa, driver?.documento]);
 
   const handleLogout = async () => {

@@ -4,6 +4,7 @@ import {
   PrioridadEventoGPS,
   CalificacionConductorMensual,
   NivelDriverScore,
+  TIPO_EVENTO_LABELS,
 } from "@/lib/types/gps";
 import { Persona } from "@/lib/types/persona";
 

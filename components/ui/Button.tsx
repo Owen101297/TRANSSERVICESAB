@@ -1,6 +1,6 @@
 import { ButtonHTMLAttributes } from "react";
 
-type Variant = "primary" | "secondary" | "ghost" | "danger" | "success";
+type Variant = "primary" | "secondary" | "ghost" | "danger" | "success" | "outline";
 type Size = "sm" | "md" | "lg";
 
 const VARIANTS: Record<Variant, string> = {
@@ -8,6 +8,8 @@ const VARIANTS: Record<Variant, string> = {
     "bg-slate-900 text-white hover:bg-slate-800 shadow-sm active:scale-[0.98] font-semibold",
   secondary:
     "bg-slate-100 text-slate-800 hover:bg-slate-200/80 border border-slate-200/80 shadow-xs active:scale-[0.98] font-medium",
+  outline:
+    "bg-transparent text-paper-50 hover:bg-asphalt-800/80 border border-line-600 shadow-xs active:scale-[0.98] font-medium",
   ghost:
     "bg-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 font-medium active:scale-[0.98]",
   danger:

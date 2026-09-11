@@ -85,9 +85,9 @@ async function main() {
         contratistaId: v.contratistaId,
         contratistaNombre: v.contratistaNombre,
         estado: v.estado,
-        soatVencimiento: new Date(v.documentos.soatVencimiento),
-        rtmVencimiento: new Date(v.documentos.rtmVencimiento),
-        polizaVencimiento: new Date(v.documentos.polizaVencimiento),
+        soatVencimiento: v.documentos.soatVencimiento ? new Date(v.documentos.soatVencimiento) : null,
+        rtmVencimiento: v.documentos.rtmVencimiento ? new Date(v.documentos.rtmVencimiento) : null,
+        polizaVencimiento: v.documentos.polizaVencimiento ? new Date(v.documentos.polizaVencimiento) : null,
       },
       create: {
         id: v.id,
@@ -101,9 +101,9 @@ async function main() {
         contratistaId: v.contratistaId,
         contratistaNombre: v.contratistaNombre,
         estado: v.estado,
-        soatVencimiento: new Date(v.documentos.soatVencimiento),
-        rtmVencimiento: new Date(v.documentos.rtmVencimiento),
-        polizaVencimiento: new Date(v.documentos.polizaVencimiento),
+        soatVencimiento: v.documentos.soatVencimiento ? new Date(v.documentos.soatVencimiento) : null,
+        rtmVencimiento: v.documentos.rtmVencimiento ? new Date(v.documentos.rtmVencimiento) : null,
+        polizaVencimiento: v.documentos.polizaVencimiento ? new Date(v.documentos.polizaVencimiento) : null,
       },
     });
   }

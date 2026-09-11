@@ -18,7 +18,11 @@ export const CONTRATISTAS_EXCEL_COLUMNS = [
 /**
  * Exporta la matriz oficial de Contratistas a Excel con los datos actuales
  */
-export function exportContratistasToExcel(contratistas: Contratista[]): void {
+export function exportContratistasToExcel(
+  contratistas: Contratista[],
+  vehiculos?: any[],
+  personas?: any[]
+): void {
   const currentDate = new Date().toISOString().split("T")[0];
 
   const rowsData = contratistas.map((c) => [

@@ -74,7 +74,8 @@ async function loadLogoImage(): Promise<string | null> {
 }
 
 export async function generateAseoPDF(data: AseoPdfData): Promise<void> {
-  const { jsPDF } = await import("jspdf");
+  const jspdfModule = await import("jspdf");
+  const jsPDF = (jspdfModule as any).jsPDF || (jspdfModule as any).default || jspdfModule;
 
   const doc = new jsPDF({
     orientation: "portrait",
@@ -152,7 +153,7 @@ export async function generateAseoPDF(data: AseoPdfData): Promise<void> {
     doc.setFont("helvetica", "bold");
     doc.text(m.label, col3X + 2.5, rowY);
     doc.setFont("helvetica", "normal");
-    doc.text(m.v, col3X + 20, rowY);
+    doc.text(m.val, col3X + 20, rowY);
   });
 
   currentY += headerHeight + 2.5;

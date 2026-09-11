@@ -25,6 +25,7 @@ export interface Hallazgo {
   fechaReporte: string; // ISO
   fechaCierre?: string; // ISO
   accionCorrectiva?: string;
+  fotosEvidencia?: string[];
 }
 
 export const ORIGEN_LABELS: Record<OrigenHallazgo, string> = {

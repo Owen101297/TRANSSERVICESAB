@@ -35,6 +35,7 @@ export interface Viaje {
   distanciaKm?: number;
   horaSalida?: string;
   horaLlegada?: string;
+  fuecCodigo?: string;
   riskInputs?: Record<string, any>;
   signatures?: Record<string, string>;
 }

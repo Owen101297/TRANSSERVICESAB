@@ -60,7 +60,8 @@ export async function generateTelemetriaPDF(
   eventos: EventoGPS[],
   meta: TelemetriaPdfMeta = {}
 ): Promise<void> {
-  const { jsPDF } = await import("jspdf");
+  const jspdfModule = await import("jspdf");
+  const jsPDF = (jspdfModule as any).jsPDF || (jspdfModule as any).default || jspdfModule;
 
   const doc = new jsPDF({
     orientation: "landscape",

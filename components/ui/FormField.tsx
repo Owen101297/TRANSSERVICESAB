@@ -36,10 +36,11 @@ function Label({ children, required }: { children: ReactNode; required?: boolean
 interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   required?: boolean;
+  helperText?: string;
   wrapperClassName?: string;
 }
 
-export function TextField({ label, required, wrapperClassName = "", ...props }: FieldProps) {
+export function TextField({ label, required, helperText, wrapperClassName = "", ...props }: FieldProps) {
   return (
     <div className={wrapperClassName}>
       <Label required={required}>{label}</Label>
@@ -47,6 +48,7 @@ export function TextField({ label, required, wrapperClassName = "", ...props }: 
         className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all"
         {...props}
       />
+      {helperText && <p className="mt-1 text-[11px] text-slate-500 font-mono">{helperText}</p>}
     </div>
   );
 }
@@ -54,6 +56,7 @@ export function TextField({ label, required, wrapperClassName = "", ...props }: 
 interface SelectFieldProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label: string;
   required?: boolean;
+  helperText?: string;
   options: { value: string; label: string }[];
   wrapperClassName?: string;
 }
@@ -61,6 +64,7 @@ interface SelectFieldProps extends SelectHTMLAttributes<HTMLSelectElement> {
 export function SelectField({
   label,
   required,
+  helperText,
   options,
   wrapperClassName = "",
   ...props
@@ -79,6 +83,7 @@ export function SelectField({
           </option>
         ))}
       </select>
+      {helperText && <p className="mt-1 text-[11px] text-slate-500 font-mono">{helperText}</p>}
     </div>
   );
 }
@@ -86,12 +91,14 @@ export function SelectField({
 interface TextAreaFieldProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label: string;
   required?: boolean;
+  helperText?: string;
   wrapperClassName?: string;
 }
 
 export function TextAreaField({
   label,
   required,
+  helperText,
   wrapperClassName = "",
   ...props
 }: TextAreaFieldProps) {
@@ -102,6 +109,7 @@ export function TextAreaField({
         className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all"
         {...props}
       />
+      {helperText && <p className="mt-1 text-[11px] text-slate-500 font-mono">{helperText}</p>}
     </div>
   );
 }

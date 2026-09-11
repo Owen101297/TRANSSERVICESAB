@@ -106,6 +106,7 @@ export default function AsistenciaAdminPage() {
     fecha: getTodayColombia(),
     evento: "",
     estado: "presente",
+    firmarConHseq: true,
   });
   const [searchingPersona, setSearchingPersona] = useState<boolean>(false);
   const [savingManual, setSavingManual] = useState<boolean>(false);
@@ -1150,6 +1151,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                   fecha: fecha || getTodayColombia(),
                   evento: actividadFiltro !== "TODAS" ? actividadFiltro : (actividadesDelDia[0]?.nombre || temaActivo),
                   estado: "presente",
+                  firmarConHseq: true,
                 });
                 setManualModal(true);
               }}

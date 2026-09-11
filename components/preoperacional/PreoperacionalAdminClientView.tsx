@@ -68,8 +68,8 @@ export function PreoperacionalAdminClientView({
         ...ins,
         vehiculoTipo: veh?.tipo || "Camioneta",
         vehiculoModelo: veh?.modelo || "—",
-        vehiculoColor: veh?.color || "—",
-        vehiculoEmpresa: veh?.empresa || "TRANS SERVICES A&B",
+        vehiculoColor: (veh as any)?.color || "Blanco",
+        vehiculoEmpresa: (veh as any)?.empresa || veh?.contratistaNombre || "TRANS SERVICES A&B",
       });
     } catch (err) {
       console.error("Error al generar PDF preoperacional:", err);

@@ -67,7 +67,8 @@ async function loadLogoImage(): Promise<string | null> {
 
 // 1. GENERADOR DE COMPROBANTE INDIVIDUAL DE ENCUESTA (VERTICAL CARTA)
 export async function generateEncuestaIndividualPDF(data: EncuestaPdfItem): Promise<void> {
-  const { jsPDF } = await import("jspdf");
+  const jspdfModule = await import("jspdf");
+  const jsPDF = (jspdfModule as any).jsPDF || (jspdfModule as any).default || jspdfModule;
 
   const doc = new jsPDF({
     orientation: "portrait",

@@ -24,6 +24,8 @@ import {
   Award,
   Check,
   FileDown,
+  Share2,
+  Copy,
 } from "lucide-react";
 import { Card, StatCard } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -65,12 +67,12 @@ export default function CapacitacionesPage() {
     setGeneratingPdfId(cap.id);
     try {
       const asistentes: AsistenciaPdfItem[] = (cap.asistencias || []).map((a) => ({
-        personaNombre: a.conductorNombre,
-        personaDocumento: a.conductorCedula || "—",
-        cargo: "CONDUCTOR",
+        personaNombre: a.conductorNombre || a.personaNombre || "—",
+        personaDocumento: a.conductorCedula || a.personaDocumento || "—",
+        cargo: a.cargo || "CONDUCTOR",
         proyecto: "TRANS SERVICES",
-        horaLlegada: a.fechaRegistro ? new Date(a.fechaRegistro).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }) : "—",
-        firmaUrl: a.firmaDigitalUrl,
+        horaLlegada: a.fechaRegistro || a.fecha ? new Date(a.fechaRegistro || a.fecha).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }) : "—",
+        firmaUrl: a.firmaDigitalUrl || a.firmaUrl || null,
       }));
 
       await generateAsistenciaPDF(asistentes, {
@@ -564,18 +566,18 @@ _Cumplimiento Normativo PESV Res. 40595/2022 y SG-SST Dec. 1072_`;
                       selectedCapacitacion.asistencias.map((asist) => (
                         <tr key={asist.id} className="hover:bg-asphalt-800/40 transition-colors">
                           <td className="p-3">
-                            <div className="font-bold text-paper-50">{asist.conductorNombre}</div>
+                            <div className="font-bold text-paper-50">{asist.conductorNombre || asist.personaNombre}</div>
                             <div className="text-[10px] text-fog-400 font-mono">
-                              CC: {asist.conductorCedula || "—"}
+                              CC: {asist.conductorCedula || asist.personaDocumento || "—"}
                             </div>
                           </td>
                           <td className="p-3 font-mono text-[11px] text-mist-200">
-                            {new Date(asist.fechaRegistro).toLocaleString("es-CO")}
+                            {new Date(asist.fechaRegistro || asist.fecha || Date.now()).toLocaleString("es-CO")}
                           </td>
                           <td className="p-3 text-center">
-                            {asist.selfieUrl ? (
+                            {asist.selfieUrl || asist.fotoUrl ? (
                               <img
-                                src={asist.selfieUrl}
+                                src={asist.selfieUrl || asist.fotoUrl || ""}
                                 alt="Selfie"
                                 className="w-9 h-9 rounded-full object-cover border border-radar-cyan mx-auto shadow-sm"
                               />

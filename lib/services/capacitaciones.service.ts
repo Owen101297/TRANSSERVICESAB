@@ -55,11 +55,22 @@ export async function createCapacitacionAction(
     const duracionHoras = parseFloat((formData.get("duracionHoras") as string) || "1");
     const asistentesEsperados = parseInt((formData.get("asistentesEsperados") as string) || "0", 10);
 
+    const programa = (formData.get("programa") as any) || (tipo === "pesv" ? "Plan de Capacitacion PESV (Paso 9/18)" : "Plan Anual SG-SST (Dec 1072 / Res 0312)");
+    const categoria = (formData.get("categoria") as any) || "capacitacion_mensual";
+    const materialTipo = (formData.get("materialTipo") as any) || "google_form";
+    const requiereSelfie = formData.get("requiereSelfie") === "true";
+    const requiereFirma = formData.get("requiereFirma") !== "false";
+
     const newId = `cap_${Date.now()}`;
     const newCap: Capacitacion = {
       id: newId,
       nombre,
       tipo,
+      programa,
+      categoria,
+      materialTipo,
+      requiereSelfie,
+      requiereFirma,
       fecha: fecha || new Date().toISOString(),
       duracionHoras,
       asistentesEsperados,

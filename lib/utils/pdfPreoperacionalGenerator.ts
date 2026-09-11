@@ -8,7 +8,7 @@ import {
   ValorItemChecklist,
 } from "@/lib/types/preoperacional";
 
-interface PreoperacionalPdfData extends InspeccionPreoperacionalDto {
+export interface PreoperacionalPdfData extends InspeccionPreoperacionalDto {
   vehiculoTipo?: string;
   vehiculoModelo?: string;
   vehiculoColor?: string;
@@ -18,6 +18,17 @@ interface PreoperacionalPdfData extends InspeccionPreoperacionalDto {
   conductorTelefono?: string;
   turno?: string;
   ubicacion?: string;
+  sede?: string;
+  created_at?: string;
+  nivel_combustible?: number | string;
+  conductor_nombre?: string;
+  conductor_id?: string;
+  concepto?: string;
+  apto_para_operar?: boolean;
+  observaciones_generales?: string;
+  firma_conductor?: string;
+  firma_supervisor?: string;
+  supervisor_nombre?: string;
 }
 
 const PALETTE = {
@@ -84,7 +95,8 @@ function formatTime(dateStr?: string): string {
 }
 
 export async function generatePreoperacionalPDF(data: PreoperacionalPdfData): Promise<void> {
-  const { jsPDF } = await import("jspdf");
+  const jspdfModule = await import("jspdf");
+  const jsPDF = (jspdfModule as any).jsPDF || (jspdfModule as any).default || jspdfModule;
 
   const doc = new jsPDF({
     orientation: "p",

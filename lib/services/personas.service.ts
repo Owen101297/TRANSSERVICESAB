@@ -59,15 +59,15 @@ export async function getPersonasDb(): Promise<Persona[]> {
         ? {
             numero: p.licenciaConduccion.numero,
             categorias: p.licenciaConduccion.categorias as CategoriaLicencia[],
-            fechaVencimiento: p.licenciaConduccion.fechaVencimiento.toISOString().split("T")[0],
+            fechaVencimiento: p.licenciaConduccion.fechaVencimiento ? p.licenciaConduccion.fechaVencimiento.toISOString().split("T")[0] : "",
             organismoTransito: p.licenciaConduccion.organismoTransito ?? undefined,
           }
         : undefined,
       examenMedico: p.examenMedico
         ? {
             tipo: p.examenMedico.tipo as any,
-            fechaRealizacion: p.examenMedico.fechaRealizacion.toISOString().split("T")[0],
-            fechaVigencia: p.examenMedico.fechaVigencia.toISOString().split("T")[0],
+            fechaRealizacion: p.examenMedico.fechaRealizacion ? p.examenMedico.fechaRealizacion.toISOString().split("T")[0] : "",
+            fechaVigencia: p.examenMedico.fechaVigencia ? p.examenMedico.fechaVigencia.toISOString().split("T")[0] : "",
             enfasis: p.examenMedico.enfasis,
             concepto: p.examenMedico.concepto as ConceptoMedico,
             restricciones: p.examenMedico.restricciones ?? undefined,
@@ -138,15 +138,15 @@ export async function getPersonaByIdDb(id: string): Promise<Persona | undefined>
         ? {
             numero: p.licenciaConduccion.numero,
             categorias: p.licenciaConduccion.categorias as CategoriaLicencia[],
-            fechaVencimiento: p.licenciaConduccion.fechaVencimiento.toISOString().split("T")[0],
+            fechaVencimiento: p.licenciaConduccion.fechaVencimiento ? p.licenciaConduccion.fechaVencimiento.toISOString().split("T")[0] : "",
             organismoTransito: p.licenciaConduccion.organismoTransito ?? undefined,
           }
         : undefined,
       examenMedico: p.examenMedico
         ? {
             tipo: p.examenMedico.tipo as any,
-            fechaRealizacion: p.examenMedico.fechaRealizacion.toISOString().split("T")[0],
-            fechaVigencia: p.examenMedico.fechaVigencia.toISOString().split("T")[0],
+            fechaRealizacion: p.examenMedico.fechaRealizacion ? p.examenMedico.fechaRealizacion.toISOString().split("T")[0] : "",
+            fechaVigencia: p.examenMedico.fechaVigencia ? p.examenMedico.fechaVigencia.toISOString().split("T")[0] : "",
             enfasis: p.examenMedico.enfasis,
             concepto: p.examenMedico.concepto as ConceptoMedico,
             restricciones: p.examenMedico.restricciones ?? undefined,
@@ -385,6 +385,7 @@ export async function updatePersonaAction(
 
     const licenciaVencimiento = formData.get("licenciaVencimiento") as string;
     const emoVigencia = formData.get("emoVigencia") as string;
+    const conceptoMedico = (formData.get("conceptoMedico") as string) || "";
     const perfil = formData.get("perfil") as PerfilPersona;
     const perfiles: PerfilPersona[] = perfil ? [perfil] : [];
     const pin = (formData.get("pin") as string)?.trim();
@@ -429,7 +430,7 @@ export async function updatePersonaAction(
           ? {
               ...prev.examenMedico,
               fechaVigencia: emoVigencia,
-              concepto: conceptoMedico || prev.examenMedico.concepto,
+              concepto: (conceptoMedico as ConceptoMedico) || prev.examenMedico.concepto,
             }
           : prev.examenMedico,
       };

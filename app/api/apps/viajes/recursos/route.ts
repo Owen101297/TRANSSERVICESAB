@@ -24,7 +24,7 @@ export async function GET() {
         nombre: nombreCompleto,
         cedula: p.numeroDocumento,
         licencia: p.licenciaConduccion?.numero || p.numeroDocumento,
-        categoria: p.licenciaConduccion?.categoria || "C2",
+        categoria: p.licenciaConduccion?.categorias?.[0] || (p.licenciaConduccion as any)?.categoria || "C2",
         vencimiento: p.licenciaConduccion?.fechaVencimiento
           ? p.licenciaConduccion.fechaVencimiento.toISOString().split("T")[0]
           : null,
