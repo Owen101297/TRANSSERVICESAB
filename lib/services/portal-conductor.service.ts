@@ -8,6 +8,7 @@ import { getAsignacionesDb } from "@/lib/services/asignaciones.service";
 import { getViajesDb } from "@/lib/services/operacion.service";
 import { InspeccionPreoperacional, NovedadConductor, TipoNovedadConductor, EstadoConceptoPreoperacional } from "@/lib/types/preoperacional";
 import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction, rethrowMutationInProduction } from "@/lib/production-safety";
+import { canAccessPortalVehicle, normalizeVehiclePlate } from "@/lib/portal-access";
 
 let localPreoperacionalesState: InspeccionPreoperacional[] = [];
 let localNovedadesConductorState: NovedadConductor[] = [];
@@ -92,14 +93,44 @@ export async function createPreoperacionalAction(
       session.rolPrincipal === "conductor"
         ? session.nombre
         : (formData.get("conductorNombre") as string);
-    const vehiculoId = formData.get("vehiculoId") as string;
-    const placa = formData.get("placa") as string;
+    let vehiculoId = formData.get("vehiculoId") as string;
+    const placa = normalizeVehiclePlate(formData.get("placa") as string);
     const kilometraje = parseFloat((formData.get("kilometraje") as string) || "0");
     const checklistRaw = formData.get("checklist") as string;
     const checklist = checklistRaw ? JSON.parse(checklistRaw) : {};
     const hallazgoDetectado = formData.get("hallazgoDetectado") === "true";
     const descripcionHallazgo = (formData.get("descripcionHallazgo") as string) || undefined;
     const fotoEvidenciaUrl = (formData.get("fotoEvidenciaUrl") as string) || undefined;
+
+    if (!placa) throw new Error("La placa del vehículo es obligatoria.");
+    if (session.rolPrincipal === "conductor") {
+      if (!(await canAccessPortalVehicle(session, placa))) {
+        throw new Error("No estás autorizado para inspeccionar este vehículo.");
+      }
+      const vehiculoAsignado = await prisma.vehiculo.findFirst({
+        where: { placa: { equals: placa, mode: "insensitive" } },
+        select: { id: true },
+      });
+      if (!vehiculoAsignado) throw new Error("El vehículo asignado no existe en la flota.");
+      vehiculoId = vehiculoAsignado.id;
+
+      const now = new Date();
+      const dia = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit",
+      }).format(now);
+      const turno = await prisma.turnoDespacho.findFirst({
+        where: {
+          conductorDocumento: session.documento,
+          placa: { equals: placa, mode: "insensitive" },
+          fecha: {
+            gte: new Date(`${dia}T00:00:00-05:00`),
+            lte: new Date(`${dia}T23:59:59.999-05:00`),
+          },
+        },
+        select: { id: true },
+      });
+      if (!turno) throw new Error("Primero debes abrir la jornada para este vehículo.");
+    }
 
     const estadoConcepto: EstadoConceptoPreoperacional = hallazgoDetectado
       ? "apto_con_observacion"

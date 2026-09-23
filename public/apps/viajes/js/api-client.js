@@ -119,28 +119,19 @@ export async function getConductorByEmail(email) {
 // ============================================================
 export async function getCurrentUser() {
     try {
-        const raw = localStorage.getItem("transservices_conductor");
-        if (raw) {
-            const parsed = JSON.parse(raw);
-            if (parsed?.documento || parsed?.id) {
-                return {
-                    id: parsed.id || parsed.documento,
-                    email: parsed.email || `${parsed.documento}@transservicesab.com`,
-                    nombre: parsed.nombre || "Conductor",
-                    documento: parsed.documento || "",
-                    rol: parsed.rol || "conductor",
-                    placa: parsed.placa || null
-                };
-            }
-        }
-    } catch {}
-
-    try {
-        const res = await fetch('/api/auth/me');
+        const res = await fetch('/api/portal-conductor/contexto', { cache: 'no-store' });
         if (res.ok) {
             const data = await res.json();
-            if (data?.authenticated && data.user) {
-                return data.user;
+            if (data?.success && data.usuario) {
+                const user = {
+                    id: data.usuario.id,
+                    nombre: data.usuario.nombre,
+                    documento: data.usuario.documento,
+                    rol: data.usuario.rol,
+                    placa: data.asignacion?.placa || null
+                };
+                localStorage.setItem("transservices_conductor", JSON.stringify(user));
+                return user;
             }
         }
     } catch (e) { }
@@ -211,12 +202,7 @@ export async function getViajes() {
 
 export async function getViajesByConductor(conductorId) {
     try {
-        const raw = localStorage.getItem("transservices_conductor");
-        let doc = '';
-        if (raw) {
-            try { doc = JSON.parse(raw).documento || ''; } catch {}
-        }
-        const url = `/api/apps/viajes?conductorId=${encodeURIComponent(conductorId || '')}&doc=${encodeURIComponent(doc || '')}`;
+        const url = `/api/apps/viajes?conductorId=${encodeURIComponent(conductorId || '')}`;
         const res = await fetch(url);
         if (res.ok) {
             const data = await res.json();

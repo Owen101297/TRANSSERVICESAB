@@ -20,8 +20,10 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { Capacitacion, PreguntaEvaluacion } from "@/lib/types/capacitacion";
+import { usePortalSession } from "@/lib/hooks/usePortalSession";
 
 export default function PortalCapacitacionesPage() {
+  const { session: verifiedSession } = usePortalSession();
   const [capacitaciones, setCapacitaciones] = useState<Capacitacion[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCap, setSelectedCap] = useState<Capacitacion | null>(null);
@@ -31,7 +33,7 @@ export default function PortalCapacitacionesPage() {
     id?: string;
     nombre?: string;
     documento?: string;
-    placa?: string;
+    placa?: string | null;
   } | null>(null);
 
   // Datos del Participante (Para conductores propios o externos/contratistas)
@@ -58,25 +60,13 @@ export default function PortalCapacitacionesPage() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [isSigBlank, setIsSigBlank] = useState(true);
 
-  // 1. Cargar Sesión del Conductor
+  // 1. Identidad verificada por la sesión del servidor.
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem("transservices_conductor") || localStorage.getItem("ab_driver_session");
-      if (stored) {
-        const session = JSON.parse(stored);
-        setDriverSession(session);
-        if (session.nombre) setParticipantNombre(session.nombre);
-        if (session.documento) setParticipantDocumento(session.documento);
-      } else if (typeof window !== "undefined" && (window as any).TransServices?.getSession) {
-        const session = (window as any).TransServices.getSession();
-        setDriverSession(session);
-        if (session.nombre) setParticipantNombre(session.nombre);
-        if (session.documento) setParticipantDocumento(session.documento);
-      }
-    } catch (e) {
-      console.warn("No active session:", e);
-    }
-  }, []);
+    if (!verifiedSession) return;
+    setDriverSession(verifiedSession);
+    setParticipantNombre(verifiedSession.nombre);
+    setParticipantDocumento(verifiedSession.documento);
+  }, [verifiedSession]);
 
   // 2. Cargar Capacitaciones desde API
   const loadCapacitaciones = async () => {

@@ -88,6 +88,7 @@ test("las API operativas restantes aplican autorización en el handler", () => {
     ["app/api/reportes/sisi-pesv/route.ts", ["GET"]],
     ["app/api/portal-conductor/cambiar-vehiculo/route.ts", ["GET", "POST"]],
     ["app/api/portal-conductor/turno/route.ts", ["GET", "POST"]],
+    ["app/api/portal-conductor/contexto/route.ts", ["GET"]],
   ] as const;
 
   for (const [routeFile, methods] of protectedHandlers) {
@@ -102,6 +103,24 @@ test("las API operativas restantes aplican autorización en el handler", () => {
         `${routeFile} ${method} debe autorizar dentro del handler`,
       );
     }
+  }
+});
+
+test("las pantallas Next del portal no usan localStorage como fuente de identidad", () => {
+  const portalPages = [
+    "app/portal-conductor/page.tsx",
+    "app/portal-conductor/turno/page.tsx",
+    "app/portal-conductor/preoperacional/page.tsx",
+    "app/portal-conductor/capacitaciones/page.tsx",
+  ];
+
+  for (const page of portalPages) {
+    const source = readFileSync(join(process.cwd(), page), "utf8");
+    assert.doesNotMatch(
+      source,
+      /localStorage\.getItem\(["'](?:transservices_conductor|ab_driver_session)["']\)/,
+      `${page} debe obtener identidad desde el servidor`,
+    );
   }
 });
 

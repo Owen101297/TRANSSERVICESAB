@@ -22,15 +22,17 @@ import {
   ValorItemChecklist,
 } from "@/lib/types/preoperacional";
 import { PlateTag } from "@/components/ui/PlateTag";
+import { usePortalSession } from "@/lib/hooks/usePortalSession";
 
 export default function PreoperacionalDriverPage() {
   const router = useRouter();
+  const { session: verifiedSession, loading: sessionLoading, error: sessionError } = usePortalSession();
 
   // Estados de Sesión y Datos Base
   const [driverName, setDriverName] = useState<string>("Conductor");
   const [driverDoc, setDriverDoc] = useState<string>("");
   const [driverId, setDriverId] = useState<string>("");
-  const [selectedPlaca, setSelectedPlaca] = useState<string>("WGM-212");
+  const [selectedPlaca, setSelectedPlaca] = useState<string>("");
   const [kilometraje, setKilometraje] = useState<string>("");
   const [observaciones, setObservaciones] = useState<string>("");
 
@@ -49,41 +51,30 @@ export default function PreoperacionalDriverPage() {
   const [submitResult, setSubmitResult] = useState<any>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Cargar sesión del Portal del Conductor y Odómetro Verificado
+  // Cargar sesión verificada del servidor y odómetro de la jornada.
   useEffect(() => {
-    try {
-      const storedConductor = localStorage.getItem("transservices_conductor");
-      let currentPlaca = "WGM-212";
-      if (storedConductor) {
-        const parsed = JSON.parse(storedConductor);
-        if (parsed.nombre) setDriverName(parsed.nombre);
-        if (parsed.documento) setDriverDoc(parsed.documento);
-        if (parsed.id) setDriverId(parsed.id);
-        if (parsed.placa && parsed.placa !== "SIN ASIGNAR") {
-          setSelectedPlaca(parsed.placa);
-          currentPlaca = parsed.placa;
-        }
-      }
-
-      const storedOdometro = localStorage.getItem("transservices_odometro_actual");
-      if (storedOdometro) {
-        setKilometraje(storedOdometro);
-      } else if (currentPlaca) {
-        fetch(`/api/portal-conductor/turno?placa=${currentPlaca}`)
-          .then((res) => (res.ok ? res.json() : null))
-          .then((data) => {
-            if (data?.turnoHoy?.odometroInicial) {
-              setKilometraje(String(data.turnoHoy.odometroInicial));
-            } else if (data?.odometroReferencia) {
-              setKilometraje(String(data.odometroReferencia));
-            }
-          })
-          .catch(() => {});
-      }
-    } catch (e) {
-      console.warn("No se pudo leer la sesión activa:", e);
+    if (sessionError) {
+      setErrorMessage(sessionError);
+      return;
     }
-  }, []);
+    if (sessionLoading || !verifiedSession) return;
+    setDriverName(verifiedSession.nombre);
+    setDriverDoc(verifiedSession.documento);
+    setDriverId(verifiedSession.id);
+    const placa = verifiedSession.placa || "";
+    setSelectedPlaca(placa);
+    if (!placa) {
+      setErrorMessage("No tienes un vehículo asignado. Solicita autorización a coordinación.");
+      return;
+    }
+    fetch(`/api/portal-conductor/turno?placa=${encodeURIComponent(placa)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.turnoHoy?.odometroInicial) setKilometraje(String(data.turnoHoy.odometroInicial));
+        else if (data?.odometroReferencia) setKilometraje(String(data.odometroReferencia));
+      })
+      .catch(() => setErrorMessage("No fue posible consultar el odómetro de la jornada."));
+  }, [verifiedSession, sessionLoading, sessionError]);
 
   // Configuración de Canvas de Firma Táctil
   useEffect(() => {

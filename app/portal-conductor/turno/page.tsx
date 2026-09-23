@@ -19,9 +19,11 @@ import {
   Clock,
   Trash2,
 } from "lucide-react";
+import { usePortalSession } from "@/lib/hooks/usePortalSession";
 
 export default function AperturaTurnoPage() {
   const router = useRouter();
+  const { session: verifiedSession, loading: sessionLoading, error: sessionError } = usePortalSession();
 
   // Datos de conductor y vehículo
   const [driver, setDriver] = useState<{
@@ -52,33 +54,11 @@ export default function AperturaTurnoPage() {
   const inputVehiculoRef = useRef<HTMLInputElement | null>(null);
   const inputOdometroRef = useRef<HTMLInputElement | null>(null);
 
-  // 1. Cargar sesión y datos del turno actual
+  // 1. Cargar identidad verificada y datos del turno actual
   useEffect(() => {
     async function init() {
-      let currentDriver = null;
-      try {
-        const authRes = await fetch("/api/auth/me");
-        if (authRes.ok) {
-          const authData = await authRes.json();
-          if (authData?.authenticated && authData.user) {
-            currentDriver = {
-              id: authData.user.id,
-              nombre: authData.user.nombre,
-              documento: authData.user.documento,
-              placa: authData.user.placaAsignada || null,
-              rol: authData.user.rolPrincipal || "conductor",
-            };
-          }
-        }
-      } catch {}
-
-      if (!currentDriver) {
-        try {
-          const raw = localStorage.getItem("transservices_conductor");
-          if (raw) currentDriver = JSON.parse(raw);
-        } catch {}
-      }
-
+      if (!verifiedSession) return;
+      const currentDriver = verifiedSession;
       setDriver(currentDriver);
 
       // Si tenemos placa o documento, consultar odómetro de referencia y si ya hay turno hoy
@@ -129,9 +109,13 @@ export default function AperturaTurnoPage() {
 
       setLoadingInitial(false);
     }
-
-    init();
-  }, []);
+    if (sessionError) {
+      setErrorMsg(sessionError);
+      setLoadingInitial(false);
+      return;
+    }
+    if (!sessionLoading) void init();
+  }, [verifiedSession, sessionLoading, sessionError]);
 
   // Función para comprimir fotos en cliente usando Canvas (WebP < 250KB)
   const compressImage = (file: File): Promise<string> => {
