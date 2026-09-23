@@ -302,7 +302,7 @@ export default function PortalConductorMobilePage() {
     const cacheBustedHref = href.startsWith("/apps/")
       ? `${href}${separator}rol=${encodeURIComponent(roleParam)}&placa=${encodeURIComponent(placaParam)}&doc=${encodeURIComponent(docParam)}&v=2.1.0&t=${Date.now()}`
       : href;
-    window.location.href = cacheBustedHref;
+    router.push(cacheBustedHref);
   };
 
   const handleConfirmVehicleChange = async (targetPlaca: string) => {

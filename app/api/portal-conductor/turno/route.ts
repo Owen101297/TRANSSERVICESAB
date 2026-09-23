@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireApiSession } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest) {
+  const auth = await requireApiSession();
+  if (auth.response) return auth.response;
   try {
     const { searchParams } = new URL(req.url);
     const rawPlaca = searchParams.get("placa") || "";
-    const rawDoc = searchParams.get("documento") || "";
+    const rawDoc =
+      auth.session.rolPrincipal === "conductor"
+        ? auth.session.documento
+        : searchParams.get("documento") || "";
 
     const cleanPlaca = rawPlaca.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
     const cleanDoc = rawDoc.trim().replace(/[^0-9A-Za-z]/g, "");
@@ -82,6 +88,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireApiSession();
+  if (auth.response) return auth.response;
   try {
     const body = await req.json();
     const {
@@ -99,7 +107,11 @@ export async function POST(req: NextRequest) {
     } = body;
 
     const cleanPlaca = (placa || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
-    const cleanDoc = (conductorDocumento || "").trim();
+    const cleanDoc = (
+      auth.session.rolPrincipal === "conductor"
+        ? auth.session.documento
+        : conductorDocumento || ""
+    ).trim();
     const numOdometro = parseFloat(String(odometroInicial || 0));
 
     if (!cleanPlaca) {
@@ -152,8 +164,12 @@ export async function POST(req: NextRequest) {
     // 3. Crear Turno de Despacho
     const nuevoTurno = await prisma.turnoDespacho.create({
       data: {
-        conductorId: conductorId || null,
-        conductorNombre: conductorNombre || "Conductor",
+        conductorId:
+          auth.session.rolPrincipal === "conductor" ? auth.session.id : conductorId || null,
+        conductorNombre:
+          auth.session.rolPrincipal === "conductor"
+            ? auth.session.nombre
+            : conductorNombre || "Conductor",
         conductorDocumento: cleanDoc,
         placa: cleanPlaca,
         vehiculoId: vehiculo?.id || null,

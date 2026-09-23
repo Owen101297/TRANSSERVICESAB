@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   GraduationCap,
   Calendar,
@@ -41,6 +42,7 @@ import {
 import { generateAsistenciaPDF, AsistenciaPdfItem } from "@/lib/utils/pdfAsistenciaGenerator";
 
 export default function CapacitacionesPage() {
+  const router = useRouter();
   const [capacitaciones, setCapacitaciones] = useState<Capacitacion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -335,7 +337,7 @@ _Cumplimiento Normativo PESV Res. 40595/2022 y SG-SST Dec. 1072_`;
               setSearchQuery("");
               setActiveTab("todas");
             } else {
-              window.location.href = "/capacitaciones/nueva";
+              router.push("/capacitaciones/nueva");
             }
           }}
         />

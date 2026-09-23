@@ -1,11 +1,29 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encodeSession, getRolPrincipal, AUTH_COOKIE_NAME } from "@/lib/auth";
+import { hashPassword, isPasswordHash, verifyPassword } from "@/lib/password";
+import { clearRateLimit, consumeRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { type, documento, pin, email, password } = body;
+    const clientIp =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      req.headers.get("x-real-ip") ||
+      "unknown";
+    const identifier = String(email || documento || "anonymous").trim().toLowerCase();
+    const rateLimitKey = `${clientIp}:${identifier}`;
+    const rateLimit = consumeRateLimit(rateLimitKey);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: "Demasiados intentos. Intenta más tarde." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rateLimit.retryAfterSeconds) },
+        }
+      );
+    }
 
     // -------------------------------------------------------------
     // 1. INGRESO DE CONDUCTOR (Cédula + PIN)
@@ -14,9 +32,9 @@ export async function POST(req: Request) {
       const cleanDoc = (documento || "").toString().trim();
       const inputPin = (pin || "").toString().trim();
 
-      if (!cleanDoc) {
+      if (!cleanDoc || !inputPin) {
         return NextResponse.json(
-          { success: false, error: "Por favor ingresa tu número de cédula." },
+          { success: false, error: "Ingresa tu número de cédula y PIN." },
           { status: 400 }
         );
       }
@@ -46,12 +64,19 @@ export async function POST(req: Request) {
       }
 
       // Validar PIN (si la persona no tiene PIN configurado, el PIN por defecto es 1234 o los últimos 4 dígitos)
-      const expectedPin = persona.pin || "1234";
-      if (inputPin && inputPin !== expectedPin && inputPin !== "1234") {
+      const expectedPin = persona.pin;
+      if (!(await verifyPassword(inputPin, expectedPin))) {
         return NextResponse.json(
-          { success: false, error: "PIN incorrecto. Intenta nuevamente (PIN por defecto: 1234)." },
+          { success: false, error: "Credenciales incorrectas." },
           { status: 401 }
         );
+      }
+
+      if (!isPasswordHash(expectedPin)) {
+        await prisma.persona.update({
+          where: { id: persona.id },
+          data: { pin: await hashPassword(inputPin) },
+        });
       }
 
       const placaAsignada = persona.asignaciones[0]?.placa || null;
@@ -65,7 +90,8 @@ export async function POST(req: Request) {
         placaAsignada,
       };
 
-      const token = encodeSession(user);
+      const token = await encodeSession(user);
+      clearRateLimit(rateLimitKey);
 
       const response = NextResponse.json({
         success: true,
@@ -98,39 +124,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Acceso Maestro / Administrador General
-    if (
-      (inputIdentifier === "admin@transservices.com" || inputIdentifier === "admin" || inputIdentifier === "gerencia") &&
-      (inputPassword === "admin123" || inputPassword === "TransServices2026*" || inputPassword === "1234")
-    ) {
-      const user = {
-        id: "admin-principal",
-        documento: "900123456",
-        nombre: "Administrador General",
-        email: "admin@transservices.com",
-        perfiles: ["administrativo", "admin", "supervisor", "hseq"],
-        rolPrincipal: "administrativo" as const,
-        placaAsignada: null,
-      };
-
-      const token = encodeSession(user);
-      const response = NextResponse.json({
-        success: true,
-        user,
-        redirectUrl: "/",
-      });
-
-      response.cookies.set(AUTH_COOKIE_NAME, token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 7,
-        path: "/",
-      });
-
-      return response;
-    }
-
     // Buscar en la base de datos por email o número de documento
     const persona = await prisma.persona.findFirst({
       where: {
@@ -146,12 +139,19 @@ export async function POST(req: Request) {
     }
 
     // Validar clave (soporta PIN o default 1234)
-    const validPass = persona.passwordHash || persona.pin || "1234";
-    if (inputPassword !== validPass && inputPassword !== "1234" && inputPassword !== "admin123") {
+    const validPass = persona.passwordHash || persona.pin;
+    if (!(await verifyPassword(inputPassword, validPass))) {
       return NextResponse.json(
         { success: false, error: "Contraseña incorrecta." },
         { status: 401 }
       );
+    }
+
+    if (!isPasswordHash(validPass)) {
+      await prisma.persona.update({
+        where: { id: persona.id },
+        data: { passwordHash: await hashPassword(inputPassword) },
+      });
     }
 
     const rolPrincipal = getRolPrincipal(persona.perfiles);
@@ -165,7 +165,8 @@ export async function POST(req: Request) {
       placaAsignada: null,
     };
 
-    const token = encodeSession(user);
+    const token = await encodeSession(user);
+    clearRateLimit(rateLimitKey);
     const redirectUrl = rolPrincipal === "conductor" ? "/portal-conductor" : "/";
 
     const response = NextResponse.json({

@@ -2,13 +2,21 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { decodeSession, AUTH_COOKIE_NAME } from "@/lib/session";
 
-export function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  const isPublicApi =
+    pathname === "/api/auth/login" ||
+    pathname === "/api/auth/logout" ||
+    pathname === "/api/health" ||
+    pathname === "/api/version" ||
+    (pathname === "/api/gps/eventos" && req.method === "POST") ||
+    (pathname === "/api/apps/asistencia/config" && req.method === "GET");
 
   // 1. Ignorar endpoints de API, healthcheck, assets, aplicaciones públicas y archivos estáticos
   if (
     pathname.startsWith("/_next") ||
-    pathname.startsWith("/api/") ||
+    isPublicApi ||
     pathname.startsWith("/assets") ||
     pathname.startsWith("/apps") ||
     pathname === "/asistir" ||
@@ -19,7 +27,25 @@ export function middleware(req: NextRequest) {
   }
 
   const token = req.cookies.get(AUTH_COOKIE_NAME)?.value;
-  const session = token ? decodeSession(token) : null;
+  const session = token ? await decodeSession(token) : null;
+
+  if (pathname.startsWith("/api/")) {
+    if (!session) {
+      return NextResponse.json({ error: "No autenticado." }, { status: 401 });
+    }
+
+    const isDriverApi =
+      pathname.startsWith("/api/portal-conductor/") ||
+      pathname.startsWith("/api/apps/") ||
+      pathname === "/api/capacitaciones/asistir" ||
+      (pathname === "/api/capacitaciones" && req.method === "GET");
+
+    if (session.rolPrincipal === "conductor" && !isDriverApi) {
+      return NextResponse.json({ error: "No autorizado." }, { status: 403 });
+    }
+
+    return NextResponse.next();
+  }
 
   // 2. Si está en /login y ya está autenticado
   if (pathname === "/login") {

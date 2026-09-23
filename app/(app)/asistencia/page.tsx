@@ -493,7 +493,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
   }, []);
 
   // Filtrado por buscador y actividad
-  const filteredRegistros = useMemo(() => {
+  const filteredRegistros = (() => {
     let list = registros;
     if (actividadFiltro !== "TODAS") {
       list = list.filter((r) => (r.evento || "").trim().toUpperCase() === actividadFiltro.trim().toUpperCase());
@@ -508,7 +508,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
         (r.proyecto && r.proyecto.toLowerCase().includes(q)) ||
         (r.evento && r.evento.toLowerCase().includes(q))
     );
-  }, [registros, actividadFiltro, searchQuery]);
+  })();
 
   // Estadísticas calculadas
   const stats = useMemo(() => {
@@ -530,10 +530,10 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
   }, [registros]);
 
   // Paginación para vista tabla
-  const paginatedRegistros = useMemo(() => {
+  const paginatedRegistros = (() => {
     const start = (currentPage - 1) * PAGE_SIZE;
     return filteredRegistros.slice(start, start + PAGE_SIZE);
-  }, [filteredRegistros, currentPage]);
+  })();
 
   const totalPages = Math.ceil(filteredRegistros.length / PAGE_SIZE) || 1;
 

@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { procesarAlertaViaje } from "@/lib/services/alertas-viaje.service";
+import { requireApiSession, requireStaff } from "@/lib/api-auth";
 
 export async function POST(req: Request) {
+  const auth = await requireApiSession();
+  if (auth.response) return auth.response;
   try {
     const body = await req.json();
 
@@ -46,7 +49,8 @@ export async function POST(req: Request) {
     } = body;
 
     // Buscar o vincular conductor y vehículo en PostgreSQL
-    let cId = conductorId;
+    let cId =
+      auth.session.rolPrincipal === "conductor" ? auth.session.id : conductorId;
     let vId = undefined;
 
     if (conductorDocumento && !cId) {
@@ -103,7 +107,10 @@ export async function POST(req: Request) {
     const viaje = await prisma.viaje.create({
       data: {
         conductorId: cId || "conductor-general",
-        conductorNombre: conductorNombre || "Conductor Asignado",
+        conductorNombre:
+          auth.session.rolPrincipal === "conductor"
+            ? auth.session.nombre
+            : conductorNombre || "Conductor Asignado",
         vehiculoId: vId || "vehiculo-general",
         placa: (placa || "WGM212").toUpperCase().trim(),
         contratistaNombre: body.contratistaNombre || "TRANS SERVICES COOPERATIVA A&B",
@@ -153,6 +160,8 @@ export async function POST(req: Request) {
 }
 
 export async function GET(req: Request) {
+  const auth = await requireApiSession();
+  if (auth.response) return auth.response;
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
@@ -168,16 +177,29 @@ export async function GET(req: Request) {
       if (!viaje) {
         return NextResponse.json({ error: "Viaje no encontrado" }, { status: 404 });
       }
+      if (
+        auth.session.rolPrincipal === "conductor" &&
+        viaje.conductorId !== auth.session.id
+      ) {
+        return NextResponse.json({ error: "No autorizado." }, { status: 403 });
+      }
       return NextResponse.json(mapViajeResponse(viaje));
     }
 
     const where: any = {};
-    if (conductorId) where.conductorId = conductorId;
+    if (auth.session.rolPrincipal === "conductor") {
+      where.conductorId = auth.session.id;
+    }
+    if (conductorId && auth.session.rolPrincipal !== "conductor") where.conductorId = conductorId;
     if (placa) where.placa = placa.toUpperCase().trim();
     if (estado) where.estado = estado;
 
     // Si viene documento, buscar el ID de la persona
-    if (conductorDocumento && !conductorId) {
+    if (
+      conductorDocumento &&
+      !conductorId &&
+      auth.session.rolPrincipal !== "conductor"
+    ) {
       const persona = await prisma.persona.findUnique({
         where: { numeroDocumento: String(conductorDocumento).trim() },
       });
@@ -201,6 +223,8 @@ export async function GET(req: Request) {
 }
 
 export async function PUT(req: Request) {
+  const auth = await requireApiSession();
+  if (auth.response) return auth.response;
   try {
     const { searchParams } = new URL(req.url);
     const body = await req.json().catch(() => ({}));
@@ -213,6 +237,15 @@ export async function PUT(req: Request) {
     const existing = await prisma.viaje.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: "Viaje no encontrado" }, { status: 404 });
+    }
+    if (
+      auth.session.rolPrincipal === "conductor" &&
+      (existing.conductorId !== auth.session.id ||
+        body.estado === "Autorizado" ||
+        body.signatures?.hse ||
+        body.signatures?.gerencia)
+    ) {
+      return NextResponse.json({ error: "No autorizado." }, { status: 403 });
     }
 
     const currentRiskInputs = (existing.riskInputs as Record<string, any>) || {};
@@ -272,6 +305,8 @@ export async function PUT(req: Request) {
 }
 
 export async function PATCH(req: Request) {
+  const auth = await requireApiSession();
+  if (auth.response) return auth.response;
   try {
     const { searchParams } = new URL(req.url);
     const body = await req.json().catch(() => ({}));
@@ -279,6 +314,18 @@ export async function PATCH(req: Request) {
 
     if (!id) {
       return NextResponse.json({ error: "ID de viaje requerido" }, { status: 400 });
+    }
+
+    const existingTrip = await prisma.viaje.findUnique({ where: { id } });
+    if (
+      !existingTrip ||
+      (auth.session.rolPrincipal === "conductor" &&
+        existingTrip.conductorId !== auth.session.id)
+    ) {
+      return NextResponse.json(
+        { error: existingTrip ? "No autorizado." : "Viaje no encontrado" },
+        { status: existingTrip ? 403 : 404 }
+      );
     }
 
     const now = new Date();
@@ -320,6 +367,8 @@ export async function PATCH(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  const auth = await requireStaff();
+  if (auth.response) return auth.response;
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");

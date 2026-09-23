@@ -5,8 +5,9 @@ import {
   getResumenAlertasGPSDb,
 } from "@/lib/services/gps.service";
 import { TipoEventoGPS, PrioridadEventoGPS } from "@/lib/types/gps";
+import { requireStaff } from "@/lib/api-auth";
 
-const VALID_API_KEY = process.env.GPS_WEBHOOK_API_KEY || "ts_gps_live_secret_key_ab2026";
+const VALID_API_KEY = process.env.GPS_WEBHOOK_API_KEY;
 
 /**
  * Función auxiliar para desempaquetar payloads provenientes de n8n / webhooks
@@ -43,6 +44,8 @@ function parsearNumeroSeguro(val: any): number | undefined {
  * Consulta de eventos reales y métricas de telemetría
  */
 export async function GET(request: NextRequest) {
+  const auth = await requireStaff();
+  if (auth.response) return auth.response;
   try {
     const searchParams = request.nextUrl.searchParams;
     const placa = searchParams.get("placa") || undefined;
@@ -154,8 +157,14 @@ export async function POST(request: NextRequest) {
     const bodyKey = rawBody.api_key || rawBody.apiKey || rawBody.key || rawBody.secret;
     const providedKey = authHeader || queryKey || bodyKey;
 
-    // Validación de seguridad (acepta clave válida o por defecto)
-    if (providedKey && providedKey !== VALID_API_KEY && providedKey !== "ts_gps_live_secret_key_ab2026") {
+    if (!VALID_API_KEY) {
+      return NextResponse.json(
+        { error: "Webhook GPS no configurado." },
+        { status: 503 }
+      );
+    }
+
+    if (!providedKey || providedKey !== VALID_API_KEY) {
       return NextResponse.json(
         { error: "Acceso no autorizado. Clave de autenticación no válida." },
         { status: 401 }
@@ -264,6 +273,8 @@ export async function POST(request: NextRequest) {
  * Eliminación de eventos de prueba o depuración
  */
 export async function DELETE(request: NextRequest) {
+  const auth = await requireStaff(["administrativo"]);
+  if (auth.response) return auth.response;
   try {
     const { prisma } = await import("@/lib/prisma");
     const id = request.nextUrl.searchParams.get("id");

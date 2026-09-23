@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { quickAsignarConductorVehiculoAction } from "@/lib/services/asignaciones.service";
+import { requireApiSession } from "@/lib/api-auth";
 
 export async function GET() {
+  const auth = await requireApiSession();
+  if (auth.response) return auth.response;
   try {
     const vehiculos = await prisma.vehiculo.findMany({
       select: {
@@ -21,6 +24,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireApiSession();
+  if (auth.response) return auth.response;
   try {
     const body = await req.json();
     const { conductorId, placa, documento } = body;
@@ -29,7 +34,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Debes ingresar una placa válida." }, { status: 400 });
     }
 
-    let targetConductorId = conductorId;
+    let targetConductorId =
+      auth.session.rolPrincipal === "conductor" ? auth.session.id : conductorId;
 
     // Si no vino conductorId pero vino documento, buscar la persona
     if (!targetConductorId && documento) {

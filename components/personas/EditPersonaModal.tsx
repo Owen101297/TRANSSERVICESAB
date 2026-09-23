@@ -160,8 +160,8 @@ export function EditPersonaModal({
             <TextField
               label="PIN / Contraseña de Acceso"
               name="pin"
-              defaultValue={persona.pin || "1234"}
-              placeholder="Ej. 1234 o contraseña segura"
+              defaultValue=""
+              placeholder="Dejar vacío para conservar la clave actual"
               helperText="Clave utilizada para ingresar al sistema o portal móvil."
             />
           </FormSection>

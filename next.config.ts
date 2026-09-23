@@ -3,9 +3,6 @@ import type { NextConfig } from "next";
 const BUILD_ID = process.env.RAILWAY_DEPLOYMENT_ID || `build-${Date.now()}`;
 
 const nextConfig: NextConfig = {
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   env: {
     NEXT_PUBLIC_APP_BUILD_ID: BUILD_ID,
   },

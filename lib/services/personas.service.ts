@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { hashPassword } from "@/lib/password";
 import { SEED_PERSONAS, getPersonaById as getSeedPersonaById } from "@/lib/data/personas";
 import {
   Persona,
@@ -448,7 +449,7 @@ export async function updatePersonaAction(
             email: email || undefined,
             estado: estado || undefined,
             perfiles: perfiles.length > 0 ? perfiles : undefined,
-            pin: pin || undefined,
+            pin: pin ? await hashPassword(pin) : undefined,
             contratistaId: contratistaId !== undefined ? (contratistaId || null) : undefined,
             contratistaNombre: contratistaNombre !== undefined ? (contratistaNombre || null) : undefined,
             fotoIniciales: nombres && apellidos ? computeInitials(nombres, apellidos) : undefined,
@@ -1116,4 +1117,3 @@ export async function eliminarDocumentoPersonaDb(documentoId: string, personaId:
     return { success: false, error: error.message || "Error al eliminar documento." };
   }
 }
-

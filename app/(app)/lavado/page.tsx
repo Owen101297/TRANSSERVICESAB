@@ -178,7 +178,7 @@ export default function ControlLavadosPage() {
   };
 
   // ── Filtrado Local ──
-  const filteredRecords = useMemo(() => {
+  const filteredRecords = (() => {
     return records.filter((r) => {
       const matchPlaca = !searchPlaca || r.placa.toLowerCase().includes(searchPlaca.toLowerCase().trim());
       const matchAprobado =
@@ -189,7 +189,7 @@ export default function ControlLavadosPage() {
           : !r.estadoAprobo;
       return matchPlaca && matchAprobado;
     });
-  }, [records, searchPlaca, filterAprobado]);
+  })();
 
   // ── Exportar Excel CSV ──
   const handleExportCSV = () => {

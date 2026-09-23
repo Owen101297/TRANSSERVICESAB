@@ -177,8 +177,20 @@ export async function signOut() {
 }
 
 export async function verifyPinAdmin(pin) {
-    const p = String(pin || '').trim();
-    return p === '1234' || p === '2026' || p === '901621579' || p === '900778421';
+    const password = String(pin || '').trim();
+    if (!password) return false;
+    try {
+        const res = await fetch('/api/auth/verify-staff', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+        });
+        if (!res.ok) return false;
+        const data = await res.json();
+        return data.valid === true;
+    } catch {
+        return false;
+    }
 }
 
 // ============================================================

@@ -9,10 +9,13 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
-    "start": "prisma db push --skip-generate && tsx scripts/clean-db.ts && next start",
+    "start": "prisma db push --skip-generate && next start",
     "lint": "eslint",
     "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "db:catalogs": "tsx scripts/clean-db.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types tests/security.test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

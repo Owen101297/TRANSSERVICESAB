@@ -25,7 +25,7 @@ function LoginForm() {
     try {
       const payload =
         activeTab === "conductor"
-          ? { type: "conductor", documento, pin: pin || "1234" }
+          ? { type: "conductor", documento, pin }
           : { type: "staff", email, password };
 
       const res = await fetch("/api/auth/login", {
@@ -155,7 +155,6 @@ function LoginForm() {
               <div>
                 <label className="block text-xs font-medium uppercase tracking-wider text-fog-400 mb-1.5 flex justify-between">
                   <span>PIN de Seguridad</span>
-                  <span className="text-fog-400/60 font-mono">Default: 1234</span>
                 </label>
                 <div className="relative">
                   <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 text-fog-400" size={18} />
