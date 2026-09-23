@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireStaffSession } from "@/lib/auth";
 import { ITEMS_SGSST } from "@/lib/data/sgsst-items";
 import { ESTANDARES_SGSST } from "@/lib/data/sgsst-estandares";
 import { ItemSGSST, EstandarSGSST, EstadoItemSGSST } from "@/lib/types/sgsst";
@@ -64,6 +65,7 @@ export async function updateItemSgsstAction(
   observaciones?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    await requireStaffSession(["hseq", "administrativo"]);
     const index = localItemsSgsstState.findIndex((i) => i.id === itemId);
     if (index >= 0) {
       localItemsSgsstState[index].estado = estado;

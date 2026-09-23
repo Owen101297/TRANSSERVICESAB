@@ -6,6 +6,7 @@ export interface SessionUser {
   perfiles: string[];
   rolPrincipal: "conductor" | "coordinador" | "hseq" | "administrativo";
   placaAsignada?: string | null;
+  mustChangePassword?: boolean;
 }
 
 export const AUTH_COOKIE_NAME = "transservices_session";

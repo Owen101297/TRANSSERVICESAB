@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireStaffSession } from "@/lib/auth";
 import { Documento, CategoriaDocumento, TipoDocumento } from "@/lib/types/documento";
 import { getVehiculosDb } from "@/lib/services/vehiculos.service";
 import { getPersonasDb } from "@/lib/services/personas.service";
@@ -136,6 +137,7 @@ export async function getDocumentosDb(): Promise<Documento[]> {
  */
 export async function createDocumentoDigitalAction(formData: FormData): Promise<{ success: boolean; error?: string }> {
   try {
+    await requireStaffSession();
     const nombre = (formData.get("nombre") as string)?.trim() || "Documento Digital";
     const categoria = (formData.get("categoria") as CategoriaDocumento) || "empresa";
     const tipoDocumento = (formData.get("tipoDocumento") as TipoDocumento) || "otro";

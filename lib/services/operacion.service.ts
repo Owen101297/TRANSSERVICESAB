@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireStaffSession } from "@/lib/auth";
 import { getPersonaByIdDb } from "@/lib/services/personas.service";
 import { getVehiculoByIdDb } from "@/lib/services/vehiculos.service";
 import { Viaje, EstadoViaje, ServicioViaje, Novedad } from "@/lib/types/viaje";
@@ -118,6 +119,7 @@ export async function createViajeAction(
   formData: FormData
 ): Promise<{ success: boolean; viajeId?: string; error?: string }> {
   try {
+    await requireStaffSession();
     const conductorId = formData.get("conductorId") as string;
     const vehiculoId = formData.get("vehiculoId") as string;
     const origen = formData.get("origen") as string;
@@ -194,6 +196,7 @@ export async function registrarNovedadViajeAction(
   descripcion: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    await requireStaffSession();
     const novedadObj: Novedad = {
       id: `nov_${Date.now()}`,
       fecha: new Date().toISOString(),
@@ -240,6 +243,7 @@ export async function finalizarViajeAction(
   horaLlegada?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    await requireStaffSession();
     const now = new Date();
     const hoy = now.toISOString();
     const horaLocal = horaLlegada || now.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false });
@@ -282,4 +286,3 @@ export async function finalizarViajeAction(
     return { success: false, error: error.message || "Error al finalizar viaje." };
   }
 }
-

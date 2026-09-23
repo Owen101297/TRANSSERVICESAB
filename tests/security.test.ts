@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { hashPassword, isPasswordHash, verifyPassword } from "../lib/password.ts";
+import { hashPassword, isPasswordHash, isStrongPassword, verifyPassword } from "../lib/password.ts";
 import { decodeSession, encodeSession, type SessionUser } from "../lib/session.ts";
 
 process.env.SESSION_SECRET = "test-session-secret-with-more-than-32-characters";
@@ -27,4 +27,9 @@ test("las claves se almacenan con scrypt y se comparan correctamente", async () 
   assert.equal(isPasswordHash(hash), true);
   assert.equal(await verifyPassword("una-clave-segura", hash), true);
   assert.equal(await verifyPassword("incorrecta", hash), false);
+});
+
+test("la política rechaza claves heredadas débiles", () => {
+  assert.equal(isStrongPassword("1234"), false);
+  assert.equal(isStrongPassword("ClaveSegura9!"), true);
 });

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireStaffSession } from "@/lib/auth";
 import { SEED_CONTRATOS, SEED_FUECS } from "@/lib/data/fuec";
 import { getVehiculoByIdDb } from "@/lib/services/vehiculos.service";
 import { getPersonaByIdDb } from "@/lib/services/personas.service";
@@ -148,6 +149,7 @@ export async function createFuecAction(
   formData: FormData
 ): Promise<{ success: boolean; fuecId?: string; codigoFUEC?: string; error?: string }> {
   try {
+    await requireStaffSession();
     const contratoId = formData.get("contratoId") as string;
     const vehiculoId = formData.get("vehiculoId") as string;
     const conductorPrincipalId = formData.get("conductorPrincipalId") as string;

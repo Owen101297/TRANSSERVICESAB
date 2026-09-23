@@ -54,8 +54,9 @@ function LoginForm() {
       }
 
       // Redireccionar según rol
-      const target =
-        data.user.rolPrincipal === "conductor"
+      const target = data.user.mustChangePassword
+        ? "/cambiar-clave"
+        : data.user.rolPrincipal === "conductor"
           ? "/portal-conductor"
           : callbackUrl && callbackUrl !== "/login"
           ? callbackUrl

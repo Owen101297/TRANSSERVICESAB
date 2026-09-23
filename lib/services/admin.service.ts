@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireStaffSession } from "@/lib/auth";
 import { SEED_ROLES } from "@/lib/data/roles";
 
 export interface RolSistemaData {
@@ -54,6 +55,7 @@ export async function createRolAction(
   formData: FormData
 ): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
+    await requireStaffSession(["administrativo"]);
     const nombre = (formData.get("nombre") as string).trim().toUpperCase();
     const descripcion = formData.get("descripcion") as string;
     const permisosRaw = formData.getAll("permisos") as string[];

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encodeSession, getRolPrincipal, AUTH_COOKIE_NAME } from "@/lib/auth";
-import { hashPassword, isPasswordHash, verifyPassword } from "@/lib/password";
+import { hashPassword, isPasswordHash, isStrongPassword, verifyPassword } from "@/lib/password";
 import { clearRateLimit, consumeRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
@@ -72,10 +72,14 @@ export async function POST(req: Request) {
         );
       }
 
+      const mustChangePassword =
+        persona.mustChangePassword ||
+        !isPasswordHash(expectedPin) ||
+        !isStrongPassword(inputPin);
       if (!isPasswordHash(expectedPin)) {
         await prisma.persona.update({
           where: { id: persona.id },
-          data: { pin: await hashPassword(inputPin) },
+          data: { pin: await hashPassword(inputPin), mustChangePassword: true },
         });
       }
 
@@ -88,6 +92,7 @@ export async function POST(req: Request) {
         perfiles: persona.perfiles,
         rolPrincipal: "conductor" as const,
         placaAsignada,
+        mustChangePassword,
       };
 
       const token = await encodeSession(user);
@@ -96,7 +101,7 @@ export async function POST(req: Request) {
       const response = NextResponse.json({
         success: true,
         user,
-        redirectUrl: "/portal-conductor",
+        redirectUrl: mustChangePassword ? "/cambiar-clave" : "/portal-conductor",
       });
 
       // Guardar cookie HTTP-Only segura por 7 días
@@ -147,10 +152,14 @@ export async function POST(req: Request) {
       );
     }
 
+    const mustChangePassword =
+      persona.mustChangePassword ||
+      !isPasswordHash(validPass) ||
+      !isStrongPassword(inputPassword);
     if (!isPasswordHash(validPass)) {
       await prisma.persona.update({
         where: { id: persona.id },
-        data: { passwordHash: await hashPassword(inputPassword) },
+        data: { passwordHash: await hashPassword(inputPassword), mustChangePassword: true },
       });
     }
 
@@ -163,11 +172,16 @@ export async function POST(req: Request) {
       perfiles: persona.perfiles,
       rolPrincipal,
       placaAsignada: null,
+      mustChangePassword,
     };
 
     const token = await encodeSession(user);
     clearRateLimit(rateLimitKey);
-    const redirectUrl = rolPrincipal === "conductor" ? "/portal-conductor" : "/";
+    const redirectUrl = mustChangePassword
+      ? "/cambiar-clave"
+      : rolPrincipal === "conductor"
+        ? "/portal-conductor"
+        : "/";
 
     const response = NextResponse.json({
       success: true,

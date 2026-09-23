@@ -4,6 +4,11 @@ import { promisify } from "node:util";
 const scrypt = promisify(scryptCallback);
 const KEY_LENGTH = 64;
 const PREFIX = "scrypt";
+const STRONG_PASSWORD = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,72}$/;
+
+export function isStrongPassword(value: string): boolean {
+  return STRONG_PASSWORD.test(value);
+}
 
 export function isPasswordHash(value: string | null | undefined): boolean {
   return Boolean(value?.startsWith(`${PREFIX}$`));

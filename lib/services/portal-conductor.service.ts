@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireSelfOrStaff } from "@/lib/auth";
 import { getPersonaByIdDb } from "@/lib/services/personas.service";
 import { getAsignacionesDb } from "@/lib/services/asignaciones.service";
 import { getViajesDb } from "@/lib/services/operacion.service";
@@ -84,7 +85,11 @@ export async function createPreoperacionalAction(
 ): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const conductorId = formData.get("conductorId") as string;
-    const conductorNombre = formData.get("conductorNombre") as string;
+    const session = await requireSelfOrStaff(conductorId);
+    const conductorNombre =
+      session.rolPrincipal === "conductor"
+        ? session.nombre
+        : (formData.get("conductorNombre") as string);
     const vehiculoId = formData.get("vehiculoId") as string;
     const placa = formData.get("placa") as string;
     const kilometraje = parseFloat((formData.get("kilometraje") as string) || "0");
@@ -177,7 +182,11 @@ export async function createNovedadConductorAction(
 ): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const conductorId = formData.get("conductorId") as string;
-    const conductorNombre = formData.get("conductorNombre") as string;
+    const session = await requireSelfOrStaff(conductorId);
+    const conductorNombre =
+      session.rolPrincipal === "conductor"
+        ? session.nombre
+        : (formData.get("conductorNombre") as string);
     const vehiculoId = (formData.get("vehiculoId") as string) || undefined;
     const placa = (formData.get("placa") as string) || undefined;
     const tipo = (formData.get("tipo") as TipoNovedadConductor) || "otro";
@@ -248,4 +257,3 @@ export async function createNovedadConductorAction(
     return { success: false, error: error.message || "Error al reportar la novedad." };
   }
 }
-

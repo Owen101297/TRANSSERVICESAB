@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/password";
+import { requireStaffSession } from "@/lib/auth";
 import { SEED_PERSONAS, getPersonaById as getSeedPersonaById } from "@/lib/data/personas";
 import {
   Persona,
@@ -187,6 +188,7 @@ export interface CreatePersonaResult {
  */
 export async function createPersonaAction(formData: FormData): Promise<CreatePersonaResult> {
   try {
+    await requireStaffSession();
     const nombres = formData.get("nombres") as string;
     const apellidos = formData.get("apellidos") as string;
     const tipoDocumento = (formData.get("tipoDocumento") as TipoDocumento) || "CC";
@@ -364,6 +366,7 @@ export async function updatePersonaAction(
   formData: FormData
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    await requireStaffSession();
     const nombres = formData.get("nombres") as string;
     const apellidos = formData.get("apellidos") as string;
     const telefono = formData.get("telefono") as string;
@@ -450,6 +453,7 @@ export async function updatePersonaAction(
             estado: estado || undefined,
             perfiles: perfiles.length > 0 ? perfiles : undefined,
             pin: pin ? await hashPassword(pin) : undefined,
+            mustChangePassword: pin ? true : undefined,
             contratistaId: contratistaId !== undefined ? (contratistaId || null) : undefined,
             contratistaNombre: contratistaNombre !== undefined ? (contratistaNombre || null) : undefined,
             fotoIniciales: nombres && apellidos ? computeInitials(nombres, apellidos) : undefined,
@@ -490,6 +494,7 @@ function parseSafeDate(val: any): Date | null {
  */
 export async function batchUpsertPersonasDb(items: any[]) {
   try {
+    await requireStaffSession();
     let createdCount = 0;
     let updatedCount = 0;
     let failedCount = 0;
@@ -765,6 +770,7 @@ export async function batchUpsertPersonasDb(items: any[]) {
  */
 export async function deletePersonaDb(id: string) {
   try {
+    await requireStaffSession(["administrativo"]);
     if (process.env.DATABASE_URL) {
       // Eliminar asignaciones asociadas
       await prisma.asignacion.deleteMany({
@@ -800,6 +806,7 @@ export async function deletePersonaDb(id: string) {
  */
 export async function deleteMultiplePersonasDb(ids: string[]) {
   try {
+    await requireStaffSession(["administrativo"]);
     if (!ids || ids.length === 0) {
       return { success: true, count: 0 };
     }
@@ -836,6 +843,7 @@ export async function deleteMultiplePersonasDb(ids: string[]) {
  */
 export async function cambiarEstadoPersonaDb(id: string, nuevoEstado: EstadoPersona) {
   try {
+    await requireStaffSession();
     if (process.env.DATABASE_URL) {
       await prisma.persona.update({
         where: { id },
@@ -872,6 +880,7 @@ export async function cambiarEstadoPersonaDb(id: string, nuevoEstado: EstadoPers
  */
 export async function retirarPersonaDb(id: string, motivo: string = "Retiro voluntario") {
   try {
+    await requireStaffSession();
     if (process.env.DATABASE_URL) {
       // 1. Finalizar asignaciones activas del conductor
       await prisma.asignacion.updateMany({
@@ -921,6 +930,7 @@ export async function retirarPersonaDb(id: string, motivo: string = "Retiro volu
  */
 export async function reactivarPersonaDb(id: string) {
   try {
+    await requireStaffSession();
     if (process.env.DATABASE_URL) {
       await prisma.persona.update({
         where: { id },
@@ -959,6 +969,7 @@ export async function reactivarPersonaDb(id: string) {
  */
 export async function retirarMultiplePersonasDb(ids: string[], motivo: string = "Retiro masivo operativo") {
   try {
+    await requireStaffSession();
     if (!ids || ids.length === 0) return { success: true, count: 0 };
 
     if (process.env.DATABASE_URL) {
@@ -1051,6 +1062,7 @@ export async function guardarDocumentoPersonaDb(
   mimeType?: string
 ) {
   try {
+    await requireStaffSession();
     if (process.env.DATABASE_URL) {
       // Eliminar versión anterior del mismo tipo de documento si existe
       await prisma.documentoAdjunto.deleteMany({
@@ -1102,6 +1114,7 @@ export async function guardarDocumentoPersonaDb(
  */
 export async function eliminarDocumentoPersonaDb(documentoId: string, personaId: string) {
   try {
+    await requireStaffSession();
     if (process.env.DATABASE_URL) {
       await prisma.documentoAdjunto.delete({
         where: { id: documentoId },

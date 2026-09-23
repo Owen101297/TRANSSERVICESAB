@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireSelfOrStaff, requireStaffSession } from "@/lib/auth";
 import { getPersonaByIdDb } from "@/lib/services/personas.service";
 import { getVehiculoByIdDb } from "@/lib/services/vehiculos.service";
 import { getContratistaByIdDb } from "@/lib/services/contratistas.service";
@@ -91,6 +92,7 @@ export async function createAsignacionAction(
   formData: FormData
 ): Promise<{ success: boolean; asignacionId?: string; error?: string }> {
   try {
+    await requireStaffSession();
     const conductorId = formData.get("conductorId") as string;
     const vehiculoId = formData.get("vehiculoId") as string;
     const tipoAsignacion = (formData.get("tipoAsignacion") as TipoAsignacion) || "fija";
@@ -175,6 +177,7 @@ export async function createAsignacionAction(
  */
 export async function finalizarAsignacionAction(id: string): Promise<{ success: boolean; error?: string }> {
   try {
+    await requireStaffSession();
     const hoy = new Date().toISOString().split("T")[0];
 
     if (process.env.DATABASE_URL) {
@@ -215,6 +218,7 @@ export async function finalizarAsignacionAction(id: string): Promise<{ success: 
  */
 export async function deleteAsignacionDb(id: string): Promise<{ success: boolean; error?: string }> {
   try {
+    await requireStaffSession(["administrativo"]);
     if (process.env.DATABASE_URL) {
       try {
         await prisma.asignacion.delete({
@@ -248,6 +252,7 @@ export async function quickAsignarConductorVehiculoAction(payload: {
 }): Promise<{ success: boolean; asignacionId?: string; error?: string; conductorNombre?: string; placa?: string }> {
   try {
     const { conductorId, vehiculoIdOrPlaca, observaciones } = payload;
+    await requireSelfOrStaff(conductorId);
     if (!conductorId || !vehiculoIdOrPlaca) {
       return { success: false, error: "Debes especificar tanto el conductor como el vehículo." };
     }

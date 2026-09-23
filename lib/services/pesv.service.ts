@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireStaffSession } from "@/lib/auth";
 import { PASOS_PESV } from "@/lib/data/pesv-pasos";
 import { INDICADORES_PESV } from "@/lib/data/pesv-indicadores";
 import { PasoPESV, IndicadorPESV, EstadoPasoPESV, FasePESV } from "@/lib/types/pesv";
@@ -90,6 +91,7 @@ export async function updatePasoPesvAction(
   observaciones?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    await requireStaffSession(["hseq", "administrativo"]);
     const index = localPasosPesvState.findIndex((p) => p.numero === pasoNumero);
     if (index >= 0) {
       localPasosPesvState[index].estado = estado;

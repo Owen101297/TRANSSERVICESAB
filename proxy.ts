@@ -29,6 +29,23 @@ export async function proxy(req: NextRequest) {
   const token = req.cookies.get(AUTH_COOKIE_NAME)?.value;
   const session = token ? await decodeSession(token) : null;
 
+  if (session?.mustChangePassword) {
+    const allowedDuringRotation =
+      pathname === "/cambiar-clave" ||
+      pathname === "/api/auth/change-password" ||
+      pathname === "/api/auth/logout" ||
+      pathname === "/api/auth/me";
+    if (!allowedDuringRotation) {
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json(
+          { error: "Debes cambiar tu clave antes de continuar.", code: "PASSWORD_CHANGE_REQUIRED" },
+          { status: 403 }
+        );
+      }
+      return NextResponse.redirect(new URL("/cambiar-clave", req.url));
+    }
+  }
+
   if (pathname.startsWith("/api/")) {
     if (!session) {
       return NextResponse.json({ error: "No autenticado." }, { status: 401 });
@@ -37,6 +54,7 @@ export async function proxy(req: NextRequest) {
     const isDriverApi =
       pathname.startsWith("/api/portal-conductor/") ||
       pathname.startsWith("/api/apps/") ||
+      pathname === "/api/auth/change-password" ||
       pathname === "/api/capacitaciones/asistir" ||
       (pathname === "/api/capacitaciones" && req.method === "GET");
 

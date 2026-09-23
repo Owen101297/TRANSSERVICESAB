@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireServerSession, requireStaffSession } from "@/lib/auth";
 import { Hallazgo, OrigenHallazgo, SeveridadHallazgo, EstadoHallazgo } from "@/lib/types/hseq";
 
 let localHallazgosState: Hallazgo[] = [];
@@ -87,6 +88,7 @@ export async function createHallazgoAction(
   formData: FormData
 ): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
+    await requireServerSession();
     const origen = (formData.get("origen") as OrigenHallazgo) || "inspeccion";
     const titulo = (formData.get("titulo") as string)?.trim() || "Hallazgo Reportado";
     const descripcion = (formData.get("descripcion") as string)?.trim() || "";
@@ -150,6 +152,7 @@ export async function updateHallazgoAction(
   responsableCierre?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    await requireStaffSession(["hseq", "administrativo"]);
     const index = localHallazgosState.findIndex((h) => h.id === id);
     if (index >= 0) {
       localHallazgosState[index].estado = estado;

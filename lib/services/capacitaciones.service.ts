@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireStaffSession } from "@/lib/auth";
 import { SEED_CAPACITACIONES } from "@/lib/data/capacitaciones";
 import { SEED_ASISTENCIA } from "@/lib/data/asistencia";
 import { SEED_ENCUESTAS } from "@/lib/data/encuestas";
@@ -49,6 +50,7 @@ export async function createCapacitacionAction(
   formData: FormData
 ): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
+    await requireStaffSession(["hseq", "administrativo"]);
     const nombre = formData.get("nombre") as string;
     const tipo = (formData.get("tipo") as TipoCapacitacion) || "sg-sst";
     const fecha = formData.get("fecha") as string;
@@ -150,6 +152,7 @@ export async function createAsistenciaAction(
   formData: FormData
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    await requireStaffSession(["hseq", "administrativo"]);
     const personaNombre = formData.get("personaNombre") as string;
     const personaId = (formData.get("personaId") as string) || undefined;
     const evento = (formData.get("evento") as string) || "Jornada Operativa";
@@ -206,6 +209,7 @@ export async function tomarAsistenciaCapacitacionAction(
   asistentes: { personaId: string; personaNombre: string; estado: EstadoAsistencia }[]
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    await requireStaffSession(["hseq", "administrativo"]);
     const cap = localCapacitacionesState.find((c) => c.id === capacitacionId);
     const totalPresentes = asistentes.filter((a) => a.estado === "presente" || a.estado === "tardanza").length;
 
@@ -263,6 +267,7 @@ export async function createEncuestaAction(
   formData: FormData
 ): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
+    await requireStaffSession(["hseq", "administrativo"]);
     const titulo = formData.get("titulo") as string;
     const tipo = (formData.get("tipo") as any) || "seguridad_vial";
     const destinatariosEsperados = parseInt((formData.get("destinatariosEsperados") as string) || "10", 10);

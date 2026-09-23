@@ -30,6 +30,7 @@ model Persona {
   fotoIniciales     String
   pin               String?
   passwordHash      String?
+  mustChangePassword Boolean           @default(false)
 
   // Relaciones
   licenciaConduccion LicenciaConduccion?

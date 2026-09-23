@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireStaffSession } from "@/lib/auth";
 import { SEED_VEHICULOS, getVehiculoById as getSeedVehiculoById } from "@/lib/data/vehiculos";
 import {
   Vehiculo,
@@ -103,6 +104,7 @@ export async function createVehiculoAction(
   formData: FormData
 ): Promise<{ success: boolean; vehiculoId?: string; error?: string }> {
   try {
+    await requireStaffSession();
     const placa = ((formData.get("placa") as string) || "").toUpperCase().trim();
     const tipo = (formData.get("tipo") as TipoVehiculo) || "van";
     const marca = (formData.get("marca") as string) || "";
@@ -192,6 +194,7 @@ export async function cambiarEstadoVehiculoDb(
   nuevoEstado: EstadoVehiculo
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    await requireStaffSession();
     if (process.env.DATABASE_URL) {
       try {
         await prisma.vehiculo.update({
@@ -222,6 +225,7 @@ export async function cambiarEstadoVehiculoDb(
  */
 export async function deleteVehiculoDb(id: string): Promise<{ success: boolean; error?: string }> {
   try {
+    await requireStaffSession(["administrativo"]);
     if (process.env.DATABASE_URL) {
       try {
         const v = await prisma.vehiculo.findUnique({ where: { id } });
@@ -262,6 +266,7 @@ export async function deleteVehiculoDb(id: string): Promise<{ success: boolean; 
  */
 export async function bulkDeleteVehiculosDb(ids: string[]): Promise<{ success: boolean; count: number; error?: string }> {
   try {
+    await requireStaffSession(["administrativo"]);
     let deletedCount = 0;
     if (process.env.DATABASE_URL) {
       try {
@@ -300,6 +305,7 @@ export async function bulkUpsertVehiculosDb(
   filas: DiagnosticoFilaVehiculo[]
 ): Promise<{ success: boolean; count: number; error?: string }> {
   try {
+    await requireStaffSession();
     let count = 0;
 
     for (const f of filas) {
@@ -405,6 +411,7 @@ export async function updateVehiculoAction(
   formData: FormData
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    await requireStaffSession();
     const marca = formData.get("marca") as string;
     const modelo = formData.get("modelo") as string;
     const anio = parseInt((formData.get("anio") as string) || "2023", 10);
@@ -524,6 +531,7 @@ export async function crearAdjuntoVehiculoDb(
   fechaVencimiento?: string
 ) {
   try {
+    await requireStaffSession();
     let createdId = `adj_${Date.now()}`;
     const nowIso = new Date().toISOString();
 
@@ -562,6 +570,7 @@ export async function crearAdjuntoVehiculoDb(
  */
 export async function deleteAdjuntoVehiculoDb(id: string, vehiculoId: string) {
   try {
+    await requireStaffSession();
     if (process.env.DATABASE_URL) {
       await prisma.documentoAdjunto.delete({ where: { id } });
       revalidatePath(`/flota/${vehiculoId}`);

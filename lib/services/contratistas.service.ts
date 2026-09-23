@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireStaffSession } from "@/lib/auth";
 import { SEED_CONTRATISTAS, getContratistaById as getSeedContratistaById } from "@/lib/data/contratistas";
 import { Contratista, TipoOperacion, EstadoContratista } from "@/lib/types/contratista";
 import { ContratistaUpsertPreviewItem } from "@/lib/data/contratistas-upsert";
@@ -93,6 +94,7 @@ export async function getContratistaByIdDb(id: string): Promise<Contratista | un
  */
 export async function createContratistaAction(formData: FormData): Promise<{ success: boolean; contratistaId?: string; error?: string }> {
   try {
+    await requireStaffSession();
     const nombre = formData.get("nombre") as string;
     const nit = (formData.get("nit") as string)?.trim();
     const tipoOperacion = (formData.get("tipoOperacion") as TipoOperacion) || "fija";
@@ -157,6 +159,7 @@ export async function createContratistaAction(formData: FormData): Promise<{ suc
  */
 export async function updateContratistaAction(id: string, formData: FormData): Promise<{ success: boolean; error?: string }> {
   try {
+    await requireStaffSession();
     const nombre = formData.get("nombre") as string;
     const tipoOperacion = formData.get("tipoOperacion") as TipoOperacion;
     const contactoNombre = formData.get("contactoNombre") as string;
@@ -215,6 +218,7 @@ export async function updateContratistaAction(id: string, formData: FormData): P
  */
 export async function cambiarEstadoContratistaDb(id: string, nuevoEstado: EstadoContratista) {
   try {
+    await requireStaffSession();
     if (process.env.DATABASE_URL) {
       await prisma.contratista.update({
         where: { id },
@@ -249,6 +253,7 @@ export async function cambiarEstadoContratistaDb(id: string, nuevoEstado: Estado
  */
 export async function deleteContratistaDb(id: string) {
   try {
+    await requireStaffSession(["administrativo"]);
     if (process.env.DATABASE_URL) {
       // 1. Eliminar documentos adjuntos asociados
       await prisma.documentoAdjunto.deleteMany({
@@ -281,6 +286,7 @@ export async function deleteContratistaDb(id: string) {
  */
 export async function bulkUpsertContratistasAction(items: ContratistaUpsertPreviewItem[]) {
   try {
+    await requireStaffSession();
     let createdCount = 0;
     let updatedCount = 0;
 
@@ -394,6 +400,7 @@ export async function guardarDocumentoContratistaDb(
   fechaVencimiento?: string
 ) {
   try {
+    await requireStaffSession();
     if (process.env.DATABASE_URL) {
       // Eliminar versión previa del mismo casillero si existía
       await prisma.documentoAdjunto.deleteMany({
@@ -450,6 +457,7 @@ export async function guardarDocumentoContratistaDb(
  */
 export async function eliminarDocumentoContratistaDb(docId: string, contratistaId: string) {
   try {
+    await requireStaffSession();
     if (process.env.DATABASE_URL) {
       await prisma.documentoAdjunto.delete({
         where: { id: docId },
@@ -572,6 +580,7 @@ export async function ensureContratistaExistsDb(
  */
 export async function sincronizarContratistasDesdeVehiculosDb(): Promise<{ success: boolean; count: number }> {
   try {
+    await requireStaffSession(["administrativo"]);
     if (!process.env.DATABASE_URL) return { success: true, count: 0 };
 
     const vehiculos = await prisma.vehiculo.findMany();
@@ -602,4 +611,3 @@ export async function sincronizarContratistasDesdeVehiculosDb(): Promise<{ succe
     return { success: false, count: 0 };
   }
 }
-
