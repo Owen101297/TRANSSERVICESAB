@@ -15,6 +15,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:catalogs": "tsx scripts/clean-db.ts",
     "db:migrate": "tsx scripts/migrate-db.ts",
+    "documents:migrate": "tsx scripts/migrate-document-blobs.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --test --experimental-strip-types tests/security.test.ts"
   },
