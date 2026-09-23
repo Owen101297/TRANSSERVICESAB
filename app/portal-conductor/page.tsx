@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
@@ -14,12 +14,6 @@ import {
   Droplets,
   LogOut,
   Phone,
-  AlertTriangle,
-  RefreshCw,
-  Check,
-  Search,
-  X,
-  Zap,
   ChevronRight,
   Home,
   Navigation,
@@ -191,14 +185,6 @@ export default function PortalConductorMobilePage() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Estados para Cambio Rápido de Vehículo (Apple Sheet Modal)
-  const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false);
-  const [availableVehicles, setAvailableVehicles] = useState<
-    { id: string; placa: string; marca?: string; modelo?: string; contratistaNombre?: string }[]
-  >([]);
-  const [vehicleSearch, setVehicleSearch] = useState("");
-  const [isSubmittingVehicle, setIsSubmittingVehicle] = useState(false);
-  const [vehicleFeedback, setVehicleFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
   const [turnoHoy, setTurnoHoy] = useState<{
     id: string;
     hora: string;
@@ -254,15 +240,6 @@ export default function PortalConductorMobilePage() {
       })
       .finally(() => setLoading(false));
 
-    // 2. Cargar vehículos disponibles para cambio rápido
-    fetch("/api/portal-conductor/cambiar-vehiculo")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.vehiculos) {
-          setAvailableVehicles(data.vehiculos);
-        }
-      })
-      .catch(() => {});
   }, []);
 
   // 3. Consultar turno de hoy cuando el conductor y placa están disponibles
@@ -304,69 +281,6 @@ export default function PortalConductorMobilePage() {
       : href;
     router.push(cacheBustedHref);
   };
-
-  const handleConfirmVehicleChange = async (targetPlaca: string) => {
-    if (!targetPlaca.trim()) return;
-    setIsSubmittingVehicle(true);
-    setVehicleFeedback(null);
-
-    try {
-      const res = await fetch("/api/portal-conductor/cambiar-vehiculo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          conductorId: driver?.id,
-          documento: driver?.documento,
-          placa: targetPlaca.trim(),
-        }),
-      });
-
-      const data = await res.json();
-
-      if (res.ok && data.success) {
-        const updatedPlaca = data.placa || targetPlaca.trim().toUpperCase();
-        const updatedDriver = {
-          ...driver!,
-          placa: updatedPlaca,
-        };
-        setDriver(updatedDriver);
-        localStorage.setItem("transservices_conductor", JSON.stringify(updatedDriver));
-
-        setVehicleFeedback({
-          type: "success",
-          msg: `¡Vehículo asignado a ${updatedPlaca}!`,
-        });
-
-        setTimeout(() => {
-          setIsVehicleModalOpen(false);
-          setVehicleFeedback(null);
-          setVehicleSearch("");
-        }, 1100);
-      } else {
-        setVehicleFeedback({
-          type: "error",
-          msg: data.error || "No se pudo cambiar el vehículo.",
-        });
-      }
-    } catch (err: any) {
-      setVehicleFeedback({
-        type: "error",
-        msg: err.message || "Error de conexión.",
-      });
-    } finally {
-      setIsSubmittingVehicle(false);
-    }
-  };
-
-  const filteredVehicles = useMemo(() => {
-    if (!vehicleSearch.trim()) return availableVehicles;
-    const q = vehicleSearch.toLowerCase().replace(/[^a-z0-9]/g, "");
-    return availableVehicles.filter((v) => {
-      const cleanPlaca = v.placa.toLowerCase().replace(/[^a-z0-9]/g, "");
-      const full = `${v.placa} ${v.marca || ""} ${v.modelo || ""} ${v.contratistaNombre || ""}`.toLowerCase();
-      return cleanPlaca.includes(q) || full.includes(vehicleSearch.toLowerCase());
-    });
-  }, [availableVehicles, vehicleSearch]);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col font-[-apple-system,BlinkMacSystemFont,'SF_Pro_Text','SF_Pro_Display',Helvetica,Arial,sans-serif] selection:bg-[#007AFF] selection:text-white pb-32 antialiased">
@@ -587,14 +501,9 @@ export default function PortalConductorMobilePage() {
                 </span>
               )}
 
-              <button
-                type="button"
-                onClick={() => setIsVehicleModalOpen(true)}
-                className="mt-2 inline-flex items-center gap-1 text-[11px] text-[#007AFF] hover:text-blue-700 active:scale-95 font-semibold transition-all"
-              >
-                <RefreshCw size={11} className="shrink-0" />
-                <span>Cambiar Placa</span>
-              </button>
+              <span className="mt-2 text-[10px] font-medium text-slate-400">
+                Cambios por coordinación
+              </span>
             </div>
           </div>
         </div>
@@ -671,138 +580,6 @@ export default function PortalConductorMobilePage() {
         </div>
       </main>
 
-      {/* Modal Táctil de Cambio de Vehículo (Apple Bottom Sheet) */}
-      {isVehicleModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-md bg-white border border-slate-200 rounded-t-[32px] sm:rounded-[28px] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
-            {/* Grabber decorativo de iOS */}
-            <div className="w-10 h-1 rounded-full bg-slate-300 mx-auto mt-3 sm:hidden" />
-
-            <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-bold text-[#0F172A] tracking-tight">
-                  Seleccionar Vehículo
-                </h3>
-                <p className="text-[11px] text-slate-500">
-                  Elige la placa para tu turno actual
-                </p>
-              </div>
-              <button
-                onClick={() => setIsVehicleModalOpen(false)}
-                className="w-7 h-7 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors"
-              >
-                <X size={15} />
-              </button>
-            </div>
-
-            <div className="p-4 space-y-3 overflow-y-auto flex-1">
-              {vehicleFeedback && (
-                <div
-                  className={`p-3 rounded-2xl text-xs flex items-center gap-2 ${
-                    vehicleFeedback.type === "success"
-                      ? "bg-emerald-50 border border-emerald-200 text-emerald-800"
-                      : "bg-rose-50 border border-rose-200 text-rose-800"
-                  }`}
-                >
-                  {vehicleFeedback.type === "success" ? <Check size={16} /> : <AlertTriangle size={16} />}
-                  <span>{vehicleFeedback.msg}</span>
-                </div>
-              )}
-
-              {/* Buscador iOS */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                <input
-                  type="text"
-                  autoFocus
-                  value={vehicleSearch}
-                  onChange={(e) => setVehicleSearch(e.target.value)}
-                  placeholder="Buscar o escribir placa (ej. NSY-352)..."
-                  className="w-full bg-slate-100 border border-slate-200 rounded-2xl pl-9 pr-3 py-2.5 text-xs text-slate-900 placeholder:text-slate-400 font-mono focus:border-[#007AFF] focus:bg-white focus:outline-none uppercase"
-                />
-              </div>
-
-              {vehicleSearch.trim().length >= 5 && (
-                <button
-                  type="button"
-                  onClick={() => handleConfirmVehicleChange(vehicleSearch)}
-                  disabled={isSubmittingVehicle}
-                  className="w-full p-3 rounded-2xl bg-blue-50 border border-blue-200 hover:bg-blue-100 text-[#007AFF] flex items-center justify-between text-xs font-bold transition-colors"
-                >
-                  <span className="flex items-center gap-2 font-mono">
-                    <Zap size={14} /> Usar: {vehicleSearch.toUpperCase()}
-                  </span>
-                  <span className="text-[10px] font-bold">Confirmar ➔</span>
-                </button>
-              )}
-
-              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                {filteredVehicles.length === 0 ? (
-                  <div className="p-4 text-center text-xs text-slate-400 bg-slate-50 rounded-2xl border border-slate-200">
-                    No hay coincidencias. Usa la placa escrita arriba.
-                  </div>
-                ) : (
-                  filteredVehicles.map((v) => {
-                    const isCurrent =
-                      driver?.placa &&
-                      driver.placa.toUpperCase().replace(/[^A-Z0-9]/g, "") ===
-                        v.placa.toUpperCase().replace(/[^A-Z0-9]/g, "");
-
-                    return (
-                      <button
-                        key={v.id}
-                        type="button"
-                        onClick={() => handleConfirmVehicleChange(v.placa)}
-                        disabled={isSubmittingVehicle}
-                        className={`w-full p-3.5 rounded-2xl border text-left flex items-center justify-between text-xs transition-all active:scale-[0.98] ${
-                          isCurrent
-                            ? "bg-blue-50 border-blue-300 text-blue-900 font-bold"
-                            : "bg-slate-50/70 border-slate-200 hover:bg-slate-100 text-slate-900"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="px-2.5 py-1 rounded-lg bg-amber-300 border border-amber-400 font-mono font-black text-xs text-slate-950 tracking-wider">
-                            {v.placa}
-                          </span>
-                          <div>
-                            <p className="font-semibold text-xs text-[#0F172A]">
-                              {v.marca} {v.modelo}
-                            </p>
-                            <p className="text-[10px] text-slate-500 font-mono">
-                              {v.contratistaNombre || "Propio / Cooperativa"}
-                            </p>
-                          </div>
-                        </div>
-
-                        {isCurrent ? (
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#007AFF] text-white">
-                            Activo
-                          </span>
-                        ) : (
-                          <span className="text-[11px] text-slate-400 font-mono">
-                            Elegir ➔
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            <div className="p-4 border-t border-slate-200 flex items-center justify-end">
-              <button
-                type="button"
-                onClick={() => setIsVehicleModalOpen(false)}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 rounded-full bg-slate-100 hover:bg-slate-200 transition-colors"
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Floating Glass Capsule Dock (Barra Inferior Flotante de Apple Light) */}
       <nav className="fixed bottom-4 left-4 right-4 z-40 max-w-md mx-auto bg-white/85 backdrop-blur-3xl border border-slate-200/90 rounded-full px-5 py-2.5 flex items-center justify-around shadow-[0_10px_35px_rgba(0,0,0,0.08)]">
         <button
@@ -833,13 +610,13 @@ export default function PortalConductorMobilePage() {
           <span className="text-[9px] font-bold tracking-tight text-[#FF9500]">Preoperacional</span>
         </button>
 
-        <button
-          onClick={() => setIsVehicleModalOpen(true)}
-          className="flex flex-col items-center gap-0.5 text-slate-400 hover:text-slate-700 transition-all active:scale-95"
+        <div
+          title="Los cambios de vehículo requieren autorización de coordinación"
+          className="flex flex-col items-center gap-0.5 text-slate-300"
         >
           <Truck size={19} />
           <span className="text-[9px] font-semibold tracking-tight">Vehículo</span>
-        </button>
+        </div>
 
         <a
           href="tel:+573100000000"

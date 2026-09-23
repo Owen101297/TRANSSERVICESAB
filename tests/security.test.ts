@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { hashPassword, isPasswordHash, isStrongPassword, verifyPassword } from "../lib/password.ts";
 import { decodeSession, encodeSession, type SessionUser } from "../lib/session.ts";
 import { conductorIdentityFromSession, normalizeVehiclePlate } from "../lib/portal-validation.ts";
+import { isValidWebhookApiKey } from "../lib/webhook-auth.ts";
 import {
   buildDocumentAttachmentScope,
   detectDocumentMimeType,
@@ -71,6 +72,37 @@ test("el portal ignora la identidad suministrada por un conductor", () => {
     { id: user.id, name: user.nombre, document: user.documento },
   );
   assert.equal(normalizeVehiclePlate(" abc-123 "), "ABC123");
+});
+
+test("los webhooks comparan secretos de forma segura y rechazan claves ausentes", () => {
+  assert.equal(isValidWebhookApiKey("clave-correcta", "clave-correcta"), true);
+  assert.equal(isValidWebhookApiKey("clave-incorrecta", "clave-correcta"), false);
+  assert.equal(isValidWebhookApiKey(null, "clave-correcta"), false);
+  assert.equal(isValidWebhookApiKey("clave-correcta", undefined), false);
+});
+
+test("las API operativas restantes aplican autorización en el handler", () => {
+  const protectedHandlers = [
+    ["app/api/capacitaciones/route.ts", ["GET", "POST", "PATCH", "DELETE"]],
+    ["app/api/capacitaciones/asistir/route.ts", ["POST"]],
+    ["app/api/reportes/sisi-pesv/route.ts", ["GET"]],
+    ["app/api/portal-conductor/cambiar-vehiculo/route.ts", ["GET", "POST"]],
+    ["app/api/portal-conductor/turno/route.ts", ["GET", "POST"]],
+  ] as const;
+
+  for (const [routeFile, methods] of protectedHandlers) {
+    const source = readFileSync(join(process.cwd(), routeFile), "utf8");
+    for (const method of methods) {
+      const marker = `export async function ${method}`;
+      const opening = source.indexOf(marker);
+      assert.notEqual(opening, -1, `${routeFile} debe exponer ${method}`);
+      assert.match(
+        source.slice(opening, opening + 350),
+        /requireApiSession\(|requireStaff\(/,
+        `${routeFile} ${method} debe autorizar dentro del handler`,
+      );
+    }
+  }
 });
 
 test("todos los handlers de /api/apps exigen sesion o rol antes de procesar datos", () => {

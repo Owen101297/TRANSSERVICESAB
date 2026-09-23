@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireStaff } from "@/lib/api-auth";
+import { requireApiSession, requireStaff } from "@/lib/api-auth";
 import { recordAudit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
 // ── GET: Obtener capacitaciones con estadísticas y asistencias ──
 export async function GET(req: Request) {
+  const auth = await requireApiSession();
+  if (auth.response) return auth.response;
   try {
     const { searchParams } = new URL(req.url);
     const tipo = searchParams.get("tipo"); // pesv, sg-sst, etc.
@@ -40,6 +42,9 @@ export async function GET(req: Request) {
       where,
       include: {
         asistencias: {
+          ...(auth.session.rolPrincipal === "conductor"
+            ? { where: { personaId: auth.session.id } }
+            : {}),
           orderBy: { fecha: "desc" },
         },
       },

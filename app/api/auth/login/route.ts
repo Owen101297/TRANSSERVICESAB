@@ -58,8 +58,8 @@ export async function POST(req: Request) {
 
       if (!persona) {
         return NextResponse.json(
-          { success: false, error: "Conductor no encontrado. Verifica tu número de documento." },
-          { status: 404 }
+          { success: false, error: "Credenciales incorrectas." },
+          { status: 401 }
         );
       }
 
@@ -138,8 +138,8 @@ export async function POST(req: Request) {
 
     if (!persona) {
       return NextResponse.json(
-        { success: false, error: "Usuario administrativo no encontrado." },
-        { status: 404 }
+        { success: false, error: "Credenciales incorrectas." },
+        { status: 401 }
       );
     }
 

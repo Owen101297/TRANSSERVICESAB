@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireSelfOrStaff, requireStaffSession } from "@/lib/auth";
+import { requireStaffSession } from "@/lib/auth";
 import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction, rethrowMutationInProduction } from "@/lib/production-safety";
 import { recordAudit } from "@/lib/audit";
 import { getPersonaByIdDb } from "@/lib/services/personas.service";
@@ -263,7 +263,7 @@ export async function quickAsignarConductorVehiculoAction(payload: {
 }): Promise<{ success: boolean; asignacionId?: string; error?: string; conductorNombre?: string; placa?: string }> {
   try {
     const { conductorId, vehiculoIdOrPlaca, observaciones } = payload;
-    const actor = await requireSelfOrStaff(conductorId);
+    const actor = await requireStaffSession();
     if (!conductorId || !vehiculoIdOrPlaca) {
       return { success: false, error: "Debes especificar tanto el conductor como el vehículo." };
     }

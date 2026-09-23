@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireStaff } from "@/lib/api-auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  const auth = await requireStaff();
+  if (auth.response) return auth.response;
   try {
     const { searchParams } = new URL(req.url);
     const desdeParam = searchParams.get("desde");

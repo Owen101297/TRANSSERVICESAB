@@ -7,6 +7,7 @@ import {
 import { TipoEventoGPS, PrioridadEventoGPS } from "@/lib/types/gps";
 import { requireStaff } from "@/lib/api-auth";
 import { recordAudit } from "@/lib/audit";
+import { isValidWebhookApiKey } from "@/lib/webhook-auth";
 
 const VALID_API_KEY = process.env.GPS_WEBHOOK_API_KEY;
 
@@ -135,14 +136,21 @@ export async function POST(request: NextRequest) {
   try {
     const authHeader =
       request.headers.get("x-api-key") ||
-      request.headers.get("api-key") ||
-      request.headers.get("apikey") ||
       request.headers.get("authorization")?.replace(/Bearer\s+/i, "");
 
-    const queryKey =
-      request.nextUrl.searchParams.get("api_key") ||
-      request.nextUrl.searchParams.get("apiKey") ||
-      request.nextUrl.searchParams.get("key");
+    if (!VALID_API_KEY) {
+      return NextResponse.json(
+        { error: "Webhook GPS no configurado." },
+        { status: 503 }
+      );
+    }
+
+    if (!isValidWebhookApiKey(authHeader, VALID_API_KEY)) {
+      return NextResponse.json(
+        { error: "Acceso no autorizado. Clave de autenticación no válida." },
+        { status: 401 }
+      );
+    }
 
     let rawBody: any = null;
     try {
@@ -153,23 +161,6 @@ export async function POST(request: NextRequest) {
 
     if (!rawBody) {
       return NextResponse.json({ error: "Cuerpo JSON vacío o inválido." }, { status: 400 });
-    }
-
-    const bodyKey = rawBody.api_key || rawBody.apiKey || rawBody.key || rawBody.secret;
-    const providedKey = authHeader || queryKey || bodyKey;
-
-    if (!VALID_API_KEY) {
-      return NextResponse.json(
-        { error: "Webhook GPS no configurado." },
-        { status: 503 }
-      );
-    }
-
-    if (!providedKey || providedKey !== VALID_API_KEY) {
-      return NextResponse.json(
-        { error: "Acceso no autorizado. Clave de autenticación no válida." },
-        { status: 401 }
-      );
     }
 
     const rawEvents = extraerEventosPayload(rawBody);

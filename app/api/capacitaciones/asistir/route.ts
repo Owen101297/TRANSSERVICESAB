@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireApiSession } from "@/lib/api-auth";
+import { recordAudit } from "@/lib/audit";
+import { conductorIdentityFromSession } from "@/lib/portal-validation";
 
 export const dynamic = "force-dynamic";
 
 // ── POST: Registrar asistencia con selfie y firma digital desde Portal Conductor ──
 export async function POST(req: Request) {
+  const auth = await requireApiSession();
+  if (auth.response) return auth.response;
   try {
     const body = await req.json();
     const {
@@ -22,6 +27,12 @@ export async function POST(req: Request) {
       observaciones,
     } = body;
 
+    const identity = conductorIdentityFromSession(auth.session, {
+      id: personaId,
+      name: personaNombre,
+      document: personaDocumento,
+    });
+
     if (!capacitacionId) {
       return NextResponse.json(
         { success: false, error: "ID de la capacitación es requerido." },
@@ -29,7 +40,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (!personaNombre) {
+    if (!identity.name) {
       return NextResponse.json(
         { success: false, error: "Nombre del participante es requerido." },
         { status: 400 }
@@ -41,9 +52,9 @@ export async function POST(req: Request) {
       where: {
         capacitacionId,
         OR: [
-          ...(personaId ? [{ personaId }] : []),
-          ...(personaDocumento ? [{ personaDocumento }] : []),
-          { personaNombre },
+          ...(identity.id ? [{ personaId: identity.id }] : []),
+          ...(identity.document ? [{ personaDocumento: identity.document }] : []),
+          { personaNombre: identity.name },
         ],
       },
     });
@@ -71,9 +82,9 @@ export async function POST(req: Request) {
     const nuevaAsistencia = await prisma.asistenciaRegistro.create({
       data: {
         capacitacionId,
-        personaId: personaId || null,
-        personaDocumento: personaDocumento || null,
-        personaNombre: personaNombre.trim(),
+        personaId: identity.id || null,
+        personaDocumento: identity.document || null,
+        personaNombre: identity.name.trim(),
         cargo: cargo?.trim() || "Conductor",
         proyecto: proyecto || "Operación General",
         facilitador: capacitacion.facilitador || "Coordinador HSEQ / PESV",
@@ -106,6 +117,13 @@ export async function POST(req: Request) {
         // Si hay asistentes, marcar como realizada si estaba programada
         estado: "realizada",
       },
+    });
+    await recordAudit({
+      action: "CREATE",
+      entityType: "AsistenciaRegistro",
+      entityId: nuevaAsistencia.id,
+      after: nuevaAsistencia,
+      actor: auth.session,
     });
 
     return NextResponse.json({
