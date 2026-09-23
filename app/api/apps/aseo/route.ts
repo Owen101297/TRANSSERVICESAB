@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireApiSession, requireStaff } from "@/lib/api-auth";
+import { recordAudit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +68,8 @@ export async function GET(req: Request) {
 
 // ── POST: Crear nueva inspección de aseo y desinfección ──
 export async function POST(req: Request) {
+  const auth = await requireApiSession();
+  if (auth.response) return auth.response;
   try {
     const body = await req.json();
     const {
@@ -128,6 +132,7 @@ export async function POST(req: Request) {
         timestamp: now,
       },
     });
+    await recordAudit({ action: "CREATE", entityType: "ControlAseo", entityId: created.id, after: created, actor: auth.session });
 
     return NextResponse.json({
       success: true,
@@ -145,6 +150,8 @@ export async function POST(req: Request) {
 
 // ── PATCH: Actualizar estado de revisión/aprobación (Auditoría ERP) ──
 export async function PATCH(req: Request) {
+  const auth = await requireStaff();
+  if (auth.response) return auth.response;
   try {
     const body = await req.json();
     const { id, estadoReviso, estadoAprobo, observaciones } = body;
@@ -161,10 +168,12 @@ export async function PATCH(req: Request) {
     if (estadoAprobo !== undefined) data.estadoAprobo = Boolean(estadoAprobo);
     if (observaciones !== undefined) data.observaciones = observaciones;
 
+    const before = await prisma.controlAseo.findUnique({ where: { id } });
     const updated = await prisma.controlAseo.update({
       where: { id },
       data,
     });
+    await recordAudit({ action: "APPROVE", entityType: "ControlAseo", entityId: id, before, after: updated, actor: auth.session });
 
     return NextResponse.json({
       success: true,
@@ -181,6 +190,8 @@ export async function PATCH(req: Request) {
 
 // ── DELETE: Eliminar inspección ──
 export async function DELETE(req: Request) {
+  const auth = await requireStaff(["administrativo"]);
+  if (auth.response) return auth.response;
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
@@ -192,9 +203,11 @@ export async function DELETE(req: Request) {
       );
     }
 
+    const before = await prisma.controlAseo.findUnique({ where: { id } });
     await prisma.controlAseo.delete({
       where: { id },
     });
+    await recordAudit({ action: "DELETE", entityType: "ControlAseo", entityId: id, before, actor: auth.session });
 
     return NextResponse.json({
       success: true,

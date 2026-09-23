@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireApiSession, requireStaff } from "@/lib/api-auth";
+import { recordAudit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +63,8 @@ export async function GET(req: Request) {
 
 // ── POST: Guardar nuevo registro de lavado ──
 export async function POST(req: Request) {
+  const auth = await requireApiSession();
+  if (auth.response) return auth.response;
   try {
     const body = await req.json();
     const {
@@ -118,6 +122,7 @@ export async function POST(req: Request) {
         timestamp: now,
       },
     });
+    await recordAudit({ action: "CREATE", entityType: "ControlLavado", entityId: nuevoLavado.id, after: nuevoLavado, actor: auth.session });
 
     return NextResponse.json({
       success: true,
@@ -135,6 +140,8 @@ export async function POST(req: Request) {
 
 // ── PATCH: Actualizar estado de revisión/aprobación ──
 export async function PATCH(req: Request) {
+  const auth = await requireStaff();
+  if (auth.response) return auth.response;
   try {
     const body = await req.json();
     const { id, estadoReviso, estadoAprobo, valor, empresa, observaciones } = body;
@@ -153,10 +160,12 @@ export async function PATCH(req: Request) {
     if (empresa !== undefined) updateData.empresa = empresa;
     if (observaciones !== undefined) updateData.observaciones = observaciones;
 
+    const before = await prisma.controlLavado.findUnique({ where: { id } });
     const updated = await prisma.controlLavado.update({
       where: { id },
       data: updateData,
     });
+    await recordAudit({ action: "APPROVE", entityType: "ControlLavado", entityId: id, before, after: updated, actor: auth.session });
 
     return NextResponse.json({
       success: true,
@@ -174,6 +183,8 @@ export async function PATCH(req: Request) {
 
 // ── DELETE: Eliminar un registro de lavado ──
 export async function DELETE(req: Request) {
+  const auth = await requireStaff(["administrativo"]);
+  if (auth.response) return auth.response;
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
@@ -185,9 +196,11 @@ export async function DELETE(req: Request) {
       );
     }
 
+    const before = await prisma.controlLavado.findUnique({ where: { id } });
     await prisma.controlLavado.delete({
       where: { id },
     });
+    await recordAudit({ action: "DELETE", entityType: "ControlLavado", entityId: id, before, actor: auth.session });
 
     return NextResponse.json({
       success: true,

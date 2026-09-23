@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireStaff } from "@/lib/api-auth";
+import { recordAudit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -80,6 +82,8 @@ export async function GET(req: Request) {
 
 // ── POST: Crear una nueva capacitación o charla con material ──
 export async function POST(req: Request) {
+  const auth = await requireStaff(["hseq", "administrativo"]);
+  if (auth.response) return auth.response;
   try {
     const body = await req.json();
     const {
@@ -129,6 +133,7 @@ export async function POST(req: Request) {
         estado: "programada",
       },
     });
+    await recordAudit({ action: "CREATE", entityType: "Capacitacion", entityId: created.id, after: created, actor: auth.session });
 
     return NextResponse.json({
       success: true,
@@ -145,6 +150,8 @@ export async function POST(req: Request) {
 
 // ── PATCH: Actualizar estado de capacitación ──
 export async function PATCH(req: Request) {
+  const auth = await requireStaff(["hseq", "administrativo"]);
+  if (auth.response) return auth.response;
   try {
     const body = await req.json();
     const { id, estado, nombre, objetivo, materialUrl, materialContenido } = body;
@@ -163,10 +170,12 @@ export async function PATCH(req: Request) {
     if (materialUrl !== undefined) data.materialUrl = materialUrl;
     if (materialContenido !== undefined) data.materialContenido = materialContenido;
 
+    const before = await prisma.capacitacion.findUnique({ where: { id } });
     const updated = await prisma.capacitacion.update({
       where: { id },
       data,
     });
+    await recordAudit({ action: "UPDATE", entityType: "Capacitacion", entityId: id, before, after: updated, actor: auth.session });
 
     return NextResponse.json({
       success: true,
@@ -183,6 +192,8 @@ export async function PATCH(req: Request) {
 
 // ── DELETE: Eliminar capacitación ──
 export async function DELETE(req: Request) {
+  const auth = await requireStaff(["hseq", "administrativo"]);
+  if (auth.response) return auth.response;
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
@@ -194,9 +205,11 @@ export async function DELETE(req: Request) {
       );
     }
 
+    const before = await prisma.capacitacion.findUnique({ where: { id } });
     await prisma.capacitacion.delete({
       where: { id },
     });
+    await recordAudit({ action: "DELETE", entityType: "Capacitacion", entityId: id, before, actor: auth.session });
 
     return NextResponse.json({
       success: true,

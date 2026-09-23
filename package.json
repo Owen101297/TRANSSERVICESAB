@@ -31,9 +31,10 @@
     "qrcode": "^1.5.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "sharp": "0.35.4",
     "signature_pad": "^5.1.4",
     "tsx": "^4.23.13",
-    "xlsx": "^0.18.5"
+    "xlsx": "npm:@e965/xlsx@0.20.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -47,5 +48,9 @@
   },
   "allowScripts": {
     "unrs-resolver@1.12.2": true
+  },
+  "overrides": {
+    "js-yaml": "4.3.2",
+    "sharp": "0.35.4"
   }
 }

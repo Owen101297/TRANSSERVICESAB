@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireApiSession, requireStaff } from "@/lib/api-auth";
+import { recordAudit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -72,6 +74,8 @@ export async function GET(req: Request) {
 
 // ── POST: Crear nueva inspección de botiquín ──
 export async function POST(req: Request) {
+  const auth = await requireApiSession();
+  if (auth.response) return auth.response;
   try {
     const body = await req.json();
     const {
@@ -155,6 +159,7 @@ export async function POST(req: Request) {
         estadoAprobo: false,
       },
     });
+    await recordAudit({ action: "CREATE", entityType: "ControlBotiquin", entityId: nuevoRegistro.id, after: nuevoRegistro, actor: auth.session });
 
     return NextResponse.json({
       success: true,
@@ -172,6 +177,8 @@ export async function POST(req: Request) {
 
 // ── PATCH: Actualizar estado de revisión / aprobación HSEQ ──
 export async function PATCH(req: Request) {
+  const auth = await requireStaff();
+  if (auth.response) return auth.response;
   try {
     const body = await req.json();
     const { id, estadoReviso, estadoAprobo, responsableHseq, observaciones } = body;
@@ -186,10 +193,12 @@ export async function PATCH(req: Request) {
     if (responsableHseq) updateData.responsableHseq = responsableHseq;
     if (observaciones !== undefined) updateData.observaciones = observaciones;
 
+    const before = await (prisma as any).controlBotiquin.findUnique({ where: { id } });
     const actualizado = await (prisma as any).controlBotiquin.update({
       where: { id },
       data: updateData,
     });
+    await recordAudit({ action: "APPROVE", entityType: "ControlBotiquin", entityId: id, before, after: actualizado, actor: auth.session });
 
     return NextResponse.json({
       success: true,
@@ -207,6 +216,8 @@ export async function PATCH(req: Request) {
 
 // ── DELETE: Eliminar inspección ──
 export async function DELETE(req: Request) {
+  const auth = await requireStaff(["administrativo"]);
+  if (auth.response) return auth.response;
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
@@ -215,9 +226,11 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ success: false, error: "ID requerido para eliminar" }, { status: 400 });
     }
 
+    const before = await (prisma as any).controlBotiquin.findUnique({ where: { id } });
     await (prisma as any).controlBotiquin.delete({
       where: { id },
     });
+    await recordAudit({ action: "DELETE", entityType: "ControlBotiquin", entityId: id, before, actor: auth.session });
 
     return NextResponse.json({
       success: true,

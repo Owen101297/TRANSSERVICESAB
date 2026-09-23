@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireApiSession, requireStaff } from "@/lib/api-auth";
+import { recordAudit } from "@/lib/audit";
 
 export const dynamic = "force-dynamic";
 
@@ -90,6 +92,8 @@ export async function GET(req: Request) {
 
 // ── POST: Guardar nueva respuesta de encuesta ──
 export async function POST(req: Request) {
+  const auth = await requireApiSession();
+  if (auth.response) return auth.response;
   try {
     const body = await req.json();
     const {
@@ -146,6 +150,7 @@ export async function POST(req: Request) {
         estado: "completada",
       },
     });
+    await recordAudit({ action: "CREATE", entityType: "EncuestaRespuesta", entityId: nuevaEncuesta.id, after: nuevaEncuesta, actor: auth.session });
 
     return NextResponse.json({
       success: true,
@@ -163,6 +168,8 @@ export async function POST(req: Request) {
 
 // ── DELETE: Eliminar respuesta de encuesta ──
 export async function DELETE(req: Request) {
+  const auth = await requireStaff(["hseq", "administrativo"]);
+  if (auth.response) return auth.response;
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
@@ -171,9 +178,11 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ success: false, error: "ID requerido para eliminar" }, { status: 400 });
     }
 
+    const before = await (prisma as any).encuestaRespuesta.findUnique({ where: { id } });
     await (prisma as any).encuestaRespuesta.delete({
       where: { id },
     });
+    await recordAudit({ action: "DELETE", entityType: "EncuestaRespuesta", entityId: id, before, actor: auth.session });
 
     return NextResponse.json({
       success: true,

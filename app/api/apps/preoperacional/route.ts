@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server";
 import { createPreoperacionalDb, getPreoperacionalesDb } from "@/lib/services/preoperacional.service";
+import { requireApiSession } from "@/lib/api-auth";
+import { recordAudit } from "@/lib/audit";
 
 export async function POST(req: Request) {
+  const auth = await requireApiSession();
+  if (auth.response) return auth.response;
   try {
     const body = await req.json();
+    const conductorId = auth.session.rolPrincipal === "conductor" ? auth.session.id : body.conductorId;
+    const conductorNombre = auth.session.rolPrincipal === "conductor" ? auth.session.nombre : body.conductorNombre;
 
     const result = await createPreoperacionalDb({
-      conductorId: body.conductorId,
-      conductorNombre: body.conductorNombre,
+      conductorId,
+      conductorNombre,
       conductorDocumento: body.conductorDocumento || body.documento,
       placa: body.placa,
       kilometraje: body.kilometraje,
@@ -16,6 +22,7 @@ export async function POST(req: Request) {
       signature: body.signature || body.firmaConductor,
       fotoEvidenciaUrl: body.fotoEvidenciaUrl,
     });
+    await recordAudit({ action: "CREATE", entityType: "InspeccionPreoperacional", entityId: result.data?.id, after: result.data, actor: auth.session });
 
     return NextResponse.json({
       success: true,

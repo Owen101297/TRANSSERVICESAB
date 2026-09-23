@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import fs from "fs";
 import path from "path";
+import { requireApiSession, requireStaff } from "@/lib/api-auth";
+import { recordAudit } from "@/lib/audit";
 
 interface NormalizedAsistencia {
   id: string;
@@ -340,6 +342,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const auth = await requireApiSession();
+  if (auth.response) return auth.response;
   try {
     const body = await req.json();
 
@@ -433,6 +437,7 @@ export async function POST(req: Request) {
         asistio: estado !== "ausente",
       },
     });
+    await recordAudit({ action: "CREATE", entityType: "AsistenciaRegistro", entityId: nuevaAsistencia.id, after: nuevaAsistencia, actor: auth.session });
 
     return NextResponse.json({
       success: true,
@@ -458,6 +463,8 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  const auth = await requireStaff(["hseq", "administrativo"]);
+  if (auth.response) return auth.response;
   try {
     const { searchParams } = new URL(req.url);
     let id = searchParams.get("id");
@@ -472,9 +479,11 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ success: false, error: "ID de registro requerido" }, { status: 400 });
     }
 
+    const before = await prisma.asistenciaRegistro.findUnique({ where: { id } });
     await prisma.asistenciaRegistro.delete({
       where: { id },
     });
+    await recordAudit({ action: "DELETE", entityType: "AsistenciaRegistro", entityId: id, before, actor: auth.session });
 
     return NextResponse.json({
       success: true,
@@ -490,6 +499,8 @@ export async function DELETE(req: Request) {
 }
 
 export async function PATCH(req: Request) {
+  const auth = await requireStaff(["hseq", "administrativo"]);
+  if (auth.response) return auth.response;
   try {
     const body = await req.json();
     const { action, id, oldEvent, newEvent, fecha, data } = body;
@@ -545,6 +556,7 @@ export async function PATCH(req: Request) {
           evento: targetNewEvent,
         },
       });
+      await recordAudit({ action: "UPDATE", entityType: "AsistenciaRegistro", metadata: { operation: "rename_event", ids: idsToUpdate, newEvent: targetNewEvent }, actor: auth.session });
 
       // Sincronizar también campo observaciones (JSON)
       const recordsToSync = await prisma.asistenciaRegistro.findMany({
@@ -590,6 +602,7 @@ export async function PATCH(req: Request) {
           firmaUrl: "/firma-hseq.png",
         },
       });
+      await recordAudit({ action: "APPROVE", entityType: "AsistenciaRegistro", metadata: { operation: "assign_hseq_signature", ids }, actor: auth.session });
 
       // 2. Sincronizar también campo observaciones (JSON) para que persista intacto
       const recordsToSync = await prisma.asistenciaRegistro.findMany({
