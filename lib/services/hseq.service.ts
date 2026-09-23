@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireServerSession, requireStaffSession } from "@/lib/auth";
+import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction } from "@/lib/production-safety";
 import { Hallazgo, OrigenHallazgo, SeveridadHallazgo, EstadoHallazgo } from "@/lib/types/hseq";
 
 let localHallazgosState: Hallazgo[] = [];
@@ -12,6 +13,7 @@ let localHallazgosState: Hallazgo[] = [];
  */
 export async function getHallazgosDb(): Promise<Hallazgo[]> {
   try {
+    requireDatabaseInProduction();
     if (process.env.DATABASE_URL) {
       const dbHallazgos = await prisma.hallazgoHseq.findMany({
         orderBy: { fechaReporte: "desc" },
@@ -38,7 +40,7 @@ export async function getHallazgosDb(): Promise<Hallazgo[]> {
       }
     }
   } catch (error) {
-    console.warn("Aviso de consulta HSEQ (usando fallback local):", error);
+    return fallbackOrThrow(error, localHallazgosState, "No fue posible consultar hallazgos HSEQ");
   }
 
   return localHallazgosState;
@@ -49,6 +51,7 @@ export async function getHallazgosDb(): Promise<Hallazgo[]> {
  */
 export async function getHallazgoByIdDb(id: string): Promise<Hallazgo | undefined> {
   try {
+    requireDatabaseInProduction();
     if (process.env.DATABASE_URL) {
       const h = await prisma.hallazgoHseq.findUnique({
         where: { id },
@@ -75,10 +78,9 @@ export async function getHallazgoByIdDb(id: string): Promise<Hallazgo | undefine
       }
     }
   } catch (error) {
-    console.warn("Aviso búsqueda Hallazgo por ID:", error);
+    return fallbackOrThrow(error, localHallazgosState.find((h) => h.id === id), "No fue posible consultar el hallazgo");
   }
-
-  return localHallazgosState.find((h) => h.id === id);
+  return isProductionRuntime() ? undefined : localHallazgosState.find((h) => h.id === id);
 }
 
 /**

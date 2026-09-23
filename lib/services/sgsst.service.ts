@@ -6,6 +6,7 @@ import { requireStaffSession } from "@/lib/auth";
 import { ITEMS_SGSST } from "@/lib/data/sgsst-items";
 import { ESTANDARES_SGSST } from "@/lib/data/sgsst-estandares";
 import { ItemSGSST, EstandarSGSST, EstadoItemSGSST } from "@/lib/types/sgsst";
+import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction } from "@/lib/production-safety";
 
 let localItemsSgsstState: ItemSGSST[] = [...ITEMS_SGSST];
 
@@ -20,9 +21,10 @@ export async function getEstandaresSgsstDb(): Promise<EstandarSGSST[]> {
  * Obtiene todos los ítems de SG-SST con su estado de cumplimiento
  */
 export async function getItemsSgsstDb(): Promise<ItemSGSST[]> {
+  requireDatabaseInProduction();
   try {
     if (!process.env.DATABASE_URL) {
-      return localItemsSgsstState;
+      return isProductionRuntime() ? [] : localItemsSgsstState;
     }
 
     const dbItems = await (prisma as any).itemSgsst.findMany();
@@ -43,7 +45,7 @@ export async function getItemsSgsstDb(): Promise<ItemSGSST[]> {
     }));
   } catch (error) {
     console.warn("Aviso DB SG-SST (usando fallback local):", error);
-    return localItemsSgsstState;
+    return fallbackOrThrow(error, localItemsSgsstState, "No fue posible consultar SG-SST");
   }
 }
 

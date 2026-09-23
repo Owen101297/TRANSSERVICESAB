@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireApiSession } from "@/lib/api-auth";
+import { recordAudit } from "@/lib/audit";
 
 export async function GET(req: NextRequest) {
   const auth = await requireApiSession();
@@ -197,6 +198,7 @@ export async function POST(req: NextRequest) {
         },
       });
     }
+    await recordAudit({ action: "CREATE", entityType: "TurnoDespacho", entityId: nuevoTurno.id, after: nuevoTurno, actor: auth.session });
 
     return NextResponse.json({
       success: true,

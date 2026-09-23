@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireStaffSession } from "@/lib/auth";
 import { SEED_ROLES } from "@/lib/data/roles";
+import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction } from "@/lib/production-safety";
 
 export interface RolSistemaData {
   id: string;
@@ -22,9 +23,10 @@ let localRolesState: RolSistemaData[] = SEED_ROLES.map((r) => ({
  * Obtiene todos los roles del sistema
  */
 export async function getRolesDb(): Promise<RolSistemaData[]> {
+  requireDatabaseInProduction();
   try {
     if (!process.env.DATABASE_URL) {
-      return localRolesState;
+      return isProductionRuntime() ? [] : localRolesState;
     }
 
     const dbRoles = await (prisma as any).rolSistema.findMany({
@@ -44,7 +46,7 @@ export async function getRolesDb(): Promise<RolSistemaData[]> {
     }));
   } catch (error) {
     console.warn("Aviso DB Roles (usando fallback local):", error);
-    return localRolesState;
+    return fallbackOrThrow(error, localRolesState, "No fue posible consultar roles");
   }
 }
 

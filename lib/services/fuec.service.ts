@@ -7,6 +7,7 @@ import { SEED_CONTRATOS, SEED_FUECS } from "@/lib/data/fuec";
 import { getVehiculoByIdDb } from "@/lib/services/vehiculos.service";
 import { getPersonaByIdDb } from "@/lib/services/personas.service";
 import { ContratoTransporte, Fuec, ObjetoContratoTransporte, EstadoFuec } from "@/lib/types/fuec";
+import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction } from "@/lib/production-safety";
 
 let localContratosState: ContratoTransporte[] = [...SEED_CONTRATOS];
 let localFuecsState: Fuec[] = [...SEED_FUECS];
@@ -15,9 +16,10 @@ let localFuecsState: Fuec[] = [...SEED_FUECS];
  * Obtiene todos los FUECs emitidos desde DB (o fallback local)
  */
 export async function getFuecsDb(): Promise<Fuec[]> {
+  requireDatabaseInProduction();
   try {
     if (!process.env.DATABASE_URL) {
-      return localFuecsState;
+      return isProductionRuntime() ? [] : localFuecsState;
     }
 
     const dbFuecs = await (prisma as any).fuec.findMany({
@@ -56,7 +58,7 @@ export async function getFuecsDb(): Promise<Fuec[]> {
     }));
   } catch (error) {
     console.warn("Aviso de conexión DB FUECs (usando almacén local):", error);
-    return localFuecsState;
+    return fallbackOrThrow(error, localFuecsState, "No fue posible consultar FUEC");
   }
 }
 
@@ -64,6 +66,7 @@ export async function getFuecsDb(): Promise<Fuec[]> {
  * Obtiene un FUEC por ID o código FUEC
  */
 export async function getFuecByIdDb(idOrCode: string): Promise<Fuec | undefined> {
+  requireDatabaseInProduction();
   try {
     if (!process.env.DATABASE_URL) {
       return localFuecsState.find((f) => f.id === idOrCode || f.codigoFUEC === idOrCode);
@@ -76,7 +79,7 @@ export async function getFuecByIdDb(idOrCode: string): Promise<Fuec | undefined>
     });
 
     if (!f) {
-      return localFuecsState.find((fuec) => fuec.id === idOrCode || fuec.codigoFUEC === idOrCode);
+      return isProductionRuntime() ? undefined : localFuecsState.find((fuec) => fuec.id === idOrCode || fuec.codigoFUEC === idOrCode);
     }
 
     return {
@@ -106,7 +109,7 @@ export async function getFuecByIdDb(idOrCode: string): Promise<Fuec | undefined>
       observaciones: f.observaciones ?? undefined,
     };
   } catch (error) {
-    return localFuecsState.find((f) => f.id === idOrCode || f.codigoFUEC === idOrCode);
+    return fallbackOrThrow(error, localFuecsState.find((f) => f.id === idOrCode || f.codigoFUEC === idOrCode), "No fue posible consultar el FUEC");
   }
 }
 
@@ -114,9 +117,10 @@ export async function getFuecByIdDb(idOrCode: string): Promise<Fuec | undefined>
  * Obtiene los contratos de transporte disponibles
  */
 export async function getContratosTransporteDb(): Promise<ContratoTransporte[]> {
+  requireDatabaseInProduction();
   try {
     if (!process.env.DATABASE_URL) {
-      return localContratosState;
+      return isProductionRuntime() ? [] : localContratosState;
     }
 
     const dbContratos = await (prisma as any).contratoTransporte.findMany({
@@ -138,7 +142,7 @@ export async function getContratosTransporteDb(): Promise<ContratoTransporte[]> 
       estado: c.estado as any,
     }));
   } catch (error) {
-    return localContratosState;
+    return fallbackOrThrow(error, localContratosState, "No fue posible consultar contratos de transporte");
   }
 }
 

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireApiSession } from "@/lib/api-auth";
 import { AUTH_COOKIE_NAME, encodeSession } from "@/lib/session";
 import { hashPassword, isStrongPassword, verifyPassword } from "@/lib/password";
+import { recordAudit } from "@/lib/audit";
 
 export async function POST(req: Request) {
   const auth = await requireApiSession();
@@ -49,6 +50,13 @@ export async function POST(req: Request) {
       auth.session.rolPrincipal === "conductor"
         ? { pin: passwordHash, mustChangePassword: false }
         : { passwordHash, mustChangePassword: false },
+  });
+  await recordAudit({
+    action: "PASSWORD_CHANGE",
+    entityType: "Persona",
+    entityId: auth.session.id,
+    metadata: { credentialType: auth.session.rolPrincipal === "conductor" ? "pin" : "password" },
+    actor: auth.session,
   });
 
   const session = { ...auth.session, mustChangePassword: false };

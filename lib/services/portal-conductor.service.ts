@@ -7,6 +7,7 @@ import { getPersonaByIdDb } from "@/lib/services/personas.service";
 import { getAsignacionesDb } from "@/lib/services/asignaciones.service";
 import { getViajesDb } from "@/lib/services/operacion.service";
 import { InspeccionPreoperacional, NovedadConductor, TipoNovedadConductor, EstadoConceptoPreoperacional } from "@/lib/types/preoperacional";
+import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction } from "@/lib/production-safety";
 
 let localPreoperacionalesState: InspeccionPreoperacional[] = [];
 let localNovedadesConductorState: NovedadConductor[] = [];
@@ -44,9 +45,10 @@ export async function getPortalConductorInfo(conductorId: string) {
  * Obtiene todas las inspecciones preoperacionales registradas
  */
 export async function getPreoperacionalesDb(): Promise<InspeccionPreoperacional[]> {
+  requireDatabaseInProduction();
   try {
     if (!process.env.DATABASE_URL) {
-      return localPreoperacionalesState;
+      return isProductionRuntime() ? [] : localPreoperacionalesState;
     }
 
     const dbPreops = await (prisma as any).inspeccionPreoperacional.findMany({
@@ -73,7 +75,7 @@ export async function getPreoperacionalesDb(): Promise<InspeccionPreoperacional[
     }));
   } catch (error) {
     console.warn("Aviso DB Preoperacionales (usando fallback local):", error);
-    return localPreoperacionalesState;
+    return fallbackOrThrow(error, localPreoperacionalesState, "No fue posible consultar preoperacionales");
   }
 }
 

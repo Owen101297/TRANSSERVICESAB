@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { quickAsignarConductorVehiculoAction } from "@/lib/services/asignaciones.service";
 import { requireApiSession } from "@/lib/api-auth";
+import { recordAudit } from "@/lib/audit";
 
 export async function GET() {
   const auth = await requireApiSession();
@@ -63,6 +64,14 @@ export async function POST(req: NextRequest) {
     if (!res.success) {
       return NextResponse.json({ error: res.error || "No se pudo actualizar el vehículo." }, { status: 400 });
     }
+    await recordAudit({
+      action: "UPDATE",
+      entityType: "Asignacion",
+      entityId: res.asignacionId,
+      after: { conductorId: targetConductorId, placa: res.placa },
+      metadata: { source: "portal-conductor" },
+      actor: auth.session,
+    });
 
     return NextResponse.json({
       success: true,

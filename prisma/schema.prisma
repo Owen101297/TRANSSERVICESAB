@@ -838,3 +838,28 @@ model TurnoDespacho {
   @@index([fecha])
   @@index([estado])
 }
+
+// --------------------------------------------------------
+// AUDITORÍA EMPRESARIAL
+// --------------------------------------------------------
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorId     String
+  actorName   String
+  actorRole   String
+  action      String
+  entityType  String
+  entityId    String?
+  before      Json?
+  after       Json?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId])
+  @@index([action, createdAt])
+  @@index([createdAt])
+}

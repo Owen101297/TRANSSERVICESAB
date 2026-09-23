@@ -26,6 +26,7 @@ import {
   HeartPulse,
   PanelLeftClose,
   PanelLeftOpen,
+  History,
   type LucideIcon,
 } from "lucide-react";
 import { NAV_GROUPS } from "@/lib/modules";
@@ -52,6 +53,7 @@ const ICONS: Record<string, LucideIcon> = {
   sparkles: Sparkles,
   heart: HeartPulse,
   smartphone: Smartphone,
+  history: History,
 };
 
 interface SidebarProps {

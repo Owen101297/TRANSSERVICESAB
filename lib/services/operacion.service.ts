@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireStaffSession } from "@/lib/auth";
+import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction } from "@/lib/production-safety";
 import { getPersonaByIdDb } from "@/lib/services/personas.service";
 import { getVehiculoByIdDb } from "@/lib/services/vehiculos.service";
 import { Viaje, EstadoViaje, ServicioViaje, Novedad } from "@/lib/types/viaje";
@@ -14,6 +15,7 @@ let localViajesState: Viaje[] = [];
  */
 export async function getViajesDb(): Promise<Viaje[]> {
   try {
+    requireDatabaseInProduction();
     if (!process.env.DATABASE_URL) {
       return localViajesState;
     }
@@ -53,7 +55,7 @@ export async function getViajesDb(): Promise<Viaje[]> {
     }));
   } catch (error) {
     console.warn("Aviso de conexión DB Viajes (usando almacén local):", error);
-    return localViajesState;
+    return fallbackOrThrow(error, localViajesState, "No fue posible consultar viajes");
   }
 }
 
@@ -62,6 +64,7 @@ export async function getViajesDb(): Promise<Viaje[]> {
  */
 export async function getViajeByIdDb(id: string): Promise<Viaje | undefined> {
   try {
+    requireDatabaseInProduction();
     if (!process.env.DATABASE_URL) {
       return localViajesState.find((v) => v.id === id);
     }
@@ -76,7 +79,7 @@ export async function getViajeByIdDb(id: string): Promise<Viaje | undefined> {
     });
 
     if (!v) {
-      return localViajesState.find((viaje) => viaje.id === id);
+      return isProductionRuntime() ? undefined : localViajesState.find((viaje) => viaje.id === id);
     }
 
     return {
@@ -108,7 +111,7 @@ export async function getViajeByIdDb(id: string): Promise<Viaje | undefined> {
       })),
     };
   } catch (error) {
-    return localViajesState.find((v) => v.id === id);
+    return fallbackOrThrow(error, localViajesState.find((v) => v.id === id), "No fue posible consultar el viaje");
   }
 }
 

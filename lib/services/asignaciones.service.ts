@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSelfOrStaff, requireStaffSession } from "@/lib/auth";
+import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction } from "@/lib/production-safety";
 import { getPersonaByIdDb } from "@/lib/services/personas.service";
 import { getVehiculoByIdDb } from "@/lib/services/vehiculos.service";
 import { getContratistaByIdDb } from "@/lib/services/contratistas.service";
@@ -20,6 +21,7 @@ let localAsignacionesState: Asignacion[] = [];
  */
 export async function getAsignacionesDb(): Promise<Asignacion[]> {
   try {
+    requireDatabaseInProduction();
     if (process.env.DATABASE_URL) {
       const dbAsigs = await prisma.asignacion.findMany({
         orderBy: { fechaInicio: "desc" },
@@ -44,7 +46,7 @@ export async function getAsignacionesDb(): Promise<Asignacion[]> {
       }
     }
   } catch (error) {
-    console.warn("Aviso de conexión DB Asignaciones (usando almacén local):", error);
+    return fallbackOrThrow(error, localAsignacionesState, "No fue posible consultar asignaciones");
   }
 
   return localAsignacionesState;
@@ -55,6 +57,7 @@ export async function getAsignacionesDb(): Promise<Asignacion[]> {
  */
 export async function getAsignacionByIdDb(id: string): Promise<Asignacion | undefined> {
   try {
+    requireDatabaseInProduction();
     if (process.env.DATABASE_URL) {
       const a = await prisma.asignacion.findUnique({
         where: { id },
@@ -79,10 +82,9 @@ export async function getAsignacionByIdDb(id: string): Promise<Asignacion | unde
       }
     }
   } catch (error) {
-    console.warn("Error consultando asignación por id:", error);
+    return fallbackOrThrow(error, localAsignacionesState.find((a) => a.id === id), "No fue posible consultar la asignación");
   }
-
-  return localAsignacionesState.find((a) => a.id === id);
+  return isProductionRuntime() ? undefined : localAsignacionesState.find((a) => a.id === id);
 }
 
 /**

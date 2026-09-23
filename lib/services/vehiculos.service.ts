@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireStaffSession } from "@/lib/auth";
+import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction } from "@/lib/production-safety";
 import { SEED_VEHICULOS, getVehiculoById as getSeedVehiculoById } from "@/lib/data/vehiculos";
 import {
   Vehiculo,
@@ -20,6 +21,7 @@ let localVehiculosState: Vehiculo[] = [];
  */
 export async function getVehiculosDb(): Promise<Vehiculo[]> {
   try {
+    requireDatabaseInProduction();
     if (process.env.DATABASE_URL) {
       const dbVehicles = await prisma.vehiculo.findMany({
         orderBy: { placa: "asc" },
@@ -50,7 +52,7 @@ export async function getVehiculosDb(): Promise<Vehiculo[]> {
       }
     }
   } catch (error) {
-    console.warn("Aviso de conexión DB Vehículos (usando almacén local):", error);
+    return fallbackOrThrow(error, localVehiculosState, "No fue posible consultar vehículos");
   }
 
   return localVehiculosState;
@@ -61,6 +63,7 @@ export async function getVehiculosDb(): Promise<Vehiculo[]> {
  */
 export async function getVehiculoByIdDb(id: string): Promise<Vehiculo | undefined> {
   try {
+    requireDatabaseInProduction();
     if (process.env.DATABASE_URL) {
       const v = await prisma.vehiculo.findUnique({
         where: { id },
@@ -91,10 +94,15 @@ export async function getVehiculoByIdDb(id: string): Promise<Vehiculo | undefine
       }
     }
   } catch (error) {
-    console.warn("Error consultando vehículo por id:", error);
+    return fallbackOrThrow(
+      error,
+      localVehiculosState.find((v) => v.id === id) || getSeedVehiculoById(id),
+      "No fue posible consultar el vehículo"
+    );
   }
-
-  return localVehiculosState.find((v) => v.id === id) || getSeedVehiculoById(id);
+  return isProductionRuntime()
+    ? undefined
+    : localVehiculosState.find((v) => v.id === id) || getSeedVehiculoById(id);
 }
 
 /**

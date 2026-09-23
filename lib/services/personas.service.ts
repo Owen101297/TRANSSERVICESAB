@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/password";
 import { requireStaffSession } from "@/lib/auth";
+import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction } from "@/lib/production-safety";
 import { SEED_PERSONAS, getPersonaById as getSeedPersonaById } from "@/lib/data/personas";
 import {
   Persona,
@@ -29,6 +30,7 @@ function computeInitials(nombres: string, apellidos: string): string {
  */
 export async function getPersonasDb(): Promise<Persona[]> {
   try {
+    requireDatabaseInProduction();
     if (!process.env.DATABASE_URL) {
       return localPersonsState;
     }
@@ -95,7 +97,7 @@ export async function getPersonasDb(): Promise<Persona[]> {
     }));
   } catch (error) {
     console.warn("Aviso de conexión a base de datos (usando almacén de personas local):", error);
-    return localPersonsState;
+    return fallbackOrThrow(error, localPersonsState, "No fue posible consultar personas");
   }
 }
 
@@ -104,6 +106,7 @@ export async function getPersonasDb(): Promise<Persona[]> {
  */
 export async function getPersonaByIdDb(id: string): Promise<Persona | undefined> {
   try {
+    requireDatabaseInProduction();
     if (!process.env.DATABASE_URL) {
       return localPersonsState.find((p) => p.id === id) || getSeedPersonaById(id);
     }
@@ -119,7 +122,9 @@ export async function getPersonaByIdDb(id: string): Promise<Persona | undefined>
     });
 
     if (!p) {
-      return localPersonsState.find((person) => person.id === id) || getSeedPersonaById(id);
+      return isProductionRuntime()
+        ? undefined
+        : localPersonsState.find((person) => person.id === id) || getSeedPersonaById(id);
     }
 
     return {
@@ -173,7 +178,11 @@ export async function getPersonaByIdDb(id: string): Promise<Persona | undefined>
         : undefined,
     };
   } catch (error) {
-    return localPersonsState.find((p) => p.id === id) || getSeedPersonaById(id);
+    return fallbackOrThrow(
+      error,
+      localPersonsState.find((p) => p.id === id) || getSeedPersonaById(id),
+      "No fue posible consultar la persona"
+    );
   }
 }
 

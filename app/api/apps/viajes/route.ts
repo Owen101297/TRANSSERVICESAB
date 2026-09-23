@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { procesarAlertaViaje } from "@/lib/services/alertas-viaje.service";
 import { requireApiSession, requireStaff } from "@/lib/api-auth";
+import { recordAudit } from "@/lib/audit";
 
 export async function POST(req: Request) {
   const auth = await requireApiSession();
@@ -142,6 +143,7 @@ export async function POST(req: Request) {
       riskLevel: viaje.riskLevel || "Bajo",
       esNocturno: Boolean(finalRiskInputs.esNocturno),
     });
+    await recordAudit({ action: "CREATE", entityType: "Viaje", entityId: viaje.id, after: viaje, actor: auth.session });
 
     return NextResponse.json({
       success: true,
@@ -291,6 +293,7 @@ export async function PUT(req: Request) {
       where: { id },
       data: updateData,
     });
+    await recordAudit({ action: "UPDATE", entityType: "Viaje", entityId: viaje.id, before: existing, after: viaje, actor: auth.session });
 
     return NextResponse.json({
       success: true,
@@ -353,6 +356,7 @@ export async function PATCH(req: Request) {
       where: { id },
       data: updateData,
     });
+    await recordAudit({ action: "STATUS_CHANGE", entityType: "Viaje", entityId: viaje.id, before: existingTrip, after: viaje, actor: auth.session });
 
     return NextResponse.json({
       success: true,
@@ -377,9 +381,11 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: "ID de viaje requerido" }, { status: 400 });
     }
 
+    const existing = await prisma.viaje.findUnique({ where: { id } });
     await prisma.viaje.delete({
       where: { id },
     });
+    await recordAudit({ action: "DELETE", entityType: "Viaje", entityId: id, before: existing, actor: auth.session });
 
     return NextResponse.json({
       success: true,

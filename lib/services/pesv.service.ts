@@ -6,6 +6,7 @@ import { requireStaffSession } from "@/lib/auth";
 import { PASOS_PESV } from "@/lib/data/pesv-pasos";
 import { INDICADORES_PESV } from "@/lib/data/pesv-indicadores";
 import { PasoPESV, IndicadorPESV, EstadoPasoPESV, FasePESV } from "@/lib/types/pesv";
+import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction } from "@/lib/production-safety";
 
 let localPasosPesvState: PasoPESV[] = [...PASOS_PESV];
 let localIndicadoresPesvState: IndicadorPESV[] = [...INDICADORES_PESV];
@@ -14,9 +15,10 @@ let localIndicadoresPesvState: IndicadorPESV[] = [...INDICADORES_PESV];
  * Obtiene todos los 24 pasos del PESV desde DB (o fallback local)
  */
 export async function getPasosPesvDb(): Promise<PasoPESV[]> {
+  requireDatabaseInProduction();
   try {
     if (!process.env.DATABASE_URL) {
-      return localPasosPesvState;
+      return isProductionRuntime() ? [] : localPasosPesvState;
     }
 
     const dbPasos = await (prisma as any).pasoPesv.findMany({
@@ -42,7 +44,7 @@ export async function getPasosPesvDb(): Promise<PasoPESV[]> {
     });
   } catch (error) {
     console.warn("Aviso DB PESV (usando fallback local):", error);
-    return localPasosPesvState;
+    return fallbackOrThrow(error, localPasosPesvState, "No fue posible consultar PESV");
   }
 }
 
@@ -58,9 +60,10 @@ export async function getPasosPorFaseDb(fase: string): Promise<PasoPESV[]> {
  * Obtiene los indicadores del PESV
  */
 export async function getIndicadoresPesvDb(): Promise<IndicadorPESV[]> {
+  requireDatabaseInProduction();
   try {
     if (!process.env.DATABASE_URL) {
-      return localIndicadoresPesvState;
+      return isProductionRuntime() ? [] : localIndicadoresPesvState;
     }
 
     const dbIndicadores = await (prisma as any).indicadorPesv.findMany();
@@ -77,7 +80,7 @@ export async function getIndicadoresPesvDb(): Promise<IndicadorPESV[]> {
       valorActual: i.valorActual ?? undefined,
     }));
   } catch (error) {
-    return localIndicadoresPesvState;
+    return fallbackOrThrow(error, localIndicadoresPesvState, "No fue posible consultar indicadores PESV");
   }
 }
 

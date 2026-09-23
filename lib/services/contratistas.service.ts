@@ -6,6 +6,7 @@ import { requireStaffSession } from "@/lib/auth";
 import { SEED_CONTRATISTAS, getContratistaById as getSeedContratistaById } from "@/lib/data/contratistas";
 import { Contratista, TipoOperacion, EstadoContratista } from "@/lib/types/contratista";
 import { ContratistaUpsertPreviewItem } from "@/lib/data/contratistas-upsert";
+import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction } from "@/lib/production-safety";
 
 let localContratistasState: Contratista[] = [];
 
@@ -26,6 +27,7 @@ let localDocumentosContratistasState: ContratistaDocumentoAdjunto[] = [];
  * Obtiene todos los contratistas desde DB (o fallback local)
  */
 export async function getContratistasDb(): Promise<Contratista[]> {
+  requireDatabaseInProduction();
   try {
     if (!process.env.DATABASE_URL) {
       return localContratistasState;
@@ -50,7 +52,7 @@ export async function getContratistasDb(): Promise<Contratista[]> {
     }));
   } catch (error) {
     console.warn("Aviso de conexión DB Contratistas (usando almacén local):", error);
-    return localContratistasState;
+    return fallbackOrThrow(error, localContratistasState, "No fue posible consultar contratistas");
   }
 }
 
@@ -58,6 +60,7 @@ export async function getContratistasDb(): Promise<Contratista[]> {
  * Obtiene un contratista por ID
  */
 export async function getContratistaByIdDb(id: string): Promise<Contratista | undefined> {
+  requireDatabaseInProduction();
   try {
     if (!process.env.DATABASE_URL) {
       return localContratistasState.find((c) => c.id === id) || getSeedContratistaById(id);
@@ -68,7 +71,7 @@ export async function getContratistaByIdDb(id: string): Promise<Contratista | un
     });
 
     if (!c) {
-      return localContratistasState.find((contratista) => contratista.id === id) || getSeedContratistaById(id);
+      return isProductionRuntime() ? undefined : localContratistasState.find((contratista) => contratista.id === id) || getSeedContratistaById(id);
     }
 
     return {
@@ -85,7 +88,7 @@ export async function getContratistaByIdDb(id: string): Promise<Contratista | un
       notas: c.notas ?? undefined,
     };
   } catch (error) {
-    return localContratistasState.find((c) => c.id === id) || getSeedContratistaById(id);
+    return fallbackOrThrow(error, localContratistasState.find((c) => c.id === id) || getSeedContratistaById(id), "No fue posible consultar el contratista");
   }
 }
 

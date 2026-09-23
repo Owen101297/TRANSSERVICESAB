@@ -6,6 +6,7 @@ import {
 } from "@/lib/services/gps.service";
 import { TipoEventoGPS, PrioridadEventoGPS } from "@/lib/types/gps";
 import { requireStaff } from "@/lib/api-auth";
+import { recordAudit } from "@/lib/audit";
 
 const VALID_API_KEY = process.env.GPS_WEBHOOK_API_KEY;
 
@@ -281,12 +282,15 @@ export async function DELETE(request: NextRequest) {
     const placa = request.nextUrl.searchParams.get("placa");
 
     if (id) {
+      const existing = await (prisma as any).eventoGPS.findUnique({ where: { id } });
       await (prisma as any).eventoGPS.delete({ where: { id } });
+      await recordAudit({ action: "DELETE", entityType: "EventoGPS", entityId: id, before: existing, actor: auth.session });
       return NextResponse.json({ success: true, message: `Evento ${id} eliminado.` });
     }
 
     if (placa) {
       const res = await (prisma as any).eventoGPS.deleteMany({ where: { placa: { equals: placa, mode: "insensitive" } } });
+      await recordAudit({ action: "DELETE", entityType: "EventoGPS", metadata: { placa, count: res.count }, actor: auth.session });
       return NextResponse.json({ success: true, count: res.count });
     }
 

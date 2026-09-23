@@ -51,6 +51,7 @@ export const NAV_GROUPS: ModuleGroup[] = [
       { id: "reportes", label: "Reportes", href: "/reportes", icon: "chart" },
       { id: "intelligence", label: "Intelligence IA", href: "/intelligence", icon: "cpu" },
       { id: "portal-conductor", label: "Portal del Conductor", href: "/portal-conductor", icon: "smartphone" },
+      { id: "auditoria", label: "Auditoría", href: "/auditoria", icon: "history" },
       { id: "administracion", label: "Configuración", href: "/administracion", icon: "settings" },
     ],
   },
