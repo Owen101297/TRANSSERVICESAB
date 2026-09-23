@@ -8,6 +8,7 @@ import { getVehiculosDb } from "@/lib/services/vehiculos.service";
 import { getPersonasDb } from "@/lib/services/personas.service";
 import { getContratistasDb } from "@/lib/services/contratistas.service";
 import { recordAudit } from "@/lib/audit";
+import { resolveDocumentUrl, storeDocumentFile } from "@/lib/storage/document-storage";
 import {
   fallbackOrThrow,
   requireDatabaseInProduction,
@@ -124,7 +125,7 @@ export async function getDocumentosDb(): Promise<Documento[]> {
     }));
 
     // 4. Documentos cargados directamente a la Bóveda Digital (Prisma / local)
-    const docsSubidos: Documento[] = (dbDocs || []).map((d: any) => ({
+    const docsSubidos: Documento[] = await Promise.all((dbDocs || []).map(async (d: any) => ({
       id: d.id,
       nombre: d.nombre,
       categoria: (d.categoria as CategoriaDocumento) || "empresa",
@@ -134,11 +135,11 @@ export async function getDocumentosDb(): Promise<Documento[]> {
       entidadHref: d.entidadTipo === "vehiculo" && d.entidadId ? `/flota/${d.entidadId}` : undefined,
       fechaExpedicion: d.fechaExpedicion ? d.fechaExpedicion.toISOString().split("T")[0] : undefined,
       fechaVencimiento: d.fechaVencimiento ? d.fechaVencimiento.toISOString().split("T")[0] : undefined,
-      archivoUrl: d.archivoUrl,
+      archivoUrl: await resolveDocumentUrl(d.archivoUrl),
       tamanoBytes: d.tamanoBytes || undefined,
       mimeType: d.mimeType || undefined,
       notas: d.notas || undefined,
-    }));
+    })));
 
     return [...docsSubidos, ...localDocumentosDigitales, ...docsVehiculos, ...docsPersonas, ...docsContratistas];
   } catch (error) {
@@ -159,24 +160,41 @@ export async function createDocumentoDigitalAction(formData: FormData): Promise<
     const tipoDocumento = (formData.get("tipoDocumento") as TipoDocumento) || "otro";
     const entidadNombre = (formData.get("entidadNombre") as string)?.trim() || "Corporativo";
     const fechaVencimientoRaw = formData.get("fechaVencimiento") as string;
-    const archivoUrl = (formData.get("archivoUrl") as string)?.trim() || "";
+    const archivo = formData.get("archivo");
     const notas = (formData.get("notas") as string)?.trim() || "";
 
     const fechaVencimiento = fechaVencimientoRaw ? new Date(fechaVencimientoRaw) : null;
+    if (!(archivo instanceof File)) {
+      throw new Error("Debes seleccionar el archivo del documento.");
+    }
+    const stored = await storeDocumentFile(archivo, {
+      entityType: categoria,
+      entityId: entidadNombre,
+      documentType: tipoDocumento,
+    });
 
     if (process.env.DATABASE_URL) {
-      const created = await prisma.documentoDigital.create({
-        data: {
-          nombre,
-          categoria,
-          tipoDocumento,
-          entidadTipo: categoria,
-          entidadNombre,
-          archivoUrl: archivoUrl || "/documentos",
-          fechaVencimiento,
-          notas: notas || undefined,
-        },
-      });
+      let created;
+      try {
+        created = await prisma.documentoDigital.create({
+          data: {
+            nombre,
+            categoria,
+            tipoDocumento,
+            entidadTipo: categoria,
+            entidadNombre,
+            archivoUrl: stored.uri,
+            tamanoBytes: stored.size,
+            mimeType: stored.mimeType,
+            fechaVencimiento,
+            notas: notas || undefined,
+          },
+        });
+      } catch (error) {
+        const { deleteStoredDocument } = await import("@/lib/storage/document-storage");
+        await deleteStoredDocument(stored.uri).catch(() => undefined);
+        throw error;
+      }
       await recordAudit({
         action: "CREATE",
         entityType: "DocumentoDigital",
@@ -193,7 +211,8 @@ export async function createDocumentoDigitalAction(formData: FormData): Promise<
         tipo: tipoDocumento,
         entidadNombre,
         fechaVencimiento: fechaVencimientoRaw || undefined,
-        archivoUrl,
+        archivoUrl: stored.uri,
+        archivoNombre: stored.name,
         notas,
       });
     }

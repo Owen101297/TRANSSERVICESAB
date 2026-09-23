@@ -103,20 +103,8 @@ export function ExpedienteDigital({ personaId }: { personaId: string }) {
     setUploadingSlot(slotId);
     setErrorMsg(null);
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const base64Url = e.target?.result as string;
-      const tamanoKb = `${(file.size / 1024).toFixed(1)} KB`;
-
-      try {
-        const res = await guardarDocumentoPersonaDb(
-          personaId,
-          slotId,
-          file.name,
-          base64Url,
-          tamanoKb,
-          file.type
-        );
+    try {
+        const res = await guardarDocumentoPersonaDb(personaId, slotId, file);
         if (res.success) {
           await loadDocumentos();
         } else {
@@ -124,11 +112,9 @@ export function ExpedienteDigital({ personaId }: { personaId: string }) {
         }
       } catch (err: any) {
         setErrorMsg(err.message || "Error al subir el archivo.");
-      } finally {
-        setUploadingSlot(null);
-      }
-    };
-    reader.readAsDataURL(file);
+    } finally {
+      setUploadingSlot(null);
+    }
   };
 
   const handleDelete = async (docId: string) => {

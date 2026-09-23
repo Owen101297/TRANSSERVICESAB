@@ -15,6 +15,12 @@ import {
 } from "@/lib/types/vehiculo";
 import { DiagnosticoFilaVehiculo } from "@/lib/data/flota-upsert";
 import { ensureContratistaExistsDb } from "@/lib/services/contratistas.service";
+import {
+  deleteStoredDocument,
+  formatDocumentSize,
+  resolveDocumentUrl,
+  storeDocumentFile,
+} from "@/lib/storage/document-storage";
 
 let localVehiculosState: Vehiculo[] = [];
 
@@ -556,16 +562,16 @@ export async function getAdjuntosVehiculoDb(vehiculoId: string) {
         where: { entidadTipo: "vehiculo", entidadId: vehiculoId },
         orderBy: { createdAt: "desc" },
       });
-      return dbAdjuntos.map((d) => ({
+      return Promise.all(dbAdjuntos.map(async (d) => ({
         id: d.id,
         nombre: d.nombre,
         tipoDocumento: d.tipoDocumento,
-        archivoUrl: d.archivoUrl,
+        archivoUrl: await resolveDocumentUrl(d.archivoUrl),
         tamano: d.tamano || undefined,
         mimeType: d.mimeType || undefined,
         fechaVencimiento: d.fechaVencimiento ? d.fechaVencimiento.toISOString().split("T")[0] : undefined,
         createdAt: d.createdAt.toISOString(),
-      }));
+      })));
     }
   } catch (err) {
     console.warn("Aviso consultando adjuntos de vehiculo:", err);
@@ -579,34 +585,58 @@ export async function getAdjuntosVehiculoDb(vehiculoId: string) {
 export async function crearAdjuntoVehiculoDb(
   vehiculoId: string,
   tipoDocumento: string,
-  nombre: string,
-  archivoUrl: string,
+  file: File,
   fechaVencimiento?: string
 ) {
   try {
     await requireStaffSession();
+    const stored = await storeDocumentFile(file, {
+      entityType: "vehiculo",
+      entityId: vehiculoId,
+      documentType: tipoDocumento,
+    });
     let createdId = `adj_${Date.now()}`;
     const nowIso = new Date().toISOString();
 
     if (process.env.DATABASE_URL) {
-      const created = await prisma.documentoAdjunto.create({
-        data: {
-          entidadTipo: "vehiculo",
-          entidadId: vehiculoId,
-          tipoDocumento,
-          nombre,
-          archivoUrl,
-          fechaVencimiento: fechaVencimiento ? new Date(fechaVencimiento) : null,
-        },
+      const anteriores = await prisma.documentoAdjunto.findMany({
+        where: { entidadTipo: "vehiculo", entidadId: vehiculoId, tipoDocumento },
+        select: { archivoUrl: true },
       });
+      let created;
+      try {
+        created = await prisma.$transaction(async (tx) => {
+          await tx.documentoAdjunto.deleteMany({
+            where: { entidadTipo: "vehiculo", entidadId: vehiculoId, tipoDocumento },
+          });
+          return tx.documentoAdjunto.create({
+            data: {
+              entidadTipo: "vehiculo",
+              entidadId: vehiculoId,
+              tipoDocumento,
+              nombre: stored.name,
+              archivoUrl: stored.uri,
+              tamano: formatDocumentSize(stored.size),
+              mimeType: stored.mimeType,
+              fechaVencimiento: fechaVencimiento ? new Date(fechaVencimiento) : null,
+            },
+          });
+        });
+      } catch (error) {
+        await deleteStoredDocument(stored.uri).catch(() => undefined);
+        throw error;
+      }
+      await Promise.allSettled(anteriores.map((doc) => deleteStoredDocument(doc.archivoUrl)));
       createdId = created.id;
     }
 
     const adjuntoObj = {
       id: createdId,
-      nombre,
+      nombre: stored.name,
       tipoDocumento,
-      archivoUrl,
+      archivoUrl: await resolveDocumentUrl(stored.uri),
+      tamano: formatDocumentSize(stored.size),
+      mimeType: stored.mimeType,
       fechaVencimiento,
       createdAt: nowIso,
     };
@@ -625,7 +655,8 @@ export async function deleteAdjuntoVehiculoDb(id: string, vehiculoId: string) {
   try {
     await requireStaffSession();
     if (process.env.DATABASE_URL) {
-      await prisma.documentoAdjunto.delete({ where: { id } });
+      const deleted = await prisma.documentoAdjunto.delete({ where: { id } });
+      await deleteStoredDocument(deleted.archivoUrl);
       revalidatePath(`/flota/${vehiculoId}`);
     }
     return { success: true };

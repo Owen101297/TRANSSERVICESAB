@@ -7,6 +7,12 @@ import { hashPassword } from "@/lib/password";
 import { requireStaffSession } from "@/lib/auth";
 import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction, rethrowMutationInProduction } from "@/lib/production-safety";
 import { recordAudit } from "@/lib/audit";
+import {
+  deleteStoredDocument,
+  formatDocumentSize,
+  resolveDocumentUrl,
+  storeDocumentFile,
+} from "@/lib/storage/document-storage";
 import { SEED_PERSONAS, getPersonaById as getSeedPersonaById } from "@/lib/data/personas";
 import {
   Persona,
@@ -1124,16 +1130,16 @@ export async function getDocumentosPersonaDb(personaId: string): Promise<Documen
         where: { entidadId: personaId, entidadTipo: "persona" },
         orderBy: { createdAt: "desc" },
       });
-      return docs.map((d) => ({
+      return Promise.all(docs.map(async (d) => ({
         id: d.id,
         entidadId: d.entidadId,
         tipoDocumento: d.tipoDocumento,
         nombre: d.nombre,
-        archivoUrl: d.archivoUrl,
+        archivoUrl: await resolveDocumentUrl(d.archivoUrl),
         tamano: d.tamano ?? undefined,
         mimeType: d.mimeType ?? undefined,
         createdAt: d.createdAt.toISOString(),
-      }));
+      })));
     }
     return localDocumentosState.filter((d) => d.entidadId === personaId);
   } catch (error) {
@@ -1148,33 +1154,47 @@ export async function getDocumentosPersonaDb(personaId: string): Promise<Documen
 export async function guardarDocumentoPersonaDb(
   personaId: string,
   tipoDocumento: string,
-  nombre: string,
-  archivoUrl: string,
-  tamano?: string,
-  mimeType?: string
+  file: File
 ) {
   try {
     await requireStaffSession();
+    const stored = await storeDocumentFile(file, {
+      entityType: "persona",
+      entityId: personaId,
+      documentType: tipoDocumento,
+    });
+    const tamano = formatDocumentSize(stored.size);
     if (process.env.DATABASE_URL) {
-      // Eliminar versión anterior del mismo tipo de documento si existe
-      await prisma.documentoAdjunto.deleteMany({
+      const anteriores = await prisma.documentoAdjunto.findMany({
         where: { entidadId: personaId, entidadTipo: "persona", tipoDocumento },
+        select: { id: true, archivoUrl: true },
       });
-
-      const nuevoDoc = await prisma.documentoAdjunto.create({
-        data: {
-          entidadId: personaId,
-          entidadTipo: "persona",
-          tipoDocumento,
-          nombre,
-          archivoUrl,
-          tamano,
-          mimeType,
-        },
-      });
+      let nuevoDoc;
+      try {
+        nuevoDoc = await prisma.$transaction(async (tx) => {
+          await tx.documentoAdjunto.deleteMany({
+            where: { entidadId: personaId, entidadTipo: "persona", tipoDocumento },
+          });
+          return tx.documentoAdjunto.create({
+            data: {
+              entidadId: personaId,
+              entidadTipo: "persona",
+              tipoDocumento,
+              nombre: stored.name,
+              archivoUrl: stored.uri,
+              tamano,
+              mimeType: stored.mimeType,
+            },
+          });
+        });
+      } catch (error) {
+        await deleteStoredDocument(stored.uri).catch(() => undefined);
+        throw error;
+      }
+      await Promise.allSettled(anteriores.map((doc) => deleteStoredDocument(doc.archivoUrl)));
 
       revalidatePath(`/personas/${personaId}`);
-      return { success: true, documento: nuevoDoc };
+      return { success: true, documento: { ...nuevoDoc, archivoUrl: await resolveDocumentUrl(stored.uri) } };
     }
 
     localDocumentosState = localDocumentosState.filter(
@@ -1185,10 +1205,10 @@ export async function guardarDocumentoPersonaDb(
       id: `doc_${Date.now()}`,
       entidadId: personaId,
       tipoDocumento,
-      nombre,
-      archivoUrl,
+      nombre: stored.name,
+      archivoUrl: stored.uri,
       tamano,
-      mimeType,
+      mimeType: stored.mimeType,
       createdAt: new Date().toISOString(),
     };
     localDocumentosState.push(docLocal);
@@ -1208,9 +1228,10 @@ export async function eliminarDocumentoPersonaDb(documentoId: string, personaId:
   try {
     await requireStaffSession();
     if (process.env.DATABASE_URL) {
-      await prisma.documentoAdjunto.delete({
+      const deleted = await prisma.documentoAdjunto.delete({
         where: { id: documentoId },
       });
+      await deleteStoredDocument(deleted.archivoUrl);
     } else {
       localDocumentosState = localDocumentosState.filter((d) => d.id !== documentoId);
     }

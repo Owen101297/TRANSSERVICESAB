@@ -122,25 +122,19 @@ export function ExpedienteVehiculoDigital({
     const casillero = activeCasilleroRef.current;
     if (!file || !casillero) return;
 
-    // Límite de tamaño: 15MB
-    if (file.size > 15 * 1024 * 1024) {
-      setErrorMessage(`El archivo ${file.name} supera el límite de 15MB.`);
+    if (file.size > 10 * 1024 * 1024) {
+      setErrorMessage(`El archivo ${file.name} supera el límite de 10MB.`);
       return;
     }
 
     setUploadingTipo(casillero.tipo);
     setErrorMessage(null);
 
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const base64Url = event.target?.result as string;
-
-      try {
+    try {
         const res = await crearAdjuntoVehiculoDb(
           vehiculo.id,
           casillero.tipo,
-          file.name,
-          base64Url,
+          file,
           getVencimientoCasillero(casillero.tipo)
         );
 
@@ -154,19 +148,10 @@ export function ExpedienteVehiculoDigital({
         }
       } catch (err: any) {
         setErrorMessage(err.message || "Error al subir el archivo.");
-      } finally {
-        setUploadingTipo(null);
-        activeCasilleroRef.current = null;
-      }
-    };
-
-    reader.onerror = () => {
-      setErrorMessage("Error al leer el archivo seleccionado.");
+    } finally {
       setUploadingTipo(null);
       activeCasilleroRef.current = null;
-    };
-
-    reader.readAsDataURL(file);
+    }
   };
 
   const handleEliminarAdjunto = async (adjuntoId: string) => {

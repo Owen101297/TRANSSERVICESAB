@@ -431,6 +431,18 @@ export function DocumentosClientView({ initialDocumentos }: Props) {
               </div>
 
               <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Archivo</label>
+                <input
+                  type="file"
+                  name="archivo"
+                  required
+                  accept="application/pdf,image/png,image/jpeg,image/webp"
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-slate-900 file:mr-3 file:rounded-lg file:border-0 file:bg-sky-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-sky-700"
+                />
+                <p className="mt-1 text-[11px] text-slate-400">PDF, JPG, PNG o WEBP. Máximo 10 MB.</p>
+              </div>
+
+              <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Notas / Observaciones</label>
                 <textarea
                   name="notas"

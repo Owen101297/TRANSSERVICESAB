@@ -89,6 +89,7 @@ export function ExpedienteContratistaDigital({
   const [documentos, setDocumentos] = useState<ContratistaDocumentoAdjunto[]>(initialDocumentos);
   const [uploadingTipo, setUploadingTipo] = useState<string | null>(null);
   const [activeViewerDoc, setActiveViewerDoc] = useState<ContratistaDocumentoAdjunto | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Calcular porcentaje de completitud
   const obligatorios = DOCUMENT_SLOTS.filter((s) => s.obligatorio);
@@ -98,44 +99,26 @@ export function ExpedienteContratistaDigital({
   const porcentaje = Math.round((obligatoriosCargados / obligatorios.length) * 100);
 
   const handleFileUpload = async (tipo: string, file: File) => {
+    if (file.size > 10 * 1024 * 1024) {
+      setErrorMessage(`El archivo ${file.name} supera el límite de 10MB.`);
+      return;
+    }
     setUploadingTipo(tipo);
+    setErrorMessage(null);
     try {
-      // Convertir a Data URL para almacenamiento y visualización inmediata
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const dataUrl = reader.result as string;
-        const tamanoKb = `${(file.size / 1024).toFixed(1)} KB`;
+        const res = await guardarDocumentoContratistaDb(contratista.id, tipo, file);
 
-        const res = await guardarDocumentoContratistaDb(
-          contratista.id,
-          tipo,
-          file.name,
-          dataUrl,
-          tamanoKb,
-          file.type
-        );
-
-        if (res.success && res.docId) {
-          const nuevoDoc: ContratistaDocumentoAdjunto = {
-            id: res.docId,
-            tipoDocumento: tipo,
-            nombre: file.name,
-            archivoUrl: dataUrl,
-            tamano: tamanoKb,
-            mimeType: file.type,
-            createdAt: new Date().toISOString(),
-          };
-
+        if (res.success && res.documento) {
           setDocumentos((prev) => [
             ...prev.filter((d) => d.tipoDocumento !== tipo),
-            nuevoDoc,
+            res.documento,
           ]);
+        } else {
+          setErrorMessage(res.error || "No se pudo guardar el documento.");
         }
-        setUploadingTipo(null);
-      };
-      reader.readAsDataURL(file);
-    } catch (error) {
-      console.error("Error al cargar documento:", error);
+    } catch (error: any) {
+      setErrorMessage(error.message || "Error al cargar documento.");
+    } finally {
       setUploadingTipo(null);
     }
   };
@@ -155,6 +138,12 @@ export function ExpedienteContratistaDigital({
 
   return (
     <div className="space-y-6">
+      {errorMessage && (
+        <div className="rounded border border-alert-red/40 bg-alert-red-dim p-3 text-xs text-alert-red flex items-center gap-2">
+          <AlertCircle size={15} className="shrink-0" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
       {/* Barra Superior de Cumplimiento Legal HSEQ */}
       <div className="rounded-xl border border-line-600 bg-asphalt-900/90 p-5 shadow-lg">
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -321,7 +310,7 @@ export function ExpedienteContratistaDigital({
                       )}
                       <input
                         type="file"
-                        accept="application/pdf,image/*"
+                        accept="application/pdf,image/png,image/jpeg,image/webp"
                         className="hidden"
                         disabled={isUploading}
                         onChange={(e) => {

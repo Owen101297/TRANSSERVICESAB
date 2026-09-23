@@ -9,6 +9,12 @@ import { Contratista, TipoOperacion, EstadoContratista } from "@/lib/types/contr
 import { ContratistaUpsertPreviewItem } from "@/lib/data/contratistas-upsert";
 import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction, rethrowMutationInProduction } from "@/lib/production-safety";
 import { recordAudit } from "@/lib/audit";
+import {
+  deleteStoredDocument,
+  formatDocumentSize,
+  resolveDocumentUrl,
+  storeDocumentFile,
+} from "@/lib/storage/document-storage";
 
 let localContratistasState: Contratista[] = [];
 
@@ -399,16 +405,16 @@ export async function getDocumentosContratistaDb(contratistaId: string): Promise
         orderBy: { createdAt: "desc" },
       });
 
-      return docs.map((d) => ({
+      return Promise.all(docs.map(async (d) => ({
         id: d.id,
         tipoDocumento: d.tipoDocumento,
         nombre: d.nombre,
-        archivoUrl: d.archivoUrl,
+        archivoUrl: await resolveDocumentUrl(d.archivoUrl),
         tamano: d.tamano ?? undefined,
         mimeType: d.mimeType ?? undefined,
         fechaVencimiento: d.fechaVencimiento ? d.fechaVencimiento.toISOString().split("T")[0] : undefined,
         createdAt: d.createdAt.toISOString(),
-      }));
+      })));
     } else {
       return localDocumentosContratistasState.filter((d) => (d as any).contratistaId === contratistaId);
     }
@@ -424,47 +430,69 @@ export async function getDocumentosContratistaDb(contratistaId: string): Promise
 export async function guardarDocumentoContratistaDb(
   contratistaId: string,
   tipoDocumento: string,
-  nombre: string,
-  archivoUrl: string,
-  tamano?: string,
-  mimeType?: string,
+  file: File,
   fechaVencimiento?: string
 ) {
   try {
     await requireStaffSession();
+    const stored = await storeDocumentFile(file, {
+      entityType: "contratista",
+      entityId: contratistaId,
+      documentType: tipoDocumento,
+    });
+    const tamano = formatDocumentSize(stored.size);
     if (process.env.DATABASE_URL) {
-      // Eliminar versión previa del mismo casillero si existía
-      await prisma.documentoAdjunto.deleteMany({
-        where: {
-          entidadTipo: "contratista",
-          entidadId: contratistaId,
-          tipoDocumento,
-        },
+      const anteriores = await prisma.documentoAdjunto.findMany({
+        where: { entidadTipo: "contratista", entidadId: contratistaId, tipoDocumento },
+        select: { archivoUrl: true },
       });
-
-      const nuevoDoc = await prisma.documentoAdjunto.create({
-        data: {
-          entidadTipo: "contratista",
-          entidadId: contratistaId,
-          tipoDocumento,
-          nombre,
-          archivoUrl,
-          tamano,
-          mimeType,
-          fechaVencimiento: fechaVencimiento ? new Date(fechaVencimiento) : null,
-        },
-      });
+      let nuevoDoc;
+      try {
+        nuevoDoc = await prisma.$transaction(async (tx) => {
+          await tx.documentoAdjunto.deleteMany({
+            where: { entidadTipo: "contratista", entidadId: contratistaId, tipoDocumento },
+          });
+          return tx.documentoAdjunto.create({
+            data: {
+              entidadTipo: "contratista",
+              entidadId: contratistaId,
+              tipoDocumento,
+              nombre: stored.name,
+              archivoUrl: stored.uri,
+              tamano,
+              mimeType: stored.mimeType,
+              fechaVencimiento: fechaVencimiento ? new Date(fechaVencimiento) : null,
+            },
+          });
+        });
+      } catch (error) {
+        await deleteStoredDocument(stored.uri).catch(() => undefined);
+        throw error;
+      }
+      await Promise.allSettled(anteriores.map((doc) => deleteStoredDocument(doc.archivoUrl)));
 
       revalidatePath(`/contratistas/${contratistaId}`);
-      return { success: true, docId: nuevoDoc.id };
+      return {
+        success: true,
+        documento: {
+          id: nuevoDoc.id,
+          tipoDocumento,
+          nombre: stored.name,
+          archivoUrl: await resolveDocumentUrl(stored.uri),
+          tamano,
+          mimeType: stored.mimeType,
+          fechaVencimiento,
+          createdAt: nuevoDoc.createdAt.toISOString(),
+        },
+      };
     } else {
       const nuevoDocLocal: ContratistaDocumentoAdjunto = {
         id: `doc_c_${Date.now()}`,
         tipoDocumento,
-        nombre,
-        archivoUrl,
+        nombre: stored.name,
+        archivoUrl: stored.uri,
         tamano,
-        mimeType,
+        mimeType: stored.mimeType,
         fechaVencimiento,
         createdAt: new Date().toISOString(),
       };
@@ -475,7 +503,7 @@ export async function guardarDocumentoContratistaDb(
       localDocumentosContratistasState.push(nuevoDocLocal);
 
       revalidatePath(`/contratistas/${contratistaId}`);
-      return { success: true, docId: nuevoDocLocal.id };
+      return { success: true, documento: nuevoDocLocal };
     }
   } catch (error: any) {
     console.error("Error al guardar documento de contratista:", error);
@@ -490,9 +518,10 @@ export async function eliminarDocumentoContratistaDb(docId: string, contratistaI
   try {
     await requireStaffSession();
     if (process.env.DATABASE_URL) {
-      await prisma.documentoAdjunto.delete({
+      const deleted = await prisma.documentoAdjunto.delete({
         where: { id: docId },
       });
+      await deleteStoredDocument(deleted.archivoUrl);
     } else {
       localDocumentosContratistasState = localDocumentosContratistasState.filter((d) => d.id !== docId);
     }
