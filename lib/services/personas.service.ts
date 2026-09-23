@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { hashPassword } from "@/lib/password";
 import { requireStaffSession } from "@/lib/auth";
 import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction, rethrowMutationInProduction } from "@/lib/production-safety";
@@ -516,7 +517,13 @@ export async function batchUpsertPersonasDb(items: any[]) {
     let failedCount = 0;
     const errorsList: string[] = [];
 
-    for (const item of items) {
+    const invalidItem = items.find((item) => item.action === "error" || !cleanStr(item.numeroDocumento).replace(/\D/g, ""));
+    if (invalidItem) {
+      throw new Error("La importación contiene una fila inválida o sin número de documento.");
+    }
+
+    const processItems = async (db: Prisma.TransactionClient | null) => {
+      for (const item of items) {
       if (item.action === "error") {
         failedCount++;
         continue;
@@ -540,21 +547,24 @@ export async function batchUpsertPersonasDb(items: any[]) {
 
       try {
         let contratistaId: string | null = null;
-        if (contratistaNombre && process.env.DATABASE_URL) {
-          const c = await prisma.contratista.findFirst({
-            where: { razonSocial: { contains: contratistaNombre, mode: "insensitive" } },
+        if (contratistaNombre && db) {
+          const c = await db.contratista.findFirst({
+            where: { razonSocial: { equals: contratistaNombre, mode: "insensitive" } },
           });
-          if (c) contratistaId = c.id;
+          if (!c) {
+            throw new Error(`El contratista "${contratistaNombre}" no existe.`);
+          }
+          contratistaId = c.id;
         }
 
-        if (process.env.DATABASE_URL) {
-          const existing = await prisma.persona.findUnique({
+        if (db) {
+          const existing = await db.persona.findUnique({
             where: { numeroDocumento: numDoc },
             include: { licenciaConduccion: true, datosSalud: true, contactoEmergencia: true },
           });
 
           if (existing) {
-            await prisma.persona.update({
+            await db.persona.update({
               where: { id: existing.id },
               data: {
                 nombres,
@@ -575,7 +585,7 @@ export async function batchUpsertPersonasDb(items: any[]) {
             if (item.numeroLicencia || safeLicVenc) {
               const licNum = cleanStr(item.numeroLicencia) || numDoc;
               if (existing.licenciaConduccion) {
-                await prisma.licenciaConduccion.update({
+                await db.licenciaConduccion.update({
                   where: { personaId: existing.id },
                   data: {
                     numero: licNum || existing.licenciaConduccion.numero,
@@ -586,7 +596,7 @@ export async function batchUpsertPersonasDb(items: any[]) {
                   },
                 });
               } else if (licNum || safeLicVenc) {
-                await prisma.licenciaConduccion.create({
+                await db.licenciaConduccion.create({
                   data: {
                     personaId: existing.id,
                     numero: licNum,
@@ -607,7 +617,7 @@ export async function batchUpsertPersonasDb(items: any[]) {
               const rh = cleanStr(item.grupoSanguineo);
 
               if (existing.datosSalud) {
-                await prisma.datosSalud.update({
+                await db.datosSalud.update({
                   where: { personaId: existing.id },
                   data: {
                     eps: eps !== undefined ? eps : existing.datosSalud.eps,
@@ -617,7 +627,7 @@ export async function batchUpsertPersonasDb(items: any[]) {
                   },
                 });
               } else {
-                await prisma.datosSalud.create({
+                await db.datosSalud.create({
                   data: {
                     personaId: existing.id,
                     eps: eps || "",
@@ -636,7 +646,7 @@ export async function batchUpsertPersonasDb(items: any[]) {
               const parEm = cleanStr(item.contactoEmergenciaParentesco);
 
               if (existing.contactoEmergencia) {
-                await prisma.contactoEmergencia.update({
+                await db.contactoEmergencia.update({
                   where: { personaId: existing.id },
                   data: {
                     nombreCompleto: nomEm !== undefined ? nomEm : existing.contactoEmergencia.nombreCompleto,
@@ -645,7 +655,7 @@ export async function batchUpsertPersonasDb(items: any[]) {
                   },
                 });
               } else if (nomEm) {
-                await prisma.contactoEmergencia.create({
+                await db.contactoEmergencia.create({
                   data: {
                     personaId: existing.id,
                     nombreCompleto: nomEm,
@@ -659,7 +669,7 @@ export async function batchUpsertPersonasDb(items: any[]) {
             updatedCount++;
           } else {
             // Crear Nueva Persona
-            const newP = await prisma.persona.create({
+            const newP = await db.persona.create({
               data: {
                 nombres,
                 apellidos,
@@ -679,7 +689,7 @@ export async function batchUpsertPersonasDb(items: any[]) {
             const safeLicVenc = parseSafeDate(item.vencimientoLicencia);
             const licNum = cleanStr(item.numeroLicencia);
             if (licNum || safeLicVenc) {
-              await prisma.licenciaConduccion.create({
+              await db.licenciaConduccion.create({
                 data: {
                   personaId: newP.id,
                   numero: licNum || numDoc,
@@ -693,7 +703,7 @@ export async function batchUpsertPersonasDb(items: any[]) {
 
             // Salud
             if (item.eps || item.arl || item.fondoPension || item.grupoSanguineo) {
-              await prisma.datosSalud.create({
+              await db.datosSalud.create({
                 data: {
                   personaId: newP.id,
                   eps: cleanStr(item.eps) || "",
@@ -706,7 +716,7 @@ export async function batchUpsertPersonasDb(items: any[]) {
 
             // Contacto Emergencia
             if (item.contactoEmergenciaNombre) {
-              await prisma.contactoEmergencia.create({
+              await db.contactoEmergencia.create({
                 data: {
                   personaId: newP.id,
                   nombreCompleto: cleanStr(item.contactoEmergenciaNombre),
@@ -753,9 +763,15 @@ export async function batchUpsertPersonasDb(items: any[]) {
         }
       } catch (rowErr: any) {
         console.warn(`Error al procesar persona con cédula ${numDoc}:`, rowErr.message);
-        errorsList.push(`Doc ${numDoc}: ${rowErr.message}`);
-        failedCount++;
+        throw new Error(`Documento ${numDoc}: ${rowErr.message || "error al procesar la fila"}`);
       }
+      }
+    };
+
+    if (process.env.DATABASE_URL) {
+      await prisma.$transaction((tx) => processItems(tx), { maxWait: 10_000, timeout: 120_000 });
+    } else {
+      await processItems(null);
     }
 
     revalidatePath("/personas");

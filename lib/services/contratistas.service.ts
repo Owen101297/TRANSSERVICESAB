@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { requireStaffSession } from "@/lib/auth";
 import { SEED_CONTRATISTAS, getContratistaById as getSeedContratistaById } from "@/lib/data/contratistas";
 import { Contratista, TipoOperacion, EstadoContratista } from "@/lib/types/contratista";
@@ -303,12 +304,14 @@ export async function bulkUpsertContratistasAction(items: ContratistaUpsertPrevi
     let createdCount = 0;
     let updatedCount = 0;
 
-    for (const item of items) {
-      if (item.action === "error") continue;
+    if (items.some((item) => item.action === "error")) {
+      throw new Error("La importación contiene filas inválidas. Corrige el archivo antes de reintentar.");
+    }
 
-      if (process.env.DATABASE_URL) {
+    const persistItems = async (db: Prisma.TransactionClient) => {
+      for (const item of items) {
         if (item.action === "update") {
-          await prisma.contratista.update({
+          await db.contratista.update({
             where: { nit: item.nit },
             data: {
               razonSocial: item.nombre,
@@ -323,7 +326,8 @@ export async function bulkUpsertContratistasAction(items: ContratistaUpsertPrevi
           });
           updatedCount++;
         } else if (item.action === "create") {
-          await prisma.contratista.upsert({
+          const existing = await db.contratista.findUnique({ where: { nit: item.nit } });
+          await db.contratista.upsert({
             where: { nit: item.nit },
             update: {
               razonSocial: item.nombre,
@@ -348,9 +352,14 @@ export async function bulkUpsertContratistasAction(items: ContratistaUpsertPrevi
               notas: item.notas,
             },
           });
-          createdCount++;
+          if (existing) updatedCount++;
+          else createdCount++;
         }
       }
+    };
+
+    if (process.env.DATABASE_URL) {
+      await prisma.$transaction(persistItems, { maxWait: 10_000, timeout: 120_000 });
     }
 
     revalidatePath("/contratistas");

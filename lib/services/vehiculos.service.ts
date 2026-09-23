@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { requireStaffSession } from "@/lib/auth";
 import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction, rethrowMutationInProduction } from "@/lib/production-safety";
 import { recordAudit } from "@/lib/audit";
@@ -333,7 +334,8 @@ export async function bulkUpsertVehiculosDb(
     const actor = await requireStaffSession();
     let count = 0;
 
-    for (const f of filas) {
+    const processRows = async (db: Prisma.TransactionClient | null) => {
+      for (const f of filas) {
       const soatDate = f.soatVencimiento ? new Date(f.soatVencimiento) : null;
       const rtmDate = f.rtmVencimiento ? new Date(f.rtmVencimiento) : null;
       const polizaDate = f.polizaVencimiento ? new Date(f.polizaVencimiento) : null;
@@ -342,17 +344,23 @@ export async function bulkUpsertVehiculosDb(
       let contratistaId: string | null = null;
       let contratistaNombre = f.contratistaNombre || "Flota Propia / Trans Services A&B";
 
-      try {
-        const cObj = await ensureContratistaExistsDb(contratistaNombre);
-        contratistaId = cObj.id;
-        contratistaNombre = cObj.razonSocial;
-      } catch (cErr) {
-        console.warn("Aviso ensureContratistaExistsDb:", cErr);
+      if (db) {
+        const isOwnFleet = contratistaNombre.toLowerCase().includes("propia") || contratistaNombre.toLowerCase().includes("cooperativa");
+        const contractor = await db.contratista.findFirst({
+          where: isOwnFleet
+            ? { razonSocial: { contains: "Cooperativa", mode: "insensitive" } }
+            : { razonSocial: { equals: contratistaNombre, mode: "insensitive" } },
+        });
+        if (!contractor) {
+          throw new Error(`Vehículo ${f.placa}: el contratista "${contratistaNombre}" no existe. Créalo antes de importar la flota.`);
+        }
+        contratistaId = contractor.id;
+        contratistaNombre = contractor.razonSocial;
       }
 
-      if (process.env.DATABASE_URL) {
+      if (db) {
         try {
-          await prisma.vehiculo.upsert({
+          await db.vehiculo.upsert({
             where: { placa: f.placa },
             update: {
               marca: f.marca,
@@ -387,7 +395,8 @@ export async function bulkUpsertVehiculosDb(
           count++;
         } catch (dbErr) {
           console.error(`Error al hacer upsert de ${f.placa} en PostgreSQL:`, dbErr);
-          rethrowMutationInProduction(dbErr, `No fue posible importar el vehículo ${f.placa}`);
+          const detail = dbErr instanceof Error ? dbErr.message : String(dbErr);
+          throw new Error(`No fue posible importar el vehículo ${f.placa}: ${detail}`);
         }
       }
 
@@ -417,6 +426,13 @@ export async function bulkUpsertVehiculosDb(
       } else {
         localVehiculosState.push(vObj);
       }
+      }
+    };
+
+    if (process.env.DATABASE_URL) {
+      await prisma.$transaction((tx) => processRows(tx), { maxWait: 10_000, timeout: 120_000 });
+    } else {
+      await processRows(null);
     }
 
     revalidatePath("/flota");
