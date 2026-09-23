@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { procesarAlertaViaje } from "@/lib/services/alertas-viaje.service";
 import { requireApiSession, requireStaff } from "@/lib/api-auth";
 import { recordAudit } from "@/lib/audit";
+import { canAccessPortalVehicle, conductorIdentityFromSession, normalizeVehiclePlate } from "@/lib/portal-access";
 
 export async function POST(req: Request) {
   const auth = await requireApiSession();
@@ -50,9 +51,18 @@ export async function POST(req: Request) {
     } = body;
 
     // Buscar o vincular conductor y vehículo en PostgreSQL
-    let cId =
-      auth.session.rolPrincipal === "conductor" ? auth.session.id : conductorId;
+    const identity = conductorIdentityFromSession(auth.session, {
+      id: conductorId,
+      name: conductorNombre,
+      document: conductorDocumento,
+    });
+    let cId = identity.id;
     let vId = undefined;
+    const cleanPlaca = normalizeVehiclePlate(placa);
+
+    if (auth.session.rolPrincipal === "conductor" && !cleanPlaca) {
+      return NextResponse.json({ error: "La placa del vehículo es obligatoria." }, { status: 400 });
+    }
 
     if (conductorDocumento && !cId) {
       const persona = await prisma.persona.findUnique({
@@ -61,8 +71,10 @@ export async function POST(req: Request) {
       if (persona) cId = persona.id;
     }
 
-    if (placa) {
-      const cleanPlaca = String(placa).toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (cleanPlaca) {
+      if (!(await canAccessPortalVehicle(auth.session, cleanPlaca))) {
+        return NextResponse.json({ error: "No autorizado para operar este vehículo." }, { status: 403 });
+      }
       const vehiculo = await prisma.vehiculo.findUnique({
         where: { placa: cleanPlaca },
       });
@@ -108,12 +120,9 @@ export async function POST(req: Request) {
     const viaje = await prisma.viaje.create({
       data: {
         conductorId: cId || "conductor-general",
-        conductorNombre:
-          auth.session.rolPrincipal === "conductor"
-            ? auth.session.nombre
-            : conductorNombre || "Conductor Asignado",
+        conductorNombre: identity.name || "Conductor Asignado",
         vehiculoId: vId || "vehiculo-general",
-        placa: (placa || "WGM212").toUpperCase().trim(),
+        placa: cleanPlaca || "WGM212",
         contratistaNombre: body.contratistaNombre || "TRANS SERVICES COOPERATIVA A&B",
         origen: origen || "Base Operativa",
         destino: destino || "Destino Operativo",

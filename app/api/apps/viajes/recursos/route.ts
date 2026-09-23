@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireApiSession } from "@/lib/api-auth";
 
 export async function GET() {
+  const auth = await requireApiSession();
+  if (auth.response) return auth.response;
   try {
     const [personas, vehiculos] = await Promise.all([
       prisma.persona.findMany({
-        where: { estado: { in: ["activo", "Activo", "ACTIVO"] } },
+        where: {
+          estado: { in: ["activo", "Activo", "ACTIVO"] },
+          ...(auth.session.rolPrincipal === "conductor" ? { id: auth.session.id } : {}),
+        },
         include: {
           licenciaConduccion: true,
         },

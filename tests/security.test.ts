@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { hashPassword, isPasswordHash, isStrongPassword, verifyPassword } from "../lib/password.ts";
 import { decodeSession, encodeSession, type SessionUser } from "../lib/session.ts";
+import { conductorIdentityFromSession, normalizeVehiclePlate } from "../lib/portal-validation.ts";
 import {
   buildDocumentAttachmentScope,
   detectDocumentMimeType,
@@ -56,4 +57,16 @@ test("el alcance documental vincula siempre archivo, tipo de entidad y propietar
     id: "doc-1",
   });
   assert.throws(() => buildDocumentAttachmentScope("vehiculo", "vehicle-1", "  "));
+});
+
+test("el portal ignora la identidad suministrada por un conductor", () => {
+  assert.deepEqual(
+    conductorIdentityFromSession(user, {
+      id: "otra-persona",
+      name: "Identidad manipulada",
+      document: "9999999999",
+    }),
+    { id: user.id, name: user.nombre, document: user.documento },
+  );
+  assert.equal(normalizeVehiclePlate(" abc-123 "), "ABC123");
 });

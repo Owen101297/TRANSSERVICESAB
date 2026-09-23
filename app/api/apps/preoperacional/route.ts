@@ -2,20 +2,28 @@ import { NextResponse } from "next/server";
 import { createPreoperacionalDb, getPreoperacionalesDb } from "@/lib/services/preoperacional.service";
 import { requireApiSession } from "@/lib/api-auth";
 import { recordAudit } from "@/lib/audit";
+import { canAccessPortalVehicle, conductorIdentityFromSession, normalizeVehiclePlate } from "@/lib/portal-access";
 
 export async function POST(req: Request) {
   const auth = await requireApiSession();
   if (auth.response) return auth.response;
   try {
     const body = await req.json();
-    const conductorId = auth.session.rolPrincipal === "conductor" ? auth.session.id : body.conductorId;
-    const conductorNombre = auth.session.rolPrincipal === "conductor" ? auth.session.nombre : body.conductorNombre;
+    const identity = conductorIdentityFromSession(auth.session, {
+      id: body.conductorId,
+      name: body.conductorNombre,
+      document: body.conductorDocumento || body.documento,
+    });
+    const cleanPlaca = normalizeVehiclePlate(body.placa);
+    if (!(await canAccessPortalVehicle(auth.session, cleanPlaca))) {
+      return NextResponse.json({ error: "No autorizado para operar este vehículo." }, { status: 403 });
+    }
 
     const result = await createPreoperacionalDb({
-      conductorId,
-      conductorNombre,
-      conductorDocumento: body.conductorDocumento || body.documento,
-      placa: body.placa,
+      conductorId: identity.id || undefined,
+      conductorNombre: identity.name || undefined,
+      conductorDocumento: identity.document || undefined,
+      placa: cleanPlaca,
       kilometraje: body.kilometraje,
       checklist: body.checklist || body.checks || {},
       observaciones: body.observaciones,
@@ -39,13 +47,17 @@ export async function POST(req: Request) {
 }
 
 export async function GET(req: Request) {
+  const auth = await requireApiSession();
+  if (auth.response) return auth.response;
   try {
     const { searchParams } = new URL(req.url);
     const rangoFecha = searchParams.get("rangoFecha") as any;
     const fechaDesde = searchParams.get("fechaDesde") || undefined;
     const fechaHasta = searchParams.get("fechaHasta") || undefined;
     const placa = searchParams.get("placa") || undefined;
-    const conductorId = searchParams.get("conductorId") || undefined;
+    const conductorId = auth.session.rolPrincipal === "conductor"
+      ? auth.session.id
+      : searchParams.get("conductorId") || undefined;
     const estadoConcepto = searchParams.get("estadoConcepto") || undefined;
     const busqueda = searchParams.get("busqueda") || undefined;
     const page = searchParams.get("page") ? parseInt(searchParams.get("page")!, 10) : 1;

@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireApiSession } from "@/lib/api-auth";
+import { canAccessPortalVehicle, normalizeVehiclePlate } from "@/lib/portal-access";
 
 export async function GET(req: Request) {
+  const auth = await requireApiSession();
+  if (auth.response) return auth.response;
   try {
     const { searchParams } = new URL(req.url);
     const placa = searchParams.get("placa");
@@ -10,7 +14,10 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Placa requerida" }, { status: 400 });
     }
 
-    const cleanPlaca = placa.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const cleanPlaca = normalizeVehiclePlate(placa);
+    if (!(await canAccessPortalVehicle(auth.session, cleanPlaca))) {
+      return NextResponse.json({ error: "No autorizado para consultar este vehículo." }, { status: 403 });
+    }
 
     // Buscar inspección preoperacional de las últimas 24 horas para este vehículo
     const hace24Horas = new Date(Date.now() - 24 * 60 * 60 * 1000);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireApiSession } from "@/lib/api-auth";
 import { recordAudit } from "@/lib/audit";
+import { canAccessPortalVehicle, conductorIdentityFromSession, normalizeVehiclePlate } from "@/lib/portal-access";
 
 export async function GET(req: NextRequest) {
   const auth = await requireApiSession();
@@ -14,8 +15,11 @@ export async function GET(req: NextRequest) {
         ? auth.session.documento
         : searchParams.get("documento") || "";
 
-    const cleanPlaca = rawPlaca.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const cleanPlaca = normalizeVehiclePlate(rawPlaca);
     const cleanDoc = rawDoc.trim().replace(/[^0-9A-Za-z]/g, "");
+    if (cleanPlaca && !(await canAccessPortalVehicle(auth.session, cleanPlaca))) {
+      return NextResponse.json({ success: false, error: "No autorizado para consultar este vehículo." }, { status: 403 });
+    }
 
     // Buscar vehículo y su odómetro actual
     let vehiculo = null;
@@ -107,12 +111,13 @@ export async function POST(req: NextRequest) {
       observaciones,
     } = body;
 
-    const cleanPlaca = (placa || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
-    const cleanDoc = (
-      auth.session.rolPrincipal === "conductor"
-        ? auth.session.documento
-        : conductorDocumento || ""
-    ).trim();
+    const identity = conductorIdentityFromSession(auth.session, {
+      id: conductorId,
+      name: conductorNombre,
+      document: conductorDocumento,
+    });
+    const cleanPlaca = normalizeVehiclePlate(placa);
+    const cleanDoc = String(identity.document || "").trim();
     const numOdometro = parseFloat(String(odometroInicial || 0));
 
     if (!cleanPlaca) {
@@ -120,6 +125,9 @@ export async function POST(req: NextRequest) {
     }
     if (!cleanDoc) {
       return NextResponse.json({ success: false, error: "El documento del conductor es obligatorio." }, { status: 400 });
+    }
+    if (!(await canAccessPortalVehicle(auth.session, cleanPlaca))) {
+      return NextResponse.json({ success: false, error: "No autorizado para operar este vehículo." }, { status: 403 });
     }
     if (isNaN(numOdometro) || numOdometro <= 0) {
       return NextResponse.json({ success: false, error: "El odómetro inicial debe ser un número mayor a 0." }, { status: 400 });
@@ -165,12 +173,8 @@ export async function POST(req: NextRequest) {
     // 3. Crear Turno de Despacho
     const nuevoTurno = await prisma.turnoDespacho.create({
       data: {
-        conductorId:
-          auth.session.rolPrincipal === "conductor" ? auth.session.id : conductorId || null,
-        conductorNombre:
-          auth.session.rolPrincipal === "conductor"
-            ? auth.session.nombre
-            : conductorNombre || "Conductor",
+        conductorId: identity.id,
+        conductorNombre: identity.name || "Conductor",
         conductorDocumento: cleanDoc,
         placa: cleanPlaca,
         vehiculoId: vehiculo?.id || null,
