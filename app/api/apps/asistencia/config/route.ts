@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import fs from "fs";
 import path from "path";
+import { requireApiSession, requireStaff } from "@/lib/api-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +67,8 @@ function savePersistedConfig(config: AsistenciaConfig) {
 }
 
 export async function GET() {
+  const auth = await requireApiSession();
+  if (auth.response) return auth.response;
   const config = await loadPersistedConfig();
   return NextResponse.json({
     success: true,
@@ -74,6 +77,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const auth = await requireStaff(["hseq", "administrativo"]);
+  if (auth.response) return auth.response;
   try {
     const body = await req.json();
     const { tema, tipoEvento, lugar, facilitador } = body;

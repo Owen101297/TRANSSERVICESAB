@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
+import { join } from "node:path";
 import { hashPassword, isPasswordHash, isStrongPassword, verifyPassword } from "../lib/password.ts";
 import { decodeSession, encodeSession, type SessionUser } from "../lib/session.ts";
 import { conductorIdentityFromSession, normalizeVehiclePlate } from "../lib/portal-validation.ts";
@@ -69,4 +71,37 @@ test("el portal ignora la identidad suministrada por un conductor", () => {
     { id: user.id, name: user.nombre, document: user.documento },
   );
   assert.equal(normalizeVehiclePlate(" abc-123 "), "ABC123");
+});
+
+test("todos los handlers de /api/apps exigen sesion o rol antes de procesar datos", () => {
+  const routeFiles = [
+    "aseo/route.ts",
+    "asistencia/route.ts",
+    "asistencia/config/route.ts",
+    "botiquin/route.ts",
+    "encuesta/route.ts",
+    "extintor/route.ts",
+    "lavado/route.ts",
+    "preoperacional/route.ts",
+    "registros/route.ts",
+    "viajes/route.ts",
+    "viajes/preoperacional/route.ts",
+    "viajes/recursos/route.ts",
+  ];
+
+  for (const routeFile of routeFiles) {
+    const source = readFileSync(join(process.cwd(), "app/api/apps", routeFile), "utf8");
+    const handlers = [...source.matchAll(/export async function (GET|POST|PUT|PATCH|DELETE)\([^)]*\) \{/g)];
+    assert.ok(handlers.length > 0, `${routeFile} debe exponer al menos un handler`);
+
+    for (const handler of handlers) {
+      const opening = handler.index ?? 0;
+      const authorizationPrefix = source.slice(opening, opening + 350);
+      assert.match(
+        authorizationPrefix,
+        /requireApiSession\(|requireStaff\(/,
+        `${routeFile} ${handler[1]} debe autenticar antes de procesar la solicitud`,
+      );
+    }
+  }
 });

@@ -2,11 +2,15 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireApiSession, requireStaff } from "@/lib/api-auth";
 import { recordAudit } from "@/lib/audit";
+import { canAccessPortalVehicle } from "@/lib/portal-access";
+import { conductorIdentityFromSession, normalizeVehiclePlate } from "@/lib/portal-validation";
 
 export const dynamic = "force-dynamic";
 
 // ── GET: Obtener inspecciones de aseo y desinfección con KPIs ──
 export async function GET(req: Request) {
+  const auth = await requireApiSession();
+  if (auth.response) return auth.response;
   try {
     const { searchParams } = new URL(req.url);
     const mes = searchParams.get("mes"); // Formato: YYYY-MM
@@ -14,7 +18,9 @@ export async function GET(req: Request) {
     const conductor = searchParams.get("conductor");
     const conforme = searchParams.get("conforme");
 
-    const where: any = {};
+    const where: any = auth.session.rolPrincipal === "conductor"
+      ? { conductorId: auth.session.id }
+      : {};
 
     if (mes) {
       where.fecha = { startsWith: mes };
@@ -90,7 +96,17 @@ export async function POST(req: Request) {
       conforme = true,
     } = body;
 
-    if (!placa || !conductorNombre) {
+    const identity = conductorIdentityFromSession(auth.session, {
+      id: conductorId,
+      name: conductorNombre,
+      document: conductorDocumento,
+    });
+    const cleanPlaca = normalizeVehiclePlate(placa);
+    if (!(await canAccessPortalVehicle(auth.session, cleanPlaca))) {
+      return NextResponse.json({ success: false, error: "No autorizado para operar este vehiculo." }, { status: 403 });
+    }
+
+    if (!cleanPlaca || !identity.name) {
       return NextResponse.json(
         { success: false, error: "La placa y el nombre del conductor son obligatorios." },
         { status: 400 }
@@ -114,11 +130,11 @@ export async function POST(req: Request) {
       data: {
         fecha: cleanFecha,
         hora: cleanHora,
-        placa: placa.toUpperCase().trim(),
+        placa: cleanPlaca,
         tipoVehiculo: tipoVehiculo || "Camioneta",
-        conductorNombre: conductorNombre.trim(),
-        conductorDocumento: conductorDocumento?.trim() || null,
-        conductorId: conductorId || null,
+        conductorNombre: identity.name.trim(),
+        conductorDocumento: identity.document?.trim() || null,
+        conductorId: identity.id || null,
         responsableHseq: responsableHseq?.trim() || "Coordinador HSEQ / Conductor",
         kilometraje: parseInt(String(kilometraje), 10) || 0,
         checklist: checklist || [],

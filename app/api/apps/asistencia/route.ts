@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import { requireApiSession, requireStaff } from "@/lib/api-auth";
 import { recordAudit } from "@/lib/audit";
+import { conductorIdentityFromSession } from "@/lib/portal-validation";
 
 interface NormalizedAsistencia {
   id: string;
@@ -212,6 +213,8 @@ async function getAllNormalizedRecords(): Promise<NormalizedAsistencia[]> {
 }
 
 export async function GET(req: Request) {
+  const auth = await requireApiSession();
+  if (auth.response) return auth.response;
   try {
     const { searchParams } = new URL(req.url);
     const fecha = searchParams.get("fecha");
@@ -222,6 +225,9 @@ export async function GET(req: Request) {
     const seed = searchParams.get("seed");
 
     if (seed === "true") {
+      if (!["hseq", "administrativo"].includes(auth.session.rolPrincipal)) {
+        return NextResponse.json({ success: false, error: "No autorizado." }, { status: 403 });
+      }
       const inserted = await ensureHistoricalSeeded(true);
       const total = await prisma.asistenciaRegistro.count();
       return NextResponse.json({ success: true, seeded: inserted, totalInDb: total });
@@ -230,6 +236,12 @@ export async function GET(req: Request) {
     // 1. Consulta de conductor por cédula para autocompletado en app móvil
     if (cedula) {
       const cleanCedula = cedula.replace(/[\.\s-]/g, "").trim();
+      if (
+        auth.session.rolPrincipal === "conductor" &&
+        cleanCedula !== auth.session.documento.replace(/[\.\s-]/g, "").trim()
+      ) {
+        return NextResponse.json({ success: false, error: "No autorizado." }, { status: 403 });
+      }
       try {
         const persona = await prisma.persona.findFirst({
           where: {
@@ -275,11 +287,17 @@ export async function GET(req: Request) {
     }
 
     const allRecords = await getAllNormalizedRecords();
+    const scopedRecords = auth.session.rolPrincipal === "conductor"
+      ? allRecords.filter((record) =>
+          record.personaId === auth.session.id ||
+          record.personaDocumento === auth.session.documento.replace(/[\.\s-]/g, "").trim()
+        )
+      : allRecords;
 
     // 2. Resumen de fechas activas para marcar los días en el calendario
     if (datesSummary === "true") {
       const summary: Record<string, { total: number; proyectos: string[] }> = {};
-      for (const reg of allRecords) {
+      for (const reg of scopedRecords) {
         if (reg.fecha) {
           const dateKey = reg.fecha; // YYYY-MM-DD directo
           if (!summary[dateKey]) {
@@ -297,7 +315,7 @@ export async function GET(req: Request) {
     }
 
     // 3. Filtrado de registros
-    let filtered = allRecords;
+    let filtered = scopedRecords;
 
     if (fecha && fecha !== "TODAS" && fecha.toLowerCase() !== "all") {
       filtered = filtered.filter((r) => r.fecha === fecha);
@@ -374,8 +392,13 @@ export async function POST(req: Request) {
       hora_llegada,
     } = body;
 
-    const doc = (conductorDocumento || personaDocumento || "").replace(/[\.\s-]/g, "").trim();
-    const nombre = (conductorNombre || personaNombre || "PARTICIPANTE").trim().toUpperCase();
+    const identity = conductorIdentityFromSession(auth.session, {
+      id: conductorId,
+      name: conductorNombre || personaNombre,
+      document: conductorDocumento || personaDocumento,
+    });
+    const doc = (identity.document || "").replace(/[\.\s-]/g, "").trim();
+    const nombre = (identity.name || "PARTICIPANTE").trim().toUpperCase();
     const firm = signature || firmaUrl || firma_url || firma_base64 || null;
     const fot = fotoUrl || foto_url || body.foto_base64 || body.fotoBase64 || body.foto || null;
     const ev = evento || tipoEvento || tipo_evento || "Jornada de Capacitación / Charla";
@@ -403,7 +426,7 @@ export async function POST(req: Request) {
         });
 
     // Guardar exclusivamente en Prisma (PostgreSQL en Railway)
-    let pId = conductorId;
+    let pId = identity.id;
     if (doc && !pId) {
       try {
         const persona = await prisma.persona.findFirst({

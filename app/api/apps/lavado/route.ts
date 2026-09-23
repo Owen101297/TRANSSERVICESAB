@@ -2,11 +2,15 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireApiSession, requireStaff } from "@/lib/api-auth";
 import { recordAudit } from "@/lib/audit";
+import { canAccessPortalVehicle } from "@/lib/portal-access";
+import { conductorIdentityFromSession, normalizeVehiclePlate } from "@/lib/portal-validation";
 
 export const dynamic = "force-dynamic";
 
 // ── GET: Consultar registros de lavado con filtros y estadísticas ──
 export async function GET(req: Request) {
+  const auth = await requireApiSession();
+  if (auth.response) return auth.response;
   try {
     const { searchParams } = new URL(req.url);
     const mes = searchParams.get("mes"); // YYYY-MM
@@ -14,7 +18,9 @@ export async function GET(req: Request) {
     const placa = searchParams.get("placa");
     const estadoAprobo = searchParams.get("estadoAprobo");
 
-    const where: any = {};
+    const where: any = auth.session.rolPrincipal === "conductor"
+      ? { conductorId: auth.session.id }
+      : {};
 
     if (fecha) {
       where.fecha = fecha;
@@ -82,7 +88,17 @@ export async function POST(req: Request) {
       operarioUid,
     } = body;
 
-    if (!placa || !conductorNombre) {
+    const identity = conductorIdentityFromSession(auth.session, {
+      id: conductorId,
+      name: conductorNombre,
+      document: conductorDocumento,
+    });
+    const cleanPlaca = normalizeVehiclePlate(placa);
+    if (!(await canAccessPortalVehicle(auth.session, cleanPlaca))) {
+      return NextResponse.json({ success: false, error: "No autorizado para operar este vehiculo." }, { status: 403 });
+    }
+
+    if (!cleanPlaca || !identity.name) {
       return NextResponse.json(
         { success: false, error: "La placa y el nombre del conductor son obligatorios." },
         { status: 400 }
@@ -92,11 +108,9 @@ export async function POST(req: Request) {
     const now = new Date();
     const cleanFecha = fecha || now.toISOString().split("T")[0];
     const cleanHora = hora || now.toTimeString().slice(0, 5);
-    const cleanPlaca = placa.toUpperCase().replace(/[^A-Z0-9]/g, "").trim();
-
     // Buscar si el conductor existe en el sistema
-    let doc = conductorDocumento;
-    let cId = conductorId;
+    let doc = identity.document;
+    let cId = identity.id;
     if (!doc && cId) {
       const p = await prisma.persona.findUnique({ where: { id: cId } });
       if (p) doc = p.numeroDocumento;
@@ -110,7 +124,7 @@ export async function POST(req: Request) {
         tipoVehiculo: tipoVehiculo || "Camioneta",
         valor: Number(valor) || 0,
         empresa: empresa?.trim() || "N/A",
-        conductorNombre: conductorNombre.trim(),
+        conductorNombre: identity.name.trim(),
         conductorDocumento: doc || null,
         conductorId: cId || null,
         firmaUrl: firmaUrl || null,

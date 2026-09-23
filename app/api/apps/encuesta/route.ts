@@ -2,11 +2,15 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireApiSession, requireStaff } from "@/lib/api-auth";
 import { recordAudit } from "@/lib/audit";
+import { canAccessPortalVehicle } from "@/lib/portal-access";
+import { conductorIdentityFromSession, normalizeVehiclePlate } from "@/lib/portal-validation";
 
 export const dynamic = "force-dynamic";
 
 // ── GET: Obtener encuestas y estadísticas agregadas (NPS, promedios) ──
 export async function GET(req: Request) {
+  const auth = await requireApiSession();
+  if (auth.response) return auth.response;
   try {
     const { searchParams } = new URL(req.url);
     const mes = searchParams.get("mes"); // YYYY-MM
@@ -14,7 +18,9 @@ export async function GET(req: Request) {
     const placa = searchParams.get("placa");
     const conductor = searchParams.get("conductor");
 
-    const where: any = {};
+    const where: any = auth.session.rolPrincipal === "conductor"
+      ? { conductorDocumento: auth.session.documento }
+      : {};
 
     if (mes) {
       where.fecha = { startsWith: mes };
@@ -120,6 +126,15 @@ export async function POST(req: Request) {
       canal = "qr_movil",
     } = body;
 
+    const identity = conductorIdentityFromSession(auth.session, {
+      name: conductorNombre,
+      document: conductorDocumento,
+    });
+    const cleanPlaca = placa ? normalizeVehiclePlate(placa) : "";
+    if (cleanPlaca && !(await canAccessPortalVehicle(auth.session, cleanPlaca))) {
+      return NextResponse.json({ success: false, error: "No autorizado para operar este vehiculo." }, { status: 403 });
+    }
+
     const now = new Date();
     const cleanFecha = fecha || now.toISOString().split("T")[0];
     const cleanHora = hora || now.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
@@ -130,10 +145,10 @@ export async function POST(req: Request) {
         titulo,
         fecha: cleanFecha,
         hora: cleanHora,
-        placa: placa ? placa.trim().toUpperCase() : null,
+        placa: cleanPlaca || null,
         tipoVehiculo: tipoVehiculo || null,
-        conductorNombre: conductorNombre ? conductorNombre.trim() : null,
-        conductorDocumento: conductorDocumento ? conductorDocumento.trim() : null,
+        conductorNombre: identity.name ? identity.name.trim() : null,
+        conductorDocumento: identity.document ? identity.document.trim() : null,
         nombreEncuestado: nombreEncuestado ? nombreEncuestado.trim() : "Anónimo / Pasajero",
         emailEncuestado: emailEncuestado ? emailEncuestado.trim() : null,
         empresaCliente: empresaCliente || "TRANS SERVICES A&B",

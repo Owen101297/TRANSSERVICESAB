@@ -6,6 +6,12 @@ export async function GET() {
   const auth = await requireApiSession();
   if (auth.response) return auth.response;
   try {
+    const assignedVehicleIds = auth.session.rolPrincipal === "conductor"
+      ? (await prisma.asignacion.findMany({
+          where: { conductorId: auth.session.id, estado: "activa" },
+          select: { vehiculoId: true },
+        })).map((assignment) => assignment.vehiculoId)
+      : null;
     const [personas, vehiculos] = await Promise.all([
       prisma.persona.findMany({
         where: {
@@ -18,7 +24,10 @@ export async function GET() {
         orderBy: { nombres: "asc" },
       }),
       prisma.vehiculo.findMany({
-        where: { estado: { in: ["activo", "Activo", "ACTIVO", "en_operacion", "disponible"] } },
+        where: {
+          estado: { in: ["activo", "Activo", "ACTIVO", "en_operacion", "disponible"] },
+          ...(assignedVehicleIds ? { id: { in: assignedVehicleIds } } : {}),
+        },
         orderBy: { placa: "asc" },
       }),
     ]);
