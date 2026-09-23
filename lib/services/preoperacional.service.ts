@@ -8,6 +8,10 @@ import {
   PREOPERACIONAL_SECCIONES,
   ValorItemChecklist,
 } from "@/lib/types/preoperacional";
+import {
+  fallbackOrThrow,
+  requireDatabaseInProduction,
+} from "@/lib/production-safety";
 
 export interface CreatePreoperacionalInput {
   conductorId?: string;
@@ -35,6 +39,7 @@ export interface GetPreoperacionalesFilters {
 
 export async function createPreoperacionalDb(input: CreatePreoperacionalInput) {
   try {
+    requireDatabaseInProduction();
     const cleanPlaca = (input.placa || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
     let cId = input.conductorId;
     let cNombre = input.conductorNombre;
@@ -94,43 +99,43 @@ export async function createPreoperacionalDb(input: CreatePreoperacionalInput) {
       : null;
 
     // 4. Crear registro en base de datos PostgreSQL
-    const created = await prisma.inspeccionPreoperacional.create({
-      data: {
-        conductorId: cId || "conductor-general",
-        conductorNombre: cNombre || "Conductor",
-        vehiculoId: vId,
-        placa: cleanPlaca.length === 6 ? `${cleanPlaca.slice(0, 3)}-${cleanPlaca.slice(3)}` : cleanPlaca,
-        fecha: new Date(),
-        kilometraje: km,
-        checklist: checklist as any,
-        hallazgoDetectado,
-        descripcionHallazgo,
-        fotoEvidenciaUrl: input.fotoEvidenciaUrl || null,
-        estadoConcepto,
-      },
-    });
+    const created = await prisma.$transaction(async (tx) => {
+      const inspection = await tx.inspeccionPreoperacional.create({
+        data: {
+          conductorId: cId || "conductor-general",
+          conductorNombre: cNombre || "Conductor",
+          vehiculoId: vId,
+          placa: cleanPlaca.length === 6 ? `${cleanPlaca.slice(0, 3)}-${cleanPlaca.slice(3)}` : cleanPlaca,
+          fecha: new Date(),
+          kilometraje: km,
+          checklist: checklist as any,
+          hallazgoDetectado,
+          descripcionHallazgo,
+          fotoEvidenciaUrl: input.fotoEvidenciaUrl || null,
+          estadoConcepto,
+        },
+      });
 
-    // 5. Si hay falla crítica, generar automáticamente Hallazgo HSEQ para mantenimiento
-    if (hallazgoDetectado) {
-      try {
-        await prisma.hallazgoHseq.create({
+      // 5. La inspección y su hallazgo deben persistir de forma atómica.
+      if (hallazgoDetectado) {
+        await tx.hallazgoHseq.create({
           data: {
             origen: "preoperacional",
-            titulo: `Preoperacional [${created.placa}] - ${estadoConcepto === "no_apto" ? "VEHÍCULO NO APTO" : "Novedad Reportada"}`,
+            titulo: `Preoperacional [${inspection.placa}] - ${estadoConcepto === "no_apto" ? "VEHÍCULO NO APTO" : "Novedad Reportada"}`,
             descripcion: descripcionHallazgo || input.observaciones || "Novedad en preoperacional",
             severidad: estadoConcepto === "no_apto" ? "critica" : "media",
             estado: "abierto",
             vehiculoId: vId !== "vehiculo-general" ? vId : undefined,
-            placa: created.placa,
+            placa: inspection.placa,
             conductorId: cId !== "conductor-general" ? cId : undefined,
-            conductorNombre: created.conductorNombre,
+            conductorNombre: inspection.conductorNombre,
             responsable: "Coordinador HSEQ / Taller",
           },
         });
-      } catch (hseqErr) {
-        console.warn("Aviso al crear hallazgo HSEQ automático:", hseqErr);
       }
-    }
+
+      return inspection;
+    });
 
     revalidatePath("/hseq/preoperacionales");
     revalidatePath("/portal-conductor");
@@ -155,6 +160,7 @@ export async function createPreoperacionalDb(input: CreatePreoperacionalInput) {
 
 export async function getPreoperacionalesDb(filters: GetPreoperacionalesFilters = {}) {
   try {
+    requireDatabaseInProduction();
     const page = filters.page || 1;
     const limit = filters.limit || 25;
     const skip = (page - 1) * limit;
@@ -235,18 +241,19 @@ export async function getPreoperacionalesDb(filters: GetPreoperacionalesFilters 
     };
   } catch (error) {
     console.error("Error en getPreoperacionalesDb:", error);
-    return {
+    return fallbackOrThrow(error, {
       items: [],
       totalCount: 0,
       page: 1,
       totalPages: 1,
       limit: 25,
-    };
+    }, "No fue posible consultar las inspecciones preoperacionales");
   }
 }
 
 export async function getPreoperacionalHoyConductor(conductorId?: string, placa?: string) {
   try {
+    requireDatabaseInProduction();
     if (!conductorId && !placa) return null;
     const now = new Date();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
@@ -278,6 +285,6 @@ export async function getPreoperacionalHoyConductor(conductorId?: string, placa?
     };
   } catch (error) {
     console.warn("Aviso al consultar preoperacional de hoy:", error);
-    return null;
+    return fallbackOrThrow(error, null, "No fue posible consultar el preoperacional del conductor");
   }
 }

@@ -7,6 +7,12 @@ import { Documento, CategoriaDocumento, TipoDocumento } from "@/lib/types/docume
 import { getVehiculosDb } from "@/lib/services/vehiculos.service";
 import { getPersonasDb } from "@/lib/services/personas.service";
 import { getContratistasDb } from "@/lib/services/contratistas.service";
+import { recordAudit } from "@/lib/audit";
+import {
+  fallbackOrThrow,
+  requireDatabaseInProduction,
+  rethrowMutationInProduction,
+} from "@/lib/production-safety";
 
 let localDocumentosDigitales: Documento[] = [];
 
@@ -15,12 +21,21 @@ let localDocumentosDigitales: Documento[] = [];
  */
 export async function getDocumentosDb(): Promise<Documento[]> {
   try {
+    requireDatabaseInProduction();
     const [vehiculos, personas, contratistas, dbDocs] = await Promise.all([
-      getVehiculosDb().catch(() => []),
-      getPersonasDb().catch(() => []),
-      getContratistasDb().catch(() => []),
+      getVehiculosDb().catch((error) =>
+        fallbackOrThrow(error, [], "No fue posible consultar documentos de vehículos"),
+      ),
+      getPersonasDb().catch((error) =>
+        fallbackOrThrow(error, [], "No fue posible consultar documentos de personas"),
+      ),
+      getContratistasDb().catch((error) =>
+        fallbackOrThrow(error, [], "No fue posible consultar documentos de contratistas"),
+      ),
       process.env.DATABASE_URL
-        ? prisma.documentoDigital.findMany({ orderBy: { createdAt: "desc" } }).catch(() => [])
+        ? prisma.documentoDigital.findMany({ orderBy: { createdAt: "desc" } }).catch((error) =>
+            fallbackOrThrow(error, [], "No fue posible consultar la bóveda documental"),
+          )
         : Promise.resolve([]),
     ]);
 
@@ -128,7 +143,7 @@ export async function getDocumentosDb(): Promise<Documento[]> {
     return [...docsSubidos, ...localDocumentosDigitales, ...docsVehiculos, ...docsPersonas, ...docsContratistas];
   } catch (error) {
     console.warn("Aviso al obtener documentos consolidados:", error);
-    return [];
+    return fallbackOrThrow(error, [], "No fue posible consultar documentos");
   }
 }
 
@@ -137,7 +152,8 @@ export async function getDocumentosDb(): Promise<Documento[]> {
  */
 export async function createDocumentoDigitalAction(formData: FormData): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireStaffSession();
+    const actor = await requireStaffSession();
+    requireDatabaseInProduction();
     const nombre = (formData.get("nombre") as string)?.trim() || "Documento Digital";
     const categoria = (formData.get("categoria") as CategoriaDocumento) || "empresa";
     const tipoDocumento = (formData.get("tipoDocumento") as TipoDocumento) || "otro";
@@ -149,7 +165,7 @@ export async function createDocumentoDigitalAction(formData: FormData): Promise<
     const fechaVencimiento = fechaVencimientoRaw ? new Date(fechaVencimientoRaw) : null;
 
     if (process.env.DATABASE_URL) {
-      await prisma.documentoDigital.create({
+      const created = await prisma.documentoDigital.create({
         data: {
           nombre,
           categoria,
@@ -161,9 +177,17 @@ export async function createDocumentoDigitalAction(formData: FormData): Promise<
           notas: notas || undefined,
         },
       });
+      await recordAudit({
+        action: "CREATE",
+        entityType: "DocumentoDigital",
+        entityId: created.id,
+        after: created,
+        actor,
+      });
     } else {
+      const createdId = `doc_local_${Date.now()}`;
       localDocumentosDigitales.unshift({
-        id: `doc_local_${Date.now()}`,
+        id: createdId,
         nombre,
         categoria,
         tipo: tipoDocumento,
@@ -179,6 +203,7 @@ export async function createDocumentoDigitalAction(formData: FormData): Promise<
     return { success: true };
   } catch (error: any) {
     console.error("Error al registrar documento digital:", error);
+    rethrowMutationInProduction(error, "No fue posible registrar el documento digital");
     return { success: false, error: error.message || "Error al crear documento" };
   }
 }
