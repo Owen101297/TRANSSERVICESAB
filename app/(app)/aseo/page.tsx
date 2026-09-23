@@ -28,7 +28,6 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
 import { CardSkeleton } from "@/components/ui/CardSkeleton";
-import { HseqSubNav } from "@/components/layout/HseqSubNav";
 import { generateAseoPDF } from "@/lib/utils/pdfAseoGenerator";
 
 interface ChecklistItem {
@@ -210,7 +209,6 @@ export default function AseoDesinfeccionPage() {
     <div className="space-y-4 animate-fadeIn pb-12">
       {/* ── SUB-NAV SEGMENTADO APPLE PRO DE INSPECCIONES HSEQ ── */}
       <div className="print:hidden">
-        <HseqSubNav activeTab="aseo" />
       </div>
 
       {/* ── ENCABEZADO Y ACCIONES COMPACTO (Oculto en Impresión) ── */}
@@ -821,4 +819,3 @@ export default function AseoDesinfeccionPage() {
     </div>
   );
 }
-

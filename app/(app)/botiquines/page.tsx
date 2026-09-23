@@ -30,7 +30,6 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
-import { HseqSubNav } from "@/components/layout/HseqSubNav";
 import { generateBotiquinPDF } from "@/lib/utils/pdfBotiquinGenerator";
 
 interface BotiquinChecklistItem {
@@ -260,7 +259,6 @@ export default function BotiquinesAdminPage() {
     <div className="space-y-4 animate-fadeIn pb-12">
       {/* ── SUB-NAV SEGMENTADO APPLE PRO DE INSPECCIONES HSEQ ── */}
       <div className="print:hidden">
-        <HseqSubNav activeTab="botiquines" />
       </div>
 
       {/* ── HEADER PRINCIPAL COMPACTO ── */}

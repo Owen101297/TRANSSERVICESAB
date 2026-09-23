@@ -2,7 +2,6 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CalendarOff, CheckCircle2, Clock3, Loader2, Plus, Search, X, XCircle } from "lucide-react";
-import { HseqSubNav } from "@/components/layout/HseqSubNav";
 import { Button } from "@/components/ui/Button";
 import { Card, StatCard } from "@/components/ui/Card";
 
@@ -81,7 +80,6 @@ export function NovedadesPersonalClient({ sessionRole }: { sessionRole: string }
   const pending = novedades.filter((n) => n.estado === "pendiente").length;
 
   return <div className="space-y-5 pb-12">
-    <HseqSubNav activeTab="novedades" />
     <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4"><div><p className="font-mono text-[11px] font-bold uppercase tracking-wider text-amber-600">Disponibilidad del personal</p><h1 className="mt-1 text-2xl font-extrabold text-slate-950">Novedades laborales</h1><p className="mt-1 text-sm text-slate-500">Periodos que afectan la elegibilidad y la asistencia.</p></div><Button onClick={() => setShowCreate(true)}><Plus size={16}/> Registrar novedad</Button></div>
     {error && <div role="alert" className="flex justify-between rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"><span className="flex gap-2"><AlertTriangle size={17}/>{error}</span><button onClick={() => setError(null)}><X size={16}/></button></div>}
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4"><StatCard compact label="Novedades" value={novedades.length} icon={CalendarOff}/><StatCard compact label="Pendientes" value={pending} icon={Clock3} accent={pending ? "amber" : "green"}/><StatCard compact label="Aprobadas" value={novedades.filter((n) => n.estado === "aprobada").length} icon={CheckCircle2} accent="green"/><StatCard compact label="Rechazadas" value={novedades.filter((n) => n.estado === "rechazada").length} icon={XCircle} accent="red"/></div>

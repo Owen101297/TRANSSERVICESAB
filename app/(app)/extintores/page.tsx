@@ -28,7 +28,6 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
-import { HseqSubNav } from "@/components/layout/HseqSubNav";
 import { generateExtintorPDF } from "@/lib/utils/pdfExtintorGenerator";
 
 interface ChecklistItem {
@@ -231,7 +230,6 @@ export default function ExtintoresAdminPage() {
     <div className="space-y-4 animate-fadeIn pb-12">
       {/* ── SUB-NAV SEGMENTADO APPLE PRO DE INSPECCIONES HSEQ ── */}
       <div className="print:hidden">
-        <HseqSubNav activeTab="extintores" />
       </div>
 
       {/* ── ENCABEZADO Y ACCIONES COMPACTO (Oculto en Impresión) ── */}

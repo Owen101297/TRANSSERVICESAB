@@ -33,7 +33,6 @@ import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { CardSkeleton } from "@/components/ui/CardSkeleton";
-import { HseqSubNav } from "@/components/layout/HseqSubNav";
 import {
   Capacitacion,
   TIPO_CAPACITACION_LABELS,
@@ -180,7 +179,6 @@ _Cumplimiento Normativo PESV Res. 40595/2022 y SG-SST Dec. 1072_`;
     <div className="space-y-4 animate-fadeIn pb-12">
       {/* ── SUB-NAV SEGMENTADO APPLE PRO DE INSPECCIONES HSEQ ── */}
       <div className="print:hidden">
-        <HseqSubNav activeTab="capacitaciones" />
       </div>
 
       {/* ── HEADER COMPACTO (Oculto en Impresión) ── */}

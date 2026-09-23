@@ -27,7 +27,6 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
 import { generateEncuestaIndividualPDF } from "@/lib/utils/pdfEncuestaGenerator";
-import { HseqSubNav } from "@/components/layout/HseqSubNav";
 
 interface EncuestaItem {
   id: string;
@@ -217,7 +216,6 @@ export default function EncuestasAdminPage() {
   return (
     <div className="space-y-4">
       {/* NAVEGACIÓN RÁPIDA HSEQ */}
-      <HseqSubNav activeTab="encuestas" />
 
       {/* HEADER PRINCIPAL */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-line-600/70 pb-3">

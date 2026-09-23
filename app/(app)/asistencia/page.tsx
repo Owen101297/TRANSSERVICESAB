@@ -38,7 +38,6 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { TableSkeleton } from "@/components/ui/TableSkeleton";
 import { generateAsistenciaPDF } from "@/lib/utils/pdfAsistenciaGenerator";
-import { HseqSubNav } from "@/components/layout/HseqSubNav";
 
 const PRESET_TEMAS = [
   "CHARLA 5 MINUTOS: PREVENCIÓN DE FATIGA Y CONTROL DE MICROSUEÑOS",
@@ -637,7 +636,6 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
   return (
     <div className="space-y-4">
       {/* NAVEGACIÓN RÁPIDA HSEQ */}
-      <HseqSubNav activeTab="asistencia" />
 
       {/* ============================================================ */}
       {/* BARRA SUPERIOR DE HERRAMIENTAS Y CONTROL (NO-PRINT)          */}

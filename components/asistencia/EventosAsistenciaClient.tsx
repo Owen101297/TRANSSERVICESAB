@@ -20,7 +20,6 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { HseqSubNav } from "@/components/layout/HseqSubNav";
 import { Button } from "@/components/ui/Button";
 import { Card, StatCard } from "@/components/ui/Card";
 import { generateEventoAsistenciaPDF } from "@/lib/utils/pdfEventoAsistenciaGenerator";
@@ -352,7 +351,6 @@ export function EventosAsistenciaClient({ sessionRole }: { sessionRole: string }
 
   return (
     <div className="space-y-5 pb-12">
-      <HseqSubNav activeTab="eventos" />
 
       <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
         <div>

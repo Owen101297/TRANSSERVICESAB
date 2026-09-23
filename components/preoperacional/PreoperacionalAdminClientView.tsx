@@ -31,7 +31,6 @@ import { PlateTag } from "@/components/ui/PlateTag";
 import { DataTable, Column } from "@/components/ui/DataTable";
 import { Card } from "@/components/ui/Card";
 import { Vehiculo } from "@/lib/types/vehiculo";
-import { HseqSubNav } from "@/components/layout/HseqSubNav";
 
 interface PreoperacionalAdminClientViewProps {
   initialPreoperacionales: InspeccionPreoperacionalDto[];
@@ -251,7 +250,6 @@ export function PreoperacionalAdminClientView({
   return (
     <div className="space-y-4">
       {/* NAVEGACIÓN RÁPIDA HSEQ */}
-      <HseqSubNav activeTab="preoperacionales" />
 
       {/* Cabecera del Módulo */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-600/70 pb-3">
