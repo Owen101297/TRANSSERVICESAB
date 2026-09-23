@@ -15,6 +15,7 @@ import {
   resolveDocumentUrl,
   storeDocumentFile,
 } from "@/lib/storage/document-storage";
+import { buildDocumentAttachmentScope } from "@/lib/storage/document-validation";
 
 let localContratistasState: Contratista[] = [];
 
@@ -398,10 +399,11 @@ export async function bulkUpsertContratistasAction(items: ContratistaUpsertPrevi
  * Obtiene los documentos adjuntos de un contratista
  */
 export async function getDocumentosContratistaDb(contratistaId: string): Promise<ContratistaDocumentoAdjunto[]> {
+  await requireStaffSession();
   try {
     if (process.env.DATABASE_URL) {
       const docs = await prisma.documentoAdjunto.findMany({
-        where: { entidadTipo: "contratista", entidadId: contratistaId },
+        where: buildDocumentAttachmentScope("contratista", contratistaId),
         orderBy: { createdAt: "desc" },
       });
 
@@ -434,7 +436,11 @@ export async function guardarDocumentoContratistaDb(
   fechaVencimiento?: string
 ) {
   try {
-    await requireStaffSession();
+    const actor = await requireStaffSession();
+    if (process.env.DATABASE_URL) {
+      const contratista = await prisma.contratista.findUnique({ where: { id: contratistaId }, select: { id: true } });
+      if (!contratista) throw new Error("El contratista indicado no existe.");
+    }
     const stored = await storeDocumentFile(file, {
       entityType: "contratista",
       entityId: contratistaId,
@@ -444,7 +450,7 @@ export async function guardarDocumentoContratistaDb(
     if (process.env.DATABASE_URL) {
       const anteriores = await prisma.documentoAdjunto.findMany({
         where: { entidadTipo: "contratista", entidadId: contratistaId, tipoDocumento },
-        select: { archivoUrl: true },
+        select: { id: true, archivoUrl: true },
       });
       let nuevoDoc;
       try {
@@ -470,6 +476,14 @@ export async function guardarDocumentoContratistaDb(
         throw error;
       }
       await Promise.allSettled(anteriores.map((doc) => deleteStoredDocument(doc.archivoUrl)));
+      await recordAudit({
+        action: "CREATE",
+        entityType: "DocumentoAdjunto",
+        entityId: nuevoDoc.id,
+        after: nuevoDoc,
+        metadata: { entidadTipo: "contratista", entidadId: contratistaId, replacedIds: anteriores.map((doc) => doc.id) },
+        actor,
+      });
 
       revalidatePath(`/contratistas/${contratistaId}`);
       return {
@@ -516,14 +530,29 @@ export async function guardarDocumentoContratistaDb(
  */
 export async function eliminarDocumentoContratistaDb(docId: string, contratistaId: string) {
   try {
-    await requireStaffSession();
+    const actor = await requireStaffSession();
     if (process.env.DATABASE_URL) {
-      const deleted = await prisma.documentoAdjunto.delete({
-        where: { id: docId },
+      const scope = buildDocumentAttachmentScope("contratista", contratistaId, docId);
+      const deleted = await prisma.$transaction(async (tx) => {
+        const document = await tx.documentoAdjunto.findFirst({ where: scope });
+        if (!document) throw new Error("El documento no pertenece al contratista indicado.");
+        return tx.documentoAdjunto.delete({ where: { id: document.id } });
       });
-      await deleteStoredDocument(deleted.archivoUrl);
+      await deleteStoredDocument(deleted.archivoUrl).catch((error) =>
+        console.error("No fue posible eliminar el objeto documental:", error),
+      );
+      await recordAudit({
+        action: "DELETE",
+        entityType: "DocumentoAdjunto",
+        entityId: deleted.id,
+        before: deleted,
+        metadata: { entidadTipo: "contratista", entidadId: contratistaId },
+        actor,
+      });
     } else {
-      localDocumentosContratistasState = localDocumentosContratistasState.filter((d) => d.id !== docId);
+      localDocumentosContratistasState = localDocumentosContratistasState.filter(
+        (d) => !(d.id === docId && (d as any).contratistaId === contratistaId),
+      );
     }
 
     revalidatePath(`/contratistas/${contratistaId}`);

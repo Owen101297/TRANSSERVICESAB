@@ -21,6 +21,7 @@ import {
   resolveDocumentUrl,
   storeDocumentFile,
 } from "@/lib/storage/document-storage";
+import { buildDocumentAttachmentScope } from "@/lib/storage/document-validation";
 
 let localVehiculosState: Vehiculo[] = [];
 
@@ -556,10 +557,11 @@ export async function updateVehiculoAction(
  * Obtiene los documentos adjuntos de un vehículo
  */
 export async function getAdjuntosVehiculoDb(vehiculoId: string) {
+  await requireStaffSession();
   try {
     if (process.env.DATABASE_URL) {
       const dbAdjuntos = await prisma.documentoAdjunto.findMany({
-        where: { entidadTipo: "vehiculo", entidadId: vehiculoId },
+        where: buildDocumentAttachmentScope("vehiculo", vehiculoId),
         orderBy: { createdAt: "desc" },
       });
       return Promise.all(dbAdjuntos.map(async (d) => ({
@@ -589,7 +591,11 @@ export async function crearAdjuntoVehiculoDb(
   fechaVencimiento?: string
 ) {
   try {
-    await requireStaffSession();
+    const actor = await requireStaffSession();
+    if (process.env.DATABASE_URL) {
+      const vehiculo = await prisma.vehiculo.findUnique({ where: { id: vehiculoId }, select: { id: true } });
+      if (!vehiculo) throw new Error("El vehículo indicado no existe.");
+    }
     const stored = await storeDocumentFile(file, {
       entityType: "vehiculo",
       entityId: vehiculoId,
@@ -628,6 +634,14 @@ export async function crearAdjuntoVehiculoDb(
       }
       await Promise.allSettled(anteriores.map((doc) => deleteStoredDocument(doc.archivoUrl)));
       createdId = created.id;
+      await recordAudit({
+        action: "CREATE",
+        entityType: "DocumentoAdjunto",
+        entityId: created.id,
+        after: created,
+        metadata: { entidadTipo: "vehiculo", entidadId: vehiculoId },
+        actor,
+      });
     }
 
     const adjuntoObj = {
@@ -653,10 +667,25 @@ export async function crearAdjuntoVehiculoDb(
  */
 export async function deleteAdjuntoVehiculoDb(id: string, vehiculoId: string) {
   try {
-    await requireStaffSession();
+    const actor = await requireStaffSession();
     if (process.env.DATABASE_URL) {
-      const deleted = await prisma.documentoAdjunto.delete({ where: { id } });
-      await deleteStoredDocument(deleted.archivoUrl);
+      const scope = buildDocumentAttachmentScope("vehiculo", vehiculoId, id);
+      const deleted = await prisma.$transaction(async (tx) => {
+        const document = await tx.documentoAdjunto.findFirst({ where: scope });
+        if (!document) throw new Error("El documento no pertenece al vehículo indicado.");
+        return tx.documentoAdjunto.delete({ where: { id: document.id } });
+      });
+      await deleteStoredDocument(deleted.archivoUrl).catch((error) =>
+        console.error("No fue posible eliminar el objeto documental:", error),
+      );
+      await recordAudit({
+        action: "DELETE",
+        entityType: "DocumentoAdjunto",
+        entityId: deleted.id,
+        before: deleted,
+        metadata: { entidadTipo: "vehiculo", entidadId: vehiculoId },
+        actor,
+      });
       revalidatePath(`/flota/${vehiculoId}`);
     }
     return { success: true };

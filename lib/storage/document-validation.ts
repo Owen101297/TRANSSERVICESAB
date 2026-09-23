@@ -8,6 +8,25 @@ export const ALLOWED_FILES = {
 } as const;
 
 export type AllowedMimeType = keyof typeof ALLOWED_FILES;
+export type DocumentEntityType = "persona" | "vehiculo" | "contratista";
+
+export function buildDocumentAttachmentScope(
+  entityType: DocumentEntityType,
+  entityId: string,
+  documentId?: string,
+) {
+  const cleanEntityId = entityId.trim();
+  const cleanDocumentId = documentId?.trim();
+  if (!cleanEntityId || (documentId !== undefined && !cleanDocumentId)) {
+    throw new Error("El identificador documental no es válido.");
+  }
+
+  return {
+    entidadTipo: entityType,
+    entidadId: cleanEntityId,
+    ...(cleanDocumentId ? { id: cleanDocumentId } : {}),
+  };
+}
 
 function matchesSignature(bytes: Uint8Array, signature: readonly number[]) {
   return signature.every((byte, index) => bytes[index] === byte);

@@ -3,6 +3,7 @@ import test from "node:test";
 import { hashPassword, isPasswordHash, isStrongPassword, verifyPassword } from "../lib/password.ts";
 import { decodeSession, encodeSession, type SessionUser } from "../lib/session.ts";
 import {
+  buildDocumentAttachmentScope,
   detectDocumentMimeType,
   sanitizeDocumentName,
 } from "../lib/storage/document-validation.ts";
@@ -46,4 +47,13 @@ test("la validación documental usa la firma binaria y no solo la extensión", (
 
 test("los nombres de documentos se normalizan antes de almacenarse", () => {
   assert.equal(sanitizeDocumentName("../../Cédula Final.PDF", "pdf"), "cedula-final.pdf");
+});
+
+test("el alcance documental vincula siempre archivo, tipo de entidad y propietario", () => {
+  assert.deepEqual(buildDocumentAttachmentScope("persona", "person-1", "doc-1"), {
+    entidadTipo: "persona",
+    entidadId: "person-1",
+    id: "doc-1",
+  });
+  assert.throws(() => buildDocumentAttachmentScope("vehiculo", "vehicle-1", "  "));
 });

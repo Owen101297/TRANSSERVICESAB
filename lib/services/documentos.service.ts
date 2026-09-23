@@ -21,6 +21,7 @@ let localDocumentosDigitales: Documento[] = [];
  * Función segura para calcular el estado de vigencia sin romper fechas
  */
 export async function getDocumentosDb(): Promise<Documento[]> {
+  await requireStaffSession();
   try {
     requireDatabaseInProduction();
     const [vehiculos, personas, contratistas, dbDocs] = await Promise.all([

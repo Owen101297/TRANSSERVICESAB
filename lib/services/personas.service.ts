@@ -13,6 +13,7 @@ import {
   resolveDocumentUrl,
   storeDocumentFile,
 } from "@/lib/storage/document-storage";
+import { buildDocumentAttachmentScope } from "@/lib/storage/document-validation";
 import { SEED_PERSONAS, getPersonaById as getSeedPersonaById } from "@/lib/data/personas";
 import {
   Persona,
@@ -1124,10 +1125,11 @@ let localDocumentosState: DocumentoExpediente[] = [];
  * Obtiene los documentos del expediente de una persona
  */
 export async function getDocumentosPersonaDb(personaId: string): Promise<DocumentoExpediente[]> {
+  await requireStaffSession();
   try {
     if (process.env.DATABASE_URL) {
       const docs = await prisma.documentoAdjunto.findMany({
-        where: { entidadId: personaId, entidadTipo: "persona" },
+        where: buildDocumentAttachmentScope("persona", personaId),
         orderBy: { createdAt: "desc" },
       });
       return Promise.all(docs.map(async (d) => ({
@@ -1157,7 +1159,11 @@ export async function guardarDocumentoPersonaDb(
   file: File
 ) {
   try {
-    await requireStaffSession();
+    const actor = await requireStaffSession();
+    if (process.env.DATABASE_URL) {
+      const persona = await prisma.persona.findUnique({ where: { id: personaId }, select: { id: true } });
+      if (!persona) throw new Error("La persona indicada no existe.");
+    }
     const stored = await storeDocumentFile(file, {
       entityType: "persona",
       entityId: personaId,
@@ -1192,6 +1198,14 @@ export async function guardarDocumentoPersonaDb(
         throw error;
       }
       await Promise.allSettled(anteriores.map((doc) => deleteStoredDocument(doc.archivoUrl)));
+      await recordAudit({
+        action: "CREATE",
+        entityType: "DocumentoAdjunto",
+        entityId: nuevoDoc.id,
+        after: nuevoDoc,
+        metadata: { entidadTipo: "persona", entidadId: personaId, replacedIds: anteriores.map((doc) => doc.id) },
+        actor,
+      });
 
       revalidatePath(`/personas/${personaId}`);
       return { success: true, documento: { ...nuevoDoc, archivoUrl: await resolveDocumentUrl(stored.uri) } };
@@ -1226,14 +1240,29 @@ export async function guardarDocumentoPersonaDb(
  */
 export async function eliminarDocumentoPersonaDb(documentoId: string, personaId: string) {
   try {
-    await requireStaffSession();
+    const actor = await requireStaffSession();
     if (process.env.DATABASE_URL) {
-      const deleted = await prisma.documentoAdjunto.delete({
-        where: { id: documentoId },
+      const scope = buildDocumentAttachmentScope("persona", personaId, documentoId);
+      const deleted = await prisma.$transaction(async (tx) => {
+        const document = await tx.documentoAdjunto.findFirst({ where: scope });
+        if (!document) throw new Error("El documento no pertenece a la persona indicada.");
+        return tx.documentoAdjunto.delete({ where: { id: document.id } });
       });
-      await deleteStoredDocument(deleted.archivoUrl);
+      await deleteStoredDocument(deleted.archivoUrl).catch((error) =>
+        console.error("No fue posible eliminar el objeto documental:", error),
+      );
+      await recordAudit({
+        action: "DELETE",
+        entityType: "DocumentoAdjunto",
+        entityId: deleted.id,
+        before: deleted,
+        metadata: { entidadTipo: "persona", entidadId: personaId },
+        actor,
+      });
     } else {
-      localDocumentosState = localDocumentosState.filter((d) => d.id !== documentoId);
+      localDocumentosState = localDocumentosState.filter(
+        (d) => !(d.id === documentoId && d.entidadId === personaId),
+      );
     }
 
     revalidatePath(`/personas/${personaId}`);

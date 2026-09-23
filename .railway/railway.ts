@@ -8,7 +8,7 @@ export default defineRailway((context) => {
   const application = service("TRANSSERVICESAB", {
     source: github("Owen101297/TRANSSERVICESAB", {
       branch: context.isEnvironment("staging")
-        ? "modernize-railway-iac"
+        ? "staging"
         : "main",
     }),
     build: "npm run build",
