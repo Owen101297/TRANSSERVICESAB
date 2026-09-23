@@ -1,248 +1,140 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ShieldCheck, User, Lock, KeyRound, Truck, ArrowRight, AlertCircle } from "lucide-react";
+import { AlertCircle, ArrowRight, Truck, UserRound } from "lucide-react";
+import AuthShell from "@/components/auth/AuthShell";
+import PasswordField from "@/components/auth/PasswordField";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
-
-  const [activeTab, setActiveTab] = useState<"conductor" | "admin">("conductor");
+  const [activeTab, setActiveTab] = useState<"conductor" | "admin">("admin");
   const [documento, setDocumento] = useState("");
   const [pin, setPin] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPin, setShowPin] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
     setError(null);
     setLoading(true);
-
     try {
-      const payload =
-        activeTab === "conductor"
-          ? { type: "conductor", documento, pin }
-          : { type: "staff", email, password };
-
-      const res = await fetch("/api/auth/login", {
+      const payload = activeTab === "conductor"
+        ? { type: "conductor", documento, pin }
+        : { type: "staff", email, password };
+      const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.error || "Credenciales incorrectas.");
 
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Credenciales incorrectas");
-      }
-
-      // Guardar también en localStorage para el auth-bridge de las micro-apps
       if (data.user) {
-        localStorage.setItem(
-          "transservices_conductor",
-          JSON.stringify({
-            id: data.user.id,
-            documento: data.user.documento,
-            nombre: data.user.nombre,
-            placa: data.user.placaAsignada || "SIN ASIGNAR",
-          })
-        );
+        localStorage.setItem("transservices_conductor", JSON.stringify({
+          id: data.user.id,
+          documento: data.user.documento,
+          nombre: data.user.nombre,
+          placa: data.user.placaAsignada || "SIN ASIGNAR",
+        }));
       }
 
-      // Redireccionar según rol
       const target = data.user.mustChangePassword
         ? "/cambiar-clave"
         : data.user.rolPrincipal === "conductor"
           ? "/portal-conductor"
-          : callbackUrl && callbackUrl !== "/login"
-          ? callbackUrl
-          : "/";
-
+          : callbackUrl && callbackUrl !== "/login" ? callbackUrl : "/";
       router.push(target);
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "Ocurrió un error al ingresar");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "No fue posible iniciar sesión.");
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  function selectAccess(type: "conductor" | "admin") {
+    setActiveTab(type);
+    setError(null);
+  }
 
   return (
-    <div className="min-h-screen bg-asphalt-950 flex flex-col justify-center items-center p-4 relative overflow-hidden font-[family-name:var(--font-body)]">
-      {/* Luces de fondo ambient */}
-      <div className="absolute -top-40 -left-40 w-96 h-96 bg-radar-cyan/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-signal-amber/10 rounded-full blur-3xl pointer-events-none" />
-
-      {/* Contenedor Principal */}
-      <div className="w-full max-w-md bg-asphalt-900 border border-line-600 rounded-2xl shadow-2xl overflow-hidden z-10">
-        {/* Cabecera Institucional */}
-        <div className="p-6 bg-asphalt-800/80 border-b border-line-600 text-center">
-          <div className="w-12 h-12 rounded-xl bg-radar-cyan/10 border border-radar-cyan/30 flex items-center justify-center mx-auto mb-3 shadow-[0_0_15px_rgba(0,229,255,0.15)]">
-            <ShieldCheck className="text-radar-cyan" size={26} />
-          </div>
-          <h1 className="font-[family-name:var(--font-display)] text-2xl font-black text-paper-50 uppercase tracking-wide">
-            TRANS SERVICES A&B
-          </h1>
-          <p className="text-xs text-mist-200 mt-1 uppercase tracking-widest font-mono">
-            SISTEMA INTEGRAL DE TRANSPORTE & GESTIÓN
-          </p>
-        </div>
-
-        {/* Selector de Rol */}
-        <div className="flex border-b border-line-600 bg-asphalt-950/40 p-1.5 gap-1.5 m-4 rounded-xl border">
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab("conductor");
-              setError(null);
-            }}
-            className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
-              activeTab === "conductor"
-                ? "bg-radar-cyan text-asphalt-950 font-bold shadow-md shadow-radar-cyan/20"
-                : "text-fog-400 hover:text-paper-50 hover:bg-asphalt-800"
-            }`}
-          >
-            <Truck size={16} /> Soy Conductor
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab("admin");
-              setError(null);
-            }}
-            className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
-              activeTab === "admin"
-                ? "bg-radar-cyan text-asphalt-950 font-bold shadow-md shadow-radar-cyan/20"
-                : "text-fog-400 hover:text-paper-50 hover:bg-asphalt-800"
-            }`}
-          >
-            <User size={16} /> Administrativo
-          </button>
-        </div>
-
-        {/* Formulario */}
-        <form onSubmit={handleSubmit} className="p-6 pt-2 space-y-4">
-          {error && (
-            <div className="p-3.5 bg-alert-red/10 border border-alert-red/30 rounded-xl flex items-center gap-2.5 text-alert-red text-xs">
-              <AlertCircle size={18} className="shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {activeTab === "conductor" ? (
-            <>
-              <div>
-                <label className="block text-xs font-medium uppercase tracking-wider text-fog-400 mb-1.5">
-                  Número de Cédula
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-fog-400" size={18} />
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    required
-                    value={documento}
-                    onChange={(e) => setDocumento(e.target.value)}
-                    placeholder="Ej. 1002345678"
-                    className="w-full bg-asphalt-950 border border-line-600 rounded-xl pl-11 pr-4 py-3 text-paper-50 font-mono text-sm placeholder:text-fog-400/50 focus:outline-none focus:border-radar-cyan focus:ring-1 focus:ring-radar-cyan transition-colors"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium uppercase tracking-wider text-fog-400 mb-1.5 flex justify-between">
-                  <span>PIN de Seguridad</span>
-                </label>
-                <div className="relative">
-                  <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 text-fog-400" size={18} />
-                  <input
-                    type="password"
-                    inputMode="numeric"
-                    maxLength={6}
-                    value={pin}
-                    onChange={(e) => setPin(e.target.value)}
-                    placeholder="••••"
-                    className="w-full bg-asphalt-950 border border-line-600 rounded-xl pl-11 pr-4 py-3 text-paper-50 font-mono text-lg tracking-widest placeholder:text-fog-400/50 focus:outline-none focus:border-radar-cyan focus:ring-1 focus:ring-radar-cyan transition-colors"
-                  />
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div>
-                <label className="block text-xs font-medium uppercase tracking-wider text-fog-400 mb-1.5">
-                  Correo o Usuario
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-fog-400" size={18} />
-                  <input
-                    type="text"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="admin@transservices.com"
-                    className="w-full bg-asphalt-950 border border-line-600 rounded-xl pl-11 pr-4 py-3 text-paper-50 font-mono text-sm placeholder:text-fog-400/50 focus:outline-none focus:border-radar-cyan focus:ring-1 focus:ring-radar-cyan transition-colors"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium uppercase tracking-wider text-fog-400 mb-1.5">
-                  Contraseña
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-fog-400" size={18} />
-                  <input
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full bg-asphalt-950 border border-line-600 rounded-xl pl-11 pr-4 py-3 text-paper-50 text-sm placeholder:text-fog-400/50 focus:outline-none focus:border-radar-cyan focus:ring-1 focus:ring-radar-cyan transition-colors"
-                  />
-                </div>
-              </div>
-            </>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full mt-2 py-3.5 px-4 bg-radar-cyan hover:bg-radar-cyan/90 text-asphalt-950 font-bold rounded-xl flex items-center justify-center gap-2 uppercase tracking-wider text-xs shadow-lg shadow-radar-cyan/20 transition-all active:scale-[0.98] disabled:opacity-50"
-          >
-            {loading ? (
-              <span>Verificando...</span>
-            ) : (
-              <>
-                <span>Ingresar al Sistema</span>
-                <ArrowRight size={16} />
-              </>
-            )}
-          </button>
-        </form>
-
-        {/* Pie de página institucional */}
-        <div className="p-4 bg-asphalt-950/60 border-t border-line-600 text-center text-[11px] text-fog-400">
-          Operación Segura · SG-SST & PESV Res. 40595
-        </div>
+    <AuthShell
+      eyebrow="Acceso seguro"
+      title="Bienvenido al ERP"
+      description="Selecciona tu tipo de acceso e ingresa las credenciales asignadas por la empresa."
+    >
+      <div className="grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1.5" role="tablist" aria-label="Tipo de acceso">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "admin"}
+          onClick={() => selectAccess("admin")}
+          className={`flex min-h-12 items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold transition ${activeTab === "admin" ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-800"}`}
+        >
+          <UserRound size={18} /> Administrativo
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === "conductor"}
+          onClick={() => selectAccess("conductor")}
+          className={`flex min-h-12 items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold transition ${activeTab === "conductor" ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-800"}`}
+        >
+          <Truck size={18} /> Conductor
+        </button>
       </div>
-    </div>
+
+      <form onSubmit={handleSubmit} className="mt-7 space-y-5">
+        {activeTab === "conductor" ? (
+          <>
+            <div>
+              <label htmlFor="documento" className="block text-sm font-semibold text-slate-700">Número de documento</label>
+              <div className="relative mt-2">
+                <UserRound className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input id="documento" type="text" inputMode="numeric" autoComplete="username" required value={documento} onChange={(event) => setDocumento(event.target.value)} placeholder="Ej. 1002345678" className="h-13 w-full rounded-xl border border-slate-300 bg-white py-3 pl-11 pr-4 text-base text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-sky-600 focus:ring-4 focus:ring-sky-100" />
+              </div>
+            </div>
+            <PasswordField id="pin" label="PIN de acceso" value={pin} onChange={setPin} visible={showPin} onToggleVisibility={() => setShowPin((value) => !value)} autoComplete="current-password" maxLength={72} />
+          </>
+        ) : (
+          <>
+            <div>
+              <label htmlFor="usuario" className="block text-sm font-semibold text-slate-700">Correo o número de documento</label>
+              <div className="relative mt-2">
+                <UserRound className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input id="usuario" type="text" autoComplete="username" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="nombre@empresa.com" className="h-13 w-full rounded-xl border border-slate-300 bg-white py-3 pl-11 pr-4 text-base text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-sky-600 focus:ring-4 focus:ring-sky-100" />
+              </div>
+            </div>
+            <PasswordField id="password" label="Contraseña" value={password} onChange={setPassword} visible={showPassword} onToggleVisibility={() => setShowPassword((value) => !value)} autoComplete="current-password" />
+          </>
+        )}
+
+        {error && (
+          <div role="alert" className="flex gap-3 rounded-xl border border-red-200 bg-red-50 p-3.5 text-sm text-red-700">
+            <AlertCircle className="mt-0.5 shrink-0" size={18} />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <button type="submit" disabled={loading} className="flex min-h-13 w-full items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-3 font-bold text-white shadow-lg shadow-sky-600/20 transition hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-200 disabled:cursor-wait disabled:opacity-60">
+          <span>{loading ? "Verificando acceso…" : "Ingresar al sistema"}</span>
+          {!loading && <ArrowRight size={18} />}
+        </button>
+      </form>
+    </AuthShell>
   );
 }
 
 export default function LoginPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-asphalt-950 flex items-center justify-center text-fog-400 font-mono text-xs">
-          Cargando portal de acceso...
-        </div>
-      }
-    >
+    <Suspense fallback={<div className="grid min-h-dvh place-items-center bg-slate-100 text-sm text-slate-500">Cargando acceso seguro…</div>}>
       <LoginForm />
     </Suspense>
   );

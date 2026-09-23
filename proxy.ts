@@ -87,7 +87,8 @@ export async function proxy(req: NextRequest) {
   if (session.rolPrincipal === "conductor") {
     const allowedForDriver =
       pathname.startsWith("/portal-conductor") ||
-      pathname.startsWith("/apps");
+      pathname.startsWith("/apps") ||
+      pathname === "/cambiar-clave";
 
     if (!allowedForDriver) {
       return NextResponse.redirect(new URL("/portal-conductor", req.url));
