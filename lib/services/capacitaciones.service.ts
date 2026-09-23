@@ -10,6 +10,8 @@ import { Capacitacion, TipoCapacitacion, EstadoCapacitacion } from "@/lib/types/
 import { RegistroAsistencia, EstadoAsistencia } from "@/lib/types/asistencia";
 import { Encuesta } from "@/lib/types/encuesta";
 import { rethrowMutationInProduction } from "@/lib/production-safety";
+import { fechaFinCapacitacion, procesoEventoDesdeCapacitacion, tipoEventoDesdeCapacitacion } from "@/lib/capacitacion-evento";
+import { crearConsecutivoEvento } from "@/lib/eventos-asistencia";
 
 let localCapacitacionesState: Capacitacion[] = [];
 let localAsistenciasState: RegistroAsistencia[] = [...SEED_ASISTENCIA];
@@ -51,7 +53,7 @@ export async function createCapacitacionAction(
   formData: FormData
 ): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
-    await requireStaffSession(["hseq", "administrativo"]);
+    const actor = await requireStaffSession(["hseq", "administrativo"]);
     const nombre = formData.get("nombre") as string;
     const tipo = (formData.get("tipo") as TipoCapacitacion) || "sg-sst";
     const fecha = formData.get("fecha") as string;
@@ -82,15 +84,30 @@ export async function createCapacitacionAction(
 
     if (process.env.DATABASE_URL) {
       try {
-        const created = await (prisma as any).capacitacion.create({
-          data: {
-            nombre,
-            tipo,
-            fecha: new Date(fecha || new Date()),
-            duracionHoras,
-            asistentesEsperados,
-            estado: "programada",
-          },
+        const fechaProgramada = new Date(fecha || new Date());
+        const created = await prisma.$transaction(async (tx) => {
+          const evento = await tx.eventoAsistencia.create({ data: {
+            consecutivo: crearConsecutivoEvento(), nombre,
+            tipo: tipoEventoDesdeCapacitacion(categoria), caracter: "formativo",
+            proceso: procesoEventoDesdeCapacitacion(tipo),
+            objetivo: "Fortalecer las competencias definidas en el plan de formación.",
+            fechaInicio: fechaProgramada, fechaFin: fechaFinCapacitacion(fechaProgramada, duracionHoras),
+            modalidad: "virtual", lugar: "Plataforma Digital / Portal Conductor",
+            responsableId: actor.id, responsableNombre: actor.nombre,
+            facilitadorNombre: actor.nombre, estado: "programado",
+            requiereFirma, requiereFoto: requiereSelfie,
+            creadoPorId: actor.id, creadoPorNombre: actor.nombre,
+            aprobadoPorId: actor.id, aprobadoPorNombre: actor.nombre, aprobadoAt: new Date(),
+            documentos: { create: [
+              { codigo: "TH-FOR-03", nombre: "Registro de asistencia", version: "03" },
+              { codigo: "TH-FOR-04", nombre: "Registro de capacitación", version: "02" },
+            ] },
+          }});
+          return tx.capacitacion.create({ data: {
+            nombre, tipo, programa, categoria, materialTipo,
+            fecha: fechaProgramada, duracionHoras, asistentesEsperados,
+            requiereSelfie, requiereFirma, estado: "programada", eventoId: evento.id,
+          }});
         });
         newCap.id = created.id;
       } catch (dbErr) {
@@ -212,7 +229,7 @@ export async function tomarAsistenciaCapacitacionAction(
   asistentes: { personaId: string; personaNombre: string; estado: EstadoAsistencia }[]
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireStaffSession(["hseq", "administrativo"]);
+    const actor = await requireStaffSession(["hseq", "administrativo"]);
     const cap = localCapacitacionesState.find((c) => c.id === capacitacionId);
     const totalPresentes = asistentes.filter((a) => a.estado === "presente" || a.estado === "tardanza").length;
 
@@ -236,12 +253,50 @@ export async function tomarAsistenciaCapacitacionAction(
 
     if (process.env.DATABASE_URL) {
       try {
-        await (prisma as any).capacitacion.update({
-          where: { id: capacitacionId },
-          data: {
-            asistentesReales: totalPresentes,
-            estado: "realizada",
-          },
+        const dbCap = await prisma.capacitacion.findUnique({ where: { id: capacitacionId } });
+        if (!dbCap) throw new Error("Capacitación no encontrada.");
+        await prisma.$transaction(async (tx) => {
+          for (const asistente of asistentes) {
+            const presente = asistente.estado === "presente" || asistente.estado === "tardanza";
+            const registro = await tx.asistenciaRegistro.findFirst({
+              where: { capacitacionId, personaId: asistente.personaId },
+            });
+            const registroData = {
+              personaId: asistente.personaId,
+              personaNombre: asistente.personaNombre,
+              evento: dbCap.nombre,
+              tipoEvento: dbCap.categoria,
+              estado: asistente.estado,
+              asistio: presente,
+              fecha: new Date(),
+            };
+            if (registro) await tx.asistenciaRegistro.update({ where: { id: registro.id }, data: registroData });
+            else await tx.asistenciaRegistro.create({ data: { capacitacionId, ...registroData } });
+
+            if (dbCap.eventoId) {
+              await tx.eventoParticipante.upsert({
+                where: { eventoId_personaId: { eventoId: dbCap.eventoId, personaId: asistente.personaId } },
+                create: {
+                  eventoId: dbCap.eventoId, personaId: asistente.personaId,
+                  personaNombre: asistente.personaNombre, resultadoPreliminar: asistente.estado,
+                  resultadoDefinitivo: presente ? asistente.estado : "ausencia_no_justificada",
+                  registroManual: true, validadoPorId: actor.id, validadoPorNombre: actor.nombre, validadoAt: new Date(),
+                },
+                update: {
+                  personaNombre: asistente.personaNombre, resultadoPreliminar: asistente.estado,
+                  resultadoDefinitivo: presente ? asistente.estado : "ausencia_no_justificada",
+                  registroManual: true, validadoPorId: actor.id, validadoPorNombre: actor.nombre, validadoAt: new Date(),
+                },
+              });
+            }
+          }
+          await tx.capacitacion.update({ where: { id: capacitacionId }, data: { asistentesReales: totalPresentes } });
+          if (dbCap.eventoId) {
+            await tx.eventoAsistencia.update({
+              where: { id: dbCap.eventoId },
+              data: { estado: "pendiente_revision" },
+            });
+          }
         });
       } catch (dbErr) {
         console.warn("Aviso actualizando capacitación en DB:", dbErr);

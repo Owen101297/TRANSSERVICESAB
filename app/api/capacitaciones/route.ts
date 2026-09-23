@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireApiSession, requireStaff } from "@/lib/api-auth";
 import { recordAudit } from "@/lib/audit";
+import {
+  fechaFinCapacitacion,
+  procesoEventoDesdeCapacitacion,
+  tipoEventoDesdeCapacitacion,
+} from "@/lib/capacitacion-evento";
+import { crearConsecutivoEvento } from "@/lib/eventos-asistencia";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +22,9 @@ export async function GET(req: Request) {
     const estado = searchParams.get("estado");
     const search = searchParams.get("search");
 
-    const where: any = {};
+    const where: any = auth.session.rolPrincipal === "conductor"
+      ? { estado: { in: ["programada", "realizada"] } }
+      : {};
 
     if (tipo && tipo !== "todos") {
       where.tipo = tipo;
@@ -117,14 +125,59 @@ export async function POST(req: Request) {
       );
     }
 
-    const created = await prisma.capacitacion.create({
-      data: {
+    const fechaProgramada = new Date(fecha);
+    if (Number.isNaN(fechaProgramada.getTime())) {
+      return NextResponse.json(
+        { success: false, error: "La fecha de la capacitación no es válida." },
+        { status: 400 }
+      );
+    }
+    const horas = Math.max(0.25, parseFloat(String(duracionHoras)) || 0.25);
+    const created = await prisma.$transaction(async (tx) => {
+      const evento = await tx.eventoAsistencia.create({
+        data: {
+          consecutivo: crearConsecutivoEvento(),
+          nombre: nombre.trim(),
+          tipo: tipoEventoDesdeCapacitacion(categoria),
+          caracter: "formativo",
+          proceso: procesoEventoDesdeCapacitacion(tipo),
+          objetivo: objetivo?.trim() || "Fortalecer las competencias definidas en el plan de formación.",
+          fechaInicio: fechaProgramada,
+          fechaFin: fechaFinCapacitacion(fechaProgramada, horas),
+          modalidad: String(lugar || "").toLowerCase().match(/virtual|digital/) ? "virtual" : "presencial",
+          lugar: lugar?.trim() || "Por definir",
+          responsableId: auth.session.id,
+          responsableNombre: auth.session.nombre,
+          facilitadorTipo: "interno",
+          facilitadorNombre: facilitador?.trim() || auth.session.nombre,
+          estado: "programado",
+          requiereFirma: Boolean(requiereFirma),
+          requiereFoto: Boolean(requiereSelfie),
+          requiereEvaluacion: Array.isArray(preguntas) && preguntas.length > 0,
+          notaMinima: Array.isArray(preguntas) && preguntas.length > 0 ? 80 : null,
+          contenido: materialContenido?.trim() || null,
+          materialUrl: materialUrl?.trim() || null,
+          creadoPorId: auth.session.id,
+          creadoPorNombre: auth.session.nombre,
+          aprobadoPorId: auth.session.id,
+          aprobadoPorNombre: auth.session.nombre,
+          aprobadoAt: new Date(),
+          documentos: {
+            create: [
+              { codigo: "TH-FOR-03", nombre: "Registro de asistencia", version: "03" },
+              { codigo: "TH-FOR-04", nombre: "Registro de capacitación", version: "02" },
+            ],
+          },
+        },
+      });
+      return tx.capacitacion.create({
+        data: {
         nombre: nombre.trim(),
         tipo,
         programa,
         categoria,
-        fecha: new Date(fecha),
-        duracionHoras: parseFloat(String(duracionHoras)),
+        fecha: fechaProgramada,
+        duracionHoras: horas,
         facilitador: facilitador?.trim(),
         objetivo: objetivo?.trim(),
         lugar: lugar?.trim(),
@@ -136,7 +189,9 @@ export async function POST(req: Request) {
         requiereFirma: Boolean(requiereFirma),
         asistentesEsperados: parseInt(String(asistentesEsperados), 10) || 0,
         estado: "programada",
+        eventoId: evento.id,
       },
+      });
     });
     await recordAudit({ action: "CREATE", entityType: "Capacitacion", entityId: created.id, after: created, actor: auth.session });
 
@@ -175,10 +230,30 @@ export async function PATCH(req: Request) {
     if (materialUrl !== undefined) data.materialUrl = materialUrl;
     if (materialContenido !== undefined) data.materialContenido = materialContenido;
 
-    const before = await prisma.capacitacion.findUnique({ where: { id } });
-    const updated = await prisma.capacitacion.update({
-      where: { id },
-      data,
+    const before = await prisma.capacitacion.findUnique({ where: { id }, include: { evento: true } });
+    if (!before) {
+      return NextResponse.json({ success: false, error: "Capacitación no encontrada." }, { status: 404 });
+    }
+    if (estado && before.eventoId) {
+      return NextResponse.json(
+        { success: false, error: "El estado se administra desde el expediente del evento para conservar el flujo de aprobación." },
+        { status: 409 }
+      );
+    }
+    const updated = await prisma.$transaction(async (tx) => {
+      const capacitacion = await tx.capacitacion.update({ where: { id }, data });
+      if (before.eventoId) {
+        await tx.eventoAsistencia.update({
+          where: { id: before.eventoId },
+          data: {
+            ...(nombre ? { nombre } : {}),
+            ...(objetivo !== undefined ? { objetivo: objetivo || "Sin objetivo registrado" } : {}),
+            ...(materialUrl !== undefined ? { materialUrl } : {}),
+            ...(materialContenido !== undefined ? { contenido: materialContenido } : {}),
+          },
+        });
+      }
+      return capacitacion;
     });
     await recordAudit({ action: "UPDATE", entityType: "Capacitacion", entityId: id, before, after: updated, actor: auth.session });
 
@@ -210,9 +285,24 @@ export async function DELETE(req: Request) {
       );
     }
 
-    const before = await prisma.capacitacion.findUnique({ where: { id } });
-    await prisma.capacitacion.delete({
+    const before = await prisma.capacitacion.findUnique({
       where: { id },
+      include: { _count: { select: { asistencias: true } } },
+    });
+    if (!before) {
+      return NextResponse.json({ success: false, error: "Capacitación no encontrada." }, { status: 404 });
+    }
+    if (before._count.asistencias > 0) {
+      return NextResponse.json(
+        { success: false, error: "La capacitación tiene asistencias y no puede eliminarse. Cámbiala a cancelada para conservar la trazabilidad." },
+        { status: 409 }
+      );
+    }
+    await prisma.$transaction(async (tx) => {
+      await tx.capacitacion.delete({ where: { id } });
+      if (before.eventoId) {
+        await tx.eventoAsistencia.update({ where: { id: before.eventoId }, data: { estado: "cancelado" } });
+      }
     });
     await recordAudit({ action: "DELETE", entityType: "Capacitacion", entityId: id, before, actor: auth.session });
 

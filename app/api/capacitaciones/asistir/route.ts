@@ -46,6 +46,7 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+    const participantName = identity.name.trim();
 
     // Verificar si ya asistió a esta capacitación para evitar duplicados
     const existing = await prisma.asistenciaRegistro.findFirst({
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
         OR: [
           ...(identity.id ? [{ personaId: identity.id }] : []),
           ...(identity.document ? [{ personaDocumento: identity.document }] : []),
-          { personaNombre: identity.name },
+          { personaNombre: participantName },
         ],
       },
     });
@@ -70,6 +71,7 @@ export async function POST(req: Request) {
 
     const capacitacion = await prisma.capacitacion.findUnique({
       where: { id: capacitacionId },
+      include: { evento: true },
     });
 
     if (!capacitacion) {
@@ -79,12 +81,12 @@ export async function POST(req: Request) {
       );
     }
 
-    const nuevaAsistencia = await prisma.asistenciaRegistro.create({
-      data: {
+    const nuevaAsistencia = await prisma.$transaction(async (tx) => {
+      const asistencia = await tx.asistenciaRegistro.create({ data: {
         capacitacionId,
         personaId: identity.id || null,
         personaDocumento: identity.document || null,
-        personaNombre: identity.name.trim(),
+        personaNombre: participantName,
         cargo: cargo?.trim() || "Conductor",
         proyecto: proyecto || "Operación General",
         facilitador: capacitacion.facilitador || "Coordinador HSEQ / PESV",
@@ -102,7 +104,52 @@ export async function POST(req: Request) {
         tiempoLectura: parseInt(String(tiempoLectura), 10) || 0,
         observaciones: observaciones?.trim() || null,
         fecha: new Date(),
-      },
+      }});
+
+      if (capacitacion.eventoId) {
+        const participantData = {
+          personaNombre: participantName,
+          personaDocumento: identity.document || null,
+          tipoPersona: identity.id ? "interno" : "externo",
+          cargo: cargo?.trim() || "Conductor",
+          proyecto: proyecto || "Operación General",
+          condicionLaboral: "disponible",
+          resultadoPreliminar: "presente",
+          resultadoDefinitivo: "presente",
+          horaEntrada: new Date(),
+          firmaUrl: firmaUrl || null,
+          fotoUrl: fotoUrl || null,
+          calificacion: parseFloat(String(calificacion)) || 100,
+          evaluacionEstado: Number(calificacion) >= 80 ? "aprobada" : "no_aprobada",
+          observaciones: observaciones?.trim() || null,
+          validadoPorId: auth.session.id,
+          validadoPorNombre: auth.session.nombre,
+          validadoAt: new Date(),
+        };
+        if (identity.id) {
+          await tx.eventoParticipante.upsert({
+            where: { eventoId_personaId: { eventoId: capacitacion.eventoId, personaId: identity.id } },
+            create: { eventoId: capacitacion.eventoId, personaId: identity.id, ...participantData },
+            update: participantData,
+          });
+        } else {
+          const existingParticipant = await tx.eventoParticipante.findFirst({
+            where: {
+              eventoId: capacitacion.eventoId,
+              OR: [
+                ...(identity.document ? [{ personaDocumento: identity.document }] : []),
+                { personaNombre: participantName },
+              ],
+            },
+          });
+          if (existingParticipant) {
+            await tx.eventoParticipante.update({ where: { id: existingParticipant.id }, data: participantData });
+          } else {
+            await tx.eventoParticipante.create({ data: { eventoId: capacitacion.eventoId, ...participantData } });
+          }
+        }
+      }
+      return asistencia;
     });
 
     // Actualizar conteo de asistentes reales en la capacitación
@@ -110,14 +157,15 @@ export async function POST(req: Request) {
       where: { capacitacionId },
     });
 
-    await prisma.capacitacion.update({
-      where: { id: capacitacionId },
-      data: {
-        asistentesReales: totalAsistentes,
-        // Si hay asistentes, marcar como realizada si estaba programada
-        estado: "realizada",
-      },
-    });
+    await prisma.$transaction([
+      prisma.capacitacion.update({
+        where: { id: capacitacionId },
+        data: { asistentesReales: totalAsistentes },
+      }),
+      ...(capacitacion.eventoId && capacitacion.evento?.estado === "programado"
+        ? [prisma.eventoAsistencia.update({ where: { id: capacitacion.eventoId }, data: { estado: "en_curso" } })]
+        : []),
+    ]);
     await recordAudit({
       action: "CREATE",
       entityType: "AsistenciaRegistro",

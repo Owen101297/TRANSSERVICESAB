@@ -27,6 +27,7 @@ import {
   FileDown,
   Share2,
   Copy,
+  ClipboardCheck,
 } from "lucide-react";
 import { Card, StatCard } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -375,6 +376,15 @@ _Cumplimiento Normativo PESV Res. 40595/2022 y SG-SST Dec. 1072_`;
                       >
                         {cap.estado.toUpperCase()}
                       </span>
+                      {cap.eventoId && (
+                        <Link
+                          href="/asistencia/eventos"
+                          className="inline-flex items-center gap-1 rounded border border-radar-cyan/30 bg-radar-cyan/10 px-2 py-0.5 text-[10px] font-bold text-radar-cyan hover:bg-radar-cyan/20"
+                          title="Abrir el expediente auditable de eventos y asistencia"
+                        >
+                          <ClipboardCheck size={11} /> Expediente unificado
+                        </Link>
+                      )}
                     </div>
 
                     <h3 className="font-bold text-paper-50 text-base group-hover:text-signal-amber transition-colors">

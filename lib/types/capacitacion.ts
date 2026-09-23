@@ -10,7 +10,7 @@ export type CategoriaCapacitacion =
   | "induccion" 
   | "entrenamiento";
 
-export type EstadoCapacitacion = "programada" | "realizada" | "cancelada";
+export type EstadoCapacitacion = "borrador" | "programada" | "realizada" | "cancelada";
 
 export interface PreguntaEvaluacion {
   id: number;
@@ -40,6 +40,7 @@ export interface AsistenciaItem {
 
 export interface Capacitacion {
   id: string;
+  eventoId?: string | null;
   nombre: string;
   tipo: TipoCapacitacion;
   programa: string;
@@ -76,6 +77,7 @@ export const CATEGORIA_CAPACITACION_LABELS: Record<CategoriaCapacitacion, string
 };
 
 export const ESTADO_CAPACITACION_LABELS: Record<EstadoCapacitacion, string> = {
+  borrador: "Borrador",
   programada: "Programada",
   realizada: "Realizada",
   cancelada: "Cancelada",

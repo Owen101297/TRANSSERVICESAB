@@ -127,7 +127,23 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       data.observacionesCierre = `Reabierto: ${motivo}`;
     }
 
-    const updated = await prisma.eventoAsistencia.update({ where: { id }, data });
+    const updated = await prisma.$transaction(async (tx) => {
+      const evento = await tx.eventoAsistencia.update({ where: { id }, data });
+      const capacitacion = await tx.capacitacion.findUnique({ where: { eventoId: id } });
+      if (capacitacion) {
+        const estadoCapacitacion = estado === "cerrado"
+          ? "realizada"
+          : estado === "cancelado"
+            ? "cancelada"
+            : estado === "programado" || before.estado === "cerrado"
+              ? "programada"
+              : null;
+        if (estadoCapacitacion) {
+          await tx.capacitacion.update({ where: { id: capacitacion.id }, data: { estado: estadoCapacitacion } });
+        }
+      }
+      return evento;
+    });
     await recordAudit({
       action: "STATUS_CHANGE",
       entityType: "EventoAsistencia",

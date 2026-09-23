@@ -9,6 +9,7 @@ import {
   textoOpcional,
   textoRequerido,
 } from "@/lib/eventos-asistencia";
+import { categoriaCapacitacionDesdeEvento } from "@/lib/capacitacion-evento";
 
 export const dynamic = "force-dynamic";
 
@@ -118,8 +119,9 @@ export async function POST(req: Request) {
       ? body.documentos
       : documentosSugeridos(tipo, caracter);
 
-    const evento = await prisma.eventoAsistencia.create({
-      data: {
+    const evento = await prisma.$transaction(async (tx) => {
+      const created = await tx.eventoAsistencia.create({
+        data: {
         consecutivo: crearConsecutivoEvento(),
         nombre: textoRequerido(body.nombre, "El nombre", 180),
         tipo,
@@ -173,7 +175,48 @@ export async function POST(req: Request) {
           })),
         },
       },
-      include: { participantes: true, documentos: true },
+        include: { participantes: true, documentos: true },
+      });
+
+      const esFormativo = caracter === "formativo" || new Set([
+        "charla_formativa",
+        "capacitacion",
+        "induccion",
+        "reinduccion",
+        "entrenamiento_practico",
+      ]).has(tipo);
+      if (esFormativo) {
+        const duracionHoras = Math.max(
+          0.25,
+          (fechaFin.getTime() - fechaInicio.getTime()) / (60 * 60 * 1000)
+        );
+        await tx.capacitacion.create({
+          data: {
+            nombre: created.nombre,
+            tipo: created.proceso === "sg-sst" ? "sg-sst" : created.proceso,
+            programa: created.proceso === "pesv"
+              ? "Plan de Capacitacion PESV (Paso 9/18)"
+              : created.proceso === "sg-sst"
+                ? "Plan Anual SG-SST (Dec 1072 / Res 0312)"
+                : "Formacion Operativa y de Servicio",
+            categoria: categoriaCapacitacionDesdeEvento(tipo),
+            fecha: fechaInicio,
+            duracionHoras,
+            facilitador: created.facilitadorNombre,
+            objetivo: created.objetivo,
+            lugar: created.lugar,
+            materialTipo: created.materialUrl ? "google_form" : "texto",
+            materialUrl: created.materialUrl,
+            materialContenido: created.contenido,
+            requiereSelfie: created.requiereFoto,
+            requiereFirma: created.requiereFirma,
+            asistentesEsperados: personas.length,
+            estado: "borrador",
+            eventoId: created.id,
+          },
+        });
+      }
+      return created;
     });
 
     await recordAudit({

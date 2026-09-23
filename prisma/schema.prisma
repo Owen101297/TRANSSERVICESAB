@@ -490,25 +490,27 @@ model IndicadorPesv {
 // --------------------------------------------------------
 
 model Capacitacion {
-  id                  String   @id @default(cuid())
+  id                  String            @id @default(cuid())
   nombre              String
-  tipo                String   @default("pesv") // pesv, sg-sst, hseq, operativa
-  programa            String   @default("Plan de Capacitacion PESV (Paso 9/18)") // Plan PESV, Plan SG-SST, Operativa
-  categoria           String   @default("charla_semanal") // charla_semanal, capacitacion_mensual, induccion, entrenamiento
+  tipo                String            @default("pesv") // pesv, sg-sst, hseq, operativa
+  programa            String            @default("Plan de Capacitacion PESV (Paso 9/18)") // Plan PESV, Plan SG-SST, Operativa
+  categoria           String            @default("charla_semanal") // charla_semanal, capacitacion_mensual, induccion, entrenamiento
   fecha               DateTime
-  duracionHoras       Float    @default(0.25) // 0.25h = 15min
-  facilitador         String?  @default("Coordinador HSEQ / PESV")
+  duracionHoras       Float             @default(0.25) // 0.25h = 15min
+  facilitador         String?           @default("Coordinador HSEQ / PESV")
   objetivo            String?
-  lugar               String?  @default("Plataforma Digital / Portal Conductor")
-  materialTipo        String   @default("texto") // texto, video, pdf, presentacion
+  lugar               String?           @default("Plataforma Digital / Portal Conductor")
+  materialTipo        String            @default("texto") // texto, video, pdf, presentacion
   materialUrl         String? // URL de video YouTube/Vimeo o archivo PDF
   materialContenido   String? // Texto instructivo o puntos clave de la charla
-  preguntas           Json?    @default("[]") // Lista de preguntas de validación
-  requiereSelfie      Boolean  @default(true)
-  requiereFirma       Boolean  @default(true)
-  asistentesEsperados Int      @default(0)
-  asistentesReales    Int?     @default(0)
-  estado              String   @default("programada") // programada, realizada, cancelada
+  preguntas           Json?             @default("[]") // Lista de preguntas de validación
+  requiereSelfie      Boolean           @default(true)
+  requiereFirma       Boolean           @default(true)
+  asistentesEsperados Int               @default(0)
+  asistentesReales    Int?              @default(0)
+  estado              String            @default("programada") // programada, realizada, cancelada
+  eventoId            String?           @unique
+  evento              EventoAsistencia? @relation(fields: [eventoId], references: [id], onDelete: SetNull)
 
   asistencias AsistenciaRegistro[]
 
@@ -605,6 +607,7 @@ model EventoAsistencia {
   cerradoAt               DateTime?
   revision                Int       @default(1)
 
+  capacitacion  Capacitacion?
   participantes EventoParticipante[]
   documentos    EventoDocumento[]
   evidencias    EventoEvidencia[]

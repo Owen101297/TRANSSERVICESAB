@@ -120,9 +120,45 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       return NextResponse.json({ success: false, error: "Acción no válida." }, { status: 400 });
     }
 
-    const participante = await prisma.eventoParticipante.update({
-      where: { id: participanteId },
-      data,
+    const participante = await prisma.$transaction(async (tx) => {
+      const updated = await tx.eventoParticipante.update({ where: { id: participanteId }, data });
+      const capacitacion = await tx.capacitacion.findUnique({ where: { eventoId } });
+      if (capacitacion) {
+        const resultado = updated.resultadoDefinitivo || updated.resultadoPreliminar;
+        const asistio = ["presente", "tardanza", "participacion_parcial"].includes(resultado);
+        const estado = resultado === "tardanza" ? "tardanza" : asistio ? "presente" : "ausente";
+        const existing = await tx.asistenciaRegistro.findFirst({
+          where: {
+            capacitacionId: capacitacion.id,
+            OR: [
+              ...(updated.personaId ? [{ personaId: updated.personaId }] : []),
+              ...(updated.personaDocumento ? [{ personaDocumento: updated.personaDocumento }] : []),
+              { personaNombre: updated.personaNombre },
+            ],
+          },
+        });
+        const legacyData = {
+          personaId: updated.personaId,
+          personaDocumento: updated.personaDocumento,
+          personaNombre: updated.personaNombre,
+          cargo: updated.cargo,
+          proyecto: updated.proyecto,
+          evento: capacitacion.nombre,
+          tipoEvento: capacitacion.categoria,
+          asistio,
+          estado,
+          firmaUrl: updated.firmaUrl,
+          fotoUrl: updated.fotoUrl,
+          calificacion: updated.calificacion,
+          observaciones: updated.observaciones,
+          fecha: updated.horaEntrada || new Date(),
+        };
+        if (existing) await tx.asistenciaRegistro.update({ where: { id: existing.id }, data: legacyData });
+        else await tx.asistenciaRegistro.create({ data: { capacitacionId: capacitacion.id, ...legacyData } });
+        const total = await tx.asistenciaRegistro.count({ where: { capacitacionId: capacitacion.id, asistio: true } });
+        await tx.capacitacion.update({ where: { id: capacitacion.id }, data: { asistentesReales: total } });
+      }
+      return updated;
     });
     await recordAudit({
       action: action === "conciliar" ? "APPROVE" : "UPDATE",
