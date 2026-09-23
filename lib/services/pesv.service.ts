@@ -6,7 +6,7 @@ import { requireStaffSession } from "@/lib/auth";
 import { PASOS_PESV } from "@/lib/data/pesv-pasos";
 import { INDICADORES_PESV } from "@/lib/data/pesv-indicadores";
 import { PasoPESV, IndicadorPESV, EstadoPasoPESV, FasePESV } from "@/lib/types/pesv";
-import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction } from "@/lib/production-safety";
+import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction, rethrowMutationInProduction } from "@/lib/production-safety";
 
 let localPasosPesvState: PasoPESV[] = [...PASOS_PESV];
 let localIndicadoresPesvState: IndicadorPESV[] = [...INDICADORES_PESV];
@@ -122,6 +122,7 @@ export async function updatePasoPesvAction(
         });
       } catch (err) {
         console.warn("No se pudo actualizar paso PESV en DB:", err);
+        rethrowMutationInProduction(err, "No fue posible actualizar el paso PESV");
       }
     }
 

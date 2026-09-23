@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSelfOrStaff, requireStaffSession } from "@/lib/auth";
-import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction } from "@/lib/production-safety";
+import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction, rethrowMutationInProduction } from "@/lib/production-safety";
+import { recordAudit } from "@/lib/audit";
 import { getPersonaByIdDb } from "@/lib/services/personas.service";
 import { getVehiculoByIdDb } from "@/lib/services/vehiculos.service";
 import { getContratistaByIdDb } from "@/lib/services/contratistas.service";
@@ -94,7 +95,7 @@ export async function createAsignacionAction(
   formData: FormData
 ): Promise<{ success: boolean; asignacionId?: string; error?: string }> {
   try {
-    await requireStaffSession();
+    const actor = await requireStaffSession();
     const conductorId = formData.get("conductorId") as string;
     const vehiculoId = formData.get("vehiculoId") as string;
     const tipoAsignacion = (formData.get("tipoAsignacion") as TipoAsignacion) || "fija";
@@ -141,6 +142,7 @@ export async function createAsignacionAction(
         newId = created.id;
       } catch (dbErr) {
         console.error("Error guardando Asignación en PostgreSQL:", dbErr);
+        rethrowMutationInProduction(dbErr, "No fue posible guardar la asignación");
       }
     }
 
@@ -161,6 +163,7 @@ export async function createAsignacionAction(
     };
 
     localAsignacionesState.unshift(newAsigObj);
+    await recordAudit({ action: "CREATE", entityType: "Asignacion", entityId: newId, after: newAsigObj, actor });
     revalidatePath("/asignaciones");
     revalidatePath("/personas");
     revalidatePath(`/personas/${conductorId}`);
@@ -193,6 +196,7 @@ export async function finalizarAsignacionAction(id: string): Promise<{ success: 
         });
       } catch (dbErr) {
         console.warn("Error al actualizar asignación en DB:", dbErr);
+        rethrowMutationInProduction(dbErr, "No fue posible actualizar la asignación");
       }
     }
 
@@ -228,6 +232,7 @@ export async function deleteAsignacionDb(id: string): Promise<{ success: boolean
         });
       } catch (dbErr) {
         console.warn("Error eliminando asignación en DB:", dbErr);
+        rethrowMutationInProduction(dbErr, "No fue posible eliminar la asignación");
       }
     }
 

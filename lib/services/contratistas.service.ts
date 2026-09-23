@@ -6,7 +6,8 @@ import { requireStaffSession } from "@/lib/auth";
 import { SEED_CONTRATISTAS, getContratistaById as getSeedContratistaById } from "@/lib/data/contratistas";
 import { Contratista, TipoOperacion, EstadoContratista } from "@/lib/types/contratista";
 import { ContratistaUpsertPreviewItem } from "@/lib/data/contratistas-upsert";
-import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction } from "@/lib/production-safety";
+import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction, rethrowMutationInProduction } from "@/lib/production-safety";
+import { recordAudit } from "@/lib/audit";
 
 let localContratistasState: Contratista[] = [];
 
@@ -97,7 +98,7 @@ export async function getContratistaByIdDb(id: string): Promise<Contratista | un
  */
 export async function createContratistaAction(formData: FormData): Promise<{ success: boolean; contratistaId?: string; error?: string }> {
   try {
-    await requireStaffSession();
+    const actor = await requireStaffSession();
     const nombre = formData.get("nombre") as string;
     const nit = (formData.get("nit") as string)?.trim();
     const tipoOperacion = (formData.get("tipoOperacion") as TipoOperacion) || "fija";
@@ -143,10 +144,12 @@ export async function createContratistaAction(formData: FormData): Promise<{ suc
         newContratistaObj.id = created.id;
       } catch (dbErr) {
         console.error("Error guardando Contratista en PostgreSQL:", dbErr);
+        rethrowMutationInProduction(dbErr, "No fue posible guardar el contratista");
       }
     }
 
     localContratistasState.unshift(newContratistaObj);
+    await recordAudit({ action: "CREATE", entityType: "Contratista", entityId: newContratistaObj.id, after: newContratistaObj, actor });
     revalidatePath("/contratistas");
     revalidatePath("/flota/nuevo");
     revalidatePath("/asignaciones/nueva");
@@ -205,6 +208,7 @@ export async function updateContratistaAction(id: string, formData: FormData): P
         });
       } catch (err) {
         console.warn("No se pudo actualizar en DB:", err);
+        rethrowMutationInProduction(err, "No fue posible actualizar el contratista");
       }
     }
 

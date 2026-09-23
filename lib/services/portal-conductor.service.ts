@@ -7,7 +7,7 @@ import { getPersonaByIdDb } from "@/lib/services/personas.service";
 import { getAsignacionesDb } from "@/lib/services/asignaciones.service";
 import { getViajesDb } from "@/lib/services/operacion.service";
 import { InspeccionPreoperacional, NovedadConductor, TipoNovedadConductor, EstadoConceptoPreoperacional } from "@/lib/types/preoperacional";
-import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction } from "@/lib/production-safety";
+import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction, rethrowMutationInProduction } from "@/lib/production-safety";
 
 let localPreoperacionalesState: InspeccionPreoperacional[] = [];
 let localNovedadesConductorState: NovedadConductor[] = [];
@@ -140,6 +140,7 @@ export async function createPreoperacionalAction(
         newPreopObj.id = created.id;
       } catch (dbErr) {
         console.error("Error guardando Preoperacional en PostgreSQL:", dbErr);
+        rethrowMutationInProduction(dbErr, "No fue posible guardar el preoperacional");
       }
     }
 
@@ -225,6 +226,7 @@ export async function createNovedadConductorAction(
         newNovedadObj.id = created.id;
       } catch (dbErr) {
         console.error("Error guardando Novedad Conductor en PostgreSQL:", dbErr);
+        rethrowMutationInProduction(dbErr, "No fue posible guardar la novedad del conductor");
       }
     }
 

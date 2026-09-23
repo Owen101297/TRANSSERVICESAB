@@ -16,6 +16,7 @@ import {
   normalizarTipoEventoSatelcopro,
   normalizarPrioridadSatelcopro,
 } from "@/lib/utils/gps-scoring";
+import { fallbackOrThrow, rethrowMutationInProduction } from "@/lib/production-safety";
 
 // Almacén en memoria como fallback en caso de indisponibilidad temporal
 let inMemoryEventosGPS: EventoGPS[] = [];
@@ -212,7 +213,7 @@ export async function getEventosGPSConPaginacionDb(filtros?: {
         return hour >= 22 || hour < 5;
       });
     }
-    return { eventos: fallback.slice(0, 20), totalCount: fallback.length };
+    return fallbackOrThrow(err, { eventos: fallback.slice(0, 20), totalCount: fallback.length }, "No fue posible consultar eventos GPS");
   }
 }
 
@@ -326,6 +327,7 @@ export async function registrarEventoGPSDb(rawEvent: {
         }
       }
     } catch (dbErr) {
+      rethrowMutationInProduction(dbErr, "No fue posible resolver la asignación del evento GPS");
       // Fallback a asignaciones en memoria si DB directa falla
       const asignaciones = await getAsignacionesDb();
       const match = asignaciones.find((a) => {
@@ -363,7 +365,8 @@ export async function registrarEventoGPSDb(rawEvent: {
       if (vehiculo?.contratistaNombre) {
         contratistaVehiculo = vehiculo.contratistaNombre;
       }
-    } catch {
+    } catch (error) {
+      rethrowMutationInProduction(error, "No fue posible resolver el vehículo del evento GPS");
       // Ignorar si no se pudo consultar
     }
 
@@ -409,6 +412,7 @@ export async function registrarEventoGPSDb(rawEvent: {
       createdId = created.id;
     } catch (dbErr) {
       console.warn("Guardando en memoria fallback por error de DB:", dbErr);
+      rethrowMutationInProduction(dbErr, "No fue posible guardar el evento GPS");
       inMemoryEventosGPS.unshift({
         id: createdId,
         placa: eventoData.placa,
@@ -465,6 +469,7 @@ export async function marcarRetroalimentacionDb(
         },
       });
     } catch (err) {
+      rethrowMutationInProduction(err, "No fue posible actualizar la retroalimentación GPS");
       const idx = inMemoryEventosGPS.findIndex((e) => e.id === eventoId);
       if (idx >= 0) {
         inMemoryEventosGPS[idx].estadoRetroalimentacion = estadoRetroalimentacion as EstadoRetroalimentacion;
@@ -583,5 +588,4 @@ export async function retroasignarEventosPlacaDb(
     return { success: false, error: err.message };
   }
 }
-
 

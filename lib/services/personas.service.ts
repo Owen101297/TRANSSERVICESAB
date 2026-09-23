@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/password";
 import { requireStaffSession } from "@/lib/auth";
-import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction } from "@/lib/production-safety";
+import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction, rethrowMutationInProduction } from "@/lib/production-safety";
+import { recordAudit } from "@/lib/audit";
 import { SEED_PERSONAS, getPersonaById as getSeedPersonaById } from "@/lib/data/personas";
 import {
   Persona,
@@ -197,7 +198,7 @@ export interface CreatePersonaResult {
  */
 export async function createPersonaAction(formData: FormData): Promise<CreatePersonaResult> {
   try {
-    await requireStaffSession();
+    const actor = await requireStaffSession();
     const nombres = formData.get("nombres") as string;
     const apellidos = formData.get("apellidos") as string;
     const tipoDocumento = (formData.get("tipoDocumento") as TipoDocumento) || "CC";
@@ -348,10 +349,12 @@ export async function createPersonaAction(formData: FormData): Promise<CreatePer
         newPersonaObj.id = created.id;
       } catch (dbErr) {
         console.error("Error guardando en PostgreSQL:", dbErr);
+        rethrowMutationInProduction(dbErr, "No fue posible guardar la persona");
       }
     }
 
     localPersonsState.unshift(newPersonaObj);
+    await recordAudit({ action: "CREATE", entityType: "Persona", entityId: newPersonaObj.id, after: newPersonaObj, actor });
     revalidatePath("/personas");
     revalidatePath("/dashboard");
 
@@ -470,6 +473,7 @@ export async function updatePersonaAction(
         });
       } catch (err) {
         console.warn("No se pudo actualizar directamente en DB:", err);
+        rethrowMutationInProduction(err, "No fue posible actualizar la persona");
       }
     }
 

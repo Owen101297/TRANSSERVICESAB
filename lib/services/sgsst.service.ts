@@ -6,7 +6,7 @@ import { requireStaffSession } from "@/lib/auth";
 import { ITEMS_SGSST } from "@/lib/data/sgsst-items";
 import { ESTANDARES_SGSST } from "@/lib/data/sgsst-estandares";
 import { ItemSGSST, EstandarSGSST, EstadoItemSGSST } from "@/lib/types/sgsst";
-import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction } from "@/lib/production-safety";
+import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction, rethrowMutationInProduction } from "@/lib/production-safety";
 
 let localItemsSgsstState: ItemSGSST[] = [...ITEMS_SGSST];
 
@@ -89,6 +89,7 @@ export async function updateItemSgsstAction(
         });
       } catch (err) {
         console.warn("No se pudo actualizar ítem SG-SST en DB:", err);
+        rethrowMutationInProduction(err, "No fue posible actualizar el ítem SG-SST");
       }
     }
 

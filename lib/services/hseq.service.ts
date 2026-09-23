@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireServerSession, requireStaffSession } from "@/lib/auth";
-import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction } from "@/lib/production-safety";
+import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction, rethrowMutationInProduction } from "@/lib/production-safety";
 import { Hallazgo, OrigenHallazgo, SeveridadHallazgo, EstadoHallazgo } from "@/lib/types/hseq";
 
 let localHallazgosState: Hallazgo[] = [];
@@ -131,6 +131,7 @@ export async function createHallazgoAction(
         newHallazgo.id = created.id;
       } catch (dbErr) {
         console.error("Error guardando Hallazgo en PostgreSQL:", dbErr);
+        rethrowMutationInProduction(dbErr, "No fue posible guardar el hallazgo HSEQ");
       }
     }
 
@@ -179,6 +180,7 @@ export async function updateHallazgoAction(
         });
       } catch (err) {
         console.warn("No se pudo actualizar hallazgo en DB:", err);
+        rethrowMutationInProduction(err, "No fue posible actualizar el hallazgo HSEQ");
       }
     }
 

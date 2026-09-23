@@ -9,6 +9,7 @@ import { SEED_ENCUESTAS } from "@/lib/data/encuestas";
 import { Capacitacion, TipoCapacitacion, EstadoCapacitacion } from "@/lib/types/capacitacion";
 import { RegistroAsistencia, EstadoAsistencia } from "@/lib/types/asistencia";
 import { Encuesta } from "@/lib/types/encuesta";
+import { rethrowMutationInProduction } from "@/lib/production-safety";
 
 let localCapacitacionesState: Capacitacion[] = [];
 let localAsistenciasState: RegistroAsistencia[] = [...SEED_ASISTENCIA];
@@ -94,6 +95,7 @@ export async function createCapacitacionAction(
         newCap.id = created.id;
       } catch (dbErr) {
         console.error("Error guardando Capacitación en PostgreSQL:", dbErr);
+        rethrowMutationInProduction(dbErr, "No fue posible guardar la capacitación");
       }
     }
 
@@ -190,6 +192,7 @@ export async function createAsistenciaAction(
         });
       } catch (dbErr) {
         console.warn("Aviso al guardar asistencia en PostgreSQL:", dbErr);
+        rethrowMutationInProduction(dbErr, "No fue posible guardar la asistencia");
       }
     }
 
@@ -242,6 +245,7 @@ export async function tomarAsistenciaCapacitacionAction(
         });
       } catch (dbErr) {
         console.warn("Aviso actualizando capacitación en DB:", dbErr);
+        rethrowMutationInProduction(dbErr, "No fue posible actualizar la capacitación");
       }
     }
 

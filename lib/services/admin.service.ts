@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireStaffSession } from "@/lib/auth";
 import { SEED_ROLES } from "@/lib/data/roles";
-import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction } from "@/lib/production-safety";
+import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction, rethrowMutationInProduction } from "@/lib/production-safety";
 
 export interface RolSistemaData {
   id: string;
@@ -84,6 +84,7 @@ export async function createRolAction(
         newRol.id = created.id;
       } catch (dbErr) {
         console.error("Error guardando Rol en PostgreSQL:", dbErr);
+        rethrowMutationInProduction(dbErr, "No fue posible guardar el rol");
       }
     }
 

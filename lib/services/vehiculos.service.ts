@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireStaffSession } from "@/lib/auth";
-import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction } from "@/lib/production-safety";
+import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction, rethrowMutationInProduction } from "@/lib/production-safety";
+import { recordAudit } from "@/lib/audit";
 import { SEED_VEHICULOS, getVehiculoById as getSeedVehiculoById } from "@/lib/data/vehiculos";
 import {
   Vehiculo,
@@ -112,7 +113,7 @@ export async function createVehiculoAction(
   formData: FormData
 ): Promise<{ success: boolean; vehiculoId?: string; error?: string }> {
   try {
-    await requireStaffSession();
+    const actor = await requireStaffSession();
     const placa = ((formData.get("placa") as string) || "").toUpperCase().trim();
     const tipo = (formData.get("tipo") as TipoVehiculo) || "van";
     const marca = (formData.get("marca") as string) || "";
@@ -161,6 +162,7 @@ export async function createVehiculoAction(
         newId = created.id;
       } catch (dbErr) {
         console.error("Error guardando vehículo en PostgreSQL:", dbErr);
+        rethrowMutationInProduction(dbErr, "No fue posible guardar el vehículo");
       }
     }
 
@@ -184,6 +186,7 @@ export async function createVehiculoAction(
     };
 
     localVehiculosState.unshift(newVehiculoObj);
+    await recordAudit({ action: "CREATE", entityType: "Vehiculo", entityId: newId, after: newVehiculoObj, actor });
     revalidatePath("/flota");
     revalidatePath("/dashboard");
     revalidatePath("/asignaciones");
@@ -211,6 +214,7 @@ export async function cambiarEstadoVehiculoDb(
         });
       } catch (err) {
         console.warn("Aviso actualizando estado en DB:", err);
+        rethrowMutationInProduction(err, "No fue posible actualizar el estado del vehículo");
       }
     }
 
@@ -255,6 +259,7 @@ export async function deleteVehiculoDb(id: string): Promise<{ success: boolean; 
         });
       } catch (err) {
         console.warn("Aviso eliminando vehículo en DB:", err);
+        rethrowMutationInProduction(err, "No fue posible eliminar el vehículo");
       }
     }
 
@@ -290,6 +295,7 @@ export async function bulkDeleteVehiculosDb(ids: string[]): Promise<{ success: b
         deletedCount = res.count;
       } catch (dbErr) {
         console.warn("Aviso en bulkDeleteVehiculosDb (DB):", dbErr);
+        rethrowMutationInProduction(dbErr, "No fue posible eliminar los vehículos");
       }
     }
 
@@ -370,6 +376,7 @@ export async function bulkUpsertVehiculosDb(
           count++;
         } catch (dbErr) {
           console.error(`Error al hacer upsert de ${f.placa} en PostgreSQL:`, dbErr);
+          rethrowMutationInProduction(dbErr, `No fue posible importar el vehículo ${f.placa}`);
         }
       }
 
@@ -467,6 +474,7 @@ export async function updateVehiculoAction(
         });
       } catch (dbErr) {
         console.warn("Aviso actualizando vehículo en DB:", dbErr);
+        rethrowMutationInProduction(dbErr, "No fue posible actualizar el vehículo");
       }
     }
 

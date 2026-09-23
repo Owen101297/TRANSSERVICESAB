@@ -15,3 +15,10 @@ export function fallbackOrThrow<T>(error: unknown, fallback: T, context: string)
   }
   return fallback;
 }
+
+export function rethrowMutationInProduction(error: unknown, context: string): void {
+  if (isProductionRuntime()) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`${context}: ${detail}`);
+  }
+}

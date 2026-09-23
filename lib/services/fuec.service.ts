@@ -7,7 +7,7 @@ import { SEED_CONTRATOS, SEED_FUECS } from "@/lib/data/fuec";
 import { getVehiculoByIdDb } from "@/lib/services/vehiculos.service";
 import { getPersonaByIdDb } from "@/lib/services/personas.service";
 import { ContratoTransporte, Fuec, ObjetoContratoTransporte, EstadoFuec } from "@/lib/types/fuec";
-import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction } from "@/lib/production-safety";
+import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction, rethrowMutationInProduction } from "@/lib/production-safety";
 
 let localContratosState: ContratoTransporte[] = [...SEED_CONTRATOS];
 let localFuecsState: Fuec[] = [...SEED_FUECS];
@@ -233,6 +233,7 @@ export async function createFuecAction(
         newFuecObj.id = created.id;
       } catch (dbErr) {
         console.error("Error guardando FUEC en PostgreSQL:", dbErr);
+        rethrowMutationInProduction(dbErr, "No fue posible guardar el FUEC");
       }
     }
 

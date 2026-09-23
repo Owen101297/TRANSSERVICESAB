@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireStaffSession } from "@/lib/auth";
-import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction } from "@/lib/production-safety";
+import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction, rethrowMutationInProduction } from "@/lib/production-safety";
 import { getPersonaByIdDb } from "@/lib/services/personas.service";
 import { getVehiculoByIdDb } from "@/lib/services/vehiculos.service";
 import { Viaje, EstadoViaje, ServicioViaje, Novedad } from "@/lib/types/viaje";
@@ -179,6 +179,7 @@ export async function createViajeAction(
         newViajeObj.id = created.id;
       } catch (dbErr) {
         console.error("Error guardando Viaje en PostgreSQL:", dbErr);
+        rethrowMutationInProduction(dbErr, "No fue posible guardar el viaje");
       }
     }
 
@@ -226,6 +227,7 @@ export async function registrarNovedadViajeAction(
         });
       } catch (err) {
         console.warn("No se pudo registrar novedad en DB:", err);
+        rethrowMutationInProduction(err, "No fue posible registrar la novedad del viaje");
       }
     }
 
@@ -279,6 +281,7 @@ export async function finalizarViajeAction(
         });
       } catch (err) {
         console.warn("No se pudo finalizar viaje en DB:", err);
+        rethrowMutationInProduction(err, "No fue posible finalizar el viaje");
       }
     }
 
