@@ -7,6 +7,7 @@ import { ITEMS_SGSST } from "@/lib/data/sgsst-items";
 import { ESTANDARES_SGSST } from "@/lib/data/sgsst-estandares";
 import { ItemSGSST, EstandarSGSST, EstadoItemSGSST } from "@/lib/types/sgsst";
 import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction, rethrowMutationInProduction } from "@/lib/production-safety";
+import { recordAudit } from "@/lib/audit";
 
 let localItemsSgsstState: ItemSGSST[] = [...ITEMS_SGSST];
 
@@ -67,7 +68,7 @@ export async function updateItemSgsstAction(
   observaciones?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireStaffSession(["hseq", "administrativo"]);
+    const actor = await requireStaffSession(["hseq", "administrativo"]);
     const index = localItemsSgsstState.findIndex((i) => i.id === itemId);
     if (index >= 0) {
       localItemsSgsstState[index].estado = estado;
@@ -78,7 +79,8 @@ export async function updateItemSgsstAction(
 
     if (process.env.DATABASE_URL) {
       try {
-        await (prisma as any).itemSgsst.update({
+        const before = await (prisma as any).itemSgsst.findUnique({ where: { id: itemId } });
+        const after = await (prisma as any).itemSgsst.update({
           where: { id: itemId },
           data: {
             estado,
@@ -87,6 +89,7 @@ export async function updateItemSgsstAction(
             fechaActualizacion: new Date(),
           },
         });
+        await recordAudit({ action: "UPDATE", entityType: "ItemSGSST", entityId: itemId, before, after, actor });
       } catch (err) {
         console.warn("No se pudo actualizar ítem SG-SST en DB:", err);
         rethrowMutationInProduction(err, "No fue posible actualizar el ítem SG-SST");

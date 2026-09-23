@@ -378,7 +378,8 @@ export async function updatePersonaAction(
   formData: FormData
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireStaffSession();
+    const actor = await requireStaffSession();
+    const before = await getPersonaByIdDb(id);
     const nombres = formData.get("nombres") as string;
     const apellidos = formData.get("apellidos") as string;
     const telefono = formData.get("telefono") as string;
@@ -475,6 +476,8 @@ export async function updatePersonaAction(
         console.warn("No se pudo actualizar directamente en DB:", err);
         rethrowMutationInProduction(err, "No fue posible actualizar la persona");
       }
+      const after = await getPersonaByIdDb(id);
+      await recordAudit({ action: "UPDATE", entityType: "Persona", entityId: id, before, after, actor });
     }
 
     revalidatePath(`/personas/${id}`);
@@ -507,7 +510,7 @@ function parseSafeDate(val: any): Date | null {
  */
 export async function batchUpsertPersonasDb(items: any[]) {
   try {
-    await requireStaffSession();
+    const actor = await requireStaffSession();
     let createdCount = 0;
     let updatedCount = 0;
     let failedCount = 0;
@@ -760,6 +763,21 @@ export async function batchUpsertPersonasDb(items: any[]) {
     revalidatePath("/flota");
     revalidatePath("/asignaciones");
 
+    if (process.env.DATABASE_URL) {
+      await recordAudit({
+        action: "UPDATE",
+        entityType: "Persona",
+        metadata: {
+          operation: "bulk_upsert",
+          requestedCount: items.length,
+          createdCount,
+          updatedCount,
+          failedCount,
+        },
+        actor,
+      });
+    }
+
     const refreshedList = await getPersonasDb();
     return {
       success: true,
@@ -783,7 +801,8 @@ export async function batchUpsertPersonasDb(items: any[]) {
  */
 export async function deletePersonaDb(id: string) {
   try {
-    await requireStaffSession(["administrativo"]);
+    const actor = await requireStaffSession(["administrativo"]);
+    const before = await getPersonaByIdDb(id);
     if (process.env.DATABASE_URL) {
       // Eliminar asignaciones asociadas
       await prisma.asignacion.deleteMany({
@@ -797,6 +816,7 @@ export async function deletePersonaDb(id: string) {
       await prisma.persona.delete({
         where: { id },
       });
+      await recordAudit({ action: "DELETE", entityType: "Persona", entityId: id, before, actor });
     } else {
       localPersonsState = localPersonsState.filter((p) => p.id !== id);
     }
@@ -819,12 +839,13 @@ export async function deletePersonaDb(id: string) {
  */
 export async function deleteMultiplePersonasDb(ids: string[]) {
   try {
-    await requireStaffSession(["administrativo"]);
+    const actor = await requireStaffSession(["administrativo"]);
     if (!ids || ids.length === 0) {
       return { success: true, count: 0 };
     }
 
     if (process.env.DATABASE_URL) {
+      const before = (await getPersonasDb()).filter((persona) => ids.includes(persona.id));
       await prisma.asignacion.deleteMany({
         where: { conductorId: { in: ids } },
       });
@@ -833,6 +854,13 @@ export async function deleteMultiplePersonasDb(ids: string[]) {
       });
       await prisma.persona.deleteMany({
         where: { id: { in: ids } },
+      });
+      await recordAudit({
+        action: "DELETE",
+        entityType: "Persona",
+        before,
+        metadata: { operation: "bulk_delete", ids, count: before.length },
+        actor,
       });
     } else {
       localPersonsState = localPersonsState.filter((p) => !ids.includes(p.id));
@@ -856,7 +884,8 @@ export async function deleteMultiplePersonasDb(ids: string[]) {
  */
 export async function cambiarEstadoPersonaDb(id: string, nuevoEstado: EstadoPersona) {
   try {
-    await requireStaffSession();
+    const actor = await requireStaffSession();
+    const before = await getPersonaByIdDb(id);
     if (process.env.DATABASE_URL) {
       await prisma.persona.update({
         where: { id },
@@ -864,6 +893,8 @@ export async function cambiarEstadoPersonaDb(id: string, nuevoEstado: EstadoPers
           estado: nuevoEstado,
         },
       });
+      const after = await getPersonaByIdDb(id);
+      await recordAudit({ action: "STATUS_CHANGE", entityType: "Persona", entityId: id, before, after, actor });
     } else {
       const idx = localPersonsState.findIndex((p) => p.id === id);
       if (idx >= 0) {
@@ -893,7 +924,8 @@ export async function cambiarEstadoPersonaDb(id: string, nuevoEstado: EstadoPers
  */
 export async function retirarPersonaDb(id: string, motivo: string = "Retiro voluntario") {
   try {
-    await requireStaffSession();
+    const actor = await requireStaffSession();
+    const before = await getPersonaByIdDb(id);
     if (process.env.DATABASE_URL) {
       // 1. Finalizar asignaciones activas del conductor
       await prisma.asignacion.updateMany({
@@ -911,6 +943,16 @@ export async function retirarPersonaDb(id: string, motivo: string = "Retiro volu
         data: {
           estado: "retirado",
         },
+      });
+      const after = await getPersonaByIdDb(id);
+      await recordAudit({
+        action: "STATUS_CHANGE",
+        entityType: "Persona",
+        entityId: id,
+        before,
+        after,
+        metadata: { operation: "retire", reason: motivo },
+        actor,
       });
     } else {
       const idx = localPersonsState.findIndex((p) => p.id === id);
@@ -943,13 +985,24 @@ export async function retirarPersonaDb(id: string, motivo: string = "Retiro volu
  */
 export async function reactivarPersonaDb(id: string) {
   try {
-    await requireStaffSession();
+    const actor = await requireStaffSession();
+    const before = await getPersonaByIdDb(id);
     if (process.env.DATABASE_URL) {
       await prisma.persona.update({
         where: { id },
         data: {
           estado: "activo",
         },
+      });
+      const after = await getPersonaByIdDb(id);
+      await recordAudit({
+        action: "STATUS_CHANGE",
+        entityType: "Persona",
+        entityId: id,
+        before,
+        after,
+        metadata: { operation: "reactivate" },
+        actor,
       });
     } else {
       const idx = localPersonsState.findIndex((p) => p.id === id);
@@ -982,10 +1035,11 @@ export async function reactivarPersonaDb(id: string) {
  */
 export async function retirarMultiplePersonasDb(ids: string[], motivo: string = "Retiro masivo operativo") {
   try {
-    await requireStaffSession();
+    const actor = await requireStaffSession();
     if (!ids || ids.length === 0) return { success: true, count: 0 };
 
     if (process.env.DATABASE_URL) {
+      const before = (await getPersonasDb()).filter((persona) => ids.includes(persona.id));
       await prisma.asignacion.updateMany({
         where: { conductorId: { in: ids }, estado: "activa" },
         data: {
@@ -1000,6 +1054,15 @@ export async function retirarMultiplePersonasDb(ids: string[], motivo: string = 
         data: {
           estado: "retirado",
         },
+      });
+      const after = (await getPersonasDb()).filter((persona) => ids.includes(persona.id));
+      await recordAudit({
+        action: "STATUS_CHANGE",
+        entityType: "Persona",
+        before,
+        after,
+        metadata: { operation: "bulk_retire", ids, reason: motivo, count: after.length },
+        actor,
       });
     } else {
       localPersonsState = localPersonsState.map((p) =>

@@ -182,18 +182,20 @@ export async function createAsignacionAction(
  */
 export async function finalizarAsignacionAction(id: string): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireStaffSession();
+    const actor = await requireStaffSession();
     const hoy = new Date().toISOString().split("T")[0];
 
     if (process.env.DATABASE_URL) {
       try {
-        await prisma.asignacion.update({
+        const before = await prisma.asignacion.findUnique({ where: { id } });
+        const after = await prisma.asignacion.update({
           where: { id },
           data: {
             estado: "finalizada",
             fechaFin: new Date(),
           },
         });
+        await recordAudit({ action: "STATUS_CHANGE", entityType: "Asignacion", entityId: id, before, after, actor });
       } catch (dbErr) {
         console.warn("Error al actualizar asignación en DB:", dbErr);
         rethrowMutationInProduction(dbErr, "No fue posible actualizar la asignación");
@@ -224,12 +226,14 @@ export async function finalizarAsignacionAction(id: string): Promise<{ success: 
  */
 export async function deleteAsignacionDb(id: string): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireStaffSession(["administrativo"]);
+    const actor = await requireStaffSession(["administrativo"]);
     if (process.env.DATABASE_URL) {
       try {
+        const before = await prisma.asignacion.findUnique({ where: { id } });
         await prisma.asignacion.delete({
           where: { id },
         });
+        await recordAudit({ action: "DELETE", entityType: "Asignacion", entityId: id, before, actor });
       } catch (dbErr) {
         console.warn("Error eliminando asignación en DB:", dbErr);
         rethrowMutationInProduction(dbErr, "No fue posible eliminar la asignación");
@@ -259,7 +263,7 @@ export async function quickAsignarConductorVehiculoAction(payload: {
 }): Promise<{ success: boolean; asignacionId?: string; error?: string; conductorNombre?: string; placa?: string }> {
   try {
     const { conductorId, vehiculoIdOrPlaca, observaciones } = payload;
-    await requireSelfOrStaff(conductorId);
+    const actor = await requireSelfOrStaff(conductorId);
     if (!conductorId || !vehiculoIdOrPlaca) {
       return { success: false, error: "Debes especificar tanto el conductor como el vehículo." };
     }
@@ -291,9 +295,10 @@ export async function quickAsignarConductorVehiculoAction(payload: {
     const now = new Date();
 
     // 3. Cerrar asignaciones activas previas tanto para el vehículo como para el conductor
+    let closedAssignments = 0;
     if (process.env.DATABASE_URL) {
       try {
-        await prisma.asignacion.updateMany({
+        const closed = await prisma.asignacion.updateMany({
           where: {
             OR: [
               { vehiculoId: vehiculoId, estado: "activa" },
@@ -306,6 +311,7 @@ export async function quickAsignarConductorVehiculoAction(payload: {
             fechaFin: now,
           },
         });
+        closedAssignments = closed.count;
       } catch (closeErr) {
         console.warn("Aviso cerrando asignaciones anteriores:", closeErr);
       }
@@ -313,6 +319,7 @@ export async function quickAsignarConductorVehiculoAction(payload: {
 
     // 4. Crear la nueva asignación activa
     let newId = `asig_${Date.now()}`;
+    let createdRecord: unknown;
     if (process.env.DATABASE_URL) {
       const created = await prisma.asignacion.create({
         data: {
@@ -331,6 +338,15 @@ export async function quickAsignarConductorVehiculoAction(payload: {
         },
       });
       newId = created.id;
+      createdRecord = created;
+      await recordAudit({
+        action: "CREATE",
+        entityType: "Asignacion",
+        entityId: created.id,
+        after: createdRecord,
+        metadata: { operation: "quick_assign", closedAssignments },
+        actor,
+      });
     }
 
     // 5. Vincular retroactivamente eventos de telemetría de esta placa que estuvieran sin conductor

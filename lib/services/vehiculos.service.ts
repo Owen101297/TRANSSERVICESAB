@@ -205,13 +205,15 @@ export async function cambiarEstadoVehiculoDb(
   nuevoEstado: EstadoVehiculo
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireStaffSession();
+    const actor = await requireStaffSession();
     if (process.env.DATABASE_URL) {
       try {
-        await prisma.vehiculo.update({
+        const before = await prisma.vehiculo.findUnique({ where: { id } });
+        const after = await prisma.vehiculo.update({
           where: { id },
           data: { estado: nuevoEstado },
         });
+        await recordAudit({ action: "STATUS_CHANGE", entityType: "Vehiculo", entityId: id, before, after, actor });
       } catch (err) {
         console.warn("Aviso actualizando estado en DB:", err);
         rethrowMutationInProduction(err, "No fue posible actualizar el estado del vehículo");
@@ -237,7 +239,7 @@ export async function cambiarEstadoVehiculoDb(
  */
 export async function deleteVehiculoDb(id: string): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireStaffSession(["administrativo"]);
+    const actor = await requireStaffSession(["administrativo"]);
     if (process.env.DATABASE_URL) {
       try {
         const v = await prisma.vehiculo.findUnique({ where: { id } });
@@ -257,6 +259,7 @@ export async function deleteVehiculoDb(id: string): Promise<{ success: boolean; 
         await prisma.vehiculo.delete({
           where: { id },
         });
+        await recordAudit({ action: "DELETE", entityType: "Vehiculo", entityId: id, before: v, actor });
       } catch (err) {
         console.warn("Aviso eliminando vehículo en DB:", err);
         rethrowMutationInProduction(err, "No fue posible eliminar el vehículo");
@@ -279,10 +282,11 @@ export async function deleteVehiculoDb(id: string): Promise<{ success: boolean; 
  */
 export async function bulkDeleteVehiculosDb(ids: string[]): Promise<{ success: boolean; count: number; error?: string }> {
   try {
-    await requireStaffSession(["administrativo"]);
+    const actor = await requireStaffSession(["administrativo"]);
     let deletedCount = 0;
     if (process.env.DATABASE_URL) {
       try {
+        const before = await prisma.vehiculo.findMany({ where: { id: { in: ids } } });
         // Finalizar asignaciones vinculadas
         await prisma.asignacion.updateMany({
           where: { vehiculoId: { in: ids }, estado: "activa" },
@@ -293,6 +297,13 @@ export async function bulkDeleteVehiculosDb(ids: string[]): Promise<{ success: b
           where: { id: { in: ids } },
         });
         deletedCount = res.count;
+        await recordAudit({
+          action: "DELETE",
+          entityType: "Vehiculo",
+          before,
+          metadata: { operation: "bulk_delete", ids, count: res.count },
+          actor,
+        });
       } catch (dbErr) {
         console.warn("Aviso en bulkDeleteVehiculosDb (DB):", dbErr);
         rethrowMutationInProduction(dbErr, "No fue posible eliminar los vehículos");
@@ -319,7 +330,7 @@ export async function bulkUpsertVehiculosDb(
   filas: DiagnosticoFilaVehiculo[]
 ): Promise<{ success: boolean; count: number; error?: string }> {
   try {
-    await requireStaffSession();
+    const actor = await requireStaffSession();
     let count = 0;
 
     for (const f of filas) {
@@ -411,6 +422,14 @@ export async function bulkUpsertVehiculosDb(
     revalidatePath("/flota");
     revalidatePath("/dashboard");
     revalidatePath("/asignaciones");
+    if (process.env.DATABASE_URL) {
+      await recordAudit({
+        action: "UPDATE",
+        entityType: "Vehiculo",
+        metadata: { operation: "bulk_upsert", requestedCount: filas.length, processedCount: count },
+        actor,
+      });
+    }
     return { success: true, count: count || filas.length };
   } catch (error: any) {
     console.error("Error en bulkUpsertVehiculosDb:", error);
@@ -426,7 +445,7 @@ export async function updateVehiculoAction(
   formData: FormData
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireStaffSession();
+    const actor = await requireStaffSession();
     const marca = formData.get("marca") as string;
     const modelo = formData.get("modelo") as string;
     const anio = parseInt((formData.get("anio") as string) || "2023", 10);
@@ -455,7 +474,8 @@ export async function updateVehiculoAction(
 
     if (process.env.DATABASE_URL) {
       try {
-        await prisma.vehiculo.update({
+        const before = await prisma.vehiculo.findUnique({ where: { id } });
+        const after = await prisma.vehiculo.update({
           where: { id },
           data: {
             marca: marca || undefined,
@@ -472,6 +492,7 @@ export async function updateVehiculoAction(
             polizaVencimiento: polizaVencimiento ? new Date(polizaVencimiento) : null,
           },
         });
+        await recordAudit({ action: "UPDATE", entityType: "Vehiculo", entityId: id, before, after, actor });
       } catch (dbErr) {
         console.warn("Aviso actualizando vehículo en DB:", dbErr);
         rethrowMutationInProduction(dbErr, "No fue posible actualizar el vehículo");

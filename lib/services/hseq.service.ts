@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireServerSession, requireStaffSession } from "@/lib/auth";
 import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction, rethrowMutationInProduction } from "@/lib/production-safety";
 import { Hallazgo, OrigenHallazgo, SeveridadHallazgo, EstadoHallazgo } from "@/lib/types/hseq";
+import { recordAudit } from "@/lib/audit";
 
 let localHallazgosState: Hallazgo[] = [];
 
@@ -155,7 +156,9 @@ export async function updateHallazgoAction(
   responsableCierre?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireStaffSession(["hseq", "administrativo"]);
+    const actor = await requireStaffSession(["hseq", "administrativo"]);
+    let before: unknown;
+    let after: unknown;
     const index = localHallazgosState.findIndex((h) => h.id === id);
     if (index >= 0) {
       localHallazgosState[index].estado = estado;
@@ -169,7 +172,8 @@ export async function updateHallazgoAction(
 
     if (process.env.DATABASE_URL) {
       try {
-        await prisma.hallazgoHseq.update({
+        before = await prisma.hallazgoHseq.findUnique({ where: { id } });
+        after = await prisma.hallazgoHseq.update({
           where: { id },
           data: {
             estado,
@@ -182,6 +186,10 @@ export async function updateHallazgoAction(
         console.warn("No se pudo actualizar hallazgo en DB:", err);
         rethrowMutationInProduction(err, "No fue posible actualizar el hallazgo HSEQ");
       }
+    }
+
+    if (process.env.DATABASE_URL) {
+      await recordAudit({ action: "UPDATE", entityType: "HallazgoHSEQ", entityId: id, before, after, actor });
     }
 
     revalidatePath(`/hseq/${id}`);

@@ -7,6 +7,7 @@ import { PASOS_PESV } from "@/lib/data/pesv-pasos";
 import { INDICADORES_PESV } from "@/lib/data/pesv-indicadores";
 import { PasoPESV, IndicadorPESV, EstadoPasoPESV, FasePESV } from "@/lib/types/pesv";
 import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction, rethrowMutationInProduction } from "@/lib/production-safety";
+import { recordAudit } from "@/lib/audit";
 
 let localPasosPesvState: PasoPESV[] = [...PASOS_PESV];
 let localIndicadoresPesvState: IndicadorPESV[] = [...INDICADORES_PESV];
@@ -94,7 +95,7 @@ export async function updatePasoPesvAction(
   observaciones?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireStaffSession(["hseq", "administrativo"]);
+    const actor = await requireStaffSession(["hseq", "administrativo"]);
     const index = localPasosPesvState.findIndex((p) => p.numero === pasoNumero);
     if (index >= 0) {
       localPasosPesvState[index].estado = estado;
@@ -104,7 +105,8 @@ export async function updatePasoPesvAction(
 
     if (process.env.DATABASE_URL) {
       try {
-        await (prisma as any).pasoPesv.upsert({
+        const before = await (prisma as any).pasoPesv.findUnique({ where: { numero: pasoNumero } });
+        const after = await (prisma as any).pasoPesv.upsert({
           where: { numero: pasoNumero },
           update: {
             estado,
@@ -119,6 +121,14 @@ export async function updatePasoPesvAction(
             documentoNombre: documentoNombre || undefined,
             observaciones: observaciones || undefined,
           },
+        });
+        await recordAudit({
+          action: before ? "UPDATE" : "CREATE",
+          entityType: "PasoPESV",
+          entityId: String(pasoNumero),
+          before,
+          after,
+          actor,
         });
       } catch (err) {
         console.warn("No se pudo actualizar paso PESV en DB:", err);

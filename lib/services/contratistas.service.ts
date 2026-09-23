@@ -165,7 +165,7 @@ export async function createContratistaAction(formData: FormData): Promise<{ suc
  */
 export async function updateContratistaAction(id: string, formData: FormData): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireStaffSession();
+    const actor = await requireStaffSession();
     const nombre = formData.get("nombre") as string;
     const tipoOperacion = formData.get("tipoOperacion") as TipoOperacion;
     const contactoNombre = formData.get("contactoNombre") as string;
@@ -193,7 +193,8 @@ export async function updateContratistaAction(id: string, formData: FormData): P
 
     if (process.env.DATABASE_URL) {
       try {
-        await prisma.contratista.update({
+        const before = await prisma.contratista.findUnique({ where: { id } });
+        const after = await prisma.contratista.update({
           where: { id },
           data: {
             razonSocial: nombre || undefined,
@@ -206,6 +207,7 @@ export async function updateContratistaAction(id: string, formData: FormData): P
             notas: notas !== undefined ? notas : undefined,
           },
         });
+        await recordAudit({ action: "UPDATE", entityType: "Contratista", entityId: id, before, after, actor });
       } catch (err) {
         console.warn("No se pudo actualizar en DB:", err);
         rethrowMutationInProduction(err, "No fue posible actualizar el contratista");
@@ -225,14 +227,16 @@ export async function updateContratistaAction(id: string, formData: FormData): P
  */
 export async function cambiarEstadoContratistaDb(id: string, nuevoEstado: EstadoContratista) {
   try {
-    await requireStaffSession();
+    const actor = await requireStaffSession();
     if (process.env.DATABASE_URL) {
-      await prisma.contratista.update({
+      const before = await prisma.contratista.findUnique({ where: { id } });
+      const after = await prisma.contratista.update({
         where: { id },
         data: {
           estado: nuevoEstado,
         },
       });
+      await recordAudit({ action: "STATUS_CHANGE", entityType: "Contratista", entityId: id, before, after, actor });
     } else {
       const idx = localContratistasState.findIndex((c) => c.id === id);
       if (idx >= 0) {
@@ -260,8 +264,9 @@ export async function cambiarEstadoContratistaDb(id: string, nuevoEstado: Estado
  */
 export async function deleteContratistaDb(id: string) {
   try {
-    await requireStaffSession(["administrativo"]);
+    const actor = await requireStaffSession(["administrativo"]);
     if (process.env.DATABASE_URL) {
+      const before = await prisma.contratista.findUnique({ where: { id } });
       // 1. Eliminar documentos adjuntos asociados
       await prisma.documentoAdjunto.deleteMany({
         where: { entidadTipo: "contratista", entidadId: id },
@@ -271,6 +276,7 @@ export async function deleteContratistaDb(id: string) {
       await prisma.contratista.delete({
         where: { id },
       });
+      await recordAudit({ action: "DELETE", entityType: "Contratista", entityId: id, before, actor });
     }
 
     localContratistasState = localContratistasState.filter((c) => c.id !== id);
@@ -293,7 +299,7 @@ export async function deleteContratistaDb(id: string) {
  */
 export async function bulkUpsertContratistasAction(items: ContratistaUpsertPreviewItem[]) {
   try {
-    await requireStaffSession();
+    const actor = await requireStaffSession();
     let createdCount = 0;
     let updatedCount = 0;
 
@@ -351,6 +357,15 @@ export async function bulkUpsertContratistasAction(items: ContratistaUpsertPrevi
     revalidatePath("/dashboard");
     revalidatePath("/flota");
     revalidatePath("/personas");
+
+    if (process.env.DATABASE_URL) {
+      await recordAudit({
+        action: "UPDATE",
+        entityType: "Contratista",
+        metadata: { operation: "bulk_upsert", requestedCount: items.length, createdCount, updatedCount },
+        actor,
+      });
+    }
 
     const refreshedList = await getContratistasDb();
     return { success: true, createdCount, updatedCount, refreshedList };
