@@ -15,32 +15,34 @@ datasource db {
 // --------------------------------------------------------
 
 model Persona {
-  id                String             @id @default(cuid())
-  nombres           String
-  apellidos         String
-  tipoDocumento     String             @default("CC") // CC, CE, PA, TI
-  numeroDocumento   String             @unique
-  telefono          String
-  email             String
-  perfiles          String[]           // conductor, empleado, supervisor, hseq, administrativo
-  estado            String             @default("activo") // activo, inactivo, descanso, vacaciones
-  fechaIngreso      DateTime           @default(now())
-  contratistaId     String?
-  contratistaNombre String?
-  fotoIniciales     String
-  pin               String?
-  passwordHash      String?
-  mustChangePassword Boolean           @default(false)
+  id                 String   @id @default(cuid())
+  nombres            String
+  apellidos          String
+  tipoDocumento      String   @default("CC") // CC, CE, PA, TI
+  numeroDocumento    String   @unique
+  telefono           String
+  email              String
+  perfiles           String[] // conductor, empleado, supervisor, hseq, administrativo
+  estado             String   @default("activo") // activo, inactivo, descanso, vacaciones
+  fechaIngreso       DateTime @default(now())
+  contratistaId      String?
+  contratistaNombre  String?
+  fotoIniciales      String
+  pin                String?
+  passwordHash       String?
+  mustChangePassword Boolean  @default(false)
 
   // Relaciones
-  licenciaConduccion LicenciaConduccion?
-  examenMedico       ExamenMedico?
-  datosSalud         DatosSalud?
-  contactoEmergencia ContactoEmergencia?
-  asignaciones       Asignacion[]
+  licenciaConduccion  LicenciaConduccion?
+  examenMedico        ExamenMedico?
+  datosSalud          DatosSalud?
+  contactoEmergencia  ContactoEmergencia?
+  asignaciones        Asignacion[]
+  eventosConvocados   EventoParticipante[]
+  novedadesAsistencia NovedadPersonal[]
 
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([numeroDocumento])
   @@index([estado])
@@ -51,54 +53,54 @@ model LicenciaConduccion {
   personaId         String    @unique
   persona           Persona   @relation(fields: [personaId], references: [id], onDelete: Cascade)
   numero            String
-  categorias        String[]  // C1, C2, C3, B1, B2, etc.
+  categorias        String[] // C1, C2, C3, B1, B2, etc.
   fechaVencimiento  DateTime?
   organismoTransito String?
 
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model ExamenMedico {
-  id                String    @id @default(cuid())
-  personaId         String    @unique
-  persona           Persona   @relation(fields: [personaId], references: [id], onDelete: Cascade)
-  tipo              String    @default("periodico") // ingreso, periodico, egreso, post_incapacidad
-  fechaRealizacion  DateTime?
-  fechaVigencia     DateTime?
-  enfasis           String[]  // Visiometría, Audiometría, Psicosensométrico, Osteomuscular
-  concepto          String    @default("apto") // apto, apto_con_restricciones, no_apto, pendiente
-  restricciones     String?
-  centroMedico      String?
+  id               String    @id @default(cuid())
+  personaId        String    @unique
+  persona          Persona   @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  tipo             String    @default("periodico") // ingreso, periodico, egreso, post_incapacidad
+  fechaRealizacion DateTime?
+  fechaVigencia    DateTime?
+  enfasis          String[] // Visiometría, Audiometría, Psicosensométrico, Osteomuscular
+  concepto         String    @default("apto") // apto, apto_con_restricciones, no_apto, pendiente
+  restricciones    String?
+  centroMedico     String?
 
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model DatosSalud {
-  id                String   @id @default(cuid())
-  personaId         String   @unique
-  persona           Persona  @relation(fields: [personaId], references: [id], onDelete: Cascade)
-  grupoSanguineoRH  String   // O+, O-, A+, A-, B+, B-, AB+, AB-
-  eps               String
-  arl               String
-  fondoPensiones    String?
-  alergias          String?
+  id               String  @id @default(cuid())
+  personaId        String  @unique
+  persona          Persona @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  grupoSanguineoRH String // O+, O-, A+, A-, B+, B-, AB+, AB-
+  eps              String
+  arl              String
+  fondoPensiones   String?
+  alergias         String?
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model ContactoEmergencia {
-  id                String   @id @default(cuid())
-  personaId         String   @unique
-  persona           Persona  @relation(fields: [personaId], references: [id], onDelete: Cascade)
-  nombreCompleto    String
-  parentesco        String
-  telefono          String
+  id             String  @id @default(cuid())
+  personaId      String  @unique
+  persona        Persona @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  nombreCompleto String
+  parentesco     String
+  telefono       String
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // --------------------------------------------------------
@@ -106,23 +108,23 @@ model ContactoEmergencia {
 // --------------------------------------------------------
 
 model Contratista {
-  id                String       @id @default(cuid())
-  razonSocial       String
-  nit               String       @unique
-  tipoOperacion     String       @default("fija") // fija, rotativa
-  contactoNombre    String?
-  telefono          String
-  email             String
-  direccion         String?
-  estado            String       @default("activo") // activo, inactivo
-  fechaVinculacion  DateTime     @default(now())
-  fechaFinContrato  DateTime?
-  notas             String?
-  vehiculos         Vehiculo[]
-  asignaciones      Asignacion[]
+  id               String       @id @default(cuid())
+  razonSocial      String
+  nit              String       @unique
+  tipoOperacion    String       @default("fija") // fija, rotativa
+  contactoNombre   String?
+  telefono         String
+  email            String
+  direccion        String?
+  estado           String       @default("activo") // activo, inactivo
+  fechaVinculacion DateTime     @default(now())
+  fechaFinContrato DateTime?
+  notas            String?
+  vehiculos        Vehiculo[]
+  asignaciones     Asignacion[]
 
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // --------------------------------------------------------
@@ -136,7 +138,7 @@ model Vehiculo {
   modelo            String
   anio              Int
   capacidad         Int
-  tipo              String       // van, microbus, buseta, bus, camioneta, automovil
+  tipo              String // van, microbus, buseta, bus, camioneta, automovil
   servicio          String       @default("especial") // especial, particular, publico
   contratistaId     String?
   contratista       Contratista? @relation(fields: [contratistaId], references: [id], onDelete: SetNull)
@@ -149,15 +151,15 @@ model Vehiculo {
   polizaVencimiento DateTime?
 
   // Control de Odómetro y Fotos de Turno
-  odometroActual    Float?       @default(0)
-  odometroFecha     DateTime?
-  odometroFotoUrl   String?
+  odometroActual  Float?    @default(0)
+  odometroFecha   DateTime?
+  odometroFotoUrl String?
 
-  asignaciones      Asignacion[]
-  turnosDespacho    TurnoDespacho[]
+  asignaciones   Asignacion[]
+  turnosDespacho TurnoDespacho[]
 
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([placa])
   @@index([estado])
@@ -168,26 +170,26 @@ model Vehiculo {
 // --------------------------------------------------------
 
 model Asignacion {
-  id                String       @id @default(cuid())
-  conductorId       String
-  conductor         Persona      @relation(fields: [conductorId], references: [id], onDelete: Cascade)
-  conductorNombre   String
-  vehiculoId        String
-  vehiculo          Vehiculo     @relation(fields: [vehiculoId], references: [id], onDelete: Cascade)
-  placa             String
-  contratistaId     String?
-  contratista       Contratista? @relation(fields: [contratistaId], references: [id], onDelete: SetNull)
-  contratistaNombre String
-  tipoAsignacion    String       // fija, rotativa
-  turno             String?      // 12h-diurno, 12h-nocturno, 24h
-  fechaInicio       DateTime
-  fechaFin          DateTime?
-  estado            String       @default("activa") // activa, programada, finalizada
-  observaciones     String?
-  autorizacionOperativa Boolean  @default(false)
+  id                    String       @id @default(cuid())
+  conductorId           String
+  conductor             Persona      @relation(fields: [conductorId], references: [id], onDelete: Cascade)
+  conductorNombre       String
+  vehiculoId            String
+  vehiculo              Vehiculo     @relation(fields: [vehiculoId], references: [id], onDelete: Cascade)
+  placa                 String
+  contratistaId         String?
+  contratista           Contratista? @relation(fields: [contratistaId], references: [id], onDelete: SetNull)
+  contratistaNombre     String
+  tipoAsignacion        String // fija, rotativa
+  turno                 String? // 12h-diurno, 12h-nocturno, 24h
+  fechaInicio           DateTime
+  fechaFin              DateTime?
+  estado                String       @default("activa") // activa, programada, finalizada
+  observaciones         String?
+  autorizacionOperativa Boolean      @default(false)
 
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([conductorId])
   @@index([vehiculoId])
@@ -199,18 +201,18 @@ model Asignacion {
 // --------------------------------------------------------
 
 model DocumentoAdjunto {
-  id                String   @id @default(cuid())
-  entidadTipo       String   // persona, vehiculo, contratista, sgsst, pesv, hseq
-  entidadId         String
-  tipoDocumento     String   // cedula, licencia, emo, pila, soat, rtm, poliza, contrato, evidencia
-  nombre            String
-  archivoUrl        String
-  tamano            String?
-  mimeType          String?
-  fechaVencimiento  DateTime?
+  id               String    @id @default(cuid())
+  entidadTipo      String // persona, vehiculo, contratista, sgsst, pesv, hseq
+  entidadId        String
+  tipoDocumento    String // cedula, licencia, emo, pila, soat, rtm, poliza, contrato, evidencia
+  nombre           String
+  archivoUrl       String
+  tamano           String?
+  mimeType         String?
+  fechaVencimiento DateTime?
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([entidadTipo, entidadId])
 }
@@ -243,8 +245,8 @@ model Viaje {
   observaciones         String?
   novedades             NovedadViaje[]
 
-  createdAt             DateTime       @default(now())
-  updatedAt             DateTime       @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([conductorId])
   @@index([vehiculoId])
@@ -259,8 +261,8 @@ model NovedadViaje {
   fecha       DateTime @default(now())
   descripcion String
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([viajeId])
 }
@@ -273,7 +275,7 @@ model EventoGPS {
   id                      String    @id @default(cuid())
   placa                   String
   fechaHora               DateTime  @default(now())
-  tipoEvento              String    // overspeed, frenada_brusca, acelerada_brusca, panico, etc.
+  tipoEvento              String // overspeed, frenada_brusca, acelerada_brusca, panico, etc.
   prioridad               String    @default("media") // alta, media, baja / informativa
   descripcion             String
   velocidad               Float?
@@ -290,8 +292,8 @@ model EventoGPS {
   fechaRetroalimentacion  DateTime?
   observacionesGestion    String?
 
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([placa])
   @@index([fechaHora])
@@ -308,22 +310,22 @@ model ContratoTransporte {
   numeroContrato    String   @unique
   contratanteNombre String
   contratanteNit    String
-  objetoContrato    String   // empresarial, escolar, turismo, grupo_usuarios
+  objetoContrato    String // empresarial, escolar, turismo, grupo_usuarios
   fechaInicio       DateTime
   fechaFin          DateTime
   estado            String   @default("activo") // activo, finalizado, cancelado
   fuecs             Fuec[]
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Fuec {
-  id                        String              @id @default(cuid())
-  numeroConsecutivo         Int                 @default(autoincrement())
-  codigoFUEC                String              @unique
+  id                        String             @id @default(cuid())
+  numeroConsecutivo         Int                @default(autoincrement())
+  codigoFUEC                String             @unique
   contratoId                String
-  contrato                  ContratoTransporte  @relation(fields: [contratoId], references: [id])
+  contrato                  ContratoTransporte @relation(fields: [contratoId], references: [id])
   contratoNumero            String
   contratante               String
   objetoContrato            String
@@ -341,12 +343,12 @@ model Fuec {
   conductorSecundarioNombre String?
   fechaInicio               DateTime
   fechaFin                  DateTime
-  estado                    String              @default("emitido") // emitido, vencido, anulado
+  estado                    String             @default("emitido") // emitido, vencido, anulado
   qrCodeUrl                 String?
   observaciones             String?
 
-  createdAt                 DateTime            @default(now())
-  updatedAt                 DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([codigoFUEC])
   @@index([placa])
@@ -358,40 +360,40 @@ model Fuec {
 // --------------------------------------------------------
 
 model NovedadConductor {
-  id                    String   @id @default(cuid())
-  conductorId           String
-  conductorNombre       String
-  vehiculoId            String?
-  placa                 String?
-  tipo                  String   // mecanica, vial, seguridad, otro
-  descripcion           String
-  fotoUrl               String?
-  fecha                 DateTime @default(now())
-  atendida              Boolean  @default(false)
+  id              String   @id @default(cuid())
+  conductorId     String
+  conductorNombre String
+  vehiculoId      String?
+  placa           String?
+  tipo            String // mecanica, vial, seguridad, otro
+  descripcion     String
+  fotoUrl         String?
+  fecha           DateTime @default(now())
+  atendida        Boolean  @default(false)
 
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([conductorId])
   @@index([fecha])
 }
 
 model InspeccionPreoperacional {
-  id                    String   @id @default(cuid())
-  conductorId           String
-  conductorNombre       String
-  vehiculoId            String
-  placa                 String
-  fecha                 DateTime @default(now())
-  kilometraje           Float?
-  checklist             Json     // { [item: string]: boolean }
-  hallazgoDetectado     Boolean  @default(false)
-  descripcionHallazgo   String?
-  fotoEvidenciaUrl      String?
-  estadoConcepto        String   @default("apto") // apto, no_apto, apto_con_observacion
+  id                  String   @id @default(cuid())
+  conductorId         String
+  conductorNombre     String
+  vehiculoId          String
+  placa               String
+  fecha               DateTime @default(now())
+  kilometraje         Float?
+  checklist           Json // { [item: string]: boolean }
+  hallazgoDetectado   Boolean  @default(false)
+  descripcionHallazgo String?
+  fotoEvidenciaUrl    String?
+  estadoConcepto      String   @default("apto") // apto, no_apto, apto_con_observacion
 
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([conductorId])
   @@index([placa])
@@ -403,25 +405,25 @@ model InspeccionPreoperacional {
 // --------------------------------------------------------
 
 model HallazgoHseq {
-  id                  String    @id @default(cuid())
-  origen              String    // preoperacional, inspeccion, incidente, accidente, auditoria
-  titulo              String
-  descripcion         String
-  severidad           String    @default("media") // baja, media, alta, critica
-  estado              String    @default("abierto") // abierto, en_proceso, cerrado
-  vehiculoId          String?
-  placa               String?
-  conductorId         String?
-  conductorNombre     String?
-  responsable         String
-  fotosEvidencia      String[]  @default([])
-  accionCorrectiva    String?
-  responsableCierre   String?
-  fechaReporte        DateTime  @default(now())
-  fechaCierre         DateTime?
+  id                String    @id @default(cuid())
+  origen            String // preoperacional, inspeccion, incidente, accidente, auditoria
+  titulo            String
+  descripcion       String
+  severidad         String    @default("media") // baja, media, alta, critica
+  estado            String    @default("abierto") // abierto, en_proceso, cerrado
+  vehiculoId        String?
+  placa             String?
+  conductorId       String?
+  conductorNombre   String?
+  responsable       String
+  fotosEvidencia    String[]  @default([])
+  accionCorrectiva  String?
+  responsableCierre String?
+  fechaReporte      DateTime  @default(now())
+  fechaCierre       DateTime?
 
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([estado])
   @@index([severidad])
@@ -434,18 +436,18 @@ model HallazgoHseq {
 // --------------------------------------------------------
 
 model ItemSgsst {
-  id                  String   @id @default(cuid())
-  numeral             String   // ej. "1.1.1"
-  estandarId          String
-  nombre              String
-  estado              String   @default("pendiente") // cumple, cumple_parcial, no_cumple, no_aplica, pendiente
-  responsable         String?
-  documentoNombre     String?
-  fechaActualizacion  DateTime?
-  observaciones       String?
+  id                 String    @id @default(cuid())
+  numeral            String // ej. "1.1.1"
+  estandarId         String
+  nombre             String
+  estado             String    @default("pendiente") // cumple, cumple_parcial, no_cumple, no_aplica, pendiente
+  responsable        String?
+  documentoNombre    String?
+  fechaActualizacion DateTime?
+  observaciones      String?
 
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([estandarId])
   @@index([estado])
@@ -456,31 +458,31 @@ model ItemSgsst {
 // --------------------------------------------------------
 
 model PasoPesv {
-  id                  String   @id @default(cuid())
-  numero              Int      @unique
-  fase                String   // planificacion, implementacion, seguimiento, mejora
-  nombre              String
-  estado              String   @default("pendiente") // cumple, cumple_parcial, no_cumple, no_aplica, pendiente
-  documentoNombre     String?
-  observaciones       String?
+  id              String  @id @default(cuid())
+  numero          Int     @unique
+  fase            String // planificacion, implementacion, seguimiento, mejora
+  nombre          String
+  estado          String  @default("pendiente") // cumple, cumple_parcial, no_cumple, no_aplica, pendiente
+  documentoNombre String?
+  observaciones   String?
 
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([fase])
   @@index([estado])
 }
 
 model IndicadorPesv {
-  id                  String   @id @default(cuid())
-  nombre              String
-  periodicidad        String   // mensual, trimestral, anual
-  unidad              String
-  descripcion         String
-  valorActual         Float?
+  id           String @id @default(cuid())
+  nombre       String
+  periodicidad String // mensual, trimestral, anual
+  unidad       String
+  descripcion  String
+  valorActual  Float?
 
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // --------------------------------------------------------
@@ -499,8 +501,8 @@ model Capacitacion {
   objetivo            String?
   lugar               String?  @default("Plataforma Digital / Portal Conductor")
   materialTipo        String   @default("texto") // texto, video, pdf, presentacion
-  materialUrl         String?  // URL de video YouTube/Vimeo o archivo PDF
-  materialContenido   String?  // Texto instructivo o puntos clave de la charla
+  materialUrl         String? // URL de video YouTube/Vimeo o archivo PDF
+  materialContenido   String? // Texto instructivo o puntos clave de la charla
   preguntas           Json?    @default("[]") // Lista de preguntas de validación
   requiereSelfie      Boolean  @default(true)
   requiereFirma       Boolean  @default(true)
@@ -508,10 +510,10 @@ model Capacitacion {
   asistentesReales    Int?     @default(0)
   estado              String   @default("programada") // programada, realizada, cancelada
 
-  asistencias         AsistenciaRegistro[]
+  asistencias AsistenciaRegistro[]
 
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([tipo])
   @@index([programa])
@@ -521,32 +523,32 @@ model Capacitacion {
 }
 
 model AsistenciaRegistro {
-  id                  String   @id @default(cuid())
-  capacitacionId      String?
-  capacitacion        Capacitacion? @relation(fields: [capacitacionId], references: [id], onDelete: Cascade)
-  personaId           String?
-  personaDocumento    String?
-  personaNombre       String
-  cargo               String?
-  proyecto            String?
-  facilitador         String?
-  lugar               String?
-  duracionHoras       Float?   @default(0.25)
-  asistio             Boolean  @default(true)
-  estado              String   @default("presente") // presente, tardanza, ausente
-  horaLlegada         String?
-  evento              String?  @default("Jornada Operativa / Capacitación")
-  tipoEvento          String   @default("capacitacion") // capacitacion, charla_semanal, reunion, turno
-  firmaUrl            String?  // Firma digital en Base64 o URL
-  fotoUrl             String?  // Foto selfie de verificación facial
-  calificacion        Float?   @default(100.0) // Nota o porcentaje de evaluación
-  respuestas          Json?    @default("{}") // Respuestas enviadas por el conductor
-  tiempoLectura       Int?     @default(0) // Tiempo en segundos en la app
-  observaciones       String?
-  fecha               DateTime @default(now())
+  id               String        @id @default(cuid())
+  capacitacionId   String?
+  capacitacion     Capacitacion? @relation(fields: [capacitacionId], references: [id], onDelete: Cascade)
+  personaId        String?
+  personaDocumento String?
+  personaNombre    String
+  cargo            String?
+  proyecto         String?
+  facilitador      String?
+  lugar            String?
+  duracionHoras    Float?        @default(0.25)
+  asistio          Boolean       @default(true)
+  estado           String        @default("presente") // presente, tardanza, ausente
+  horaLlegada      String?
+  evento           String?       @default("Jornada Operativa / Capacitación")
+  tipoEvento       String        @default("capacitacion") // capacitacion, charla_semanal, reunion, turno
+  firmaUrl         String? // Firma digital en Base64 o URL
+  fotoUrl          String? // Foto selfie de verificación facial
+  calificacion     Float?        @default(100.0) // Nota o porcentaje de evaluación
+  respuestas       Json?         @default("{}") // Respuestas enviadas por el conductor
+  tiempoLectura    Int?          @default(0) // Tiempo en segundos en la app
+  observaciones    String?
+  fecha            DateTime      @default(now())
 
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([capacitacionId])
   @@index([personaId])
@@ -555,16 +557,178 @@ model AsistenciaRegistro {
   @@index([fecha])
 }
 
-model EncuestaRiesgoVial {
-  id                  String   @id @default(cuid())
-  personaId           String
-  personaNombre       String
-  fecha               DateTime @default(now())
-  respuestas          Json
-  nivelRiesgo         String   @default("medio") // bajo, medio, alto
+// --------------------------------------------------------
+// EXPEDIENTES DE EVENTOS Y ASISTENCIA
+// --------------------------------------------------------
 
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+model EventoAsistencia {
+  id                      String    @id @default(cuid())
+  consecutivo             String    @unique
+  nombre                  String
+  tipo                    String // charla_informativa, capacitacion, divulgacion, reunion, etc.
+  caracter                String    @default("informativo") // informativo, formativo, operativo
+  proceso                 String    @default("hseq") // hseq, pesv, sg-sst, otro
+  objetivo                String
+  descripcion             String?
+  fechaInicio             DateTime
+  fechaFin                DateTime
+  modalidad               String    @default("presencial") // presencial, virtual, mixta
+  lugar                   String
+  proyecto                String?
+  responsableId           String?
+  responsableNombre       String
+  facilitadorTipo         String    @default("interno") // interno, externo
+  facilitadorNombre       String
+  facilitadorEmpresa      String?
+  facilitadorDocumento    String?
+  estado                  String    @default("borrador") // borrador, pendiente_aprobacion, programado, en_curso, pendiente_revision, cerrado, cancelado
+  toleranciaMinutos       Int       @default(15)
+  permanenciaMinima       Int       @default(80)
+  requiereEntrada         Boolean   @default(true)
+  requiereSalida          Boolean   @default(false)
+  requiereFirma           Boolean   @default(true)
+  requiereFoto            Boolean   @default(false)
+  requiereEvaluacion      Boolean   @default(false)
+  notaMinima              Float?
+  contenido               String?
+  materialUrl             String?
+  observacionesCierre     String?
+  cerradoExcepcional      Boolean   @default(false)
+  motivoCierreExcepcional String?
+  creadoPorId             String
+  creadoPorNombre         String
+  aprobadoPorId           String?
+  aprobadoPorNombre       String?
+  aprobadoAt              DateTime?
+  cerradoPorId            String?
+  cerradoPorNombre        String?
+  cerradoAt               DateTime?
+  revision                Int       @default(1)
+
+  participantes EventoParticipante[]
+  documentos    EventoDocumento[]
+  evidencias    EventoEvidencia[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fechaInicio])
+  @@index([estado])
+  @@index([tipo])
+  @@index([proceso])
+}
+
+model EventoParticipante {
+  id                      String           @id @default(cuid())
+  eventoId                String
+  evento                  EventoAsistencia @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  personaId               String?
+  persona                 Persona?         @relation(fields: [personaId], references: [id], onDelete: SetNull)
+  personaNombre           String
+  personaDocumento        String?
+  tipoPersona             String           @default("interno") // interno, contratista, capacitador, visitante, otro
+  empresa                 String?
+  cargo                   String?
+  proyecto                String?
+  tipoConvocatoria        String           @default("obligatoria") // obligatoria, opcional, informativa, facilitador, observador, invitado
+  condicionLaboral        String           @default("disponible")
+  resultadoPreliminar     String           @default("pendiente")
+  resultadoDefinitivo     String?
+  horaEntrada             DateTime?
+  horaSalida              DateTime?
+  firmaUrl                String?
+  fotoUrl                 String?
+  calificacion            Float?
+  evaluacionEstado        String?
+  justificacionTipo       String?
+  justificacionDetalle    String?
+  justificacionSoporteUrl String?
+  justificacionEstado     String?
+  observaciones           String?
+  registroManual          Boolean          @default(false)
+  validadoPorId           String?
+  validadoPorNombre       String?
+  validadoAt              DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventoId, personaId])
+  @@index([eventoId, resultadoDefinitivo])
+  @@index([personaDocumento])
+}
+
+model NovedadPersonal {
+  id                  String    @id @default(cuid())
+  personaId           String
+  persona             Persona   @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  tipo                String // descanso, vacaciones, incapacidad, licencia, permiso, comision, suspension, retiro
+  fechaInicio         DateTime
+  fechaFin            DateTime
+  motivo              String?
+  soporteUrl          String?
+  estado              String    @default("pendiente") // pendiente, aprobada, rechazada, anulada
+  registradoPorId     String
+  registradoPorNombre String
+  aprobadoPorId       String?
+  aprobadoPorNombre   String?
+  aprobadoAt          DateTime?
+  observaciones       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([personaId, fechaInicio, fechaFin])
+  @@index([estado])
+}
+
+model EventoDocumento {
+  id          String           @id @default(cuid())
+  eventoId    String
+  evento      EventoAsistencia @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  codigo      String
+  nombre      String
+  version     String
+  tipo        String           @default("formato")
+  obligatorio Boolean          @default(true)
+  estadoDatos String           @default("pendiente")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([eventoId, codigo])
+}
+
+model EventoEvidencia {
+  id              String           @id @default(cuid())
+  eventoId        String
+  evento          EventoAsistencia @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  categoria       String
+  nombre          String
+  descripcion     String?
+  archivoUrl      String
+  almacenamiento  String           @default("externo") // interno, drive, forms, externo
+  visibleEnPdf    Boolean          @default(true)
+  validada        Boolean          @default(false)
+  creadoPorId     String
+  creadoPorNombre String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([eventoId, categoria])
+}
+
+model EncuestaRiesgoVial {
+  id            String   @id @default(cuid())
+  personaId     String
+  personaNombre String
+  fecha         DateTime @default(now())
+  respuestas    Json
+  nivelRiesgo   String   @default("medio") // bajo, medio, alto
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([personaId])
 }
@@ -574,14 +738,14 @@ model EncuestaRiesgoVial {
 // --------------------------------------------------------
 
 model RolSistema {
-  id                  String   @id @default(cuid())
-  nombre              String   @unique
-  descripcion         String
-  permisos            Json     @default("[]") // Lista de módulos accesibles
-  esConfigurable      Boolean  @default(true)
+  id             String  @id @default(cuid())
+  nombre         String  @unique
+  descripcion    String
+  permisos       Json    @default("[]") // Lista de módulos accesibles
+  esConfigurable Boolean @default(true)
 
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // --------------------------------------------------------
@@ -590,8 +754,8 @@ model RolSistema {
 
 model ControlLavado {
   id                 String   @id @default(cuid())
-  fecha              String   // YYYY-MM-DD
-  hora               String   // HH:mm
+  fecha              String // YYYY-MM-DD
+  hora               String // HH:mm
   placa              String
   tipoVehiculo       String   @default("Camioneta") // Motocicleta, Automóvil, Camioneta, Camión, Maquinaria, etc.
   valor              Float    @default(0)
@@ -599,7 +763,7 @@ model ControlLavado {
   conductorNombre    String
   conductorDocumento String?
   conductorId        String?
-  firmaUrl           String?  // Base64 o URL de firma digital
+  firmaUrl           String? // Base64 o URL de firma digital
   estadoElaboro      Boolean  @default(true)
   estadoReviso       Boolean  @default(false)
   estadoAprobo       Boolean  @default(false)
@@ -607,8 +771,8 @@ model ControlLavado {
   operarioUid        String?  @default("operativo")
   timestamp          DateTime @default(now())
 
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([fecha])
   @@index([placa])
@@ -622,8 +786,8 @@ model ControlLavado {
 
 model ControlAseo {
   id                 String   @id @default(cuid())
-  fecha              String   // YYYY-MM-DD
-  hora               String   // HH:mm
+  fecha              String // YYYY-MM-DD
+  hora               String // HH:mm
   placa              String
   tipoVehiculo       String   @default("Camioneta")
   conductorNombre    String
@@ -631,18 +795,18 @@ model ControlAseo {
   conductorId        String?
   responsableHseq    String?  @default("Coordinador HSEQ / Conductor")
   kilometraje        Int?     @default(0)
-  checklist          Json     // Array de items evaluados [{ item: string, estado: 'SI'|'NO'|'NA' }]
+  checklist          Json // Array de items evaluados [{ item: string, estado: 'SI'|'NO'|'NA' }]
   fotosEvidencia     Json?    @default("[]") // Lista de fotos de evidencia en Base64 / URL
   observaciones      String?
-  firmaConductor     String?  // Base64 o URL firma del conductor
-  firmaInspector     String?  // Base64 o URL firma del inspector HSEQ
+  firmaConductor     String? // Base64 o URL firma del conductor
+  firmaInspector     String? // Base64 o URL firma del inspector HSEQ
   conforme           Boolean  @default(true)
   estadoReviso       Boolean  @default(false)
   estadoAprobo       Boolean  @default(false)
   timestamp          DateTime @default(now())
 
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([fecha])
   @@index([placa])
@@ -657,8 +821,8 @@ model ControlAseo {
 
 model ControlExtintor {
   id                      String   @id @default(cuid())
-  fecha                   String   // YYYY-MM-DD
-  hora                    String   // HH:mm
+  fecha                   String // YYYY-MM-DD
+  hora                    String // HH:mm
   placa                   String
   tipoVehiculo            String   @default("Camioneta")
   conductorNombre         String
@@ -667,21 +831,21 @@ model ControlExtintor {
   responsableHseq         String?  @default("Coordinador HSEQ / Conductor")
   tipoExtintor            String   @default("ABC Polvo Químico Seco") // ABC, Solkaflam, CO2, Agua
   capacidad               String   @default("10 lbs") // 5 lbs, 10 lbs, 20 lbs, 150 lbs
-  fechaUltimaRecarga      String?  // YYYY-MM-DD
-  fechaVencimientoRecarga String?  // YYYY-MM-DD
+  fechaUltimaRecarga      String? // YYYY-MM-DD
+  fechaVencimientoRecarga String? // YYYY-MM-DD
   presionManometro        String   @default("operativa") // operativa, baja, alta
-  checklist               Json     // Array de items evaluados [{ item: string, estado: 'SI'|'NO'|'NA' }]
+  checklist               Json // Array de items evaluados [{ item: string, estado: 'SI'|'NO'|'NA' }]
   fotosEvidencia          Json?    @default("[]") // Fotos del manómetro, cilindro y tarjeta
   observaciones           String?
-  firmaConductor          String?  // Base64 o URL
-  firmaInspector          String?  // Base64 o URL
+  firmaConductor          String? // Base64 o URL
+  firmaInspector          String? // Base64 o URL
   conforme                Boolean  @default(true)
   estadoReviso            Boolean  @default(false)
   estadoAprobo            Boolean  @default(false)
   timestamp               DateTime @default(now())
 
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([fecha])
   @@index([placa])
@@ -697,8 +861,8 @@ model ControlExtintor {
 
 model ControlBotiquin {
   id                  String   @id @default(cuid())
-  fecha               String   // YYYY-MM-DD
-  hora                String   // HH:mm
+  fecha               String // YYYY-MM-DD
+  hora                String // HH:mm
   placa               String
   tipoVehiculo        String   @default("Camioneta")
   conductorNombre     String
@@ -707,11 +871,11 @@ model ControlBotiquin {
   responsableHseq     String?  @default("Coordinador HSEQ / Conductor")
   ubicacionBotiquin   String   @default("Cabina del vehículo")
   estadoGabinete      String   @default("BUENO") // BUENO, REGULAR, MALO
-  checklist           Json     // Array de 21 items evaluados [{ nombre, req, cantidad, estado, tieneVencimiento, fechaVencimiento, observacion }]
+  checklist           Json // Array de 21 items evaluados [{ nombre, req, cantidad, estado, tieneVencimiento, fechaVencimiento, observacion }]
   fotosEvidencia      Json?    @default("[]") // Fotos de la dotación y fechas
   observaciones       String?
-  firmaConductor      String?  // Base64 o URL
-  firmaInspector      String?  // Base64 o URL
+  firmaConductor      String? // Base64 o URL
+  firmaInspector      String? // Base64 o URL
   conforme            Boolean  @default(true)
   itemsVencidosCount  Int      @default(0)
   itemsFaltantesCount Int      @default(0)
@@ -719,8 +883,8 @@ model ControlBotiquin {
   estadoAprobo        Boolean  @default(false)
   timestamp           DateTime @default(now())
 
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([fecha])
   @@index([placa])
@@ -737,8 +901,8 @@ model EncuestaRespuesta {
   id                  String   @id @default(cuid())
   tipoEncuesta        String   @default("satisfaccion_servicio") // satisfaccion_servicio, riesgo_vial_pesv, clima_laboral, sgsst
   titulo              String   @default("Encuesta de Percepción y Satisfacción")
-  fecha               String   // YYYY-MM-DD
-  hora                String   // HH:mm
+  fecha               String // YYYY-MM-DD
+  hora                String // HH:mm
   placa               String?
   tipoVehiculo        String?
   conductorNombre     String?
@@ -759,8 +923,8 @@ model EncuestaRespuesta {
   estado              String   @default("completada")
   timestamp           DateTime @default(now())
 
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([fecha])
   @@index([tipoEncuesta])
@@ -773,30 +937,30 @@ model EncuestaRespuesta {
 // --------------------------------------------------------
 
 model DocumentoDigital {
-  id                String    @id @default(cuid())
-  nombre            String
-  categoria         String    // vehiculo, persona, contratista, corporativo, hseq_pesv
-  tipoDocumento     String    // soat, rtm, poliza, tarjeta_operacion, licencia, emo, rut, camara_comercio, otro
-  
+  id            String @id @default(cuid())
+  nombre        String
+  categoria     String // vehiculo, persona, contratista, corporativo, hseq_pesv
+  tipoDocumento String // soat, rtm, poliza, tarjeta_operacion, licencia, emo, rut, camara_comercio, otro
+
   // Vinculación
-  entidadTipo       String    // vehiculo, persona, contratista, empresa
-  entidadId         String?
-  entidadNombre     String?   // Placa, Nombre del conductor o Razón Social
-  
+  entidadTipo   String // vehiculo, persona, contratista, empresa
+  entidadId     String?
+  entidadNombre String? // Placa, Nombre del conductor o Razón Social
+
   // Metadatos y archivo
-  archivoUrl        String    // URL o ruta del documento (PDF, JPG, PNG o base64)
-  tamanoBytes       Int?
-  mimeType          String?   // application/pdf, image/jpeg, etc.
-  
+  archivoUrl  String // URL o ruta del documento (PDF, JPG, PNG o base64)
+  tamanoBytes Int?
+  mimeType    String? // application/pdf, image/jpeg, etc.
+
   // Fechas y vigencia
-  fechaExpedicion   DateTime?
-  fechaVencimiento  DateTime?
-  diasAvisoVencer   Int       @default(30)
-  estado            String    @default("vigente") // vigente, por_vencer, vencido, sin_vencimiento
-  
-  notas             String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  fechaExpedicion  DateTime?
+  fechaVencimiento DateTime?
+  diasAvisoVencer  Int       @default(30)
+  estado           String    @default("vigente") // vigente, por_vencer, vencido, sin_vencimiento
+
+  notas     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([categoria])
   @@index([tipoDocumento])
@@ -817,10 +981,10 @@ model TurnoDespacho {
   vehiculoId           String?
   vehiculo             Vehiculo? @relation(fields: [vehiculoId], references: [id], onDelete: SetNull)
   fecha                DateTime  @default(now())
-  hora                 String    // HH:mm
+  hora                 String // HH:mm
   odometroInicial      Float
-  fotoOdometroUrl      String    // WebP base64 / URL
-  fotoVehiculoUrl      String    // WebP base64 / URL
+  fotoOdometroUrl      String // WebP base64 / URL
+  fotoVehiculoUrl      String // WebP base64 / URL
   latitud              Float?
   longitud             Float?
   ubicacion            String?
@@ -830,8 +994,8 @@ model TurnoDespacho {
   horaCierre           String?
   observaciones        String?
 
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([placa])
   @@index([conductorDocumento])
@@ -844,19 +1008,19 @@ model TurnoDespacho {
 // --------------------------------------------------------
 
 model AuditLog {
-  id          String   @id @default(cuid())
-  actorId     String
-  actorName   String
-  actorRole   String
-  action      String
-  entityType  String
-  entityId    String?
-  before      Json?
-  after       Json?
-  metadata    Json?
-  ipAddress   String?
-  userAgent   String?
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  actorId    String
+  actorName  String
+  actorRole  String
+  action     String
+  entityType String
+  entityId   String?
+  before     Json?
+  after      Json?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
 
   @@index([actorId, createdAt])
   @@index([entityType, entityId])

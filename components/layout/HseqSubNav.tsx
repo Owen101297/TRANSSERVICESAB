@@ -11,6 +11,8 @@ import {
   GraduationCap,
   CheckSquare,
   FileSpreadsheet,
+  CalendarCheck,
+  CalendarOff,
 } from "lucide-react";
 
 interface HseqTab {
@@ -28,7 +30,9 @@ const HSEQ_TABS: HseqTab[] = [
   { id: "botiquines", label: "Botiquines", href: "/botiquines", icon: HeartPulse },
   { id: "preoperacionales", label: "Preoperacionales", href: "/hseq/preoperacionales", icon: ClipboardList },
   { id: "capacitaciones", label: "Capacitaciones", href: "/capacitaciones", icon: GraduationCap },
-  { id: "asistencia", label: "Asistencia", href: "/asistencia", icon: CheckSquare },
+  { id: "eventos", label: "Eventos & Asistencia", shortLabel: "Eventos", href: "/asistencia/eventos", icon: CalendarCheck },
+  { id: "novedades", label: "Novedades", href: "/asistencia/novedades", icon: CalendarOff },
+  { id: "asistencia", label: "Registros anteriores", shortLabel: "Histórico", href: "/asistencia", icon: CheckSquare },
   { id: "encuestas", label: "Encuestas PESV", shortLabel: "Encuestas", href: "/encuestas", icon: FileSpreadsheet },
 ];
 
