@@ -40,12 +40,57 @@ model Persona {
   asignaciones        Asignacion[]
   eventosConvocados   EventoParticipante[]
   novedadesAsistencia NovedadPersonal[]
+  cuentaAcceso         CuentaAcceso?
+  enlacesActivacion    EnlaceActivacion[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([numeroDocumento])
   @@index([estado])
+}
+
+// --------------------------------------------------------
+// SEGURIDAD DE CUENTAS Y ACTIVACIÓN CONTROLADA
+// --------------------------------------------------------
+
+model CuentaAcceso {
+  id                 String    @id @default(cuid())
+  personaId          String    @unique
+  persona            Persona   @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  estado             String    @default("pendiente") // pendiente, activa, bloqueada, suspendida
+  intentosFallidos   Int       @default(0)
+  bloqueadaHasta     DateTime?
+  ultimoAccesoAt     DateTime?
+  activadaAt         DateTime?
+  bloqueadaPorId     String?
+  bloqueadaPorNombre String?
+  motivoBloqueo      String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([estado])
+  @@index([bloqueadaHasta])
+}
+
+model EnlaceActivacion {
+  id                String    @id @default(cuid())
+  personaId         String
+  persona           Persona   @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  tokenHash         String    @unique
+  tipoAcceso        String    @default("portal") // portal, erp
+  expiraAt          DateTime
+  abiertoAt         DateTime?
+  entregadoAt       DateTime?
+  medioEntrega      String?
+  usadoAt           DateTime?
+  revocadoAt        DateTime?
+  creadoPorId       String
+  creadoPorNombre   String
+  createdAt         DateTime  @default(now())
+
+  @@index([personaId, createdAt])
+  @@index([expiraAt])
 }
 
 model LicenciaConduccion {

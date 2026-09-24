@@ -3,6 +3,48 @@ import { prisma } from "@/lib/prisma";
 import { encodeSession, getRolPrincipal, AUTH_COOKIE_NAME } from "@/lib/auth";
 import { hashPassword, isPasswordHash, isStrongPassword, verifyPassword } from "@/lib/password";
 import { clearRateLimit, consumeRateLimit } from "@/lib/rate-limit";
+import { recordAudit } from "@/lib/audit";
+
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCK_MINUTES = 15;
+
+async function accountIsLocked(personaId: string, account?: { estado: string; bloqueadaHasta: Date | null } | null) {
+  if (account?.estado === "suspendida") return true;
+  if (account?.estado === "bloqueada" && (!account.bloqueadaHasta || account.bloqueadaHasta > new Date())) return true;
+  if (account?.estado === "bloqueada" && account.bloqueadaHasta && account.bloqueadaHasta <= new Date()) {
+    await prisma.cuentaAcceso.update({ where: { personaId }, data: { estado: "pendiente", intentosFallidos: 0, bloqueadaHasta: null } });
+  }
+  return false;
+}
+
+async function registerFailedAttempt(personaId: string, currentAttempts = 0) {
+  const account = await prisma.cuentaAcceso.upsert({
+    where: { personaId },
+    create: {
+      personaId,
+      estado: currentAttempts + 1 >= MAX_FAILED_ATTEMPTS ? "bloqueada" : "pendiente",
+      intentosFallidos: currentAttempts + 1,
+      bloqueadaHasta: currentAttempts + 1 >= MAX_FAILED_ATTEMPTS ? new Date(Date.now() + LOCK_MINUTES * 60 * 1000) : null,
+    },
+    update: {
+      intentosFallidos: { increment: 1 },
+    },
+  });
+  if (account.intentosFallidos >= MAX_FAILED_ATTEMPTS && account.estado !== "bloqueada") {
+    await prisma.cuentaAcceso.update({
+      where: { personaId },
+      data: { estado: "bloqueada", bloqueadaHasta: new Date(Date.now() + LOCK_MINUTES * 60 * 1000) },
+    });
+  }
+}
+
+async function registerSuccessfulAccess(personaId: string) {
+  await prisma.cuentaAcceso.upsert({
+    where: { personaId },
+    create: { personaId, estado: "activa", activadaAt: new Date(), ultimoAccesoAt: new Date() },
+    update: { estado: "activa", intentosFallidos: 0, bloqueadaHasta: null, ultimoAccesoAt: new Date() },
+  });
+}
 
 export async function POST(req: Request) {
   try {
@@ -49,6 +91,7 @@ export async function POST(req: Request) {
           ],
         },
         include: {
+          cuentaAcceso: true,
           asignaciones: {
             where: { estado: "activa" },
             take: 1,
@@ -63,9 +106,14 @@ export async function POST(req: Request) {
         );
       }
 
+      if (await accountIsLocked(persona.id, persona.cuentaAcceso)) {
+        return NextResponse.json({ success: false, error: "Cuenta temporalmente bloqueada. Intenta más tarde o contacta al administrador." }, { status: 423 });
+      }
+
       // Validar PIN (si la persona no tiene PIN configurado, el PIN por defecto es 1234 o los últimos 4 dígitos)
       const expectedPin = persona.pin;
       if (!(await verifyPassword(inputPin, expectedPin))) {
+        await registerFailedAttempt(persona.id, persona.cuentaAcceso?.intentosFallidos || 0);
         return NextResponse.json(
           { success: false, error: "Credenciales incorrectas." },
           { status: 401 }
@@ -96,6 +144,8 @@ export async function POST(req: Request) {
       };
 
       const token = await encodeSession(user);
+      await registerSuccessfulAccess(persona.id);
+      await recordAudit({ action: "LOGIN", entityType: "Persona", entityId: persona.id, metadata: { accessType: "portal" }, actor: user });
       clearRateLimit(rateLimitKey);
 
       const response = NextResponse.json({
@@ -134,6 +184,7 @@ export async function POST(req: Request) {
       where: {
         OR: [{ email: inputIdentifier }, { numeroDocumento: inputIdentifier }],
       },
+      include: { cuentaAcceso: true },
     });
 
     if (!persona) {
@@ -143,9 +194,14 @@ export async function POST(req: Request) {
       );
     }
 
+    if (await accountIsLocked(persona.id, persona.cuentaAcceso)) {
+      return NextResponse.json({ success: false, error: "Cuenta temporalmente bloqueada. Intenta más tarde o contacta al administrador." }, { status: 423 });
+    }
+
     // Validar clave (soporta PIN o default 1234)
     const validPass = persona.passwordHash || persona.pin;
     if (!(await verifyPassword(inputPassword, validPass))) {
+      await registerFailedAttempt(persona.id, persona.cuentaAcceso?.intentosFallidos || 0);
       return NextResponse.json(
         { success: false, error: "Contraseña incorrecta." },
         { status: 401 }
@@ -176,6 +232,8 @@ export async function POST(req: Request) {
     };
 
     const token = await encodeSession(user);
+    await registerSuccessfulAccess(persona.id);
+    await recordAudit({ action: "LOGIN", entityType: "Persona", entityId: persona.id, metadata: { accessType: "erp" }, actor: user });
     clearRateLimit(rateLimitKey);
     const redirectUrl = mustChangePassword
       ? "/cambiar-clave"

@@ -156,3 +156,22 @@ test("todos los handlers de /api/apps exigen sesion o rol antes de procesar dato
     }
   }
 });
+
+test("la administración de activaciones exige rol administrativo y nunca persiste el token original", () => {
+  const source = readFileSync(join(process.cwd(), "app/api/admin/cuentas/activaciones/route.ts"), "utf8");
+  const schema = readFileSync(join(process.cwd(), "prisma/schema.prisma"), "utf8");
+  const activationModel = schema.match(/model EnlaceActivacion \{([\s\S]*?)\n\}/)?.[1] || "";
+  assert.match(source, /requireStaff\(\["administrativo"\]\)/);
+  assert.match(source, /tokenHash/);
+  assert.match(activationModel, /tokenHash\s+String\s+@unique/);
+  assert.doesNotMatch(activationModel, /^\s*token\s+/m);
+});
+
+test("la activación pública valida vigencia, uso único y fortaleza de la clave", () => {
+  const source = readFileSync(join(process.cwd(), "app/api/auth/activate/[token]/route.ts"), "utf8");
+  assert.match(source, /hashActivationToken\(token\)/);
+  assert.match(source, /expiraAt:\s*\{\s*gt:\s*now\s*\}/);
+  assert.match(source, /usadoAt:\s*null/);
+  assert.match(source, /isStrongPassword\(password\)/);
+  assert.match(source, /updateMany\(/);
+});

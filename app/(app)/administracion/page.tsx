@@ -4,14 +4,17 @@ import { getPersonasDb } from "@/lib/services/personas.service";
 import { getRolesDb } from "@/lib/services/admin.service";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Avatar } from "@/components/ui/Avatar";
-import { StatusBadge } from "@/components/ui/StatusBadge";
+import AccountAccessPanel from "@/components/administracion/AccountAccessPanel";
+import { requireStaffSession } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
 
 export default async function AdministracionPage({
   searchParams,
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
+  await requireStaffSession(["administrativo"]);
   const { tab } = await searchParams;
   const activeTab = tab ?? "usuarios";
 
@@ -53,25 +56,8 @@ export default async function AdministracionPage({
       </div>
 
       {activeTab === "usuarios" && (
-        <Card className="p-0 overflow-hidden">
-          <ul className="divide-y divide-line-600">
-            {personas.map((p) => (
-              <li key={p.id} className="flex items-center justify-between px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <Avatar initials={p.fotoIniciales} size="sm" />
-                  <div>
-                    <Link href={`/personas/${p.id}`} className="text-sm text-paper-50 font-medium hover:text-radar-cyan">
-                      {p.nombres} {p.apellidos}
-                    </Link>
-                    <p className="text-xs text-fog-400 font-mono">{p.email || p.numeroDocumento} · {p.perfiles.join(", ")}</p>
-                  </div>
-                </div>
-                <StatusBadge status={p.estado === "activo" ? "activo" : "pendiente"}>
-                  {p.estado === "activo" ? "Activo" : "Inactivo"}
-                </StatusBadge>
-              </li>
-            ))}
-          </ul>
+        <Card>
+          <AccountAccessPanel />
         </Card>
       )}
 
@@ -119,4 +105,3 @@ export default async function AdministracionPage({
     </div>
   );
 }
-

@@ -8,6 +8,7 @@ export async function proxy(req: NextRequest) {
   const isPublicApi =
     pathname === "/api/auth/login" ||
     pathname === "/api/auth/logout" ||
+    pathname.startsWith("/api/auth/activate/") ||
     pathname === "/api/health" ||
     pathname === "/api/version" ||
     (pathname === "/api/gps/eventos" && req.method === "POST") ||
@@ -19,6 +20,7 @@ export async function proxy(req: NextRequest) {
     isPublicApi ||
     pathname.startsWith("/assets") ||
     pathname.startsWith("/apps") ||
+    pathname.startsWith("/activar/") ||
     pathname === "/asistir" ||
     pathname === "/asistencia/registro" ||
     pathname.includes(".")
