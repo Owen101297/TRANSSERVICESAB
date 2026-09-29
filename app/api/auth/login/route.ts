@@ -8,13 +8,26 @@ import { recordAudit } from "@/lib/audit";
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
 
-async function accountIsLocked(personaId: string, account?: { estado: string; bloqueadaHasta: Date | null } | null) {
-  if (account?.estado === "suspendida") return true;
-  if (account?.estado === "bloqueada" && (!account.bloqueadaHasta || account.bloqueadaHasta > new Date())) return true;
-  if (account?.estado === "bloqueada" && account.bloqueadaHasta && account.bloqueadaHasta <= new Date()) {
-    await prisma.cuentaAcceso.update({ where: { personaId }, data: { estado: "pendiente", intentosFallidos: 0, bloqueadaHasta: null } });
+async function accountAccessError(personaId: string, account?: { estado: string; bloqueadaHasta: Date | null } | null) {
+  if (account?.estado === "suspendida") return "Esta cuenta está suspendida. Contacta al administrador.";
+  if (account?.estado === "pendiente") return "Debes activar o restablecer tu acceso con el enlace enviado por el administrador.";
+  if (account?.estado === "bloqueada" && (!account.bloqueadaHasta || account.bloqueadaHasta > new Date())) {
+    return "Cuenta bloqueada. Intenta más tarde o contacta al administrador.";
   }
-  return false;
+  if (account?.estado === "bloqueada" && account.bloqueadaHasta && account.bloqueadaHasta <= new Date()) {
+    await prisma.cuentaAcceso.update({
+      where: { personaId },
+      data: {
+        estado: "activa",
+        intentosFallidos: 0,
+        bloqueadaHasta: null,
+        bloqueadaPorId: null,
+        bloqueadaPorNombre: null,
+        motivoBloqueo: null,
+      },
+    });
+  }
+  return null;
 }
 
 async function registerFailedAttempt(personaId: string, currentAttempts = 0) {
@@ -106,8 +119,13 @@ export async function POST(req: Request) {
         );
       }
 
-      if (await accountIsLocked(persona.id, persona.cuentaAcceso)) {
-        return NextResponse.json({ success: false, error: "Cuenta temporalmente bloqueada. Intenta más tarde o contacta al administrador." }, { status: 423 });
+      if (["inactivo", "retirado"].includes(persona.estado)) {
+        return NextResponse.json({ success: false, error: "Esta persona no tiene acceso habilitado." }, { status: 403 });
+      }
+
+      const accessError = await accountAccessError(persona.id, persona.cuentaAcceso);
+      if (accessError) {
+        return NextResponse.json({ success: false, error: accessError }, { status: 423 });
       }
 
       // Validar PIN (si la persona no tiene PIN configurado, el PIN por defecto es 1234 o los últimos 4 dígitos)
@@ -141,6 +159,7 @@ export async function POST(req: Request) {
         rolPrincipal: "conductor" as const,
         placaAsignada,
         mustChangePassword,
+        sessionVersion: persona.cuentaAcceso?.sessionVersion ?? 1,
       };
 
       const token = await encodeSession(user);
@@ -194,8 +213,13 @@ export async function POST(req: Request) {
       );
     }
 
-    if (await accountIsLocked(persona.id, persona.cuentaAcceso)) {
-      return NextResponse.json({ success: false, error: "Cuenta temporalmente bloqueada. Intenta más tarde o contacta al administrador." }, { status: 423 });
+    if (["inactivo", "retirado"].includes(persona.estado)) {
+      return NextResponse.json({ success: false, error: "Esta persona no tiene acceso habilitado." }, { status: 403 });
+    }
+
+    const accessError = await accountAccessError(persona.id, persona.cuentaAcceso);
+    if (accessError) {
+      return NextResponse.json({ success: false, error: accessError }, { status: 423 });
     }
 
     // Validar clave (soporta PIN o default 1234)
@@ -229,6 +253,7 @@ export async function POST(req: Request) {
       rolPrincipal,
       placaAsignada: null,
       mustChangePassword,
+      sessionVersion: persona.cuentaAcceso?.sessionVersion ?? 1,
     };
 
     const token = await encodeSession(user);

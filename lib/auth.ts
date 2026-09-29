@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { prisma } from "./prisma";
 import { decodeSession, AUTH_COOKIE_NAME, SessionUser } from "./session";
 
 export * from "./session";
@@ -11,7 +12,23 @@ export async function getServerSession(): Promise<SessionUser | null> {
     const cookieStore = await cookies();
     const token = cookieStore.get(AUTH_COOKIE_NAME)?.value;
     if (!token) return null;
-    return await decodeSession(token);
+    const session = await decodeSession(token);
+    if (!session) return null;
+
+    const persona = await prisma.persona.findUnique({
+      where: { id: session.id },
+      select: {
+        estado: true,
+        cuentaAcceso: { select: { estado: true, sessionVersion: true } },
+      },
+    });
+    if (!persona || ["inactivo", "retirado"].includes(persona.estado)) return null;
+    if (!persona.cuentaAcceso || persona.cuentaAcceso.estado !== "activa") return null;
+
+    const tokenVersion = session.sessionVersion ?? 1;
+    if (tokenVersion !== persona.cuentaAcceso.sessionVersion) return null;
+
+    return { ...session, sessionVersion: persona.cuentaAcceso.sessionVersion };
   } catch {
     return null;
   }

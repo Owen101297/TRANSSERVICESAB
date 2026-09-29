@@ -12,7 +12,8 @@ export type AuditAction =
   | "STATUS_CHANGE"
   | "APPROVE"
   | "LOGIN"
-  | "PASSWORD_CHANGE";
+  | "PASSWORD_CHANGE"
+  | "SESSION_REVOKE";
 
 interface AuditInput {
   action: AuditAction;

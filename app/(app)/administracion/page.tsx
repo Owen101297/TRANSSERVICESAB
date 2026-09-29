@@ -28,7 +28,7 @@ export default async function AdministracionPage({
           Administración y Control de Acceso (RBAC)
         </h1>
         <p className="mt-1 text-sm text-fog-400">
-          Gestión de usuarios, roles dinámicos y permisos por módulo del sistema.
+          Gestión de accesos, sesiones, estados de cuenta, roles y permisos por módulo.
         </p>
       </div>
 

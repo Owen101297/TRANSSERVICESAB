@@ -9,6 +9,7 @@ import {
   createActivationToken,
 } from "@/lib/account-activation";
 import { prisma } from "@/lib/prisma";
+import { resolvePublicOrigin } from "@/lib/request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -36,8 +37,21 @@ export async function GET() {
         perfiles: persona.perfiles,
         estadoLaboral: persona.estado,
         cuenta: persona.cuentaAcceso
-          ? { estado: persona.cuentaAcceso.estado, ultimoAccesoAt: persona.cuentaAcceso.ultimoAccesoAt }
-          : { estado: "pendiente", ultimoAccesoAt: null },
+          ? {
+              estado: persona.cuentaAcceso.estado,
+              ultimoAccesoAt: persona.cuentaAcceso.ultimoAccesoAt,
+              intentosFallidos: persona.cuentaAcceso.intentosFallidos,
+              bloqueadaHasta: persona.cuentaAcceso.bloqueadaHasta,
+              motivoBloqueo: persona.cuentaAcceso.motivoBloqueo,
+            }
+          : {
+              estado: "pendiente",
+              ultimoAccesoAt: null,
+              intentosFallidos: 0,
+              bloqueadaHasta: null,
+              motivoBloqueo: null,
+            },
+        esUsuarioActual: persona.id === auth.session.id,
         ultimoEnlace: latest
           ? {
               id: latest.id,
@@ -65,6 +79,12 @@ export async function POST(req: Request) {
   if (personaIds.length === 0 || personaIds.length > 100) {
     return NextResponse.json({ error: "Selecciona entre 1 y 100 personas." }, { status: 400 });
   }
+  if (personaIds.includes(auth.session.id)) {
+    return NextResponse.json(
+      { error: "No puedes restablecer tu propia cuenta desde una sesión activa." },
+      { status: 409 },
+    );
+  }
 
   const hours = Math.max(1, Math.min(168, Number(body.expirationHours) || ACTIVATION_HOURS_DEFAULT));
   const personas = await prisma.persona.findMany({
@@ -81,7 +101,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No se pueden generar enlaces para cuentas bloqueadas o suspendidas." }, { status: 409 });
   }
 
-  const origin = new URL(req.url).origin;
+  const origin = resolvePublicOrigin(req);
   const expiraAt = new Date(Date.now() + hours * 60 * 60 * 1000);
   const rawTokens = new Map<string, string>();
 
@@ -97,6 +117,12 @@ export async function POST(req: Request) {
       const tipoAcceso = persona.perfiles.some((perfil) => ["administrativo", "admin", "hseq", "supervisor", "coordinador", "operaciones"].includes(perfil))
         ? "erp"
         : "portal";
+      await tx.persona.update({
+        where: { id: persona.id },
+        data: tipoAcceso === "erp"
+          ? { passwordHash: null, pin: null, mustChangePassword: false }
+          : { pin: null, mustChangePassword: false },
+      });
       const link = await tx.enlaceActivacion.create({
         data: {
           personaId: persona.id,
@@ -110,7 +136,15 @@ export async function POST(req: Request) {
       await tx.cuentaAcceso.upsert({
         where: { personaId: persona.id },
         create: { personaId: persona.id, estado: "pendiente" },
-        update: { estado: "pendiente", intentosFallidos: 0, bloqueadaHasta: null },
+        update: {
+          estado: "pendiente",
+          intentosFallidos: 0,
+          bloqueadaHasta: null,
+          bloqueadaPorId: null,
+          bloqueadaPorNombre: null,
+          motivoBloqueo: null,
+          sessionVersion: { increment: 1 },
+        },
       });
       results.push({ persona, tipoAcceso, link });
     }
@@ -136,7 +170,14 @@ export async function POST(req: Request) {
   await recordAudit({
     action: "CREATE",
     entityType: "EnlaceActivacion",
-    metadata: { personaIds, count: activaciones.length, expirationHours: hours },
+    metadata: {
+      operation: "ACCOUNT_ACCESS_RESET",
+      personaIds,
+      count: activaciones.length,
+      expirationHours: hours,
+      sessionsRevoked: true,
+      previousCredentialsRevoked: true,
+    },
     actor: auth.session,
   });
   return NextResponse.json({ success: true, activaciones }, { status: 201 });

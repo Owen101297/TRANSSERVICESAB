@@ -44,12 +44,18 @@ export async function POST(req: Request) {
   }
 
   const passwordHash = await hashPassword(newPassword);
-  await prisma.persona.update({
-    where: { id: auth.session.id },
-    data:
-      auth.session.rolPrincipal === "conductor"
-        ? { pin: passwordHash, mustChangePassword: false }
-        : { passwordHash, mustChangePassword: false },
+  const account = await prisma.$transaction(async (tx) => {
+    await tx.persona.update({
+      where: { id: auth.session.id },
+      data:
+        auth.session.rolPrincipal === "conductor"
+          ? { pin: passwordHash, mustChangePassword: false }
+          : { passwordHash, mustChangePassword: false },
+    });
+    return tx.cuentaAcceso.update({
+      where: { personaId: auth.session.id },
+      data: { sessionVersion: { increment: 1 } },
+    });
   });
   await recordAudit({
     action: "PASSWORD_CHANGE",
@@ -59,7 +65,11 @@ export async function POST(req: Request) {
     actor: auth.session,
   });
 
-  const session = { ...auth.session, mustChangePassword: false };
+  const session = {
+    ...auth.session,
+    mustChangePassword: false,
+    sessionVersion: account.sessionVersion,
+  };
   const response = NextResponse.json({ success: true, user: session });
   response.cookies.set(AUTH_COOKIE_NAME, await encodeSession(session), {
     httpOnly: true,

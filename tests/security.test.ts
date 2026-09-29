@@ -6,6 +6,12 @@ import { hashPassword, isPasswordHash, isStrongPassword, verifyPassword } from "
 import { decodeSession, encodeSession, type SessionUser } from "../lib/session.ts";
 import { conductorIdentityFromSession, normalizeVehiclePlate } from "../lib/portal-validation.ts";
 import { isValidWebhookApiKey } from "../lib/webhook-auth.ts";
+import { resolvePublicOrigin } from "../lib/request-origin.ts";
+import {
+  actionRequiresReason,
+  canApplyAccountAction,
+  enabledAccountState,
+} from "../lib/account-lifecycle.ts";
 import {
   buildDocumentAttachmentScope,
   detectDocumentMimeType,
@@ -174,4 +180,41 @@ test("la activación pública valida vigencia, uso único y fortaleza de la clav
   assert.match(source, /usadoAt:\s*null/);
   assert.match(source, /isStrongPassword\(password\)/);
   assert.match(source, /updateMany\(/);
+});
+
+test("el ciclo administrativo de cuentas aplica transiciones explícitas", () => {
+  assert.equal(canApplyAccountAction("activa", "block"), true);
+  assert.equal(canApplyAccountAction("bloqueada", "unlock"), true);
+  assert.equal(canApplyAccountAction("suspendida", "reactivate"), true);
+  assert.equal(canApplyAccountAction("suspendida", "revoke_sessions"), false);
+  assert.equal(canApplyAccountAction("activa", "reactivate"), false);
+  assert.equal(actionRequiresReason("block"), true);
+  assert.equal(actionRequiresReason("suspend"), true);
+  assert.equal(actionRequiresReason("unlock"), false);
+  assert.equal(enabledAccountState(true), "activa");
+  assert.equal(enabledAccountState(false), "pendiente");
+});
+
+test("la revocación de sesiones se valida contra una versión persistida", () => {
+  const schema = readFileSync(join(process.cwd(), "prisma/schema.prisma"), "utf8");
+  const auth = readFileSync(join(process.cwd(), "lib/auth.ts"), "utf8");
+  const login = readFileSync(join(process.cwd(), "app/api/auth/login/route.ts"), "utf8");
+  const lifecycle = readFileSync(join(process.cwd(), "app/api/admin/cuentas/estado/route.ts"), "utf8");
+
+  assert.match(schema, /sessionVersion\s+Int\s+@default\(1\)/);
+  assert.match(auth, /tokenVersion\s*!==\s*persona\.cuentaAcceso\.sessionVersion/);
+  assert.match(login, /sessionVersion:\s*persona\.cuentaAcceso\?\.sessionVersion\s*\?\?\s*1/);
+  assert.match(lifecycle, /requireStaff\(\["administrativo"\]\)/);
+  assert.match(lifecycle, /personaId\s*===\s*auth\.session\.id/);
+  assert.match(lifecycle, /sessionVersion:\s*\{\s*increment:\s*1\s*\}/);
+});
+
+test("los enlaces administrativos respetan el origen público del proxy", () => {
+  const request = new Request("https://localhost:8080/api/admin/cuentas/activaciones", {
+    headers: {
+      "x-forwarded-host": "staging.example.com",
+      "x-forwarded-proto": "https",
+    },
+  });
+  assert.equal(resolvePublicOrigin(request), "https://staging.example.com");
 });

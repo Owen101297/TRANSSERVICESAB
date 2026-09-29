@@ -85,7 +85,16 @@ export async function POST(req: Request, context: { params: Promise<{ token: str
     await tx.cuentaAcceso.upsert({
       where: { personaId: activation.personaId },
       create: { personaId: activation.personaId, estado: "activa", activadaAt: now },
-      update: { estado: "activa", activadaAt: now, intentosFallidos: 0, bloqueadaHasta: null },
+      update: {
+        estado: "activa",
+        activadaAt: now,
+        intentosFallidos: 0,
+        bloqueadaHasta: null,
+        bloqueadaPorId: null,
+        bloqueadaPorNombre: null,
+        motivoBloqueo: null,
+        sessionVersion: { increment: 1 },
+      },
     });
     await tx.enlaceActivacion.updateMany({
       where: { personaId: activation.personaId, id: { not: activation.id }, usadoAt: null, revocadoAt: null },

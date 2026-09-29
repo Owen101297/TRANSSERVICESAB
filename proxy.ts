@@ -67,14 +67,9 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Si está en /login y ya está autenticado
+  // La vigencia de la cuenta se valida contra base de datos en layouts y handlers.
+  // El login debe permanecer accesible si el administrador revocó una sesión.
   if (pathname === "/login") {
-    if (session) {
-      if (session.rolPrincipal === "conductor") {
-        return NextResponse.redirect(new URL("/portal-conductor", req.url));
-      }
-      return NextResponse.redirect(new URL("/", req.url));
-    }
     return NextResponse.next();
   }
 

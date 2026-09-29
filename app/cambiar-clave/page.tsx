@@ -48,6 +48,10 @@ export default function CambiarClavePage() {
         body: JSON.stringify({ currentPassword, newPassword }),
       });
       const data = await response.json();
+      if (response.status === 401) {
+        router.replace("/login");
+        return;
+      }
       if (!response.ok) throw new Error(data.error || "No fue posible guardar la nueva contraseña.");
       router.replace(data.user?.rolPrincipal === "conductor" ? "/portal-conductor" : "/");
       router.refresh();
