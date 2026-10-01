@@ -11,6 +11,7 @@ export async function proxy(req: NextRequest) {
     pathname.startsWith("/api/auth/activate/") ||
     pathname === "/api/health" ||
     pathname === "/api/version" ||
+    pathname.startsWith("/api/asistencia/publica/") ||
     (pathname === "/api/gps/eventos" && req.method === "POST") ||
     (pathname === "/api/apps/asistencia/config" && req.method === "GET");
 
@@ -22,6 +23,7 @@ export async function proxy(req: NextRequest) {
     pathname.startsWith("/apps") ||
     pathname.startsWith("/activar/") ||
     pathname === "/asistir" ||
+    pathname.startsWith("/asistir/") ||
     pathname === "/asistencia/registro" ||
     pathname.includes(".")
   ) {

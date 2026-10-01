@@ -218,3 +218,18 @@ test("los enlaces administrativos respetan el origen público del proxy", () => 
   });
   assert.equal(resolvePublicOrigin(request), "https://staging.example.com");
 });
+
+test("el registro tokenizado de asistencia es público sin abrir las APIs administrativas", () => {
+  const source = readFileSync(join(process.cwd(), "proxy.ts"), "utf8");
+  const publicRoute = readFileSync(
+    join(process.cwd(), "app/api/asistencia/publica/[token]/route.ts"),
+    "utf8",
+  );
+
+  assert.match(source, /pathname\.startsWith\("\/api\/asistencia\/publica\/"\)/);
+  assert.match(source, /pathname\.startsWith\("\/asistir\/"\)/);
+  assert.doesNotMatch(source, /pathname\.startsWith\("\/api\/eventos-asistencia"\)/);
+  assert.match(publicRoute, /tokenRegistro:\s*token/);
+  assert.match(publicRoute, /consumeRateLimit\(/);
+  assert.match(publicRoute, /validarFirmaManuscrita\(/);
+});
