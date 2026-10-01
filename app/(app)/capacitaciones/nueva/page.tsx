@@ -13,7 +13,6 @@ import {
   Trash2,
   CheckCircle2,
   HelpCircle,
-  Camera,
   PenTool,
   ExternalLink,
 } from "lucide-react";
@@ -50,10 +49,6 @@ export default function NuevaCapacitacionPage() {
   const [materialTipo, setMaterialTipo] = useState<"google_form" | "texto" | "video" | "pdf">("google_form");
   const [materialUrl, setMaterialUrl] = useState("");
   const [materialContenido, setMaterialContenido] = useState("");
-
-  // Requisitos State
-  const [requiereSelfie, setRequiereSelfie] = useState(true);
-  const [requiereFirma, setRequiereFirma] = useState(true);
 
   // Preguntas State
   const [preguntas, setPreguntas] = useState<PreguntaForm[]>([]);
@@ -134,8 +129,8 @@ export default function NuevaCapacitacionPage() {
         materialUrl,
         materialContenido,
         preguntas: preguntas.filter((p) => p.pregunta.trim() !== ""),
-        requiereSelfie,
-        requiereFirma,
+        requiereSelfie: false,
+        requiereFirma: true,
         asistentesEsperados: parseInt(asistentesEsperados, 10) || 0,
       };
 
@@ -178,7 +173,7 @@ export default function NuevaCapacitacionPage() {
           Programar Charla o Capacitación
         </h1>
         <p className="text-sm text-mist-200">
-          Publica material de estudio, videos y evaluaciones para registro digital con selfie y firma en el portal móvil.
+          Publica material de estudio, videos y evaluaciones con firma manuscrita y evidencia de la actividad.
         </p>
       </div>
 
@@ -529,41 +524,27 @@ export default function NuevaCapacitacionPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <label className="flex items-center gap-3 p-3.5 rounded-xl border border-line-600 bg-asphalt-950 cursor-pointer hover:border-signal-amber transition-colors">
-              <input
-                type="checkbox"
-                checked={requiereSelfie}
-                onChange={(e) => setRequiereSelfie(e.target.checked)}
-                className="w-4 h-4 accent-signal-amber"
-              />
-              <div>
-                <div className="text-xs font-bold text-paper-50 flex items-center gap-1.5">
-                  <Camera size={14} className="text-radar-cyan" />
-                  Foto Selfie Facial con Cámara
-                </div>
-                <div className="text-[11px] text-fog-400">
-                  Valida biométricamente la presencia del conductor.
-                </div>
-              </div>
-            </label>
-
-            <label className="flex items-center gap-3 p-3.5 rounded-xl border border-line-600 bg-asphalt-950 cursor-pointer hover:border-signal-amber transition-colors">
-              <input
-                type="checkbox"
-                checked={requiereFirma}
-                onChange={(e) => setRequiereFirma(e.target.checked)}
-                className="w-4 h-4 accent-signal-amber"
-              />
+            <div className="flex items-center gap-3 p-3.5 rounded-xl border border-line-600 bg-asphalt-950">
+              <span className="grid size-8 place-items-center rounded-lg bg-ok-green/10 text-ok-green">1</span>
               <div>
                 <div className="text-xs font-bold text-paper-50 flex items-center gap-1.5">
                   <PenTool size={14} className="text-signal-amber" />
-                  Firma Digital Táctil en Pantalla
+                  Firma manuscrita obligatoria
                 </div>
                 <div className="text-[11px] text-fog-400">
-                  Aceptación legal de la formación recibida.
+                  Cada participante firma exclusivamente esta actividad.
                 </div>
               </div>
-            </label>
+            </div>
+            <div className="flex items-center gap-3 p-3.5 rounded-xl border border-line-600 bg-asphalt-950">
+              <span className="grid size-8 place-items-center rounded-lg bg-radar-cyan/10 text-radar-cyan">2</span>
+              <div>
+                <div className="text-xs font-bold text-paper-50">Evidencia de la actividad</div>
+                <div className="text-[11px] text-fog-400">
+                  Se carga al expediente: foto grupal presencial o captura/reporte virtual.
+                </div>
+              </div>
+            </div>
           </div>
         </Card>
 

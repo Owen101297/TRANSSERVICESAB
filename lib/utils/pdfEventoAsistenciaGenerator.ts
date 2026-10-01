@@ -1,4 +1,4 @@
-import { COMPANY_INFO, LOGO_TRANSSERVICES_BASE64 } from "./companyAssets";
+import { COMPANY_INFO, FIRMA_HSEQ_BASE64, LOGO_TRANSSERVICES_BASE64 } from "./companyAssets";
 
 interface ParticipantePdf {
   personaNombre: string;
@@ -10,6 +10,7 @@ interface ParticipantePdf {
   resultadoDefinitivo?: string | null;
   horaEntrada?: string | null;
   observaciones?: string | null;
+  firmaUrl?: string | null;
 }
 
 interface EventoPdf {
@@ -27,6 +28,17 @@ interface EventoPdf {
   estado: string;
   documentos: Array<{ codigo: string; version: string }>;
   participantes: ParticipantePdf[];
+  cerradoPorNombre?: string | null;
+  cerradoAt?: string | null;
+  cerradoExcepcional?: boolean;
+  motivoCierreExcepcional?: string | null;
+  evidencias?: Array<{
+    nombre: string;
+    categoria: string;
+    descripcion?: string | null;
+    hashSha256?: string | null;
+    createdAt: string;
+  }>;
 }
 
 function fecha(value: string) {
@@ -44,7 +56,7 @@ export async function generateEventoAsistenciaPDF(evento: EventoPdf) {
   const width = 279.4;
   const height = 215.9;
   const margin = 10;
-  const rowsPerPage = 16;
+  const rowsPerPage = 14;
   const pages = Math.max(1, Math.ceil(evento.participantes.length / rowsPerPage));
   const documento = evento.documentos.find((item) => item.codigo === "TH-FOR-03") || evento.documentos[0];
   const codigo = documento?.codigo || "TH-FOR-03";
@@ -81,8 +93,8 @@ export async function generateEventoAsistenciaPDF(evento: EventoPdf) {
     doc.text(objectiveLines.slice(0, 2), margin, 50);
 
     const startY = 61;
-    const columns = [10, 18, 77, 105, 145, 179, 208, 269];
-    const headers = ["N.º", "Nombre", "Documento", "Convocatoria", "Condición", "Entrada", "Resultado"];
+    const columns = [10, 18, 70, 95, 125, 150, 174, 215, 269];
+    const headers = ["N.º", "Nombre", "Documento", "Convocatoria", "Condición", "Entrada", "Resultado", "Firma"];
     doc.setFillColor(226, 232, 240);
     doc.rect(margin, startY, width - margin * 2, 8, "F");
     doc.setFont("helvetica", "bold");
@@ -112,7 +124,33 @@ export async function generateEventoAsistenciaPDF(evento: EventoPdf) {
         const clipped = doc.splitTextToSize(value, maxWidth)[0] || "";
         doc.text(clipped, columns[column] + 1, y + 4.8);
       });
+      if (p.firmaUrl?.startsWith("data:image/")) {
+        try {
+          const format = p.firmaUrl.startsWith("data:image/jpeg") ? "JPEG" : "PNG";
+          doc.addImage(p.firmaUrl, format, columns[7] + 2, y + 0.8, 28, 5.8, undefined, "FAST");
+        } catch {}
+      } else {
+        doc.setFontSize(5.8);
+        doc.text("Sin firma", columns[7] + 2, y + 4.8);
+      }
     });
+
+    if (page === pages - 1 && evento.estado === "cerrado") {
+      const signY = 180;
+      doc.setDrawColor(148, 163, 184);
+      doc.rect(margin, signY, 84, 21);
+      try { doc.addImage(FIRMA_HSEQ_BASE64, "PNG", margin + 23, signY + 1, 36, 11, undefined, "FAST"); } catch {}
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(6.5);
+      doc.text(evento.cerradoPorNombre || "COORDINADOR HSEQ", margin + 42, signY + 15, { align: "center" });
+      doc.setFont("helvetica", "normal");
+      doc.text(`Cierre administrativo${evento.cerradoAt ? ` · ${fecha(evento.cerradoAt)}` : ""}`, margin + 42, signY + 19, { align: "center" });
+      if (evento.cerradoExcepcional) {
+        doc.setTextColor(180, 83, 9);
+        doc.text(`CIERRE EXCEPCIONAL: ${evento.motivoCierreExcepcional || "motivo registrado en auditoría"}`, margin + 90, signY + 8);
+        doc.setTextColor(71, 85, 105);
+      }
+    }
 
     const footerY = height - 12;
     doc.setFontSize(6);
@@ -125,6 +163,32 @@ export async function generateEventoAsistenciaPDF(evento: EventoPdf) {
       doc.setFontSize(26);
       doc.text("BORRADOR", width / 2, height / 2, { align: "center", angle: 25 });
     }
+  }
+
+  if (evento.evidencias?.length) {
+    doc.addPage("letter", "landscape");
+    doc.setDrawColor(148, 163, 184);
+    doc.rect(margin, 8, width - margin * 2, 18);
+    try { doc.addImage(LOGO_TRANSSERVICES_BASE64, "PNG", margin + 3, 9, 34, 13, undefined, "FAST"); } catch {}
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("ANEXO DE EVIDENCIAS DEL EXPEDIENTE", width / 2, 18, { align: "center" });
+    doc.setFontSize(7);
+    doc.text(`${evento.consecutivo} · ${evento.nombre}`, margin, 34);
+    let y = 43;
+    evento.evidencias.slice(0, 18).forEach((item, index) => {
+      doc.setDrawColor(203, 213, 225);
+      doc.rect(margin, y, width - margin * 2, 8);
+      doc.setFont("helvetica", "bold");
+      doc.text(`${index + 1}. ${item.nombre}`, margin + 2, y + 3.5);
+      doc.setFont("helvetica", "normal");
+      const meta = `${item.categoria.replaceAll("_", " ")} · ${fecha(item.createdAt)}${item.hashSha256 ? ` · SHA-256 ${item.hashSha256.slice(0, 20)}…` : ""}`;
+      doc.text(meta, margin + 2, y + 6.5);
+      y += 8;
+    });
+    doc.setFontSize(6);
+    doc.setTextColor(71, 85, 105);
+    doc.text("Los archivos originales y sus metadatos se conservan en el expediente digital.", margin, height - 12);
   }
 
   const safeName = evento.nombre.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "_").slice(0, 60);

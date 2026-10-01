@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
+  Camera,
   CalendarDays,
   CheckCircle2,
   ChevronRight,
@@ -10,6 +11,8 @@ import {
   Clock3,
   FileText,
   Download,
+  Copy,
+  ExternalLink,
   Loader2,
   Play,
   Plus,
@@ -17,7 +20,9 @@ import {
   ShieldCheck,
   Square,
   UserPlus,
+  Upload,
   Users,
+  Trash2,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -53,18 +58,48 @@ type Participante = {
   horaEntrada?: string | null;
   horaSalida?: string | null;
   observaciones?: string | null;
+  firmaAt?: string | null;
+  registroCodigo?: string | null;
+  firmaUrl?: string | null;
+};
+type Evidencia = {
+  id: string;
+  categoria: string;
+  nombre: string;
+  descripcion?: string | null;
+  archivoUrl: string;
+  mimeType?: string | null;
+  origen: string;
+  validada: boolean;
+  createdAt: string;
 };
 type EventoDetalle = EventoLista & {
   objetivo: string;
+  descripcion?: string | null;
   caracter: string;
   modalidad: string;
+  proyecto?: string | null;
+  contenido?: string | null;
+  facilitadorEmpresa?: string | null;
+  toleranciaMinutos: number;
+  permanenciaMinima: number;
   requiereSalida: boolean;
   requiereFirma: boolean;
   requiereFoto: boolean;
   requiereEvaluacion: boolean;
+  tokenRegistro?: string | null;
+  registroAbierto: boolean;
+  permiteExternos: boolean;
+  materialUrl?: string | null;
+  instruccionesRegistro?: string | null;
   revision?: number;
   participantes: Participante[];
   documentos: Documento[];
+  evidencias: Evidencia[];
+  cerradoPorNombre?: string | null;
+  cerradoAt?: string | null;
+  cerradoExcepcional?: boolean;
+  motivoCierreExcepcional?: string | null;
 };
 type Persona = {
   id: string;
@@ -134,18 +169,21 @@ function statusClass(estado: string) {
   return "bg-slate-50 text-slate-700 border-slate-200";
 }
 
-export function EventosAsistenciaClient({ sessionRole }: { sessionRole: string }) {
+export function EventosAsistenciaClient({ sessionRole, initialEventId }: { sessionRole: string; initialEventId?: string }) {
   const [eventos, setEventos] = useState<EventoLista[]>([]);
   const [personas, setPersonas] = useState<Persona[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialEventId || null);
   const [detalle, setDetalle] = useState<EventoDetalle | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   const [search, setSearch] = useState("");
   const [peopleSearch, setPeopleSearch] = useState("");
   const [selectedPeople, setSelectedPeople] = useState<string[]>([]);
+  const [selectedForPdf, setSelectedForPdf] = useState<string[]>([]);
+  const [copied, setCopied] = useState(false);
   const isAdmin = sessionRole === "administrativo" || sessionRole === "hseq";
 
   const loadEventos = useCallback(async () => {
@@ -233,6 +271,8 @@ export function EventosAsistenciaClient({ sessionRole }: { sessionRole: string }
       notaMinima: Number(form.get("notaMinima")),
       materialUrl: form.get("materialUrl"),
       contenido: form.get("contenido"),
+      permiteExternos: form.get("permiteExternos") === "on",
+      instruccionesRegistro: form.get("instruccionesRegistro"),
       personaIds: selectedPeople,
     };
     try {
@@ -254,6 +294,131 @@ export function EventosAsistenciaClient({ sessionRole }: { sessionRole: string }
     }
   }
 
+  async function toggleRegistration(abierto: boolean) {
+    if (!detalle) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/eventos-asistencia/${detalle.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "registro", abierto }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "No fue posible actualizar el enlace.");
+      await Promise.all([loadEventos(), loadDetalle(detalle.id)]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No fue posible actualizar el enlace.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copyAttendanceLink() {
+    if (!detalle?.tokenRegistro) return;
+    const link = `${window.location.origin}/asistir/${detalle.tokenRegistro}`;
+    await navigator.clipboard.writeText(link);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 2200);
+  }
+
+  async function uploadEvidence(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!detalle) return;
+    const form = event.currentTarget;
+    const body = new FormData(form);
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/eventos-asistencia/${detalle.id}/evidencias`, { method: "POST", body });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "No fue posible guardar la evidencia.");
+      form.reset();
+      await loadDetalle(detalle.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No fue posible guardar la evidencia.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function updateEvento(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!detalle) return;
+    const form = new FormData(event.currentTarget);
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/eventos-asistencia/${detalle.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "actualizar",
+          nombre: form.get("nombre"),
+          objetivo: form.get("objetivo"),
+          descripcion: form.get("descripcion"),
+          fechaInicio: form.get("fechaInicio"),
+          fechaFin: form.get("fechaFin"),
+          modalidad: form.get("modalidad"),
+          lugar: form.get("lugar"),
+          proyecto: form.get("proyecto"),
+          responsableNombre: form.get("responsableNombre"),
+          facilitadorNombre: form.get("facilitadorNombre"),
+          facilitadorEmpresa: form.get("facilitadorEmpresa"),
+          materialUrl: form.get("materialUrl"),
+          contenido: form.get("contenido"),
+          instruccionesRegistro: form.get("instruccionesRegistro"),
+          permiteExternos: form.get("permiteExternos") === "on",
+          toleranciaMinutos: Number(form.get("toleranciaMinutos")),
+          permanenciaMinima: Number(form.get("permanenciaMinima")),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "No fue posible actualizar el expediente.");
+      setShowEdit(false);
+      await Promise.all([loadEventos(), loadDetalle(detalle.id)]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No fue posible actualizar el expediente.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteEvidence(evidenciaId: string) {
+    if (!detalle || !window.confirm("¿Retirar esta evidencia del expediente? La acción quedará auditada.")) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/eventos-asistencia/${detalle.id}/evidencias?evidenciaId=${encodeURIComponent(evidenciaId)}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "No fue posible retirar la evidencia.");
+      await loadDetalle(detalle.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No fue posible retirar la evidencia.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function downloadSelectedPdfs() {
+    if (selectedForPdf.length === 0) return;
+    setBusy(true);
+    setError(null);
+    try {
+      for (const id of selectedForPdf) {
+        const res = await fetch(`/api/eventos-asistencia/${id}`, { cache: "no-store" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "No fue posible preparar una de las actas.");
+        await generateEventoAsistenciaPDF(data.evento);
+        await new Promise((resolve) => window.setTimeout(resolve, 180));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No fue posible descargar las actas seleccionadas.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function changeState(estado: string) {
     if (!detalle) return;
     let extra: Record<string, unknown> = {};
@@ -265,12 +430,22 @@ export function EventosAsistenciaClient({ sessionRole }: { sessionRole: string }
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/eventos-asistencia/${detalle.id}`, {
+      let res = await fetch(`/api/eventos-asistencia/${detalle.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ estado, ...extra }),
       });
-      const data = await res.json();
+      let data = await res.json();
+      if (!res.ok && estado === "cerrado" && res.status === 409) {
+        const motivo = window.prompt(`${data.error}\n\nSi debe cerrar de forma excepcional, registre el motivo. Cancelar mantiene el expediente abierto.`);
+        if (!motivo) return;
+        res = await fetch(`/api/eventos-asistencia/${detalle.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ estado, cerradoExcepcional: true, motivoCierreExcepcional: motivo }),
+        });
+        data = await res.json();
+      }
       if (!res.ok) throw new Error(data.error || "No fue posible cambiar el estado.");
       await Promise.all([loadEventos(), loadDetalle(detalle.id)]);
     } catch (err) {
@@ -381,15 +556,21 @@ export function EventosAsistenciaClient({ sessionRole }: { sessionRole: string }
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar por evento, código, proceso o responsable" className="w-full rounded-xl border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-slate-400" />
           </div>
-          <span className="text-xs font-medium text-slate-500">{filtered.length} expedientes</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-600"><input type="checkbox" checked={filtered.length > 0 && filtered.every((item) => selectedForPdf.includes(item.id))} onChange={(event) => setSelectedForPdf(event.target.checked ? filtered.map((item) => item.id) : [])} /> Seleccionar visibles</label>
+            {selectedForPdf.length > 0 && <Button size="sm" variant="secondary" onClick={downloadSelectedPdfs} disabled={busy}><Download size={14} /> Descargar {selectedForPdf.length} PDF individuales</Button>}
+            <span className="text-xs font-medium text-slate-500">{filtered.length} expedientes</span>
+          </div>
         </div>
 
         <div className="mt-4 divide-y divide-slate-100">
           {filtered.length === 0 ? (
             <div className="py-12 text-center text-sm text-slate-500">No hay eventos que coincidan con la búsqueda.</div>
           ) : filtered.map((evento) => (
-            <button key={evento.id} onClick={() => setSelectedId(evento.id)} className="grid w-full gap-3 py-3 text-left transition hover:bg-slate-50 sm:grid-cols-[1fr_auto_auto] sm:items-center sm:px-2">
-              <div className="min-w-0">
+            <div key={evento.id} className="grid w-full grid-cols-[auto_1fr] items-center gap-3 py-3 transition hover:bg-slate-50 sm:px-2">
+              <input type="checkbox" aria-label={`Seleccionar acta ${evento.consecutivo}`} checked={selectedForPdf.includes(evento.id)} onChange={(event) => setSelectedForPdf((current) => event.target.checked ? [...current, evento.id] : current.filter((id) => id !== evento.id))} className="size-4" />
+              <button type="button" onClick={() => setSelectedId(evento.id)} className="grid w-full gap-3 text-left sm:grid-cols-[1fr_auto_auto] sm:items-center">
+                <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono text-[10px] font-bold text-slate-500">{evento.consecutivo}</span>
                   <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${statusClass(evento.estado)}`}>{ESTADO_LABELS[evento.estado] || evento.estado}</span>
@@ -402,7 +583,8 @@ export function EventosAsistenciaClient({ sessionRole }: { sessionRole: string }
                 <p>asistencia válida</p>
               </div>
               <ChevronRight size={17} className="hidden text-slate-400 sm:block" />
-            </button>
+              </button>
+            </div>
           ))}
         </div>
       </Card>
@@ -442,11 +624,12 @@ export function EventosAsistenciaClient({ sessionRole }: { sessionRole: string }
                   <Field label="Tolerancia (min)"><input name="toleranciaMinutos" type="number" min="0" max="180" defaultValue="15" className="input" /></Field>
                   <Field label="Permanencia mínima (%)"><input name="permanenciaMinima" type="number" min="0" max="100" defaultValue="80" className="input" /></Field>
                   <div className="col-span-full grid gap-2 sm:grid-cols-2">
-                    <Check name="requiereFirma" label="Firma obligatoria" defaultChecked />
+                    <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-semibold text-emerald-800"><ShieldCheck size={15} /> Firma manuscrita obligatoria</div>
                     <Check name="requiereSalida" label="Registrar salida" />
-                    <Check name="requiereFoto" label="Evidencia fotográfica" />
+                    <Check name="permiteExternos" label="Permitir personas externas" defaultChecked />
                     <Check name="requiereEvaluacion" label="Requiere evaluación" />
                   </div>
+                  <Field label="Instrucción para quienes reciben el enlace" wide><textarea name="instruccionesRegistro" rows={2} className="input" placeholder="Ej. Consulta el material antes de confirmar y firmar." /></Field>
                   <Field label="Nota mínima"><input name="notaMinima" type="number" min="0" max="100" defaultValue="80" className="input" /></Field>
                 </FormSection>
               </div>
@@ -487,12 +670,40 @@ export function EventosAsistenciaClient({ sessionRole }: { sessionRole: string }
                 {detalle.estado === "en_curso" && <Button size="sm" onClick={() => changeState("pendiente_revision")} disabled={busy}><Square size={14} /> Finalizar toma</Button>}
                 {detalle.estado === "pendiente_revision" && isAdmin && <Button size="sm" variant="success" onClick={() => changeState("cerrado")} disabled={busy}><CheckCircle2 size={15} /> Cerrar evento</Button>}
                 {detalle.estado === "cerrado" && isAdmin && <Button size="sm" variant="secondary" onClick={() => changeState("pendiente_revision")} disabled={busy}>Reabrir</Button>}
+                {isAdmin && !["cerrado", "cancelado"].includes(detalle.estado) && <Button size="sm" variant="secondary" onClick={() => setShowEdit((value) => !value)} disabled={busy}>{showEdit ? "Ocultar edición" : "Editar datos"}</Button>}
+                {isAdmin && ["programado", "en_curso"].includes(detalle.estado) && (detalle.registroAbierto ? <Button size="sm" variant="secondary" onClick={() => toggleRegistration(false)} disabled={busy}><Square size={14} /> Cerrar registro</Button> : <Button size="sm" variant="success" onClick={() => toggleRegistration(true)} disabled={busy}><Play size={14} /> Abrir registro</Button>)}
+                {detalle.tokenRegistro && <Button size="sm" variant="secondary" onClick={copyAttendanceLink} disabled={busy}><Copy size={14} /> {copied ? "Enlace copiado" : "Copiar enlace"}</Button>}
                 <Button size="sm" variant="secondary" onClick={() => generateEventoAsistenciaPDF(detalle)} disabled={busy}><Download size={15} /> PDF</Button>
-                <button onClick={() => { setDetalle(null); setSelectedId(null); }} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" aria-label="Cerrar"><X size={18} /></button>
+                <button onClick={() => { setDetalle(null); setSelectedId(null); setShowEdit(false); }} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" aria-label="Cerrar"><X size={18} /></button>
               </div>
             </div>
 
             <div className="space-y-5 p-5">
+              {showEdit && (
+                <form onSubmit={updateEvento} className="rounded-2xl border border-sky-200 bg-sky-50/60 p-4">
+                  <div className="flex items-start justify-between gap-3"><div><h3 className="text-sm font-extrabold text-slate-950">Editar datos del expediente</h3><p className="mt-1 text-xs text-slate-600">Los cambios se sincronizan con capacitación y quedan registrados en auditoría.</p></div><button type="button" onClick={() => setShowEdit(false)} className="rounded-lg p-2 text-slate-500 hover:bg-white" aria-label="Cerrar edición"><X size={16} /></button></div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <Field label="Nombre" wide><input name="nombre" required defaultValue={detalle.nombre} className="input" /></Field>
+                    <Field label="Objetivo" wide><textarea name="objetivo" required rows={2} defaultValue={detalle.objetivo} className="input" /></Field>
+                    <Field label="Descripción" wide><textarea name="descripcion" rows={2} defaultValue={detalle.descripcion || ""} className="input" /></Field>
+                    <Field label="Inicio"><input name="fechaInicio" type="datetime-local" required defaultValue={toLocalInput(new Date(detalle.fechaInicio))} className="input" /></Field>
+                    <Field label="Fin"><input name="fechaFin" type="datetime-local" required defaultValue={toLocalInput(new Date(detalle.fechaFin))} className="input" /></Field>
+                    <Field label="Modalidad"><select name="modalidad" defaultValue={detalle.modalidad} className="input"><option value="presencial">Presencial</option><option value="virtual">Virtual</option><option value="mixta">Mixta</option></select></Field>
+                    <Field label="Lugar"><input name="lugar" required defaultValue={detalle.lugar} className="input" /></Field>
+                    <Field label="Proyecto / sede"><input name="proyecto" defaultValue={detalle.proyecto || ""} className="input" /></Field>
+                    <Field label="Responsable"><input name="responsableNombre" required defaultValue={detalle.responsableNombre} className="input" /></Field>
+                    <Field label="Facilitador"><input name="facilitadorNombre" required defaultValue={detalle.facilitadorNombre} className="input" /></Field>
+                    <Field label="Empresa del facilitador"><input name="facilitadorEmpresa" defaultValue={detalle.facilitadorEmpresa || ""} className="input" /></Field>
+                    <Field label="Tolerancia (min)"><input name="toleranciaMinutos" type="number" min="0" max="180" defaultValue={detalle.toleranciaMinutos} className="input" /></Field>
+                    <Field label="Permanencia mínima (%)"><input name="permanenciaMinima" type="number" min="0" max="100" defaultValue={detalle.permanenciaMinima} className="input" /></Field>
+                    <Field label="Material externo" wide><input name="materialUrl" type="url" defaultValue={detalle.materialUrl || ""} className="input" /></Field>
+                    <Field label="Contenido" wide><textarea name="contenido" rows={2} defaultValue={detalle.contenido || ""} className="input" /></Field>
+                    <Field label="Instrucciones del enlace" wide><textarea name="instruccionesRegistro" rows={2} defaultValue={detalle.instruccionesRegistro || ""} className="input" /></Field>
+                    <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 text-xs font-semibold text-slate-700"><input type="checkbox" name="permiteExternos" defaultChecked={detalle.permiteExternos} /> Permitir registros externos</label>
+                  </div>
+                  <div className="mt-4 flex justify-end gap-2"><Button type="button" size="sm" variant="secondary" onClick={() => setShowEdit(false)}>Cancelar</Button><Button type="submit" size="sm" disabled={busy}>{busy ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />} Guardar cambios</Button></div>
+                </form>
+              )}
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <Info label="Tipo" value={TIPO_LABELS[detalle.tipo] || detalle.tipo} />
                 <Info label="Responsable" value={detalle.responsableNombre} />
@@ -500,6 +711,8 @@ export function EventosAsistenciaClient({ sessionRole }: { sessionRole: string }
                 <Info label="Modalidad" value={detalle.modalidad} />
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Objetivo</p><p className="mt-1 text-sm text-slate-800">{detalle.objetivo}</p></div>
+
+              {detalle.tokenRegistro && <div className={`rounded-xl border p-3 ${detalle.registroAbierto ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"}`}><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Enlace individual de asistencia</p><p className="mt-1 text-xs font-semibold text-slate-700">{detalle.registroAbierto ? "Abierto para recibir firmas" : "Cerrado; puede compartirse y abrirse cuando inicie la actividad"}</p></div><a href={`/asistir/${detalle.tokenRegistro}`} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50"><ExternalLink size={14} /> Vista del participante</a></div></div>}
 
               <div className="flex flex-wrap gap-2">
                 {detalle.documentos.map((documento) => <span key={documento.id} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700"><FileText size={14} />{documento.codigo} v{documento.version}</span>)}
@@ -518,6 +731,21 @@ export function EventosAsistenciaClient({ sessionRole }: { sessionRole: string }
                     </tbody>
                   </table>
                 </div>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-[.8fr_1.2fr]">
+                <form onSubmit={uploadEvidence} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-sky-700 shadow-sm">{detalle.modalidad === "virtual" ? <FileText size={19} /> : <Camera size={19} />}</span><div><h3 className="text-sm font-extrabold text-slate-950">Agregar evidencia</h3><p className="mt-0.5 text-xs leading-5 text-slate-500">{detalle.modalidad === "virtual" ? "Carga una captura o reporte de la plataforma." : "Toma o carga una fotografía de la actividad ejecutándose."}</p></div></div>
+                  <div className="mt-4 space-y-3">
+                    <select name="categoria" defaultValue={detalle.modalidad === "virtual" ? "captura_virtual" : "foto_presencial"} className="input"><option value="foto_presencial">Fotografía presencial</option><option value="captura_virtual">Captura de sesión virtual</option><option value="reporte_virtual">Reporte de participantes</option><option value="practica">Evidencia práctica</option><option value="material">Material utilizado</option><option value="otro">Otra evidencia</option></select>
+                    <input name="nombre" required className="input" placeholder="Nombre breve de la evidencia" />
+                    <textarea name="descripcion" rows={2} className="input" placeholder="Qué demuestra esta evidencia" />
+                    <input name="archivo" type="file" required accept="image/jpeg,image/png,image/webp,application/pdf" capture={detalle.modalidad === "virtual" ? undefined : "environment"} className="block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:font-bold file:text-slate-700" />
+                    <input type="hidden" name="origen" value={detalle.modalidad === "virtual" ? "carga" : "captura"} />
+                    <Button type="submit" size="sm" disabled={busy}><Upload size={14} /> Guardar evidencia</Button>
+                  </div>
+                </form>
+                <div className="rounded-2xl border border-slate-200 p-4"><div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-extrabold text-slate-950">Materiales y evidencias</h3><p className="text-xs text-slate-500">{detalle.evidencias.length} archivos en el expediente</p></div></div>{detalle.evidencias.length === 0 ? <div className="mt-4 rounded-xl border border-dashed border-slate-300 p-6 text-center text-xs text-slate-500">Todavía no se han agregado evidencias.</div> : <div className="mt-3 space-y-2">{detalle.evidencias.map((evidencia) => <div key={evidencia.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3"><span className="grid size-9 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-600">{evidencia.mimeType?.startsWith("image/") ? <Camera size={16} /> : <FileText size={16} />}</span><div className="min-w-0 flex-1"><p className="truncate text-xs font-bold text-slate-900">{evidencia.nombre}</p><p className="mt-0.5 text-[10px] text-slate-500">{evidencia.categoria.replaceAll("_", " ")} · {formatDate(evidencia.createdAt)}</p></div><a href={evidencia.archivoUrl} target="_blank" rel="noreferrer" aria-label={`Abrir ${evidencia.nombre}`} className="rounded-lg p-2 text-sky-700 hover:bg-sky-50"><ExternalLink size={15} /></a>{isAdmin && <button type="button" onClick={() => deleteEvidence(evidencia.id)} disabled={busy} aria-label={`Retirar ${evidencia.nombre}`} className="rounded-lg p-2 text-rose-600 hover:bg-rose-50 disabled:opacity-40"><Trash2 size={15} /></button>}</div>)}</div>}</div>
               </div>
             </div>
           </div>

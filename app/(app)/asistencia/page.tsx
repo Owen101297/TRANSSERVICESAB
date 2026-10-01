@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { 
   Calendar as CalendarIcon, 
   Filter, 
@@ -70,12 +71,29 @@ export interface AsistenciaItem {
   facilitador?: string;
 }
 
+interface EventoDelDia {
+  id: string;
+  consecutivo: string;
+  nombre: string;
+  tipo: string;
+  modalidad: string;
+  estado: string;
+  fechaInicio: string;
+  fechaFin: string;
+  lugar: string;
+  materialUrl?: string | null;
+  registroAbierto: boolean;
+  tokenRegistro?: string | null;
+  resumen: { total: number; obligatorios: number; asistenciaValida: number; pendientes: number };
+}
+
 const getTodayColombia = () => {
   return new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
 };
 
-export default function AsistenciaAdminPage() {
-  const [fecha, setFecha] = useState<string>(getTodayColombia());
+export function AsistenciaAdminPage({ initialDate }: { initialDate?: string } = {}) {
+  const router = useRouter();
+  const [fecha, setFecha] = useState<string>(initialDate || getTodayColombia());
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
   const [showCalendarDropdown, setShowCalendarDropdown] = useState<boolean>(false);
   const calendarRef = useRef<HTMLDivElement>(null);
@@ -109,7 +127,9 @@ export default function AsistenciaAdminPage() {
   });
   const [searchingPersona, setSearchingPersona] = useState<boolean>(false);
   const [savingManual, setSavingManual] = useState<boolean>(false);
-  const [datesSummary, setDatesSummary] = useState<Record<string, { total: number; proyectos: string[] }>>({});
+  const [datesSummary, setDatesSummary] = useState<Record<string, { total: number; proyectos: string[]; eventos?: number }>>({});
+  const [eventosDelDia, setEventosDelDia] = useState<EventoDelDia[]>([]);
+  const [loadingEventos, setLoadingEventos] = useState(false);
 
   // Control y Divulgación del Tema Activo del Día
   const [temaActivo, setTemaActivo] = useState<string>("CHARLA 5 MINUTOS: PREVENCIÓN DE FATIGA Y CONTROL DE MICROSUEÑOS");
@@ -174,12 +194,22 @@ export default function AsistenciaAdminPage() {
   // Cargar resumen de fechas activas
   const fetchDatesSummary = async () => {
     try {
-      const res = await fetch("/api/apps/asistencia?datesSummary=true");
+      const [res, eventosRes] = await Promise.all([
+        fetch("/api/apps/asistencia?datesSummary=true"),
+        fetch("/api/eventos-asistencia"),
+      ]);
       if (res.ok) {
         const json = await res.json();
-        if (json.datesSummary) {
-          setDatesSummary(json.datesSummary);
+        const summary = { ...(json.datesSummary || {}) } as Record<string, { total: number; proyectos: string[]; eventos?: number }>;
+        if (eventosRes.ok) {
+          const eventosJson = await eventosRes.json();
+          for (const evento of eventosJson.eventos || []) {
+            const dateKey = new Date(evento.fechaInicio).toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
+            summary[dateKey] ||= { total: 0, proyectos: [] };
+            summary[dateKey].eventos = (summary[dateKey].eventos || 0) + 1;
+          }
         }
+        setDatesSummary(summary);
       }
     } catch (e) {
       console.warn("Aviso fechas activas:", e);
@@ -283,7 +313,7 @@ export default function AsistenciaAdminPage() {
 📍 *Lugar / Base:* ${lugarActivo}
 📅 *Fecha:* ${fechaActual}
 
-Estimado equipo de trabajo y conductores en ruta, por favor ingresar al siguiente enlace oficial para registrar su asistencia, selfie y firma digital:
+Estimado equipo de trabajo y conductores en ruta, por favor ingresar al enlace oficial para registrar su asistencia y firma manuscrita:
 👉 ${linkAsistir}
 
 _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
@@ -480,6 +510,26 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
     fetchData();
   }, [fecha, proyecto, tipoEvento]);
 
+  useEffect(() => {
+    if (!fecha) {
+      setEventosDelDia([]);
+      return;
+    }
+    const controller = new AbortController();
+    setLoadingEventos(true);
+    fetch(`/api/eventos-asistencia?desde=${fecha}&hasta=${fecha}`, { signal: controller.signal })
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || "No fue posible consultar las actividades.");
+        setEventosDelDia(payload.eventos || []);
+      })
+      .catch((fetchError) => {
+        if (fetchError?.name !== "AbortError") console.error("Error cargando actividades del día:", fetchError);
+      })
+      .finally(() => setLoadingEventos(false));
+    return () => controller.abort();
+  }, [fecha]);
+
   // Cerrar calendario al hacer clic afuera
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -620,7 +670,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
         day: d,
         isCurrentMonth: true,
         dateStr,
-        hasData: Boolean(data && data.total > 0),
+        hasData: Boolean(data && (data.total > 0 || (data.eventos || 0) > 0)),
         count: data ? data.total : 0,
       });
     }
@@ -656,14 +706,12 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
 
           <div className="flex flex-wrap items-center gap-2">
             <a
-              href="/asistir"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="/asistencia/eventos"
               className="inline-flex items-center gap-1.5 h-8 px-2.5 bg-asphalt-800 hover:bg-asphalt-700 text-mist-200 border border-line-500 font-bold text-xs rounded-xl shadow transition-colors"
             >
               <PenTool className="w-3.5 h-3.5 text-signal-amber" />
-              <span>Toma de Firmas Móvil</span>
-              <ExternalLink className="w-3 h-3 opacity-70" />
+              <span>Administrar actividades</span>
+              <ChevronRight className="w-3 h-3 opacity-70" />
             </a>
 
             <button
@@ -701,7 +749,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
         {/* ============================================================ */}
         {/* CARD EJECUTIVA: CONTROL Y DIVULGACIÓN DE LA CHARLA DEL DÍA   */}
         {/* ============================================================ */}
-        <div className="bg-asphalt-900 border border-radar-cyan/30 p-5 rounded-2xl shadow-xl relative overflow-hidden space-y-4">
+        <div className="hidden" aria-hidden="true">
           {/* Subtle decorative glow */}
           <div className="absolute top-0 right-0 w-96 h-28 bg-gradient-to-l from-radar-cyan/10 via-emerald-500/5 to-transparent pointer-events-none rounded-tr-2xl" />
 
@@ -868,10 +916,68 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
               </code>
             </div>
             <span className="text-fog-400/80 italic">
-              * Compatible con teléfonos Android / iOS, toma de selfie y firma táctil en ruta.
+              * Flujo histórico conservado para consulta; las actividades nuevas usan un enlace individual.
             </span>
           </div>
         </div>
+
+        {/* Expedientes unificados del día */}
+        {fecha && (
+          <section className="rounded-2xl border border-line-600 bg-asphalt-900 p-4 sm:p-5" aria-labelledby="eventos-dia-title">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-radar-cyan">Agenda verificable</p>
+                <h2 id="eventos-dia-title" className="mt-1 text-base font-extrabold text-paper-50">Actividades del {fecha}</h2>
+                <p className="mt-1 text-xs text-fog-400">Cada actividad conserva su material, firmas, evidencias y cierre en un expediente independiente.</p>
+              </div>
+              <a href="/asistencia/eventos" className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-line-500 bg-asphalt-950 px-3 text-xs font-bold text-mist-200 hover:border-radar-cyan hover:text-radar-cyan">
+                Ver todas las actividades <ExternalLink size={14} />
+              </a>
+            </div>
+
+            {loadingEventos ? (
+              <div className="mt-4 h-24 animate-pulse rounded-xl bg-asphalt-800" />
+            ) : eventosDelDia.length === 0 ? (
+              <div className="mt-4 rounded-xl border border-dashed border-line-500 bg-asphalt-950 p-5 text-center">
+                <p className="text-sm font-bold text-paper-50">No hay expedientes creados para este día</p>
+                <p className="mt-1 text-xs text-fog-400">Los registros históricos siguen disponibles debajo. Las actividades nuevas se administran desde el flujo unificado.</p>
+                <a href="/asistencia/eventos" className="mt-3 inline-flex min-h-10 items-center rounded-xl bg-radar-cyan px-4 text-xs font-black text-asphalt-950">Crear actividad</a>
+              </div>
+            ) : (
+              <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                {eventosDelDia.map((evento) => (
+                  <article key={evento.id} className="rounded-xl border border-line-600 bg-asphalt-950 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-wide">
+                          <span className="rounded-full border border-radar-cyan/30 bg-radar-cyan/10 px-2 py-1 text-radar-cyan">{evento.consecutivo}</span>
+                          <span className="text-fog-400">{evento.tipo.replaceAll("_", " ")}</span>
+                        </div>
+                        <h3 className="mt-2 text-sm font-extrabold text-paper-50">{evento.nombre}</h3>
+                        <p className="mt-1 text-xs text-fog-400">
+                          {new Date(evento.fechaInicio).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", timeZone: "America/Bogota" })} · {evento.modalidad} · {evento.lugar}
+                        </p>
+                      </div>
+                      <span className={`shrink-0 rounded-full border px-2 py-1 text-[10px] font-bold ${evento.registroAbierto ? "border-ok-green/40 bg-ok-green/10 text-ok-green" : "border-line-500 bg-asphalt-800 text-fog-400"}`}>
+                        {evento.registroAbierto ? "Registro abierto" : evento.estado.replaceAll("_", " ")}
+                      </span>
+                    </div>
+                    <div className="mt-4 grid grid-cols-3 gap-2 rounded-lg border border-line-600 bg-asphalt-900 p-3 text-center">
+                      <div><p className="text-base font-black text-paper-50">{evento.resumen.total}</p><p className="text-[10px] text-fog-400">Participantes</p></div>
+                      <div><p className="text-base font-black text-ok-green">{evento.resumen.asistenciaValida}</p><p className="text-[10px] text-fog-400">Asistieron</p></div>
+                      <div><p className="text-base font-black text-signal-amber">{evento.resumen.pendientes}</p><p className="text-[10px] text-fog-400">Pendientes</p></div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <a href={`/asistencia/eventos?evento=${evento.id}`} className="inline-flex min-h-10 items-center rounded-lg bg-radar-cyan px-3 text-xs font-black text-asphalt-950">Abrir expediente</a>
+                      {evento.materialUrl && <a href={evento.materialUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-line-500 px-3 text-xs font-bold text-mist-200 hover:text-paper-50">Material <ExternalLink size={13} /></a>}
+                      {evento.registroAbierto && evento.tokenRegistro && <a href={`/asistir/${evento.tokenRegistro}`} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-ok-green/40 bg-ok-green/10 px-3 text-xs font-bold text-ok-green">Enlace de asistencia <ExternalLink size={13} /></a>}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Filtros y Selector de Fecha con Calendario Popover */}
         <div className="flex flex-wrap items-center justify-between gap-3 bg-asphalt-900 border border-line-600 p-3 rounded-2xl">
@@ -892,7 +998,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                   </span>
                   {fecha && datesSummary[fecha] ? (
                     <span className="px-2 py-0.5 bg-ok-green/20 text-ok-green border border-ok-green/40 text-[10px] font-mono font-black rounded-md flex items-center gap-1">
-                      ● {datesSummary[fecha].total} firmas
+                      ● {datesSummary[fecha].eventos || 0} actividades · {datesSummary[fecha].total} registros
                     </span>
                   ) : fecha ? (
                     <span className="text-fog-400 text-[10px]">(0 firmas)</span>
@@ -912,6 +1018,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                     setCalendarMonth(new Date());
                     setCurrentPage(1);
                     setShowCalendarDropdown(false);
+                    router.push(`/asistencia/dia/${hoy}`);
                   }}
                   className={`px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all ${
                     fecha === getTodayColombia()
@@ -930,6 +1037,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                     setFecha("");
                     setCurrentPage(1);
                     setShowCalendarDropdown(false);
+                    router.push("/asistencia");
                   }}
                   className={`px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all ${
                     !fecha
@@ -952,6 +1060,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                         const [y, m] = latest.split("-").map(Number);
                         setCalendarMonth(new Date(y, m - 1, 1));
                         setCurrentPage(1);
+                        router.push(`/asistencia/dia/${latest}`);
                       }
                     }}
                     className="text-[11px] font-mono text-fog-400 hover:text-radar-cyan px-2.5 py-1.5 rounded-xl border border-line-600/60 hover:border-radar-cyan/60 bg-asphalt-950 transition-all flex items-center gap-1"
@@ -1017,6 +1126,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                             setFecha(dItem.dateStr);
                             setCurrentPage(1);
                             setShowCalendarDropdown(false);
+                            router.push(`/asistencia/dia/${dItem.dateStr}`);
                           }}
                           className={`relative p-1.5 rounded-lg text-xs font-mono font-bold transition-all flex flex-col items-center justify-center ${
                             isSelected
@@ -1025,7 +1135,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                               ? "bg-asphalt-800 text-paper-50 border border-ok-green/60 hover:bg-asphalt-700"
                               : "text-fog-400 hover:bg-asphalt-800 hover:text-paper-50"
                           }`}
-                          title={dItem.hasData ? `${dItem.count} registros de asistencia` : "Sin registros"}
+                          title={dItem.hasData ? `${dItem.count} registros; abre el día para ver sus actividades` : "Sin registros"}
                         >
                           <span>{dItem.day}</span>
                           {dItem.hasData && !isSelected && (
@@ -1049,6 +1159,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                         setFecha(today);
                         setCalendarMonth(new Date());
                         setShowCalendarDropdown(false);
+                        router.push(`/asistencia/dia/${today}`);
                       }}
                       className="text-radar-cyan hover:underline font-bold"
                     >
@@ -1347,7 +1458,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                                     hora: r.horaLlegada || "—",
                                   })}
                                   className="inline-flex items-center gap-1 px-2 py-1 bg-ok-green/10 hover:bg-ok-green/20 text-ok-green font-bold rounded-lg border border-ok-green/30 transition-colors text-[11px]"
-                                  title="Ver Evidencia Fotográfica / Selfie"
+                                  title="Ver evidencia fotográfica histórica"
                                 >
                                   <Camera className="w-3 h-3" />
                                   <span>Foto</span>
@@ -1671,7 +1782,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
         </div>
       )}
 
-      {/* Modal para Visualizar Fotografía / Selfie */}
+      {/* Modal para visualizar evidencia fotográfica histórica */}
       {photoModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-asphalt-900 border border-line-600 rounded-2xl max-w-md w-full p-6 space-y-4 text-center shadow-2xl">
@@ -2074,3 +2185,5 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
     </div>
   );
 }
+
+export default AsistenciaAdminPage;

@@ -32,6 +32,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
         tipoPersona: "interno",
         tipoConvocatoria: body.tipoConvocatoria || "opcional",
         condicionLaboral: persona.estado === "activo" ? "disponible" : persona.estado,
+        origenRegistro: "manual",
       };
     } else {
       const nombre = typeof body.personaNombre === "string" ? body.personaNombre.trim() : "";
@@ -47,6 +48,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
         cargo: textoOpcional(body.cargo, 120),
         tipoConvocatoria: body.tipoConvocatoria || "invitado",
         condicionLaboral: "no_aplica",
+        origenRegistro: "manual",
       };
     }
 

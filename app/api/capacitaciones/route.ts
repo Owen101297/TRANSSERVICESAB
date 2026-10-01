@@ -7,7 +7,7 @@ import {
   procesoEventoDesdeCapacitacion,
   tipoEventoDesdeCapacitacion,
 } from "@/lib/capacitacion-evento";
-import { crearConsecutivoEvento } from "@/lib/eventos-asistencia";
+import { crearConsecutivoEvento, crearTokenRegistro } from "@/lib/eventos-asistencia";
 
 export const dynamic = "force-dynamic";
 
@@ -113,8 +113,6 @@ export async function POST(req: Request) {
       materialUrl,
       materialContenido,
       preguntas = [],
-      requiereSelfie = true,
-      requiereFirma = true,
       asistentesEsperados = 10,
     } = body;
 
@@ -137,6 +135,7 @@ export async function POST(req: Request) {
       const evento = await tx.eventoAsistencia.create({
         data: {
           consecutivo: crearConsecutivoEvento(),
+          tokenRegistro: crearTokenRegistro(),
           nombre: nombre.trim(),
           tipo: tipoEventoDesdeCapacitacion(categoria),
           caracter: "formativo",
@@ -151,8 +150,8 @@ export async function POST(req: Request) {
           facilitadorTipo: "interno",
           facilitadorNombre: facilitador?.trim() || auth.session.nombre,
           estado: "programado",
-          requiereFirma: Boolean(requiereFirma),
-          requiereFoto: Boolean(requiereSelfie),
+          requiereFirma: true,
+          requiereFoto: !String(lugar || "").toLowerCase().match(/virtual|digital/),
           requiereEvaluacion: Array.isArray(preguntas) && preguntas.length > 0,
           notaMinima: Array.isArray(preguntas) && preguntas.length > 0 ? 80 : null,
           contenido: materialContenido?.trim() || null,
@@ -185,8 +184,8 @@ export async function POST(req: Request) {
         materialUrl: materialUrl?.trim() || null,
         materialContenido: materialContenido?.trim() || null,
         preguntas: preguntas || [],
-        requiereSelfie: Boolean(requiereSelfie),
-        requiereFirma: Boolean(requiereFirma),
+        requiereSelfie: false,
+        requiereFirma: true,
         asistentesEsperados: parseInt(String(asistentesEsperados), 10) || 0,
         estado: "programada",
         eventoId: evento.id,

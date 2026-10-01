@@ -640,6 +640,13 @@ model EventoAsistencia {
   notaMinima              Float?
   contenido               String?
   materialUrl             String?
+  tokenRegistro           String?   @unique
+  registroAbierto         Boolean   @default(false)
+  registroAbiertoAt       DateTime?
+  registroCerradoAt       DateTime?
+  permiteExternos         Boolean   @default(true)
+  instruccionesRegistro   String?
+  declaracionAsistencia   String    @default("Confirmo que participé en esta actividad, recibí el contenido indicado y que los datos suministrados son correctos.")
   observacionesCierre     String?
   cerradoExcepcional      Boolean   @default(false)
   motivoCierreExcepcional String?
@@ -675,6 +682,7 @@ model EventoParticipante {
   persona                 Persona?         @relation(fields: [personaId], references: [id], onDelete: SetNull)
   personaNombre           String
   personaDocumento        String?
+  tipoDocumento           String?
   tipoPersona             String           @default("interno") // interno, contratista, capacitador, visitante, otro
   empresa                 String?
   cargo                   String?
@@ -686,6 +694,13 @@ model EventoParticipante {
   horaEntrada             DateTime?
   horaSalida              DateTime?
   firmaUrl                String?
+  firmaHash               String?
+  firmaAt                 DateTime?
+  declaracionFirmada      String?
+  declaracionAceptadaAt   DateTime?
+  tratamientoDatosAt      DateTime?
+  registroCodigo          String?          @unique
+  origenRegistro          String           @default("convocatoria") // convocatoria, enlace, portal, manual, importacion
   fotoUrl                 String?
   calificacion            Float?
   evaluacionEstado        String?
@@ -757,6 +772,11 @@ model EventoEvidencia {
   descripcion     String?
   archivoUrl      String
   almacenamiento  String           @default("externo") // interno, drive, forms, externo
+  origen          String           @default("carga") // captura, carga, enlace, reporte
+  mimeType        String?
+  tamanoBytes     Int?
+  hashSha256      String?
+  capturadaAt     DateTime?
   visibleEnPdf    Boolean          @default(true)
   validada        Boolean          @default(false)
   creadoPorId     String

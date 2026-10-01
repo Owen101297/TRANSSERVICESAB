@@ -9,7 +9,10 @@ import PasswordField from "@/components/auth/PasswordField";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/";
+  const requestedCallback = searchParams.get("callbackUrl") || "/";
+  const callbackUrl = requestedCallback.startsWith("/") && !requestedCallback.startsWith("//")
+    ? requestedCallback
+    : "/";
   const [activeTab, setActiveTab] = useState<"conductor" | "admin">("admin");
   const [documento, setDocumento] = useState("");
   const [pin, setPin] = useState("");
@@ -47,9 +50,9 @@ function LoginForm() {
 
       const target = data.user.mustChangePassword
         ? "/cambiar-clave"
-        : data.user.rolPrincipal === "conductor"
-          ? "/portal-conductor"
-          : callbackUrl && callbackUrl !== "/login" ? callbackUrl : "/";
+        : callbackUrl && callbackUrl !== "/login"
+          ? callbackUrl
+          : data.user.rolPrincipal === "conductor" ? "/portal-conductor" : "/";
       router.push(target);
       router.refresh();
     } catch (reason) {

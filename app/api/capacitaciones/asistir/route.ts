@@ -3,10 +3,15 @@ import { prisma } from "@/lib/prisma";
 import { requireApiSession } from "@/lib/api-auth";
 import { recordAudit } from "@/lib/audit";
 import { conductorIdentityFromSession } from "@/lib/portal-validation";
+import {
+  crearCodigoRegistro,
+  DECLARACION_ASISTENCIA_DEFAULT,
+  validarFirmaManuscrita,
+} from "@/lib/eventos-asistencia";
 
 export const dynamic = "force-dynamic";
 
-// ── POST: Registrar asistencia con selfie y firma digital desde Portal Conductor ──
+// ── POST: Compatibilidad del Portal Conductor con el expediente unificado ──
 export async function POST(req: Request) {
   const auth = await requireApiSession();
   if (auth.response) return auth.response;
@@ -20,7 +25,6 @@ export async function POST(req: Request) {
       cargo = "Conductor",
       proyecto,
       firmaUrl,
-      fotoUrl, // Selfie de evidencia
       calificacion = 100,
       respuestas = {},
       tiempoLectura = 0,
@@ -47,6 +51,7 @@ export async function POST(req: Request) {
       );
     }
     const participantName = identity.name.trim();
+    const firma = validarFirmaManuscrita(firmaUrl);
 
     // Verificar si ya asistió a esta capacitación para evitar duplicados
     const existing = await prisma.asistenciaRegistro.findFirst({
@@ -80,6 +85,12 @@ export async function POST(req: Request) {
         { status: 404 }
       );
     }
+    if (capacitacion.evento && !capacitacion.evento.registroAbierto) {
+      return NextResponse.json(
+        { success: false, error: "El registro de asistencia todavía no está abierto para esta actividad." },
+        { status: 409 }
+      );
+    }
 
     const nuevaAsistencia = await prisma.$transaction(async (tx) => {
       const asistencia = await tx.asistenciaRegistro.create({ data: {
@@ -97,8 +108,8 @@ export async function POST(req: Request) {
         horaLlegada: new Date().toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }),
         evento: capacitacion.nombre,
         tipoEvento: capacitacion.categoria || "charla_semanal",
-        firmaUrl: firmaUrl || null,
-        fotoUrl: fotoUrl || null, // Selfie
+        firmaUrl: firma.dataUrl,
+        fotoUrl: null,
         calificacion: parseFloat(String(calificacion)) || 100,
         respuestas: respuestas || {},
         tiempoLectura: parseInt(String(tiempoLectura), 10) || 0,
@@ -115,16 +126,20 @@ export async function POST(req: Request) {
           proyecto: proyecto || "Operación General",
           condicionLaboral: "disponible",
           resultadoPreliminar: "presente",
-          resultadoDefinitivo: "presente",
+          resultadoDefinitivo: null,
           horaEntrada: new Date(),
-          firmaUrl: firmaUrl || null,
-          fotoUrl: fotoUrl || null,
+          firmaUrl: firma.dataUrl,
+          firmaHash: firma.hash,
+          firmaAt: new Date(),
+          declaracionFirmada: DECLARACION_ASISTENCIA_DEFAULT,
+          declaracionAceptadaAt: new Date(),
+          tratamientoDatosAt: new Date(),
+          registroCodigo: crearCodigoRegistro(),
+          origenRegistro: "portal_conductor",
+          fotoUrl: null,
           calificacion: parseFloat(String(calificacion)) || 100,
           evaluacionEstado: Number(calificacion) >= 80 ? "aprobada" : "no_aprobada",
           observaciones: observaciones?.trim() || null,
-          validadoPorId: auth.session.id,
-          validadoPorNombre: auth.session.nombre,
-          validadoAt: new Date(),
         };
         if (identity.id) {
           await tx.eventoParticipante.upsert({
@@ -176,7 +191,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      message: "¡Asistencia y evidencia registradas exitosamente!",
+      message: "Asistencia y firma registradas. El resultado queda pendiente de conciliación administrativa.",
       asistencia: nuevaAsistencia,
     });
   } catch (error: any) {

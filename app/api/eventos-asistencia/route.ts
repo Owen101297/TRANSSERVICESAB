@@ -3,7 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { requireStaff } from "@/lib/api-auth";
 import { recordAudit } from "@/lib/audit";
 import {
+  crearTokenRegistro,
   crearConsecutivoEvento,
+  DECLARACION_ASISTENCIA_DEFAULT,
   documentosSugeridos,
   fechaValida,
   textoOpcional,
@@ -91,6 +93,7 @@ export async function POST(req: Request) {
 
     const tipo = textoRequerido(body.tipo, "El tipo", 60);
     const caracter = textoRequerido(body.caracter || "informativo", "El carácter", 30);
+    const modalidad = textoRequerido(body.modalidad || "presencial", "La modalidad", 30);
     const personaIds: string[] = Array.isArray(body.personaIds)
       ? [...new Set((body.personaIds as unknown[]).filter((id): id is string => typeof id === "string"))]
       : [];
@@ -123,6 +126,7 @@ export async function POST(req: Request) {
       const created = await tx.eventoAsistencia.create({
         data: {
         consecutivo: crearConsecutivoEvento(),
+        tokenRegistro: crearTokenRegistro(),
         nombre: textoRequerido(body.nombre, "El nombre", 180),
         tipo,
         caracter,
@@ -131,7 +135,7 @@ export async function POST(req: Request) {
         descripcion: textoOpcional(body.descripcion, 3000),
         fechaInicio,
         fechaFin,
-        modalidad: textoRequerido(body.modalidad || "presencial", "La modalidad", 30),
+        modalidad,
         lugar: textoRequerido(body.lugar, "El lugar", 220),
         proyecto: textoOpcional(body.proyecto, 120),
         responsableId: textoOpcional(body.responsableId, 80),
@@ -144,12 +148,16 @@ export async function POST(req: Request) {
         permanenciaMinima: Math.max(0, Math.min(100, Number(body.permanenciaMinima) || 80)),
         requiereEntrada: body.requiereEntrada !== false,
         requiereSalida: body.requiereSalida === true,
-        requiereFirma: body.requiereFirma !== false,
-        requiereFoto: body.requiereFoto === true,
+        requiereFirma: true,
+        requiereFoto: modalidad !== "virtual",
         requiereEvaluacion: body.requiereEvaluacion === true,
         notaMinima: body.requiereEvaluacion ? Math.max(0, Math.min(100, Number(body.notaMinima) || 80)) : null,
         contenido: textoOpcional(body.contenido, 5000),
         materialUrl: textoOpcional(body.materialUrl, 1000),
+        permiteExternos: body.permiteExternos !== false,
+        instruccionesRegistro: textoOpcional(body.instruccionesRegistro, 1000),
+        declaracionAsistencia:
+          textoOpcional(body.declaracionAsistencia, 1200) || DECLARACION_ASISTENCIA_DEFAULT,
         creadoPorId: auth.session.id,
         creadoPorNombre: auth.session.nombre,
         participantes: {
@@ -163,6 +171,7 @@ export async function POST(req: Request) {
             tipoConvocatoria: "obligatoria",
             condicionLaboral: novedadPorPersona.get(persona.id) ||
               (persona.estado === "activo" ? "disponible" : persona.estado),
+            origenRegistro: "convocatoria",
           })),
         },
         documentos: {
@@ -208,7 +217,7 @@ export async function POST(req: Request) {
             materialTipo: created.materialUrl ? "google_form" : "texto",
             materialUrl: created.materialUrl,
             materialContenido: created.contenido,
-            requiereSelfie: created.requiereFoto,
+            requiereSelfie: false,
             requiereFirma: created.requiereFirma,
             asistentesEsperados: personas.length,
             estado: "borrador",

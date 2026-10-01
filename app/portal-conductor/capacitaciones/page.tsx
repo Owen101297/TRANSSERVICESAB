@@ -7,7 +7,6 @@ import {
   GraduationCap,
   Video,
   FileText,
-  Camera,
   PenTool,
   CheckCircle2,
   AlertCircle,
@@ -16,7 +15,6 @@ import {
   ShieldCheck,
   Award,
   RefreshCw,
-  RotateCcw,
   ExternalLink,
 } from "lucide-react";
 import { Capacitacion, PreguntaEvaluacion } from "@/lib/types/capacitacion";
@@ -44,16 +42,9 @@ export default function PortalCapacitacionesPage() {
 
   // Form State para la Asistencia
   const [respuestas, setRespuestas] = useState<Record<number, number>>({});
-  const [selfieBase64, setSelfieBase64] = useState<string | null>(null);
-  const [isCameraActive, setIsCameraActive] = useState(false);
-  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
-  const [cameraError, setCameraError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [successSubmitted, setSuccessSubmitted] = useState(false);
   const [timeSpent, setTimeSpent] = useState(0);
-
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Signature Canvas
   const sigCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -98,55 +89,6 @@ export default function PortalCapacitacionesPage() {
     }
     return () => clearInterval(interval);
   }, [selectedCap, successSubmitted]);
-
-  // Manejo de Cámara Selfie
-  const startCamera = async () => {
-    setCameraError(null);
-    setIsCameraActive(true);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 640 } },
-        audio: false,
-      });
-      setCameraStream(stream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
-    } catch (err: any) {
-      console.error("Error al acceder a la cámara:", err);
-      setCameraError("No se pudo acceder a la cámara. Por favor autoriza los permisos.");
-      setIsCameraActive(false);
-    }
-  };
-
-  const stopCamera = () => {
-    if (cameraStream) {
-      cameraStream.getTracks().forEach((track) => track.stop());
-      setCameraStream(null);
-    }
-    setIsCameraActive(false);
-  };
-
-  const captureSelfie = () => {
-    if (!videoRef.current || !canvasRef.current) return;
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    canvas.width = video.videoWidth || 480;
-    canvas.height = video.videoHeight || 480;
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-      setSelfieBase64(dataUrl);
-    }
-    stopCamera();
-  };
-
-  const retakeSelfie = () => {
-    setSelfieBase64(null);
-    startCamera();
-  };
 
   // Manejo de Canvas de Firma
   const initSignaturePad = () => {
@@ -216,11 +158,7 @@ export default function PortalCapacitacionesPage() {
   // Enviar Asistencia
   const handleSubmitAttendance = async () => {
     if (!selectedCap) return;
-    if (selectedCap.requiereSelfie && !selfieBase64) {
-      alert("Por favor toma una foto selfie para verificar tu asistencia.");
-      return;
-    }
-    if (selectedCap.requiereFirma && isSigBlank) {
+    if (isSigBlank) {
       alert("Por favor firma en el recuadro antes de enviar.");
       return;
     }
@@ -254,7 +192,6 @@ export default function PortalCapacitacionesPage() {
         cargo: participantCargo || "Conductor",
         proyecto: participantProyecto || "TRANS SERVICES",
         firmaUrl: firmaDataUrl,
-        fotoUrl: selfieBase64, // Selfie
         calificacion,
         respuestas,
         tiempoLectura: timeSpent,
@@ -355,7 +292,6 @@ export default function PortalCapacitacionesPage() {
                     onClick={() => {
                       setSelectedCap(cap);
                       setSuccessSubmitted(false);
-                      setSelfieBase64(null);
                       setRespuestas({});
                       setTimeSpent(0);
                     }}
@@ -395,7 +331,6 @@ export default function PortalCapacitacionesPage() {
             <button
               onClick={() => {
                 setSelectedCap(null);
-                stopCamera();
               }}
               className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-slate-900"
             >
@@ -411,7 +346,7 @@ export default function PortalCapacitacionesPage() {
                   ¡Asistencia y Evidencia Registradas!
                 </h2>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  Tu participación en <strong>"{selectedCap.nombre}"</strong> quedó respaldada con tu foto selfie y firma en el sistema central de TRANS SERVICES A&B.
+                  Tu participación en <strong>"{selectedCap.nombre}"</strong> quedó respaldada con tu firma y pendiente de conciliación administrativa.
                 </p>
                 <div className="pt-2">
                   <button
@@ -625,82 +560,13 @@ export default function PortalCapacitacionesPage() {
                   </div>
                 </div>
 
-                {/* 03. EVIDENCIA FOTOGRÁFICA (SELFIE CON CÁMARA) */}
-                {selectedCap.requiereSelfie && (
-                  <div className="bg-white rounded-[26px] p-5 border border-slate-200/80 shadow-sm space-y-3">
-                    <div className="text-xs font-mono font-bold uppercase text-slate-400 tracking-wide flex items-center gap-2">
-                      <Camera size={14} className="text-emerald-600" />
-                      <span>03 • Verificación Facial (Selfie) *</span>
-                    </div>
-
-                    {cameraError && (
-                      <div className="p-3 rounded-xl bg-red-50 text-red-700 text-xs border border-red-200">
-                        {cameraError}
-                      </div>
-                    )}
-
-                    {!selfieBase64 && !isCameraActive && (
-                      <button
-                        type="button"
-                        onClick={startCamera}
-                        className="w-full py-4 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border-2 border-dashed border-emerald-300 text-emerald-800 text-xs font-bold flex flex-col items-center justify-center gap-1.5 transition-colors"
-                      >
-                        <Camera size={24} />
-                        <span>Abrir Cámara para Tomar Selfie</span>
-                      </button>
-                    )}
-
-                    {isCameraActive && (
-                      <div className="space-y-3 text-center">
-                        <div className="relative rounded-2xl overflow-hidden bg-black max-w-xs mx-auto aspect-square border-2 border-emerald-400">
-                          <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
-                        </div>
-                        <div className="flex justify-center gap-2">
-                          <button
-                            type="button"
-                            onClick={captureSelfie}
-                            className="px-6 py-2.5 rounded-full bg-emerald-600 text-white font-bold text-xs shadow-md hover:bg-emerald-700 transition-colors"
-                          >
-                            📸 Capturar Foto
-                          </button>
-                          <button
-                            type="button"
-                            onClick={stopCamera}
-                            className="px-4 py-2.5 rounded-full bg-slate-200 text-slate-700 font-bold text-xs"
-                          >
-                            Cancelar
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {selfieBase64 && (
-                      <div className="text-center space-y-2">
-                        <div className="relative w-28 h-28 rounded-full overflow-hidden border-2 border-emerald-500 mx-auto shadow-md">
-                          <img src={selfieBase64} alt="Selfie" className="w-full h-full object-cover" />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={retakeSelfie}
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-slate-900"
-                        >
-                          <RotateCcw size={12} /> Tomar otra foto
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Canvas oculto para procesar foto */}
-                    <canvas ref={canvasRef} className="hidden" />
-                  </div>
-                )}
-
-                {/* 04. FIRMA DIGITAL */}
-                {selectedCap.requiereFirma && (
+                {/* 03. FIRMA MANUSCRITA OBLIGATORIA */}
+                <div>
                   <div className="bg-white rounded-[26px] p-5 border border-slate-200/80 shadow-sm space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="text-xs font-mono font-bold uppercase text-slate-400 tracking-wide flex items-center gap-2">
                         <PenTool size={14} className="text-slate-900" />
-                        <span>04 • Firma del Conductor *</span>
+                        <span>03 • Firma manuscrita del participante *</span>
                       </div>
                       <button
                         type="button"
@@ -727,7 +593,7 @@ export default function PortalCapacitacionesPage() {
                       Firma con tu dedo o lápiz dentro del recuadro
                     </p>
                   </div>
-                )}
+                </div>
 
                 {/* BOTÓN FINAL DE ENVÍO */}
                 <button
