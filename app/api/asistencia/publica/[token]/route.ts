@@ -76,6 +76,7 @@ export async function GET(_req: Request, context: { params: Promise<{ token: str
       materialUrl: evento.materialUrl,
       materialOrigen: evento.materialOrigen,
       validacionTipo: evento.validacionTipo,
+      formConnectorStatus: evento.formConnectorStatus,
       enlaceReunion: evento.enlaceReunion,
       evidenciaTipo: evento.evidenciaTipo,
       notaMinima: evento.notaMinima,

@@ -1,6 +1,7 @@
 /**
  * TRANS SERVICES A&B · Sincronización mínima Google Forms -> ERP
- * Instalar como activador "Al enviar el formulario" dentro de cada Form.
+ * Integración heredada. Para nuevas actividades usa google-forms-central-connector.gs,
+ * que se instala una sola vez y administra todos los formularios desde el ERP.
  * Las respuestas y archivos permanecen en Google; el ERP recibe solo la trazabilidad.
  */
 function enviarRespuestaAlErp(e) {

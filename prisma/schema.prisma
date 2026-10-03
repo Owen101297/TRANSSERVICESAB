@@ -642,6 +642,14 @@ model EventoAsistencia {
   materialUrl             String?
   materialOrigen          String    @default("no_aplica") // empresa, facilitador_externo, no_aplica
   validacionTipo          String    @default("solo_asistencia") // solo_asistencia, formulario_enviado, formulario_aprobado
+  googleFormAdminUrl      String?
+  googleFormId            String?   @unique
+  formConnectorStatus     String    @default("no_aplica") // no_aplica, pendiente, conectado, error
+  formConnectedAt         DateTime?
+  formLastSyncAt          DateTime?
+  formLastSyncStatus      String?
+  formLastSyncError       String?
+  formResponseCount       Int       @default(0)
   enlaceReunion           String?
   evidenciaTipo           String    @default("no_aplica") // individual, general, ambas, no_aplica
   tokenRegistro           String?   @unique

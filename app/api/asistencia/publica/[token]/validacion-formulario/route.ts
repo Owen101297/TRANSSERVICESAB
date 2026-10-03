@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth";
 import { normalizeDocument, requiresFormValidation } from "@/lib/event-strategy";
+import { synchronizeEventGoogleForm } from "@/lib/google-forms-connector";
 import { prisma } from "@/lib/prisma";
 import { consumeRateLimit } from "@/lib/rate-limit";
 
@@ -34,11 +35,34 @@ export async function POST(req: Request, context: { params: Promise<{ token: str
     return NextResponse.json({ success: false, error: "Indica el documento usado en Google Forms." }, { status: 400 });
   }
 
-  const validaciones = await prisma.eventoValidacionFormulario.findMany({
+  let validaciones = await prisma.eventoValidacionFormulario.findMany({
     where: { eventoId: evento.id, personaDocumento: documento },
     orderBy: { submittedAt: "desc" },
     take: 20,
   });
+  if (validaciones.length === 0 && evento.googleFormId && evento.formConnectorStatus === "conectado") {
+    try {
+      await synchronizeEventGoogleForm(evento.id, false);
+      validaciones = await prisma.eventoValidacionFormulario.findMany({
+        where: { eventoId: evento.id, personaDocumento: documento },
+        orderBy: { submittedAt: "desc" },
+        take: 20,
+      });
+    } catch (error) {
+      console.error("No fue posible conciliar Google Forms durante la verificación pública.", {
+        eventoId: evento.id,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    }
+  }
+  for (let attempt = 0; attempt < 2 && validaciones.length === 0; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 1_200));
+    validaciones = await prisma.eventoValidacionFormulario.findMany({
+      where: { eventoId: evento.id, personaDocumento: documento },
+      orderBy: { submittedAt: "desc" },
+      take: 20,
+    });
+  }
   const validacion = evento.validacionTipo === "formulario_aprobado"
     ? validaciones.find((item) => item.estado === "aprobado") || validaciones[0]
     : validaciones[0];

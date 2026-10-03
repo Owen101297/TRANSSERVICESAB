@@ -339,6 +339,29 @@ test("Google Forms sincroniza trazabilidad mínima y exige secreto compartido", 
   assert.match(publicAttendance, /Primero completa el Google Forms y verifica la respuesta/);
 });
 
+test("el conector central evita scripts por formulario y permite reconciliación idempotente", () => {
+  const connector = readFileSync(
+    join(process.cwd(), "scripts/google-forms-central-connector.gs"),
+    "utf8",
+  );
+  const adminRoute = readFileSync(
+    join(process.cwd(), "app/api/eventos-asistencia/[id]/formulario/route.ts"),
+    "utf8",
+  );
+  const publicValidation = readFileSync(
+    join(process.cwd(), "app/api/asistencia/publica/[token]/validacion-formulario/route.ts"),
+    "utf8",
+  );
+  const schema = readFileSync(join(process.cwd(), "prisma/schema.prisma"), "utf8");
+
+  assert.match(connector, /function doPost\(e\)/);
+  assert.match(connector, /function syncResponses_/);
+  assert.doesNotMatch(connector, /ScriptApp\.newTrigger/);
+  assert.match(adminRoute, /esAdministradorAsistencia\(auth\.session\)/);
+  assert.match(publicValidation, /synchronizeEventGoogleForm\(evento\.id, false\)/);
+  assert.match(schema, /googleFormId\s+String\?\s+@unique/);
+});
+
 test("la información pública de Google Drive es accesible sin abrir rutas privadas", () => {
   const proxy = readFileSync(join(process.cwd(), "proxy.ts"), "utf8");
   const privacy = readFileSync(

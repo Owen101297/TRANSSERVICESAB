@@ -44,6 +44,7 @@ type PublicEvent = {
   materialUrl: string | null;
   materialOrigen: "empresa" | "facilitador_externo" | "no_aplica";
   validacionTipo: "solo_asistencia" | "formulario_enviado" | "formulario_aprobado";
+  formConnectorStatus: "no_aplica" | "pendiente" | "conectado" | "error";
   enlaceReunion: string | null;
   evidenciaTipo: "individual" | "general" | "ambas" | "no_aplica";
   notaMinima: number | null;
@@ -135,6 +136,7 @@ export default function RegistroAsistenciaClient({ token }: { token: string }) {
   const formRef = useRef<HTMLFormElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const signatureRef = useRef<SignaturePad | null>(null);
+  const verificationInFlightRef = useRef(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -218,10 +220,12 @@ export default function RegistroAsistenciaClient({ token }: { token: string }) {
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
-  async function verifyGoogleForm() {
+  const verifyGoogleForm = useCallback(async () => {
     if (!data) return;
+    if (verificationInFlightRef.current) return;
     const formData = formRef.current ? new FormData(formRef.current) : null;
     const personaDocumento = participantType === "externo" ? formData?.get("personaDocumento") : null;
+    verificationInFlightRef.current = true;
     setCheckingForm(true);
     setError(null);
     try {
@@ -242,9 +246,23 @@ export default function RegistroAsistenciaClient({ token }: { token: string }) {
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "No fue posible verificar Google Forms.");
     } finally {
+      verificationInFlightRef.current = false;
       setCheckingForm(false);
     }
-  }
+  }, [data, participantType, token]);
+
+  useEffect(() => {
+    if (!data || data.evento.validacionTipo === "solo_asistencia" || !materialOpened || formValidation.completed) return;
+    const verifyWhenVisible = () => {
+      if (document.visibilityState === "visible") void verifyGoogleForm();
+    };
+    document.addEventListener("visibilitychange", verifyWhenVisible);
+    window.addEventListener("focus", verifyWhenVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", verifyWhenVisible);
+      window.removeEventListener("focus", verifyWhenVisible);
+    };
+  }, [data, formValidation.completed, materialOpened, verifyGoogleForm]);
 
   async function saveRemoteEvidence(record: SuccessRecord, evidenceToken: string, selectedSelfie: File) {
     if (!data) throw new Error("No fue posible recuperar la información de la actividad.");
@@ -472,8 +490,9 @@ export default function RegistroAsistenciaClient({ token }: { token: string }) {
                 <div className="mt-3 flex flex-wrap gap-2">
                   {event.enlaceReunion && <button type="button" onClick={() => openExternalLink(event.enlaceReunion as string)} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-slate-950 px-3.5 text-sm font-bold text-white"><ExternalLink size={16} /> Entrar a la reunión</button>}
                   {event.materialUrl && <button type="button" onClick={() => openExternalLink(event.materialUrl as string)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-sky-200 bg-white px-3.5 text-sm font-bold text-sky-800"><ExternalLink size={16} /> {event.materialOrigen === "empresa" ? "Abrir Google Forms" : "Abrir material"}</button>}
-                  {event.materialOrigen === "empresa" && event.validacionTipo !== "solo_asistencia" && <button type="button" onClick={() => void verifyGoogleForm()} disabled={checkingForm || !materialOpened} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-sky-600 px-3.5 text-sm font-bold text-white disabled:opacity-45">{checkingForm ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} Verificar respuesta</button>}
+                  {event.materialOrigen === "empresa" && event.validacionTipo !== "solo_asistencia" && <button type="button" onClick={() => void verifyGoogleForm()} disabled={checkingForm || !materialOpened} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-sky-600 px-3.5 text-sm font-bold text-white disabled:opacity-45">{checkingForm ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} {checkingForm ? "Buscando respuesta…" : "Verificar respuesta"}</button>}
                 </div>
+                {event.materialOrigen === "empresa" && event.validacionTipo !== "solo_asistencia" && event.formConnectorStatus !== "conectado" && <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">La sincronización del formulario está pendiente de revisión administrativa. Tu respuesta permanece guardada en Google Forms.</div>}
                 {event.materialOrigen === "empresa" && event.validacionTipo !== "solo_asistencia" && formValidation.checked && <div className={`mt-3 rounded-xl border p-3 text-xs leading-5 ${formValidation.completed ? formValidation.status === "no_aprobado" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-rose-200 bg-rose-50 text-rose-800"}`}>{formValidation.completed ? formValidation.status === "no_aprobado" ? `Respuesta encontrada${formValidation.score !== null ? ` · ${formValidation.score}%` : ""}. Puedes registrar la asistencia y repetir la evaluación para completar la actividad.` : `Respuesta verificada${formValidation.score !== null ? ` · ${formValidation.score}%` : ""}.` : "Todavía no encontramos una respuesta con este documento. Envíala en Google Forms y vuelve a verificar."}</div>}
               </div>
             </section>

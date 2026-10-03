@@ -28,6 +28,10 @@ export default defineRailway((context) => {
       GOOGLE_DRIVE_CLIENT_SECRET: preserve(),
       GOOGLE_DRIVE_REFRESH_TOKEN: preserve(),
       GOOGLE_DRIVE_ROOT_FOLDER_ID: preserve(),
+      GOOGLE_FORMS_CONNECTOR_SECRET: preserve(),
+      GOOGLE_FORMS_CONNECTOR_URL: preserve(),
+      GOOGLE_FORMS_WEBHOOK_SECRET: preserve(),
+      PUBLIC_APP_URL: preserve(),
       SESSION_SECRET: preserve(),
     },
   });

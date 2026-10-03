@@ -14,8 +14,10 @@ import {
   Copy,
   ExternalLink,
   Loader2,
+  Link2,
   Play,
   Plus,
+  RefreshCw,
   Search,
   ShieldCheck,
   Square,
@@ -101,6 +103,14 @@ type EventoDetalle = EventoLista & {
   enlaceReunion?: string | null;
   evidenciaTipo: "individual" | "general" | "ambas" | "no_aplica";
   notaMinima?: number | null;
+  googleFormAdminUrl?: string | null;
+  googleFormId?: string | null;
+  formConnectorStatus: "no_aplica" | "pendiente" | "conectado" | "error";
+  formConnectedAt?: string | null;
+  formLastSyncAt?: string | null;
+  formLastSyncStatus?: string | null;
+  formLastSyncError?: string | null;
+  formResponseCount: number;
   instruccionesRegistro?: string | null;
   revision?: number;
   participantes: Participante[];
@@ -316,6 +326,7 @@ export function EventosAsistenciaClient({ sessionRole, initialEventId }: { sessi
       requiereFirma: form.get("requiereFirma") === "on",
       notaMinima: Number(form.get("notaMinima")),
       materialUrl: form.get("materialUrl"),
+      googleFormAdminUrl: form.get("googleFormAdminUrl"),
       contenido: form.get("contenido"),
       permiteExternos: form.has("permiteExternos") ? form.get("permiteExternos") === "on" : true,
       instruccionesRegistro: form.get("instruccionesRegistro"),
@@ -342,6 +353,7 @@ export function EventosAsistenciaClient({ sessionRole, initialEventId }: { sessi
       closeCreateModal();
       await loadEventos();
       setSelectedId(data.evento.id);
+      if (data.connectorWarning) setError(`La actividad fue creada. ${data.connectorWarning}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No fue posible crear el evento.");
     } finally {
@@ -392,6 +404,34 @@ export function EventosAsistenciaClient({ sessionRole, initialEventId }: { sessi
       await loadDetalle(detalle.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No fue posible guardar la evidencia.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function connectGoogleForm(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!detalle) return;
+    const form = new FormData(event.currentTarget);
+    await manageGoogleForm("connect", String(form.get("formUrl") || ""));
+  }
+
+  async function manageGoogleForm(action: "connect" | "sync" | "status", formUrl?: string) {
+    if (!detalle) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/eventos-asistencia/${detalle.id}/formulario`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, formUrl }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "No fue posible gestionar Google Forms.");
+      await Promise.all([loadEventos(), loadDetalle(detalle.id)]);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "No fue posible gestionar Google Forms.");
+      await loadDetalle(detalle.id).catch(() => undefined);
     } finally {
       setBusy(false);
     }
@@ -699,7 +739,7 @@ export function EventosAsistenciaClient({ sessionRole, initialEventId }: { sessi
                 <Field label={createModality === "virtual" ? "Enlace de acceso" : createModality === "remota" ? "Canal o grupo" : "Lugar o enlace"}><input name="lugar" required placeholder={createModality === "virtual" ? "https://meet.google.com/..." : createModality === "remota" ? "Ej. Grupo WhatsApp Conductores" : "Ej. Sede principal · Sala de juntas"} className="input" /></Field>
                 <Field label="¿Quién gestiona el material?"><select name="materialOrigen" value={createMaterialOrigin} onChange={(event) => { const value = event.target.value as typeof createMaterialOrigin; setCreateMaterialOrigin(value); setCreateValidationType(value === "empresa" ? "formulario_enviado" : "solo_asistencia"); }} className="input"><option value="no_aplica">No aplica / solo asistencia</option><option value="empresa">La empresa · Google Forms</option><option value="facilitador_externo">Facilitador externo</option></select></Field>
                 <Field label="Evidencia requerida"><select name="evidenciaTipo" value={createEvidenceType} onChange={(event) => setCreateEvidenceType(event.target.value as typeof createEvidenceType)} className="input"><option value="general">Foto o captura general</option><option value="individual">Evidencia individual</option><option value="ambas">General + individual</option><option value="no_aplica">No requiere evidencia</option></select></Field>
-                {createMaterialOrigin === "empresa" && <><Field label="Google Forms" wide><input name="materialUrl" type="url" required placeholder="https://docs.google.com/forms/..." className="input" /><span className="mt-1 block text-[11px] leading-4 text-slate-500">El formulario conserva el material, preguntas, imágenes y videos.</span></Field><Field label="Validar antes de firmar"><select name="validacionTipo" value={createValidationType} onChange={(event) => setCreateValidationType(event.target.value as typeof createValidationType)} className="input"><option value="formulario_enviado">Respuesta enviada</option><option value="formulario_aprobado">Evaluación presentada y resultado</option><option value="solo_asistencia">Solo abrir material</option></select></Field>{createValidationType === "formulario_aprobado" && <Field label="Nota mínima"><input name="notaMinima" type="number" min="0" max="100" defaultValue="80" className="input" /></Field>}</>}
+                {createMaterialOrigin === "empresa" && <>{createValidationType === "solo_asistencia" ? <Field label="Enlace público del material" wide><input name="materialUrl" type="url" required placeholder="https://docs.google.com/forms/..." className="input" /><span className="mt-1 block text-[11px] leading-4 text-slate-500">Se abrirá como material, sin comprobar una respuesta.</span></Field> : <Field label="Google Forms · enlace de edición" wide><input name="googleFormAdminUrl" type="url" required placeholder="https://docs.google.com/forms/d/.../edit" className="input" /><span className="mt-1 block text-[11px] leading-4 text-slate-500">El ERP conectará el formulario y compartirá únicamente su enlace público. Este enlace administrativo nunca se muestra al participante.</span></Field>}<Field label="Validar antes de firmar"><select name="validacionTipo" value={createValidationType} onChange={(event) => setCreateValidationType(event.target.value as typeof createValidationType)} className="input"><option value="formulario_enviado">Respuesta enviada</option><option value="formulario_aprobado">Evaluación presentada y resultado</option><option value="solo_asistencia">Solo abrir material</option></select></Field>{createValidationType === "formulario_aprobado" && <Field label="Nota mínima"><input name="notaMinima" type="number" min="0" max="100" defaultValue="80" className="input" /></Field>}</>}
                 {createMaterialOrigin === "facilitador_externo" && <><input type="hidden" name="validacionTipo" value="solo_asistencia" /><input type="hidden" name="facilitadorTipo" value="externo" /><Field label="Nombre del facilitador"><input name="facilitadorNombre" required className="input" /></Field><Field label="Empresa del facilitador"><input name="facilitadorEmpresa" className="input" /></Field><Field label="Enlace de reunión"><input name="enlaceReunion" type="url" placeholder="https://meet.google.com/..." className="input" /></Field><Field label="Material del facilitador (opcional)"><input name="materialUrl" type="url" placeholder="https://..." className="input" /></Field></>}
                 {createMaterialOrigin === "no_aplica" && <><input type="hidden" name="validacionTipo" value="solo_asistencia" /><input type="hidden" name="facilitadorTipo" value="interno" /></>}
                 {createMaterialOrigin !== "facilitador_externo" && ["virtual", "mixta"].includes(createModality) && <Field label="Enlace de reunión"><input name="enlaceReunion" type="url" placeholder="https://meet.google.com/..." className="input" /></Field>}
@@ -804,7 +844,7 @@ export function EventosAsistenciaClient({ sessionRole, initialEventId }: { sessi
                     <Field label="Evidencia"><select name="evidenciaTipo" defaultValue={detalle.evidenciaTipo} className="input"><option value="general">General</option><option value="individual">Individual</option><option value="ambas">General + individual</option><option value="no_aplica">No requiere</option></select></Field>
                     <Field label="Nota mínima"><input name="notaMinima" type="number" min="0" max="100" defaultValue={detalle.notaMinima || 80} className="input" /></Field>
                     <Field label="Enlace de reunión" wide><input name="enlaceReunion" type="url" defaultValue={detalle.enlaceReunion || ""} className="input" /></Field>
-                    <Field label="Material / Google Forms" wide><input name="materialUrl" type="url" defaultValue={detalle.materialUrl || ""} className="input" /></Field>
+                    <Field label={detalle.materialOrigen === "empresa" ? "Enlace público generado" : "Material"} wide><input name="materialUrl" type="url" readOnly={detalle.materialOrigen === "empresa"} defaultValue={detalle.materialUrl || ""} className="input read-only:bg-slate-100 read-only:text-slate-500" /></Field>
                     <Field label="Contenido" wide><textarea name="contenido" rows={2} defaultValue={detalle.contenido || ""} className="input" /></Field>
                     <Field label="Instrucciones del enlace" wide><textarea name="instruccionesRegistro" rows={2} defaultValue={detalle.instruccionesRegistro || ""} className="input" /></Field>
                     <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 text-xs font-semibold text-slate-700"><input type="checkbox" name="permiteExternos" defaultChecked={detalle.permiteExternos} /> Permitir registros externos</label>
@@ -823,6 +863,27 @@ export function EventosAsistenciaClient({ sessionRole, initialEventId }: { sessi
                 <Info label="Validación" value={detalle.validacionTipo === "formulario_aprobado" ? `Evaluación · mínimo ${detalle.notaMinima || 80}%` : detalle.validacionTipo === "formulario_enviado" ? "Google Forms enviado" : "Solo asistencia"} />
                 <Info label="Evidencia" value={detalle.evidenciaTipo === "ambas" ? "General + individual" : detalle.evidenciaTipo === "no_aplica" ? "No requerida" : detalle.evidenciaTipo} />
               </div>
+              {isAdmin && detalle.materialOrigen === "empresa" && detalle.validacionTipo !== "solo_asistencia" && (
+                <section className={`rounded-2xl border p-4 ${detalle.formConnectorStatus === "conectado" ? "border-emerald-200 bg-emerald-50/70" : detalle.formConnectorStatus === "error" ? "border-rose-200 bg-rose-50/70" : "border-amber-200 bg-amber-50/70"}`}>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-sky-700 shadow-sm"><Link2 size={18} /></span>
+                      <div><div className="flex flex-wrap items-center gap-2"><h3 className="text-sm font-extrabold text-slate-950">Conector central de Google Forms</h3><span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${detalle.formConnectorStatus === "conectado" ? "border-emerald-300 bg-white text-emerald-700" : detalle.formConnectorStatus === "error" ? "border-rose-300 bg-white text-rose-700" : "border-amber-300 bg-white text-amber-800"}`}>{detalle.formConnectorStatus === "conectado" ? "Conectado" : detalle.formConnectorStatus === "error" ? "Requiere atención" : "Pendiente"}</span></div><p className="mt-1 text-xs leading-5 text-slate-600">{detalle.formResponseCount || 0} respuestas sincronizadas{detalle.formLastSyncAt ? ` · última sincronización ${formatDate(detalle.formLastSyncAt)}` : ""}</p></div>
+                    </div>
+                    {detalle.materialUrl && <a href={detalle.materialUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-xs font-bold text-slate-700"><ExternalLink size={14} /> Abrir formulario público</a>}
+                  </div>
+                  <form onSubmit={connectGoogleForm} className="mt-4 grid gap-2 sm:grid-cols-[1fr_auto]">
+                    <label><span className="mb-1 block text-[11px] font-bold text-slate-600">Enlace de edición (solo administración)</span><input name="formUrl" type="url" required defaultValue={detalle.googleFormAdminUrl || ""} placeholder="https://docs.google.com/forms/d/.../edit" className="input" /></label>
+                    <Button type="submit" size="sm" disabled={busy} className="self-end"><Link2 size={14} /> {detalle.formConnectorStatus === "conectado" ? "Reconectar" : "Conectar"}</Button>
+                  </form>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Button type="button" size="sm" variant="secondary" disabled={busy || !detalle.googleFormId} onClick={() => void manageGoogleForm("sync")}><RefreshCw size={14} /> Sincronizar respuestas</Button>
+                    <Button type="button" size="sm" variant="secondary" disabled={busy || !detalle.googleFormId} onClick={() => void manageGoogleForm("status")}><ShieldCheck size={14} /> Comprobar conexión</Button>
+                    {detalle.formLastSyncStatus && <span className="text-[11px] font-semibold text-slate-600">Estado: {detalle.formLastSyncStatus}</span>}
+                  </div>
+                  {detalle.formLastSyncError && <p role="alert" className="mt-3 rounded-xl border border-rose-200 bg-white p-3 text-xs leading-5 text-rose-700">{detalle.formLastSyncError}</p>}
+                </section>
+              )}
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Objetivo</p><p className="mt-1 text-sm text-slate-800">{detalle.objetivo}</p></div>
 
               {detalle.tokenRegistro && <div className={`rounded-xl border p-3 ${detalle.registroAbierto ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"}`}><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Enlace individual de asistencia</p><p className="mt-1 text-xs font-semibold text-slate-700">{detalle.registroAbierto ? "Abierto para recibir firmas" : "Cerrado; puede compartirse y abrirse cuando inicie la actividad"}</p></div><a href={`/asistir/${detalle.tokenRegistro}`} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-xs font-bold text-slate-700 hover:bg-slate-50"><ExternalLink size={14} /> Vista del participante</a></div></div>}

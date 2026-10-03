@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   if (!isValidWebhookApiKey(providedSecret, process.env.GOOGLE_FORMS_WEBHOOK_SECRET)) {
     return NextResponse.json({ success: false, error: "No autorizado." }, { status: 401 });
   }
-  const limit = consumeRateLimit(`google-forms:${clientIp(req)}`, 300, 60 * 60 * 1000);
+  const limit = consumeRateLimit(`google-forms:${clientIp(req)}`, 2_000, 60 * 60 * 1000);
   if (!limit.allowed) return NextResponse.json({ success: false, error: "Límite temporal alcanzado." }, { status: 429 });
 
   try {
@@ -37,6 +37,10 @@ export async function POST(req: Request) {
     if (!evento) return NextResponse.json({ success: false, error: "Actividad no encontrada." }, { status: 404 });
     if (evento.materialOrigen !== "empresa" || !requiresFormValidation(evento.validacionTipo)) {
       return NextResponse.json({ success: false, error: "La actividad no usa validación de Google Forms." }, { status: 409 });
+    }
+    const incomingFormId = typeof body.formId === "string" ? body.formId.trim().slice(0, 200) : null;
+    if (evento.googleFormId && incomingFormId && evento.googleFormId !== incomingFormId) {
+      return NextResponse.json({ success: false, error: "El formulario no corresponde a esta actividad." }, { status: 409 });
     }
 
     const rawScore = numeric(body.calificacion ?? body.puntaje);
@@ -64,6 +68,18 @@ export async function POST(req: Request) {
           data: { calificacion: percentage, evaluacionEstado: estado },
         });
       }
+      const responseCount = await tx.eventoValidacionFormulario.count({ where: { eventoId: evento.id } });
+      await tx.eventoAsistencia.update({
+        where: { id: evento.id },
+        data: {
+          formConnectorStatus: "conectado",
+          formLastSyncAt: new Date(),
+          formLastSyncStatus: "correcta",
+          formLastSyncError: null,
+          formResponseCount: responseCount,
+          ...(incomingFormId && !evento.googleFormId ? { googleFormId: incomingFormId } : {}),
+        },
+      });
       await tx.auditLog.create({
         data: {
           actorId: "google-forms",

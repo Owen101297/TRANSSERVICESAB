@@ -14,6 +14,10 @@ import {
 } from "@/lib/eventos-asistencia";
 import { categoriaCapacitacionDesdeEvento } from "@/lib/capacitacion-evento";
 import {
+  connectEventGoogleForm,
+  normalizeGoogleFormEditUrl,
+} from "@/lib/google-forms-connector";
+import {
   parseEvidenceType,
   parseMaterialOrigin,
   parseValidationType,
@@ -21,6 +25,7 @@ import {
   requiresIndividualEvidence,
   validHttpsUrl,
 } from "@/lib/event-strategy";
+import { resolvePublicOrigin } from "@/lib/request-origin";
 
 export const dynamic = "force-dynamic";
 
@@ -116,11 +121,19 @@ export async function POST(req: Request) {
     if (materialOrigen !== "empresa" && requiresFormValidation(validacionTipo)) {
       throw new Error("La validación con Google Forms solo aplica cuando el material es gestionado por la empresa.");
     }
-    const materialUrl = validHttpsUrl(
-      body.materialUrl,
-      materialOrigen === "empresa" ? "El enlace de Google Forms" : "El enlace del material",
-      materialOrigen === "empresa" && requiresFormValidation(validacionTipo),
-    );
+    const requiresGoogleForm = materialOrigen === "empresa" && requiresFormValidation(validacionTipo);
+    const googleFormAdminUrl = requiresGoogleForm
+      ? normalizeGoogleFormEditUrl(body.googleFormAdminUrl ?? body.materialUrl)
+      : null;
+    if (requiresGoogleForm && !googleFormAdminUrl) {
+      throw new Error("El enlace de edición de Google Forms es obligatorio.");
+    }
+    const materialUrl = requiresGoogleForm
+      ? null
+      : validHttpsUrl(
+          body.materialUrl,
+          materialOrigen === "empresa" ? "El enlace de Google Forms" : "El enlace del material",
+        );
     const enlaceReunion = validHttpsUrl(body.enlaceReunion, "El enlace de la reunión");
     const esFormativo = caracter === "formativo" || new Set([
       "charla_formativa",
@@ -198,6 +211,8 @@ export async function POST(req: Request) {
         materialUrl,
         materialOrigen,
         validacionTipo,
+        googleFormAdminUrl,
+        formConnectorStatus: requiresGoogleForm ? "pendiente" : "no_aplica",
         enlaceReunion,
         evidenciaTipo,
         permiteExternos: body.permiteExternos !== false,
@@ -275,7 +290,28 @@ export async function POST(req: Request) {
       metadata: { operation: aprobarAlCrear ? "QUICK_CREATE_APPROVED" : "CREATE_DRAFT" },
       actor: auth.session,
     });
-    return NextResponse.json({ success: true, evento }, { status: 201 });
+    let responseEvent = evento;
+    let connectorWarning: string | null = null;
+    if (requiresGoogleForm && googleFormAdminUrl) {
+      try {
+        const connected = await connectEventGoogleForm({
+          eventId: evento.id,
+          formUrl: googleFormAdminUrl,
+          webhookOrigin: resolvePublicOrigin(req),
+        });
+        responseEvent = { ...evento, ...connected.event };
+      } catch (connectorError) {
+        connectorWarning = connectorError instanceof Error
+          ? connectorError.message
+          : "La actividad fue creada, pero el formulario quedó pendiente de conexión.";
+        const refreshed = await prisma.eventoAsistencia.findUnique({
+          where: { id: evento.id },
+          include: { participantes: true, documentos: true },
+        });
+        if (refreshed) responseEvent = refreshed;
+      }
+    }
+    return NextResponse.json({ success: true, evento: responseEvent, connectorWarning }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "No fue posible crear el evento.";
     return NextResponse.json({ success: false, error: message }, { status: 400 });
