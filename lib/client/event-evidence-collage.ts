@@ -1,4 +1,5 @@
 import QRCode from "qrcode";
+import { evidenceFileMetadata } from "@/lib/client/evidence-file-metadata";
 
 export type EvidenceCollageInput = {
   selfie: File;
@@ -100,10 +101,6 @@ function dateTime(value: string) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
-}
-
-function fileName(code: string) {
-  return `${code.replace(/[^A-Za-z0-9_-]/g, "-")}-evidencia.webp`;
 }
 
 export async function generateEvidenceCollage(input: EvidenceCollageInput) {
@@ -253,11 +250,12 @@ export async function generateEvidenceCollage(input: EvidenceCollageInput) {
     const blob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob(
         (value) => value ? resolve(value) : reject(new Error("No fue posible exportar el collage.")),
-        "image/webp",
+        "image/jpeg",
         0.84,
       );
     });
-    return new File([blob], fileName(input.registrationCode), { type: "image/webp" });
+    const metadata = evidenceFileMetadata(input.registrationCode, blob.type);
+    return new File([blob], metadata.name, { type: metadata.type });
   } finally {
     URL.revokeObjectURL(selfieUrl);
     if (materialObjectUrl) URL.revokeObjectURL(materialObjectUrl);

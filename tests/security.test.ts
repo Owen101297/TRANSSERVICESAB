@@ -7,6 +7,7 @@ import { decodeSession, encodeSession, type SessionUser } from "../lib/session.t
 import { conductorIdentityFromSession, normalizeVehiclePlate } from "../lib/portal-validation.ts";
 import { isValidWebhookApiKey } from "../lib/webhook-auth.ts";
 import { resolvePublicOrigin } from "../lib/request-origin.ts";
+import { evidenceFileMetadata } from "../lib/client/evidence-file-metadata.ts";
 import {
   actionRequiresReason,
   canApplyAccountAction,
@@ -277,6 +278,18 @@ test("la evidencia remota se autoriza, valida y archiva fuera del ERP", () => {
   assert.doesNotMatch(adminEvidence, /storeDocumentFile\(/);
   assert.match(schema, /driveFileId\s+String\?\s+@unique/);
   assert.match(schema, /participanteId\s+String\?/);
+});
+
+test("el collage conserva el tipo de imagen realmente exportado por el navegador", () => {
+  assert.deepEqual(evidenceFileMetadata("ASI/2026 001", "image/png"), {
+    name: "ASI-2026-001-evidencia.png",
+    type: "image/png",
+  });
+  assert.deepEqual(evidenceFileMetadata("ASI-2026-001", "image/jpeg"), {
+    name: "ASI-2026-001-evidencia.jpg",
+    type: "image/jpeg",
+  });
+  assert.throws(() => evidenceFileMetadata("ASI-2026-001", "application/octet-stream"));
 });
 
 test("la modalidad remota exige material y ofrece collage y entrega controlada", () => {
