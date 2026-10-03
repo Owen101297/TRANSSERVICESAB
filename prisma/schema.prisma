@@ -620,7 +620,7 @@ model EventoAsistencia {
   descripcion             String?
   fechaInicio             DateTime
   fechaFin                DateTime
-  modalidad               String    @default("presencial") // presencial, virtual, mixta
+  modalidad               String    @default("presencial") // presencial, virtual, mixta, remota
   lugar                   String
   proyecto                String?
   responsableId           String?
@@ -675,21 +675,21 @@ model EventoAsistencia {
 }
 
 model EventoParticipante {
-  id                      String           @id @default(cuid())
+  id                      String            @id @default(cuid())
   eventoId                String
-  evento                  EventoAsistencia @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  evento                  EventoAsistencia  @relation(fields: [eventoId], references: [id], onDelete: Cascade)
   personaId               String?
-  persona                 Persona?         @relation(fields: [personaId], references: [id], onDelete: SetNull)
+  persona                 Persona?          @relation(fields: [personaId], references: [id], onDelete: SetNull)
   personaNombre           String
   personaDocumento        String?
   tipoDocumento           String?
-  tipoPersona             String           @default("interno") // interno, contratista, capacitador, visitante, otro
+  tipoPersona             String            @default("interno") // interno, contratista, capacitador, visitante, otro
   empresa                 String?
   cargo                   String?
   proyecto                String?
-  tipoConvocatoria        String           @default("obligatoria") // obligatoria, opcional, informativa, facilitador, observador, invitado
-  condicionLaboral        String           @default("disponible")
-  resultadoPreliminar     String           @default("pendiente")
+  tipoConvocatoria        String            @default("obligatoria") // obligatoria, opcional, informativa, facilitador, observador, invitado
+  condicionLaboral        String            @default("disponible")
+  resultadoPreliminar     String            @default("pendiente")
   resultadoDefinitivo     String?
   horaEntrada             DateTime?
   horaSalida              DateTime?
@@ -699,8 +699,8 @@ model EventoParticipante {
   declaracionFirmada      String?
   declaracionAceptadaAt   DateTime?
   tratamientoDatosAt      DateTime?
-  registroCodigo          String?          @unique
-  origenRegistro          String           @default("convocatoria") // convocatoria, enlace, portal, manual, importacion
+  registroCodigo          String?           @unique
+  origenRegistro          String            @default("convocatoria") // convocatoria, enlace, portal, manual, importacion
   fotoUrl                 String?
   calificacion            Float?
   evaluacionEstado        String?
@@ -709,10 +709,11 @@ model EventoParticipante {
   justificacionSoporteUrl String?
   justificacionEstado     String?
   observaciones           String?
-  registroManual          Boolean          @default(false)
+  registroManual          Boolean           @default(false)
   validadoPorId           String?
   validadoPorNombre       String?
   validadoAt              DateTime?
+  evidencias              EventoEvidencia[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -764,28 +765,35 @@ model EventoDocumento {
 }
 
 model EventoEvidencia {
-  id              String           @id @default(cuid())
-  eventoId        String
-  evento          EventoAsistencia @relation(fields: [eventoId], references: [id], onDelete: Cascade)
-  categoria       String
-  nombre          String
-  descripcion     String?
-  archivoUrl      String
-  almacenamiento  String           @default("externo") // interno, drive, forms, externo
-  origen          String           @default("carga") // captura, carga, enlace, reporte
-  mimeType        String?
-  tamanoBytes     Int?
-  hashSha256      String?
-  capturadaAt     DateTime?
-  visibleEnPdf    Boolean          @default(true)
-  validada        Boolean          @default(false)
-  creadoPorId     String
-  creadoPorNombre String
+  id                String              @id @default(cuid())
+  eventoId          String
+  evento            EventoAsistencia    @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  participanteId    String?
+  participante      EventoParticipante? @relation(fields: [participanteId], references: [id], onDelete: SetNull)
+  categoria         String
+  nombre            String
+  descripcion       String?
+  archivoUrl        String
+  driveFileId       String?             @unique
+  almacenamiento    String              @default("externo") // interno, drive, forms, externo
+  origen            String              @default("carga") // captura, carga, enlace, reporte
+  mimeType          String?
+  tamanoBytes       Int?
+  hashSha256        String?
+  capturadaAt       DateTime?
+  visibleEnPdf      Boolean             @default(true)
+  validada          Boolean             @default(false)
+  validadaPorId     String?
+  validadaPorNombre String?
+  validadaAt        DateTime?
+  creadoPorId       String
+  creadoPorNombre   String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([eventoId, categoria])
+  @@index([participanteId])
 }
 
 model EncuestaRiesgoVial {

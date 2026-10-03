@@ -4,7 +4,18 @@ import { requireStaff } from "@/lib/api-auth";
 import { recordAudit } from "@/lib/audit";
 import { textoOpcional, textoRequerido } from "@/lib/eventos-asistencia";
 import { prisma } from "@/lib/prisma";
-import { deleteStoredDocument, storeDocumentFile } from "@/lib/storage/document-storage";
+import { deleteStoredDocument } from "@/lib/storage/document-storage";
+import {
+  deleteDriveFile,
+  parseDriveStorageUri,
+  uploadEventEvidenceToDrive,
+} from "@/lib/storage/google-drive";
+import {
+  ALLOWED_FILES,
+  detectDocumentMimeType,
+  MAX_DOCUMENT_BYTES,
+  sanitizeDocumentName,
+} from "@/lib/storage/document-validation";
 
 const CATEGORIES = new Set([
   "foto_presencial",
@@ -37,11 +48,23 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
     const nombre = textoRequerido(formData.get("nombre") || file.name, "El nombre", 180);
     const descripcion = textoOpcional(formData.get("descripcion"), 800);
     const origen = formData.get("origen") === "captura" ? "captura" : "carga";
+    if (file.size === 0 || file.size > MAX_DOCUMENT_BYTES) {
+      throw new Error("El archivo está vacío o supera el límite de 10 MB.");
+    }
     const bytes = new Uint8Array(await file.arrayBuffer());
-    const stored = await storeDocumentFile(file, {
-      entityType: "evento-asistencia",
-      entityId: eventoId,
-      documentType: categoria,
+    const mimeType = detectDocumentMimeType(bytes);
+    if (!mimeType) throw new Error("El archivo debe ser PDF, JPG, PNG o WEBP válido.");
+    if (file.type && file.type !== mimeType) {
+      throw new Error("El tipo declarado del archivo no coincide con su contenido.");
+    }
+    const stored = await uploadEventEvidenceToDrive({
+      bytes,
+      mimeType,
+      fileName: sanitizeDocumentName(file.name || nombre, ALLOWED_FILES[mimeType].extension),
+      eventoId,
+      consecutivo: evento.consecutivo,
+      eventoNombre: evento.nombre,
+      fechaInicio: evento.fechaInicio,
     });
 
     const evidencia = await prisma.eventoEvidencia.create({
@@ -51,7 +74,8 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
         nombre,
         descripcion,
         archivoUrl: stored.uri,
-        almacenamiento: stored.uri.startsWith("s3://") ? "interno" : "local",
+        driveFileId: stored.id,
+        almacenamiento: "drive",
         origen,
         mimeType: stored.mimeType,
         tamanoBytes: stored.size,
@@ -82,7 +106,9 @@ export async function DELETE(req: Request, context: { params: Promise<{ id: stri
   if (!before) {
     return NextResponse.json({ success: false, error: "Evidencia no encontrada." }, { status: 404 });
   }
-  await deleteStoredDocument(before.archivoUrl);
+  const driveFileId = before.driveFileId || parseDriveStorageUri(before.archivoUrl);
+  if (driveFileId) await deleteDriveFile(driveFileId);
+  else await deleteStoredDocument(before.archivoUrl);
   await prisma.eventoEvidencia.delete({ where: { id: evidenceId } });
   await recordAudit({ action: "DELETE", entityType: "EventoEvidencia", entityId: evidenceId, before, actor: auth.session });
   return NextResponse.json({ success: true });

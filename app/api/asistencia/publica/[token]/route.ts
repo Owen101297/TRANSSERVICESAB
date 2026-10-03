@@ -3,12 +3,14 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth";
 import {
   crearCodigoRegistro,
+  crearTokenEvidencia,
   textoOpcional,
   textoRequerido,
   validarFirmaManuscrita,
 } from "@/lib/eventos-asistencia";
 import { prisma } from "@/lib/prisma";
 import { consumeRateLimit } from "@/lib/rate-limit";
+import { isGoogleDriveConfigured } from "@/lib/storage/google-drive";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +44,7 @@ export async function GET(_req: Request, context: { params: Promise<{ token: str
         orderBy: { codigo: "asc" },
         select: { id: true, codigo: true, nombre: true, version: true, tipo: true },
       },
+      evidencias: { where: { categoria: "selfie_remota" }, select: { participanteId: true } },
     },
   });
   if (!evento) {
@@ -52,7 +55,7 @@ export async function GET(_req: Request, context: { params: Promise<{ token: str
   const existing = session
     ? await prisma.eventoParticipante.findFirst({
         where: { eventoId: evento.id, personaId: session.id, firmaAt: { not: null } },
-        select: { registroCodigo: true, firmaAt: true },
+        select: { id: true, registroCodigo: true, firmaAt: true, fotoUrl: true },
       })
     : null;
 
@@ -77,6 +80,8 @@ export async function GET(_req: Request, context: { params: Promise<{ token: str
       instruccionesRegistro: evento.instruccionesRegistro,
       declaracionAsistencia: evento.declaracionAsistencia,
       permiteExternos: evento.permiteExternos,
+      requiereFoto: evento.requiereFoto,
+      driveDisponible: isGoogleDriveConfigured(),
       documentos: evento.documentos,
     },
     participante: session
@@ -86,7 +91,16 @@ export async function GET(_req: Request, context: { params: Promise<{ token: str
           nombre: session.nombre,
           documento: session.documento,
           perfiles: session.perfiles,
-          registro: existing,
+          registro: existing
+            ? {
+                registroCodigo: existing.registroCodigo,
+                firmaAt: existing.firmaAt,
+                evidenciaCompleta: Boolean(existing.fotoUrl) || evento.evidencias.some((item) => item.participanteId === existing.id),
+                evidenciaToken: evento.requiereFoto
+                  ? crearTokenEvidencia({ eventoId: evento.id, participanteId: existing.id })
+                  : null,
+              }
+            : null,
         }
       : { autenticado: false },
   });
@@ -302,6 +316,9 @@ export async function POST(req: Request, context: { params: Promise<{ token: str
         fecha: result.participante.firmaAt,
         actividad: evento.nombre,
       },
+      evidenciaToken: evento.requiereFoto
+        ? crearTokenEvidencia({ eventoId: evento.id, participanteId: result.participante.id })
+        : null,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "No fue posible registrar la asistencia.";

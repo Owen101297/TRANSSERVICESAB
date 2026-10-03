@@ -24,6 +24,10 @@ export default defineRailway((context) => {
       AWS_SECRET_ACCESS_KEY: preserve(),
       DATABASE_URL: preserve(),
       GPS_WEBHOOK_API_KEY: preserve(),
+      GOOGLE_DRIVE_CLIENT_ID: preserve(),
+      GOOGLE_DRIVE_CLIENT_SECRET: preserve(),
+      GOOGLE_DRIVE_REFRESH_TOKEN: preserve(),
+      GOOGLE_DRIVE_ROOT_FOLDER_ID: preserve(),
       SESSION_SECRET: preserve(),
     },
   });

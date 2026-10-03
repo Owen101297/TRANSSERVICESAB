@@ -61,6 +61,7 @@ type Participante = {
   firmaAt?: string | null;
   registroCodigo?: string | null;
   firmaUrl?: string | null;
+  fotoUrl?: string | null;
 };
 type Evidencia = {
   id: string;
@@ -72,6 +73,7 @@ type Evidencia = {
   origen: string;
   validada: boolean;
   createdAt: string;
+  participanteId?: string | null;
 };
 type EventoDetalle = EventoLista & {
   objetivo: string;
@@ -100,6 +102,7 @@ type EventoDetalle = EventoLista & {
   cerradoAt?: string | null;
   cerradoExcepcional?: boolean;
   motivoCierreExcepcional?: string | null;
+  driveDisponible: boolean;
 };
 type Persona = {
   id: string;
@@ -670,14 +673,16 @@ export function EventosAsistenciaClient({ sessionRole, initialEventId }: { sessi
                 <Field label="Tema o nombre" wide><input name="nombre" required maxLength={180} placeholder="Ej. Manejo seguro de sustancias químicas" className="input" /></Field>
                 <Field label="Fecha y hora"><input name="fechaInicio" type="datetime-local" required value={createStart} onChange={(event) => setCreateStart(event.target.value)} className="input" /></Field>
                 <Field label="Duración"><select name="duracionMinutos" defaultValue="60" className="input"><option value="15">15 minutos</option><option value="30">30 minutos</option><option value="45">45 minutos</option><option value="60">1 hora</option><option value="90">1 hora 30 min</option><option value="120">2 horas</option><option value="180">3 horas</option><option value="240">4 horas</option><option value="480">8 horas</option></select></Field>
-                <Field label="Modalidad"><select name="modalidad" value={createModality} onChange={(event) => setCreateModality(event.target.value)} className="input"><option value="presencial">Presencial</option><option value="virtual">Virtual</option><option value="mixta">Mixta</option></select></Field>
-                <Field label={createModality === "virtual" ? "Enlace de acceso" : "Lugar o enlace"}><input name="lugar" required placeholder={createModality === "virtual" ? "https://meet.google.com/..." : "Ej. Sede principal · Sala de juntas"} className="input" /></Field>
+                <Field label="Modalidad"><select name="modalidad" value={createModality} onChange={(event) => setCreateModality(event.target.value)} className="input"><option value="presencial">Presencial</option><option value="virtual">Virtual en vivo</option><option value="remota">Remota / WhatsApp</option><option value="mixta">Mixta</option></select></Field>
+                <Field label={createModality === "virtual" ? "Enlace de acceso" : createModality === "remota" ? "Canal o grupo" : "Lugar o enlace"}><input name="lugar" required placeholder={createModality === "virtual" ? "https://meet.google.com/..." : createModality === "remota" ? "Ej. Grupo WhatsApp Conductores" : "Ej. Sede principal · Sala de juntas"} className="input" /></Field>
+                {createModality === "remota" && <Field label="Enlace del material" wide><input name="materialUrl" type="url" required placeholder="https://drive.google.com/..." className="input" /><span className="mt-1 block text-[11px] leading-4 text-slate-500">Puede ser una imagen, PDF, presentación, formulario u otro recurso en línea.</span></Field>}
               </div>
 
               <div className="flex items-start gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-sky-900">
                 <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-white text-sky-700"><ShieldCheck size={16} /></span>
                 <p><strong>Configuración inteligente:</strong> asignaremos responsable y facilitador, objetivo, formato documental, firma manuscrita y reglas estándar. {isAdmin ? "La actividad quedará programada y su enlace se copiará." : "La actividad quedará como borrador para aprobación."}</p>
               </div>
+              {createModality === "remota" && <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs leading-5 text-emerald-900"><strong>Evidencia individual:</strong> cada participante revisará el material, firmará, tomará una selfie y el sistema archivará en Drive un collage uniforme listo para compartir por WhatsApp.</div>}
 
               <section className="overflow-hidden rounded-2xl border border-slate-200">
                 <button type="button" onClick={() => setShowCreateDetails((value) => !value)} aria-expanded={showCreateDetails} aria-controls="create-event-details" className="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50">
@@ -692,7 +697,7 @@ export function EventosAsistenciaClient({ sessionRole, initialEventId }: { sessi
                   <Field label="Facilitador"><input name="facilitadorNombre" className="input" placeholder="Usuario actual" /></Field>
                   <Field label="Tipo de facilitador"><select name="facilitadorTipo" defaultValue="interno" className="input"><option value="interno">Interno</option><option value="externo">Externo</option></select></Field>
                   <Field label="Empresa del facilitador"><input name="facilitadorEmpresa" className="input" /></Field>
-                  <Field label="Material en Drive, Forms u otro"><input name="materialUrl" type="url" placeholder="https://..." className="input" /></Field>
+                  {createModality !== "remota" && <Field label="Material en Drive, Forms u otro"><input name="materialUrl" type="url" placeholder="https://..." className="input" /></Field>}
                   <Field label="Contenido / temas" wide><textarea name="contenido" rows={3} className="input" /></Field>
                   <Field label="Tolerancia (min)"><input name="toleranciaMinutos" type="number" min="0" max="180" defaultValue="15" className="input" /></Field>
                   <Field label="Permanencia mínima (%)"><input name="permanenciaMinima" type="number" min="0" max="100" defaultValue="80" className="input" /></Field>
@@ -764,7 +769,7 @@ export function EventosAsistenciaClient({ sessionRole, initialEventId }: { sessi
                     <Field label="Descripción" wide><textarea name="descripcion" rows={2} defaultValue={detalle.descripcion || ""} className="input" /></Field>
                     <Field label="Inicio"><input name="fechaInicio" type="datetime-local" required defaultValue={toLocalInput(new Date(detalle.fechaInicio))} className="input" /></Field>
                     <Field label="Fin"><input name="fechaFin" type="datetime-local" required defaultValue={toLocalInput(new Date(detalle.fechaFin))} className="input" /></Field>
-                    <Field label="Modalidad"><select name="modalidad" defaultValue={detalle.modalidad} className="input"><option value="presencial">Presencial</option><option value="virtual">Virtual</option><option value="mixta">Mixta</option></select></Field>
+                    <Field label="Modalidad"><select name="modalidad" defaultValue={detalle.modalidad} className="input"><option value="presencial">Presencial</option><option value="virtual">Virtual en vivo</option><option value="remota">Remota / WhatsApp</option><option value="mixta">Mixta</option></select></Field>
                     <Field label="Lugar"><input name="lugar" required defaultValue={detalle.lugar} className="input" /></Field>
                     <Field label="Proyecto / sede"><input name="proyecto" defaultValue={detalle.proyecto || ""} className="input" /></Field>
                     <Field label="Responsable"><input name="responsableNombre" required defaultValue={detalle.responsableNombre} className="input" /></Field>
@@ -802,7 +807,8 @@ export function EventosAsistenciaClient({ sessionRole, initialEventId }: { sessi
                     <tbody className="divide-y divide-slate-100">
                       {detalle.participantes.map((p) => {
                         const result = p.resultadoDefinitivo || p.resultadoPreliminar;
-                        return <tr key={p.id} className="align-top"><td className="p-3"><p className="font-bold text-slate-900">{p.personaNombre}</p><p className="mt-0.5 text-[11px] text-slate-500">{p.personaDocumento || "Sin documento"} · {p.tipoPersona}</p></td><td className="p-3 text-slate-700">{p.tipoConvocatoria}</td><td className="p-3 text-slate-700">{p.condicionLaboral}</td><td className="p-3 text-slate-700">{p.horaEntrada ? formatDate(p.horaEntrada) : "—"}</td><td className="p-3"><span className={`rounded-full border px-2 py-1 text-[10px] font-bold ${result === "pendiente" ? "border-amber-200 bg-amber-50 text-amber-700" : "border-slate-200 bg-slate-50 text-slate-700"}`}>{RESULTADO_LABELS[result] || result}</span>{p.observaciones && <p className="mt-1 max-w-xs text-[10px] text-slate-500">{p.observaciones}</p>}</td><td className="p-3"><div className="flex justify-end gap-1.5">{detalle.estado === "en_curso" && !p.horaEntrada && <Button size="sm" onClick={() => updateParticipant(p.id, "entrada")} disabled={busy}><Clock3 size={13} /> Entrada</Button>}{detalle.estado === "en_curso" && detalle.requiereSalida && p.horaEntrada && !p.horaSalida && <Button size="sm" variant="secondary" onClick={() => updateParticipant(p.id, "salida")} disabled={busy}>Salida</Button>}{detalle.estado === "pendiente_revision" && isAdmin && <select value={p.resultadoDefinitivo || ""} onChange={(e) => e.target.value && updateParticipant(p.id, "conciliar", e.target.value)} disabled={busy} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs"><option value="">Conciliar...</option>{Object.entries(RESULTADO_LABELS).filter(([value]) => value !== "pendiente").map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>}</div></td></tr>;
+                        const remoteEvidence = detalle.evidencias.find((item) => item.participanteId === p.id && item.categoria === "selfie_remota");
+                        return <tr key={p.id} className="align-top"><td className="p-3"><p className="font-bold text-slate-900">{p.personaNombre}</p><p className="mt-0.5 text-[11px] text-slate-500">{p.personaDocumento || "Sin documento"} · {p.tipoPersona}</p>{detalle.modalidad === "remota" && <span className={`mt-1.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${remoteEvidence ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>{remoteEvidence ? <CheckCircle2 size={11} /> : <Clock3 size={11} />}{remoteEvidence ? "Evidencia archivada" : "Evidencia pendiente"}</span>}</td><td className="p-3 text-slate-700">{p.tipoConvocatoria}</td><td className="p-3 text-slate-700">{p.condicionLaboral}</td><td className="p-3 text-slate-700">{p.horaEntrada ? formatDate(p.horaEntrada) : "—"}</td><td className="p-3"><span className={`rounded-full border px-2 py-1 text-[10px] font-bold ${result === "pendiente" ? "border-amber-200 bg-amber-50 text-amber-700" : "border-slate-200 bg-slate-50 text-slate-700"}`}>{RESULTADO_LABELS[result] || result}</span>{p.observaciones && <p className="mt-1 max-w-xs text-[10px] text-slate-500">{p.observaciones}</p>}</td><td className="p-3"><div className="flex justify-end gap-1.5">{remoteEvidence && <a href={remoteEvidence.archivoUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-slate-200 px-2 text-[11px] font-bold text-sky-700"><ExternalLink size={13} /> Evidencia</a>}{detalle.estado === "en_curso" && !p.horaEntrada && <Button size="sm" onClick={() => updateParticipant(p.id, "entrada")} disabled={busy}><Clock3 size={13} /> Entrada</Button>}{detalle.estado === "en_curso" && detalle.requiereSalida && p.horaEntrada && !p.horaSalida && <Button size="sm" variant="secondary" onClick={() => updateParticipant(p.id, "salida")} disabled={busy}>Salida</Button>}{detalle.estado === "pendiente_revision" && isAdmin && <select value={p.resultadoDefinitivo || ""} onChange={(e) => e.target.value && updateParticipant(p.id, "conciliar", e.target.value)} disabled={busy} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs"><option value="">Conciliar...</option>{Object.entries(RESULTADO_LABELS).filter(([value]) => value !== "pendiente").map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>}</div></td></tr>;
                       })}
                     </tbody>
                   </table>
@@ -813,12 +819,13 @@ export function EventosAsistenciaClient({ sessionRole, initialEventId }: { sessi
                 <form onSubmit={uploadEvidence} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <div className="flex items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-sky-700 shadow-sm">{detalle.modalidad === "virtual" ? <FileText size={19} /> : <Camera size={19} />}</span><div><h3 className="text-sm font-extrabold text-slate-950">Agregar evidencia</h3><p className="mt-0.5 text-xs leading-5 text-slate-500">{detalle.modalidad === "virtual" ? "Carga una captura o reporte de la plataforma." : "Toma o carga una fotografía de la actividad ejecutándose."}</p></div></div>
                   <div className="mt-4 space-y-3">
+                    {!detalle.driveDisponible && <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">Conecta Google Drive para habilitar el archivo de nuevas evidencias. Los archivos históricos siguen disponibles.</div>}
                     <select name="categoria" defaultValue={detalle.modalidad === "virtual" ? "captura_virtual" : "foto_presencial"} className="input"><option value="foto_presencial">Fotografía presencial</option><option value="captura_virtual">Captura de sesión virtual</option><option value="reporte_virtual">Reporte de participantes</option><option value="practica">Evidencia práctica</option><option value="material">Material utilizado</option><option value="otro">Otra evidencia</option></select>
                     <input name="nombre" required className="input" placeholder="Nombre breve de la evidencia" />
                     <textarea name="descripcion" rows={2} className="input" placeholder="Qué demuestra esta evidencia" />
                     <input name="archivo" type="file" required accept="image/jpeg,image/png,image/webp,application/pdf" capture={detalle.modalidad === "virtual" ? undefined : "environment"} className="block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:font-bold file:text-slate-700" />
                     <input type="hidden" name="origen" value={detalle.modalidad === "virtual" ? "carga" : "captura"} />
-                    <Button type="submit" size="sm" disabled={busy}><Upload size={14} /> Guardar evidencia</Button>
+                    <Button type="submit" size="sm" disabled={busy || !detalle.driveDisponible}><Upload size={14} /> Guardar en Drive</Button>
                   </div>
                 </form>
                 <div className="rounded-2xl border border-slate-200 p-4"><div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-extrabold text-slate-950">Materiales y evidencias</h3><p className="text-xs text-slate-500">{detalle.evidencias.length} archivos en el expediente</p></div></div>{detalle.evidencias.length === 0 ? <div className="mt-4 rounded-xl border border-dashed border-slate-300 p-6 text-center text-xs text-slate-500">Todavía no se han agregado evidencias.</div> : <div className="mt-3 space-y-2">{detalle.evidencias.map((evidencia) => <div key={evidencia.id} className="flex items-center gap-3 rounded-xl border border-slate-200 p-3"><span className="grid size-9 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-600">{evidencia.mimeType?.startsWith("image/") ? <Camera size={16} /> : <FileText size={16} />}</span><div className="min-w-0 flex-1"><p className="truncate text-xs font-bold text-slate-900">{evidencia.nombre}</p><p className="mt-0.5 text-[10px] text-slate-500">{evidencia.categoria.replaceAll("_", " ")} · {formatDate(evidencia.createdAt)}</p></div><a href={evidencia.archivoUrl} target="_blank" rel="noreferrer" aria-label={`Abrir ${evidencia.nombre}`} className="rounded-lg p-2 text-sky-700 hover:bg-sky-50"><ExternalLink size={15} /></a>{isAdmin && <button type="button" onClick={() => deleteEvidence(evidencia.id)} disabled={busy} aria-label={`Retirar ${evidencia.nombre}`} className="rounded-lg p-2 text-rose-600 hover:bg-rose-50 disabled:opacity-40"><Trash2 size={15} /></button>}</div>)}</div>}</div>

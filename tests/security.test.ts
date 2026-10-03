@@ -241,7 +241,7 @@ test("la creación rápida de actividades conserva aprobación y reglas en el se
   assert.match(source, /estado: aprobarAlCrear \? "programado" : "borrador"/);
   assert.match(source, /objetivo: textoRequerido\(body\.objetivo \|\| objetivoSugerido/);
   assert.match(source, /requiereFirma: true/);
-  assert.match(source, /requiereFoto: modalidad !== "virtual"/);
+  assert.match(source, /requiereFoto: modalidad === "remota"/);
 });
 
 test("la interfaz de asistencia usa creación progresiva e inicio unificado", () => {
@@ -255,4 +255,40 @@ test("la interfaz de asistencia usa creación progresiva e inicio unificado", ()
   assert.match(source, /Crear y copiar enlace/);
   assert.match(source, /async function startAndOpenRegistration\(\)/);
   assert.match(source, /Iniciar y abrir registro/);
+});
+
+test("la evidencia remota se autoriza, valida y archiva fuera del ERP", () => {
+  const publicEvidence = readFileSync(
+    join(process.cwd(), "app/api/asistencia/publica/[token]/evidencia/route.ts"),
+    "utf8",
+  );
+  const adminEvidence = readFileSync(
+    join(process.cwd(), "app/api/eventos-asistencia/[id]/evidencias/route.ts"),
+    "utf8",
+  );
+  const schema = readFileSync(join(process.cwd(), "prisma/schema.prisma"), "utf8");
+
+  assert.match(publicEvidence, /consumeRateLimit\(/);
+  assert.match(publicEvidence, /validarTokenEvidencia\(/);
+  assert.match(publicEvidence, /detectDocumentMimeType\(/);
+  assert.match(publicEvidence, /uploadEventEvidenceToDrive\(/);
+  assert.doesNotMatch(publicEvidence, /storeDocumentFile\(/);
+  assert.match(adminEvidence, /uploadEventEvidenceToDrive\(/);
+  assert.doesNotMatch(adminEvidence, /storeDocumentFile\(/);
+  assert.match(schema, /driveFileId\s+String\?\s+@unique/);
+  assert.match(schema, /participanteId\s+String\?/);
+});
+
+test("la modalidad remota exige material y ofrece collage y entrega controlada", () => {
+  const api = readFileSync(join(process.cwd(), "app/api/eventos-asistencia/route.ts"), "utf8");
+  const attendance = readFileSync(
+    join(process.cwd(), "components/asistencia/RegistroAsistenciaClient.tsx"),
+    "utf8",
+  );
+
+  assert.match(api, /modalidad === "remota" && !materialUrl/);
+  assert.match(attendance, /generateEvidenceCollage\(/);
+  assert.match(attendance, /Compartir por WhatsApp/);
+  assert.match(attendance, /capture="user"/);
+  assert.match(attendance, /La selfie original no se sube por separado/);
 });

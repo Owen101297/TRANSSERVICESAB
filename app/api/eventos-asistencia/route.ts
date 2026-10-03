@@ -16,6 +16,20 @@ import { categoriaCapacitacionDesdeEvento } from "@/lib/capacitacion-evento";
 
 export const dynamic = "force-dynamic";
 
+const MODALIDADES = new Set(["presencial", "virtual", "mixta", "remota"]);
+
+function materialUrlValido(value: unknown) {
+  const materialUrl = textoOpcional(value, 1000);
+  if (!materialUrl) return null;
+  try {
+    const url = new URL(materialUrl);
+    if (url.protocol !== "https:") throw new Error();
+    return url.toString();
+  } catch {
+    throw new Error("El enlace del material debe ser una dirección HTTPS válida.");
+  }
+}
+
 export async function GET(req: Request) {
   const auth = await requireStaff();
   if (auth.response) return auth.response;
@@ -95,7 +109,12 @@ export async function POST(req: Request) {
     const tipo = textoRequerido(body.tipo, "El tipo", 60);
     const caracter = textoRequerido(body.caracter || "informativo", "El carácter", 30);
     const modalidad = textoRequerido(body.modalidad || "presencial", "La modalidad", 30);
+    if (!MODALIDADES.has(modalidad)) throw new Error("La modalidad seleccionada no es válida.");
     const nombre = textoRequerido(body.nombre, "El nombre", 180);
+    const materialUrl = materialUrlValido(body.materialUrl);
+    if (modalidad === "remota" && !materialUrl) {
+      throw new Error("La actividad remota requiere el enlace del material que recibirá el participante.");
+    }
     const esFormativo = caracter === "formativo" || new Set([
       "charla_formativa",
       "capacitacion",
@@ -165,11 +184,11 @@ export async function POST(req: Request) {
         requiereEntrada: body.requiereEntrada !== false,
         requiereSalida: body.requiereSalida === true,
         requiereFirma: true,
-        requiereFoto: modalidad !== "virtual",
+        requiereFoto: modalidad === "remota",
         requiereEvaluacion: body.requiereEvaluacion === true,
         notaMinima: body.requiereEvaluacion ? Math.max(0, Math.min(100, Number(body.notaMinima) || 80)) : null,
         contenido: textoOpcional(body.contenido, 5000),
-        materialUrl: textoOpcional(body.materialUrl, 1000),
+        materialUrl,
         permiteExternos: body.permiteExternos !== false,
         instruccionesRegistro: textoOpcional(body.instruccionesRegistro, 1000),
         declaracionAsistencia:
@@ -226,7 +245,7 @@ export async function POST(req: Request) {
             materialTipo: created.materialUrl ? "google_form" : "texto",
             materialUrl: created.materialUrl,
             materialContenido: created.contenido,
-            requiereSelfie: false,
+            requiereSelfie: created.requiereFoto,
             requiereFirma: created.requiereFirma,
             asistentesEsperados: personas.length,
             estado: aprobarAlCrear ? "programada" : "borrador",

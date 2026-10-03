@@ -10,6 +10,7 @@ import {
 } from "@/lib/eventos-asistencia";
 import { prisma } from "@/lib/prisma";
 import { resolveDocumentUrl } from "@/lib/storage/document-storage";
+import { isGoogleDriveConfigured, parseDriveStorageUri } from "@/lib/storage/google-drive";
 
 export const dynamic = "force-dynamic";
 
@@ -32,12 +33,14 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
   const evidencias = await Promise.all(
     evento.evidencias.map(async (evidencia) => ({
       ...evidencia,
-      archivoUrl: await resolveDocumentUrl(evidencia.archivoUrl),
+      archivoUrl: evidencia.driveFileId || parseDriveStorageUri(evidencia.archivoUrl)
+        ? `/api/eventos-asistencia/evidencias/${encodeURIComponent(evidencia.id)}/archivo`
+        : await resolveDocumentUrl(evidencia.archivoUrl),
     })),
   );
   return NextResponse.json({
     success: true,
-    evento: { ...evento, evidencias },
+    evento: { ...evento, evidencias, driveDisponible: isGoogleDriveConfigured() },
     isAdmin: esAdministradorAsistencia(auth.session),
   });
 }
@@ -114,6 +117,21 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
         return NextResponse.json({ success: false, error: "La fecha final debe ser posterior a la inicial." }, { status: 400 });
       }
       const modalidad = textoRequerido(body.modalidad, "La modalidad", 30);
+      if (!["presencial", "virtual", "mixta", "remota"].includes(modalidad)) {
+        throw new Error("La modalidad seleccionada no es válida.");
+      }
+      const materialUrl = textoOpcional(body.materialUrl, 1000);
+      if (materialUrl) {
+        try {
+          const url = new URL(materialUrl);
+          if (url.protocol !== "https:") throw new Error();
+        } catch {
+          throw new Error("El enlace del material debe ser una dirección HTTPS válida.");
+        }
+      }
+      if (modalidad === "remota" && !materialUrl) {
+        throw new Error("La actividad remota requiere un enlace de material.");
+      }
       const updated = await prisma.$transaction(async (tx) => {
         const evento = await tx.eventoAsistencia.update({
           where: { id },
@@ -129,13 +147,13 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
             responsableNombre: textoRequerido(body.responsableNombre, "El responsable", 160),
             facilitadorNombre: textoRequerido(body.facilitadorNombre, "El facilitador", 160),
             facilitadorEmpresa: textoOpcional(body.facilitadorEmpresa, 180),
-            materialUrl: textoOpcional(body.materialUrl, 1000),
+            materialUrl,
             contenido: textoOpcional(body.contenido, 5000),
             instruccionesRegistro: textoOpcional(body.instruccionesRegistro, 1000),
             permiteExternos: body.permiteExternos === true,
             toleranciaMinutos: Math.max(0, Math.min(180, Number(body.toleranciaMinutos) || 0)),
             permanenciaMinima: Math.max(0, Math.min(100, Number(body.permanenciaMinima) || 0)),
-            requiereFoto: modalidad !== "virtual",
+            requiereFoto: modalidad === "remota",
           },
         });
         const capacitacion = await tx.capacitacion.findUnique({ where: { eventoId: id } });
@@ -151,7 +169,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
               lugar: evento.lugar,
               materialUrl: evento.materialUrl,
               materialContenido: evento.contenido,
-              requiereSelfie: false,
+              requiereSelfie: evento.requiereFoto,
               requiereFirma: true,
             },
           });
@@ -211,7 +229,20 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       const excepcional = body.cerradoExcepcional === true;
       const tienePresencial = before.evidencias.some((item) => ["foto_presencial", "practica"].includes(item.categoria));
       const tieneVirtual = before.evidencias.some((item) => ["captura_virtual", "reporte_virtual"].includes(item.categoria));
-      const faltanEvidencias = before.modalidad === "mixta"
+      const asistentesRemotos = before.participantes.filter((participante) =>
+        Boolean(participante.firmaAt) && ["presente", "tardanza", "participacion_parcial"].includes(
+          participante.resultadoDefinitivo || participante.resultadoPreliminar,
+        ),
+      );
+      const participantesConEvidencia = new Set(
+        before.evidencias
+          .filter((item) => item.categoria === "selfie_remota" && item.participanteId)
+          .map((item) => item.participanteId),
+      );
+      const remotosSinEvidencia = asistentesRemotos.filter((item) => !participantesConEvidencia.has(item.id));
+      const faltanEvidencias = before.modalidad === "remota"
+        ? asistentesRemotos.length === 0 || remotosSinEvidencia.length > 0
+        : before.modalidad === "mixta"
         ? !tienePresencial || !tieneVirtual
         : before.modalidad === "virtual"
           ? !tieneVirtual
@@ -219,7 +250,11 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       if ((pendientes.length > 0 || faltanEvidencias) && !excepcional) {
         const causas = [
           pendientes.length > 0 ? `${pendientes.length} participantes obligatorios sin resultado definitivo` : null,
-          faltanEvidencias ? `falta la evidencia requerida para modalidad ${before.modalidad}` : null,
+          faltanEvidencias
+            ? before.modalidad === "remota" && remotosSinEvidencia.length > 0
+              ? `${remotosSinEvidencia.length} asistentes remotos sin collage de evidencia`
+              : `falta la evidencia requerida para modalidad ${before.modalidad}`
+            : null,
         ].filter(Boolean).join(" y ");
         return NextResponse.json(
           {

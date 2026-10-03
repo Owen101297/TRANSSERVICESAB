@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import type { SessionUser } from "@/lib/session";
 
 export const DECLARACION_ASISTENCIA_DEFAULT =
@@ -47,6 +47,59 @@ export function crearTokenRegistro(): string {
 
 export function crearCodigoRegistro(fecha = new Date()): string {
   return `ASI-${fecha.getUTCFullYear()}-${randomBytes(5).toString("hex").toUpperCase()}`;
+}
+
+type EvidenceTokenPayload = {
+  eventoId: string;
+  participanteId: string;
+  exp: number;
+};
+
+function evidenceTokenSecret() {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || secret.length < 32) {
+    throw new Error("No está configurada la clave de seguridad para emitir evidencias.");
+  }
+  return secret;
+}
+
+export function crearTokenEvidencia(
+  input: { eventoId: string; participanteId: string },
+  ttlSeconds = 45 * 60,
+) {
+  const payload: EvidenceTokenPayload = {
+    ...input,
+    exp: Math.floor(Date.now() / 1000) + ttlSeconds,
+  };
+  const encoded = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const signature = createHmac("sha256", evidenceTokenSecret()).update(encoded).digest("base64url");
+  return `${encoded}.${signature}`;
+}
+
+export function validarTokenEvidencia(token: unknown): EvidenceTokenPayload {
+  if (typeof token !== "string") throw new Error("La autorización de la evidencia no es válida.");
+  const [encoded, signature] = token.split(".");
+  if (!encoded || !signature) throw new Error("La autorización de la evidencia no es válida.");
+  const expected = createHmac("sha256", evidenceTokenSecret()).update(encoded).digest();
+  let received: Buffer;
+  try {
+    received = Buffer.from(signature, "base64url");
+  } catch {
+    throw new Error("La autorización de la evidencia no es válida.");
+  }
+  if (received.length !== expected.length || !timingSafeEqual(received, expected)) {
+    throw new Error("La autorización de la evidencia no es válida.");
+  }
+  let payload: EvidenceTokenPayload;
+  try {
+    payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as EvidenceTokenPayload;
+  } catch {
+    throw new Error("La autorización de la evidencia no es válida.");
+  }
+  if (!payload.eventoId || !payload.participanteId || payload.exp <= Math.floor(Date.now() / 1000)) {
+    throw new Error("La autorización de la evidencia venció. Abre nuevamente el enlace de asistencia.");
+  }
+  return payload;
 }
 
 export function validarFirmaManuscrita(value: unknown): { dataUrl: string; hash: string } {
