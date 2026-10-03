@@ -238,7 +238,6 @@ test("el registro tokenizado de asistencia es público sin abrir las APIs admini
   assert.match(publicRoute, /consumeRateLimit\(/);
   assert.match(publicRoute, /validarFirmaManuscrita\(/);
 });
-
 test("la creación rápida de actividades conserva aprobación y reglas en el servidor", () => {
   const source = readFileSync(join(process.cwd(), "app/api/eventos-asistencia/route.ts"), "utf8");
 
