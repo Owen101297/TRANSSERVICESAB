@@ -32,6 +32,8 @@ yarn-error.log*
 # OS Files
 .DS_Store
 *.pem
+google-oauth-client*.json
+.google-drive-oauth-result.json
 Thumbs.db
 
 # IDE Files
