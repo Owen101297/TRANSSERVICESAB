@@ -233,3 +233,26 @@ test("el registro tokenizado de asistencia es público sin abrir las APIs admini
   assert.match(publicRoute, /consumeRateLimit\(/);
   assert.match(publicRoute, /validarFirmaManuscrita\(/);
 });
+
+test("la creación rápida de actividades conserva aprobación y reglas en el servidor", () => {
+  const source = readFileSync(join(process.cwd(), "app/api/eventos-asistencia/route.ts"), "utf8");
+
+  assert.match(source, /body\.aprobarAlCrear === true && esAdministradorAsistencia\(auth\.session\)/);
+  assert.match(source, /estado: aprobarAlCrear \? "programado" : "borrador"/);
+  assert.match(source, /objetivo: textoRequerido\(body\.objetivo \|\| objetivoSugerido/);
+  assert.match(source, /requiereFirma: true/);
+  assert.match(source, /requiereFoto: modalidad !== "virtual"/);
+});
+
+test("la interfaz de asistencia usa creación progresiva e inicio unificado", () => {
+  const source = readFileSync(
+    join(process.cwd(), "components/asistencia/EventosAsistenciaClient.tsx"),
+    "utf8",
+  );
+
+  assert.match(source, /Agregar detalles opcionales/);
+  assert.match(source, /Convocar personal ahora/);
+  assert.match(source, /Crear y copiar enlace/);
+  assert.match(source, /async function startAndOpenRegistration\(\)/);
+  assert.match(source, /Iniciar y abrir registro/);
+});

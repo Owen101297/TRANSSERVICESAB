@@ -7,6 +7,7 @@ import {
   crearConsecutivoEvento,
   DECLARACION_ASISTENCIA_DEFAULT,
   documentosSugeridos,
+  esAdministradorAsistencia,
   fechaValida,
   textoOpcional,
   textoRequerido,
@@ -94,6 +95,18 @@ export async function POST(req: Request) {
     const tipo = textoRequerido(body.tipo, "El tipo", 60);
     const caracter = textoRequerido(body.caracter || "informativo", "El carácter", 30);
     const modalidad = textoRequerido(body.modalidad || "presencial", "La modalidad", 30);
+    const nombre = textoRequerido(body.nombre, "El nombre", 180);
+    const esFormativo = caracter === "formativo" || new Set([
+      "charla_formativa",
+      "capacitacion",
+      "induccion",
+      "reinduccion",
+      "entrenamiento_practico",
+    ]).has(tipo);
+    const aprobarAlCrear = body.aprobarAlCrear === true && esAdministradorAsistencia(auth.session);
+    const objetivoSugerido = esFormativo
+      ? `Fortalecer conocimientos sobre «${nombre}» y dejar evidencia verificable de la participación.`
+      : `Socializar «${nombre}» y dejar evidencia verificable de la participación.`;
     const personaIds: string[] = Array.isArray(body.personaIds)
       ? [...new Set((body.personaIds as unknown[]).filter((id): id is string => typeof id === "string"))]
       : [];
@@ -127,11 +140,11 @@ export async function POST(req: Request) {
         data: {
         consecutivo: crearConsecutivoEvento(),
         tokenRegistro: crearTokenRegistro(),
-        nombre: textoRequerido(body.nombre, "El nombre", 180),
+        nombre,
         tipo,
         caracter,
         proceso: textoRequerido(body.proceso || "hseq", "El proceso", 40),
-        objetivo: textoRequerido(body.objetivo, "El objetivo", 1200),
+        objetivo: textoRequerido(body.objetivo || objetivoSugerido, "El objetivo", 1200),
         descripcion: textoOpcional(body.descripcion, 3000),
         fechaInicio,
         fechaFin,
@@ -143,7 +156,10 @@ export async function POST(req: Request) {
         facilitadorTipo: textoRequerido(body.facilitadorTipo || "interno", "El tipo de facilitador", 30),
         facilitadorNombre: textoRequerido(body.facilitadorNombre || auth.session.nombre, "El facilitador", 160),
         facilitadorEmpresa: textoOpcional(body.facilitadorEmpresa, 180),
-        estado: "borrador",
+        estado: aprobarAlCrear ? "programado" : "borrador",
+        aprobadoPorId: aprobarAlCrear ? auth.session.id : null,
+        aprobadoPorNombre: aprobarAlCrear ? auth.session.nombre : null,
+        aprobadoAt: aprobarAlCrear ? new Date() : null,
         toleranciaMinutos: Math.max(0, Math.min(180, Number(body.toleranciaMinutos) || 15)),
         permanenciaMinima: Math.max(0, Math.min(100, Number(body.permanenciaMinima) || 80)),
         requiereEntrada: body.requiereEntrada !== false,
@@ -187,13 +203,6 @@ export async function POST(req: Request) {
         include: { participantes: true, documentos: true },
       });
 
-      const esFormativo = caracter === "formativo" || new Set([
-        "charla_formativa",
-        "capacitacion",
-        "induccion",
-        "reinduccion",
-        "entrenamiento_practico",
-      ]).has(tipo);
       if (esFormativo) {
         const duracionHoras = Math.max(
           0.25,
@@ -220,7 +229,7 @@ export async function POST(req: Request) {
             requiereSelfie: false,
             requiereFirma: created.requiereFirma,
             asistentesEsperados: personas.length,
-            estado: "borrador",
+            estado: aprobarAlCrear ? "programada" : "borrador",
             eventoId: created.id,
           },
         });
@@ -233,6 +242,7 @@ export async function POST(req: Request) {
       entityType: "EventoAsistencia",
       entityId: evento.id,
       after: evento,
+      metadata: { operation: aprobarAlCrear ? "QUICK_CREATE_APPROVED" : "CREATE_DRAFT" },
       actor: auth.session,
     });
     return NextResponse.json({ success: true, evento }, { status: 201 });
