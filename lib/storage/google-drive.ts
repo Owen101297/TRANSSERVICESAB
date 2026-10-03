@@ -1,6 +1,10 @@
 import "server-only";
 
 import { randomUUID } from "node:crypto";
+import {
+  googleDriveAuthenticationMessage,
+  normalizeGoogleOAuthCredential,
+} from "@/lib/google-drive-auth";
 
 const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const DRIVE_UPLOAD_API = "https://www.googleapis.com/upload/drive/v3";
@@ -36,9 +40,9 @@ export function isGoogleDriveConfigured() {
 }
 
 function configuration(): DriveConfiguration {
-  const clientId = process.env.GOOGLE_DRIVE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_DRIVE_CLIENT_SECRET;
-  const refreshToken = process.env.GOOGLE_DRIVE_REFRESH_TOKEN;
+  const clientId = normalizeGoogleOAuthCredential(process.env.GOOGLE_DRIVE_CLIENT_ID);
+  const clientSecret = normalizeGoogleOAuthCredential(process.env.GOOGLE_DRIVE_CLIENT_SECRET);
+  const refreshToken = normalizeGoogleOAuthCredential(process.env.GOOGLE_DRIVE_REFRESH_TOKEN);
   if (!clientId || !clientSecret || !refreshToken) {
     throw new Error("Google Drive no está conectado. Configura la cuenta documental antes de guardar evidencias.");
   }
@@ -67,7 +71,18 @@ async function accessToken(forceRefresh = false) {
     cache: "no-store",
   });
   if (!response.ok) {
-    throw new Error("No fue posible autenticar la cuenta documental de Google Drive.");
+    let errorCode: string | undefined;
+    try {
+      const errorPayload = (await response.json()) as { error?: string };
+      errorCode = errorPayload.error;
+    } catch {
+      // Google puede devolver una respuesta no JSON; se conserva un mensaje seguro y genérico.
+    }
+    console.error("Google Drive OAuth rechazó la autenticación.", {
+      status: response.status,
+      error: errorCode || "unknown",
+    });
+    throw new Error(googleDriveAuthenticationMessage(errorCode));
   }
   const payload = (await response.json()) as { access_token?: string; expires_in?: number };
   if (!payload.access_token) throw new Error("Google Drive no entregó un token de acceso válido.");

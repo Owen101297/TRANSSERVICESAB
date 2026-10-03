@@ -9,6 +9,10 @@ import { isValidWebhookApiKey } from "../lib/webhook-auth.ts";
 import { resolvePublicOrigin } from "../lib/request-origin.ts";
 import { evidenceFileMetadata } from "../lib/client/evidence-file-metadata.ts";
 import {
+  googleDriveAuthenticationMessage,
+  normalizeGoogleOAuthCredential,
+} from "../lib/google-drive-auth.ts";
+import {
   actionRequiresReason,
   canApplyAccountAction,
   enabledAccountState,
@@ -290,6 +294,15 @@ test("el collage conserva el tipo de imagen realmente exportado por el navegador
     type: "image/jpeg",
   });
   assert.throws(() => evidenceFileMetadata("ASI-2026-001", "application/octet-stream"));
+});
+
+test("las credenciales de Google Drive se normalizan y los errores OAuth son accionables", () => {
+  assert.equal(normalizeGoogleOAuthCredential("  token-seguro  "), "token-seguro");
+  assert.equal(normalizeGoogleOAuthCredential('"token-seguro"'), "token-seguro");
+  assert.equal(normalizeGoogleOAuthCredential("   "), null);
+  assert.match(googleDriveAuthenticationMessage("invalid_grant"), /volver a conectar/i);
+  assert.match(googleDriveAuthenticationMessage("invalid_client"), /cliente OAuth/i);
+  assert.doesNotMatch(googleDriveAuthenticationMessage("invalid_grant"), /token-seguro/);
 });
 
 test("la modalidad remota exige material y ofrece collage y entrega controlada", () => {
