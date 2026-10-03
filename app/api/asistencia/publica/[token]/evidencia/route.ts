@@ -9,6 +9,7 @@ import {
   uploadEventEvidenceToDrive,
 } from "@/lib/storage/google-drive";
 import { detectDocumentMimeType } from "@/lib/storage/document-validation";
+import { requiresIndividualEvidence } from "@/lib/event-strategy";
 
 export const dynamic = "force-dynamic";
 
@@ -40,8 +41,8 @@ export async function POST(req: Request, context: { params: Promise<{ token: str
     if (!evento || evento.id !== authorization.eventoId) {
       return NextResponse.json({ success: false, error: "El enlace de asistencia no es válido." }, { status: 404 });
     }
-    if (!evento.requiereFoto || evento.modalidad !== "remota") {
-      return NextResponse.json({ success: false, error: "Esta actividad no requiere evidencia individual remota." }, { status: 409 });
+    if (!evento.requiereFoto || !requiresIndividualEvidence(evento.evidenciaTipo)) {
+      return NextResponse.json({ success: false, error: "Esta actividad no requiere evidencia individual." }, { status: 409 });
     }
     if (evento.estado === "cancelado") {
       return NextResponse.json({ success: false, error: "La actividad fue cancelada." }, { status: 409 });
@@ -72,7 +73,7 @@ export async function POST(req: Request, context: { params: Promise<{ token: str
     uploadedFileId = stored.id;
     const hashSha256 = createHash("sha256").update(bytes).digest("hex");
     const previous = await prisma.eventoEvidencia.findFirst({
-      where: { eventoId: evento.id, participanteId: participante.id, categoria: "selfie_remota" },
+      where: { eventoId: evento.id, participanteId: participante.id, categoria: { in: ["selfie_remota", "selfie_individual"] } },
       orderBy: { createdAt: "desc" },
     });
 
@@ -81,8 +82,8 @@ export async function POST(req: Request, context: { params: Promise<{ token: str
         ? await tx.eventoEvidencia.update({
             where: { id: previous.id },
             data: {
-              nombre: `Evidencia remota · ${participante.personaNombre}`,
-              descripcion: "Collage normalizado con selfie, material consultado y constancia de asistencia.",
+              nombre: `Evidencia individual · ${participante.personaNombre}`,
+              descripcion: "Collage normalizado con fotografía individual y constancia de asistencia.",
               archivoUrl: stored.uri,
               driveFileId: stored.id,
               almacenamiento: "drive",
@@ -98,9 +99,9 @@ export async function POST(req: Request, context: { params: Promise<{ token: str
             data: {
               eventoId: evento.id,
               participanteId: participante.id,
-              categoria: "selfie_remota",
-              nombre: `Evidencia remota · ${participante.personaNombre}`,
-              descripcion: "Collage normalizado con selfie, material consultado y constancia de asistencia.",
+              categoria: "selfie_individual",
+              nombre: `Evidencia individual · ${participante.personaNombre}`,
+              descripcion: "Collage normalizado con fotografía individual y constancia de asistencia.",
               archivoUrl: stored.uri,
               driveFileId: stored.id,
               almacenamiento: "drive",
@@ -127,7 +128,7 @@ export async function POST(req: Request, context: { params: Promise<{ token: str
           entityType: "EventoEvidencia",
           entityId: saved.id,
           metadata: {
-            operation: "REMOTE_ATTENDANCE_EVIDENCE",
+            operation: "INDIVIDUAL_ATTENDANCE_EVIDENCE",
             eventoId: evento.id,
             participanteId: participante.id,
             registroCodigo: participante.registroCodigo,

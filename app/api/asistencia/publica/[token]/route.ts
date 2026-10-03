@@ -11,6 +11,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { consumeRateLimit } from "@/lib/rate-limit";
 import { isGoogleDriveConfigured } from "@/lib/storage/google-drive";
+import { normalizeDocument, requiresFormValidation } from "@/lib/event-strategy";
 
 export const dynamic = "force-dynamic";
 
@@ -22,10 +23,6 @@ function clientIp(req: Request) {
     req.headers.get("x-real-ip") ||
     "unknown"
   );
-}
-
-function cleanDocument(value: unknown) {
-  return typeof value === "string" ? value.replace(/[.\s-]/g, "").trim().toUpperCase().slice(0, 40) : "";
 }
 
 function publicEventState(evento: { estado: string; registroAbierto: boolean }) {
@@ -44,7 +41,7 @@ export async function GET(_req: Request, context: { params: Promise<{ token: str
         orderBy: { codigo: "asc" },
         select: { id: true, codigo: true, nombre: true, version: true, tipo: true },
       },
-      evidencias: { where: { categoria: "selfie_remota" }, select: { participanteId: true } },
+      evidencias: { where: { categoria: { in: ["selfie_remota", "selfie_individual"] } }, select: { participanteId: true } },
     },
   });
   if (!evento) {
@@ -77,6 +74,11 @@ export async function GET(_req: Request, context: { params: Promise<{ token: str
       facilitadorNombre: evento.facilitadorNombre,
       facilitadorEmpresa: evento.facilitadorEmpresa,
       materialUrl: evento.materialUrl,
+      materialOrigen: evento.materialOrigen,
+      validacionTipo: evento.validacionTipo,
+      enlaceReunion: evento.enlaceReunion,
+      evidenciaTipo: evento.evidenciaTipo,
+      notaMinima: evento.notaMinima,
       instruccionesRegistro: evento.instruccionesRegistro,
       declaracionAsistencia: evento.declaracionAsistencia,
       permiteExternos: evento.permiteExternos,
@@ -173,7 +175,7 @@ export async function POST(req: Request, context: { params: Promise<{ token: str
       }
       tipoDocumento = typeof body.tipoDocumento === "string" ? body.tipoDocumento.toUpperCase() : "CC";
       if (!DOCUMENT_TYPES.has(tipoDocumento)) tipoDocumento = "OTRO";
-      personaDocumento = cleanDocument(body.personaDocumento);
+      personaDocumento = normalizeDocument(body.personaDocumento);
       if (personaDocumento.length < 4) throw new Error("El número de documento es obligatorio.");
       const personaVinculada = await prisma.persona.findUnique({ where: { numeroDocumento: personaDocumento } });
       if (personaVinculada) {
@@ -189,6 +191,25 @@ export async function POST(req: Request, context: { params: Promise<{ token: str
       empresa = textoRequerido(body.empresa, "La empresa o procedencia", 180);
       cargo = textoRequerido(body.cargo, "El cargo o relación", 120);
       proyecto = empresa;
+    }
+
+    let validacionFormulario: { estado: string; calificacion: number | null } | null = null;
+    if (requiresFormValidation(evento.validacionTipo)) {
+      const respuestas = await prisma.eventoValidacionFormulario.findMany({
+        where: { eventoId: evento.id, personaDocumento: normalizeDocument(personaDocumento) },
+        orderBy: { submittedAt: "desc" },
+        take: 20,
+        select: { estado: true, calificacion: true },
+      });
+      validacionFormulario = evento.validacionTipo === "formulario_aprobado"
+        ? respuestas.find((item) => item.estado === "aprobado") || respuestas[0] || null
+        : respuestas[0] || null;
+      if (!validacionFormulario) {
+        return NextResponse.json(
+          { success: false, error: "Primero completa el Google Forms y verifica la respuesta antes de firmar." },
+          { status: 409 },
+        );
+      }
     }
 
     const now = new Date();
@@ -238,6 +259,8 @@ export async function POST(req: Request, context: { params: Promise<{ token: str
         tratamientoDatosAt: now,
         registroCodigo,
         origenRegistro: session ? "portal" : "enlace",
+        calificacion: validacionFormulario?.calificacion ?? existing?.calificacion ?? null,
+        evaluacionEstado: validacionFormulario?.estado ?? existing?.evaluacionEstado ?? null,
       };
 
       const participante = existing

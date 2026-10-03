@@ -62,6 +62,8 @@ type Participante = {
   registroCodigo?: string | null;
   firmaUrl?: string | null;
   fotoUrl?: string | null;
+  calificacion?: number | null;
+  evaluacionEstado?: string | null;
 };
 type Evidencia = {
   id: string;
@@ -83,6 +85,7 @@ type EventoDetalle = EventoLista & {
   proyecto?: string | null;
   contenido?: string | null;
   facilitadorEmpresa?: string | null;
+  facilitadorTipo: string;
   toleranciaMinutos: number;
   permanenciaMinima: number;
   requiereSalida: boolean;
@@ -93,6 +96,11 @@ type EventoDetalle = EventoLista & {
   registroAbierto: boolean;
   permiteExternos: boolean;
   materialUrl?: string | null;
+  materialOrigen: "empresa" | "facilitador_externo" | "no_aplica";
+  validacionTipo: "solo_asistencia" | "formulario_enviado" | "formulario_aprobado";
+  enlaceReunion?: string | null;
+  evidenciaTipo: "individual" | "general" | "ambas" | "no_aplica";
+  notaMinima?: number | null;
   instruccionesRegistro?: string | null;
   revision?: number;
   participantes: Participante[];
@@ -190,6 +198,9 @@ export function EventosAsistenciaClient({ sessionRole, initialEventId }: { sessi
   const [showCreateDetails, setShowCreateDetails] = useState(false);
   const [showCreateInvitees, setShowCreateInvitees] = useState(false);
   const [createModality, setCreateModality] = useState("presencial");
+  const [createMaterialOrigin, setCreateMaterialOrigin] = useState<"empresa" | "facilitador_externo" | "no_aplica">("no_aplica");
+  const [createValidationType, setCreateValidationType] = useState<"solo_asistencia" | "formulario_enviado" | "formulario_aprobado">("solo_asistencia");
+  const [createEvidenceType, setCreateEvidenceType] = useState<"individual" | "general" | "ambas" | "no_aplica">("general");
   const [createStart, setCreateStart] = useState("");
   const [showEdit, setShowEdit] = useState(false);
   const [search, setSearch] = useState("");
@@ -257,6 +268,9 @@ export function EventosAsistenciaClient({ sessionRole, initialEventId }: { sessi
     setShowCreateDetails(false);
     setShowCreateInvitees(false);
     setCreateModality("presencial");
+    setCreateMaterialOrigin("no_aplica");
+    setCreateValidationType("solo_asistencia");
+    setCreateEvidenceType("general");
     setCreateStart("");
     setPeopleSearch("");
     setSelectedPeople([]);
@@ -292,12 +306,14 @@ export function EventosAsistenciaClient({ sessionRole, initialEventId }: { sessi
       facilitadorNombre: form.get("facilitadorNombre"),
       facilitadorTipo: form.get("facilitadorTipo"),
       facilitadorEmpresa: form.get("facilitadorEmpresa"),
+      materialOrigen: form.get("materialOrigen"),
+      validacionTipo: form.get("validacionTipo"),
+      enlaceReunion: form.get("enlaceReunion"),
+      evidenciaTipo: form.get("evidenciaTipo"),
       toleranciaMinutos: Number(form.get("toleranciaMinutos")),
       permanenciaMinima: Number(form.get("permanenciaMinima")),
       requiereSalida: form.get("requiereSalida") === "on",
       requiereFirma: form.get("requiereFirma") === "on",
-      requiereFoto: form.get("requiereFoto") === "on",
-      requiereEvaluacion: form.get("requiereEvaluacion") === "on",
       notaMinima: Number(form.get("notaMinima")),
       materialUrl: form.get("materialUrl"),
       contenido: form.get("contenido"),
@@ -403,8 +419,14 @@ export function EventosAsistenciaClient({ sessionRole, initialEventId }: { sessi
           proyecto: form.get("proyecto"),
           responsableNombre: form.get("responsableNombre"),
           facilitadorNombre: form.get("facilitadorNombre"),
+          facilitadorTipo: form.get("facilitadorTipo"),
           facilitadorEmpresa: form.get("facilitadorEmpresa"),
           materialUrl: form.get("materialUrl"),
+          materialOrigen: form.get("materialOrigen"),
+          validacionTipo: form.get("validacionTipo"),
+          enlaceReunion: form.get("enlaceReunion"),
+          evidenciaTipo: form.get("evidenciaTipo"),
+          notaMinima: Number(form.get("notaMinima")),
           contenido: form.get("contenido"),
           instruccionesRegistro: form.get("instruccionesRegistro"),
           permiteExternos: form.get("permiteExternos") === "on",
@@ -673,16 +695,21 @@ export function EventosAsistenciaClient({ sessionRole, initialEventId }: { sessi
                 <Field label="Tema o nombre" wide><input name="nombre" required maxLength={180} placeholder="Ej. Manejo seguro de sustancias químicas" className="input" /></Field>
                 <Field label="Fecha y hora"><input name="fechaInicio" type="datetime-local" required value={createStart} onChange={(event) => setCreateStart(event.target.value)} className="input" /></Field>
                 <Field label="Duración"><select name="duracionMinutos" defaultValue="60" className="input"><option value="15">15 minutos</option><option value="30">30 minutos</option><option value="45">45 minutos</option><option value="60">1 hora</option><option value="90">1 hora 30 min</option><option value="120">2 horas</option><option value="180">3 horas</option><option value="240">4 horas</option><option value="480">8 horas</option></select></Field>
-                <Field label="Modalidad"><select name="modalidad" value={createModality} onChange={(event) => setCreateModality(event.target.value)} className="input"><option value="presencial">Presencial</option><option value="virtual">Virtual en vivo</option><option value="remota">Remota / WhatsApp</option><option value="mixta">Mixta</option></select></Field>
+                <Field label="Modalidad"><select name="modalidad" value={createModality} onChange={(event) => { const value = event.target.value; setCreateModality(value); setCreateEvidenceType(value === "remota" ? "individual" : value === "mixta" ? "ambas" : "general"); }} className="input"><option value="presencial">Presencial</option><option value="virtual">Virtual en vivo</option><option value="remota">Remota / WhatsApp</option><option value="mixta">Mixta</option></select></Field>
                 <Field label={createModality === "virtual" ? "Enlace de acceso" : createModality === "remota" ? "Canal o grupo" : "Lugar o enlace"}><input name="lugar" required placeholder={createModality === "virtual" ? "https://meet.google.com/..." : createModality === "remota" ? "Ej. Grupo WhatsApp Conductores" : "Ej. Sede principal · Sala de juntas"} className="input" /></Field>
-                {createModality === "remota" && <Field label="Enlace del material" wide><input name="materialUrl" type="url" required placeholder="https://drive.google.com/..." className="input" /><span className="mt-1 block text-[11px] leading-4 text-slate-500">Puede ser una imagen, PDF, presentación, formulario u otro recurso en línea.</span></Field>}
+                <Field label="¿Quién gestiona el material?"><select name="materialOrigen" value={createMaterialOrigin} onChange={(event) => { const value = event.target.value as typeof createMaterialOrigin; setCreateMaterialOrigin(value); setCreateValidationType(value === "empresa" ? "formulario_enviado" : "solo_asistencia"); }} className="input"><option value="no_aplica">No aplica / solo asistencia</option><option value="empresa">La empresa · Google Forms</option><option value="facilitador_externo">Facilitador externo</option></select></Field>
+                <Field label="Evidencia requerida"><select name="evidenciaTipo" value={createEvidenceType} onChange={(event) => setCreateEvidenceType(event.target.value as typeof createEvidenceType)} className="input"><option value="general">Foto o captura general</option><option value="individual">Evidencia individual</option><option value="ambas">General + individual</option><option value="no_aplica">No requiere evidencia</option></select></Field>
+                {createMaterialOrigin === "empresa" && <><Field label="Google Forms" wide><input name="materialUrl" type="url" required placeholder="https://docs.google.com/forms/..." className="input" /><span className="mt-1 block text-[11px] leading-4 text-slate-500">El formulario conserva el material, preguntas, imágenes y videos.</span></Field><Field label="Validar antes de firmar"><select name="validacionTipo" value={createValidationType} onChange={(event) => setCreateValidationType(event.target.value as typeof createValidationType)} className="input"><option value="formulario_enviado">Respuesta enviada</option><option value="formulario_aprobado">Evaluación presentada y resultado</option><option value="solo_asistencia">Solo abrir material</option></select></Field>{createValidationType === "formulario_aprobado" && <Field label="Nota mínima"><input name="notaMinima" type="number" min="0" max="100" defaultValue="80" className="input" /></Field>}</>}
+                {createMaterialOrigin === "facilitador_externo" && <><input type="hidden" name="validacionTipo" value="solo_asistencia" /><input type="hidden" name="facilitadorTipo" value="externo" /><Field label="Nombre del facilitador"><input name="facilitadorNombre" required className="input" /></Field><Field label="Empresa del facilitador"><input name="facilitadorEmpresa" className="input" /></Field><Field label="Enlace de reunión"><input name="enlaceReunion" type="url" placeholder="https://meet.google.com/..." className="input" /></Field><Field label="Material del facilitador (opcional)"><input name="materialUrl" type="url" placeholder="https://..." className="input" /></Field></>}
+                {createMaterialOrigin === "no_aplica" && <><input type="hidden" name="validacionTipo" value="solo_asistencia" /><input type="hidden" name="facilitadorTipo" value="interno" /></>}
+                {createMaterialOrigin !== "facilitador_externo" && ["virtual", "mixta"].includes(createModality) && <Field label="Enlace de reunión"><input name="enlaceReunion" type="url" placeholder="https://meet.google.com/..." className="input" /></Field>}
               </div>
 
               <div className="flex items-start gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-3 text-xs leading-5 text-sky-900">
                 <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-white text-sky-700"><ShieldCheck size={16} /></span>
                 <p><strong>Configuración inteligente:</strong> asignaremos responsable y facilitador, objetivo, formato documental, firma manuscrita y reglas estándar. {isAdmin ? "La actividad quedará programada y su enlace se copiará." : "La actividad quedará como borrador para aprobación."}</p>
               </div>
-              {createModality === "remota" && <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs leading-5 text-emerald-900"><strong>Evidencia individual:</strong> cada participante revisará el material, firmará, tomará una selfie y el sistema archivará en Drive un collage uniforme listo para compartir por WhatsApp.</div>}
+              {(createEvidenceType === "individual" || createEvidenceType === "ambas") && <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs leading-5 text-emerald-900"><strong>Evidencia individual:</strong> cada participante firmará, tomará una foto y el sistema archivará en Drive un collage uniforme listo para auditoría o WhatsApp.</div>}
 
               <section className="overflow-hidden rounded-2xl border border-slate-200">
                 <button type="button" onClick={() => setShowCreateDetails((value) => !value)} aria-expanded={showCreateDetails} aria-controls="create-event-details" className="flex min-h-12 w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-slate-50">
@@ -694,19 +721,13 @@ export function EventosAsistenciaClient({ sessionRole, initialEventId }: { sessi
                   <Field label="Descripción" wide><textarea name="descripcion" rows={2} className="input" /></Field>
                   <Field label="Proyecto / sede"><input name="proyecto" className="input" /></Field>
                   <Field label="Responsable interno"><input name="responsableNombre" className="input" placeholder="Usuario actual" /></Field>
-                  <Field label="Facilitador"><input name="facilitadorNombre" className="input" placeholder="Usuario actual" /></Field>
-                  <Field label="Tipo de facilitador"><select name="facilitadorTipo" defaultValue="interno" className="input"><option value="interno">Interno</option><option value="externo">Externo</option></select></Field>
-                  <Field label="Empresa del facilitador"><input name="facilitadorEmpresa" className="input" /></Field>
-                  {createModality !== "remota" && <Field label="Material en Drive, Forms u otro"><input name="materialUrl" type="url" placeholder="https://..." className="input" /></Field>}
                   <Field label="Contenido / temas" wide><textarea name="contenido" rows={3} className="input" /></Field>
                   <Field label="Tolerancia (min)"><input name="toleranciaMinutos" type="number" min="0" max="180" defaultValue="15" className="input" /></Field>
                   <Field label="Permanencia mínima (%)"><input name="permanenciaMinima" type="number" min="0" max="100" defaultValue="80" className="input" /></Field>
                   <div className="col-span-full grid gap-2 sm:grid-cols-3">
                     <Check name="requiereSalida" label="Registrar salida" />
                     <Check name="permiteExternos" label="Permitir externos" defaultChecked />
-                    <Check name="requiereEvaluacion" label="Requiere evaluación" />
                   </div>
-                  <Field label="Nota mínima"><input name="notaMinima" type="number" min="0" max="100" defaultValue="80" className="input" /></Field>
                   <Field label="Instrucción para el participante"><textarea name="instruccionesRegistro" rows={2} className="input" placeholder="Ej. Revisa el material antes de firmar." /></Field>
                 </div>
               </section>
@@ -773,11 +794,17 @@ export function EventosAsistenciaClient({ sessionRole, initialEventId }: { sessi
                     <Field label="Lugar"><input name="lugar" required defaultValue={detalle.lugar} className="input" /></Field>
                     <Field label="Proyecto / sede"><input name="proyecto" defaultValue={detalle.proyecto || ""} className="input" /></Field>
                     <Field label="Responsable"><input name="responsableNombre" required defaultValue={detalle.responsableNombre} className="input" /></Field>
+                    <Field label="Tipo de facilitador"><select name="facilitadorTipo" defaultValue={detalle.facilitadorTipo} className="input"><option value="interno">Interno</option><option value="externo">Externo</option></select></Field>
                     <Field label="Facilitador"><input name="facilitadorNombre" required defaultValue={detalle.facilitadorNombre} className="input" /></Field>
                     <Field label="Empresa del facilitador"><input name="facilitadorEmpresa" defaultValue={detalle.facilitadorEmpresa || ""} className="input" /></Field>
                     <Field label="Tolerancia (min)"><input name="toleranciaMinutos" type="number" min="0" max="180" defaultValue={detalle.toleranciaMinutos} className="input" /></Field>
                     <Field label="Permanencia mínima (%)"><input name="permanenciaMinima" type="number" min="0" max="100" defaultValue={detalle.permanenciaMinima} className="input" /></Field>
-                    <Field label="Material externo" wide><input name="materialUrl" type="url" defaultValue={detalle.materialUrl || ""} className="input" /></Field>
+                    <Field label="Origen del material"><select name="materialOrigen" defaultValue={detalle.materialOrigen} className="input"><option value="no_aplica">No aplica / solo asistencia</option><option value="empresa">Empresa · Google Forms</option><option value="facilitador_externo">Facilitador externo</option></select></Field>
+                    <Field label="Validación"><select name="validacionTipo" defaultValue={detalle.validacionTipo} className="input"><option value="solo_asistencia">Solo asistencia</option><option value="formulario_enviado">Formulario enviado</option><option value="formulario_aprobado">Resultado de evaluación</option></select></Field>
+                    <Field label="Evidencia"><select name="evidenciaTipo" defaultValue={detalle.evidenciaTipo} className="input"><option value="general">General</option><option value="individual">Individual</option><option value="ambas">General + individual</option><option value="no_aplica">No requiere</option></select></Field>
+                    <Field label="Nota mínima"><input name="notaMinima" type="number" min="0" max="100" defaultValue={detalle.notaMinima || 80} className="input" /></Field>
+                    <Field label="Enlace de reunión" wide><input name="enlaceReunion" type="url" defaultValue={detalle.enlaceReunion || ""} className="input" /></Field>
+                    <Field label="Material / Google Forms" wide><input name="materialUrl" type="url" defaultValue={detalle.materialUrl || ""} className="input" /></Field>
                     <Field label="Contenido" wide><textarea name="contenido" rows={2} defaultValue={detalle.contenido || ""} className="input" /></Field>
                     <Field label="Instrucciones del enlace" wide><textarea name="instruccionesRegistro" rows={2} defaultValue={detalle.instruccionesRegistro || ""} className="input" /></Field>
                     <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 text-xs font-semibold text-slate-700"><input type="checkbox" name="permiteExternos" defaultChecked={detalle.permiteExternos} /> Permitir registros externos</label>
@@ -790,6 +817,11 @@ export function EventosAsistenciaClient({ sessionRole, initialEventId }: { sessi
                 <Info label="Responsable" value={detalle.responsableNombre} />
                 <Info label="Facilitador" value={detalle.facilitadorNombre} />
                 <Info label="Modalidad" value={detalle.modalidad} />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Info label="Material" value={detalle.materialOrigen === "empresa" ? "Gestionado por la empresa" : detalle.materialOrigen === "facilitador_externo" ? "Propio del facilitador externo" : "No aplica"} />
+                <Info label="Validación" value={detalle.validacionTipo === "formulario_aprobado" ? `Evaluación · mínimo ${detalle.notaMinima || 80}%` : detalle.validacionTipo === "formulario_enviado" ? "Google Forms enviado" : "Solo asistencia"} />
+                <Info label="Evidencia" value={detalle.evidenciaTipo === "ambas" ? "General + individual" : detalle.evidenciaTipo === "no_aplica" ? "No requerida" : detalle.evidenciaTipo} />
               </div>
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Objetivo</p><p className="mt-1 text-sm text-slate-800">{detalle.objetivo}</p></div>
 
@@ -807,8 +839,8 @@ export function EventosAsistenciaClient({ sessionRole, initialEventId }: { sessi
                     <tbody className="divide-y divide-slate-100">
                       {detalle.participantes.map((p) => {
                         const result = p.resultadoDefinitivo || p.resultadoPreliminar;
-                        const remoteEvidence = detalle.evidencias.find((item) => item.participanteId === p.id && item.categoria === "selfie_remota");
-                        return <tr key={p.id} className="align-top"><td className="p-3"><p className="font-bold text-slate-900">{p.personaNombre}</p><p className="mt-0.5 text-[11px] text-slate-500">{p.personaDocumento || "Sin documento"} · {p.tipoPersona}</p>{detalle.modalidad === "remota" && <span className={`mt-1.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${remoteEvidence ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>{remoteEvidence ? <CheckCircle2 size={11} /> : <Clock3 size={11} />}{remoteEvidence ? "Evidencia archivada" : "Evidencia pendiente"}</span>}</td><td className="p-3 text-slate-700">{p.tipoConvocatoria}</td><td className="p-3 text-slate-700">{p.condicionLaboral}</td><td className="p-3 text-slate-700">{p.horaEntrada ? formatDate(p.horaEntrada) : "—"}</td><td className="p-3"><span className={`rounded-full border px-2 py-1 text-[10px] font-bold ${result === "pendiente" ? "border-amber-200 bg-amber-50 text-amber-700" : "border-slate-200 bg-slate-50 text-slate-700"}`}>{RESULTADO_LABELS[result] || result}</span>{p.observaciones && <p className="mt-1 max-w-xs text-[10px] text-slate-500">{p.observaciones}</p>}</td><td className="p-3"><div className="flex justify-end gap-1.5">{remoteEvidence && <a href={remoteEvidence.archivoUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-slate-200 px-2 text-[11px] font-bold text-sky-700"><ExternalLink size={13} /> Evidencia</a>}{detalle.estado === "en_curso" && !p.horaEntrada && <Button size="sm" onClick={() => updateParticipant(p.id, "entrada")} disabled={busy}><Clock3 size={13} /> Entrada</Button>}{detalle.estado === "en_curso" && detalle.requiereSalida && p.horaEntrada && !p.horaSalida && <Button size="sm" variant="secondary" onClick={() => updateParticipant(p.id, "salida")} disabled={busy}>Salida</Button>}{detalle.estado === "pendiente_revision" && isAdmin && <select value={p.resultadoDefinitivo || ""} onChange={(e) => e.target.value && updateParticipant(p.id, "conciliar", e.target.value)} disabled={busy} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs"><option value="">Conciliar...</option>{Object.entries(RESULTADO_LABELS).filter(([value]) => value !== "pendiente").map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>}</div></td></tr>;
+                        const remoteEvidence = detalle.evidencias.find((item) => item.participanteId === p.id && ["selfie_remota", "selfie_individual"].includes(item.categoria));
+                        return <tr key={p.id} className="align-top"><td className="p-3"><p className="font-bold text-slate-900">{p.personaNombre}</p><p className="mt-0.5 text-[11px] text-slate-500">{p.personaDocumento || "Sin documento"} · {p.tipoPersona}</p>{detalle.requiereFoto && <span className={`mt-1.5 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold ${remoteEvidence ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>{remoteEvidence ? <CheckCircle2 size={11} /> : <Clock3 size={11} />}{remoteEvidence ? "Evidencia archivada" : "Evidencia pendiente"}</span>}{p.evaluacionEstado && <span className={`ml-1 mt-1.5 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${p.evaluacionEstado === "aprobado" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : p.evaluacionEstado === "no_aprobado" ? "border-rose-200 bg-rose-50 text-rose-700" : "border-sky-200 bg-sky-50 text-sky-700"}`}>{p.evaluacionEstado.replaceAll("_", " ")}{p.calificacion !== null && p.calificacion !== undefined ? ` · ${p.calificacion}%` : ""}</span>}</td><td className="p-3 text-slate-700">{p.tipoConvocatoria}</td><td className="p-3 text-slate-700">{p.condicionLaboral}</td><td className="p-3 text-slate-700">{p.horaEntrada ? formatDate(p.horaEntrada) : "—"}</td><td className="p-3"><span className={`rounded-full border px-2 py-1 text-[10px] font-bold ${result === "pendiente" ? "border-amber-200 bg-amber-50 text-amber-700" : "border-slate-200 bg-slate-50 text-slate-700"}`}>{RESULTADO_LABELS[result] || result}</span>{p.observaciones && <p className="mt-1 max-w-xs text-[10px] text-slate-500">{p.observaciones}</p>}</td><td className="p-3"><div className="flex justify-end gap-1.5">{remoteEvidence && <a href={remoteEvidence.archivoUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-slate-200 px-2 text-[11px] font-bold text-sky-700"><ExternalLink size={13} /> Evidencia</a>}{detalle.estado === "en_curso" && !p.horaEntrada && <Button size="sm" onClick={() => updateParticipant(p.id, "entrada")} disabled={busy}><Clock3 size={13} /> Entrada</Button>}{detalle.estado === "en_curso" && detalle.requiereSalida && p.horaEntrada && !p.horaSalida && <Button size="sm" variant="secondary" onClick={() => updateParticipant(p.id, "salida")} disabled={busy}>Salida</Button>}{detalle.estado === "pendiente_revision" && isAdmin && <select value={p.resultadoDefinitivo || ""} onChange={(e) => e.target.value && updateParticipant(p.id, "conciliar", e.target.value)} disabled={busy} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs"><option value="">Conciliar...</option>{Object.entries(RESULTADO_LABELS).filter(([value]) => value !== "pendiente").map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>}</div></td></tr>;
                       })}
                     </tbody>
                   </table>

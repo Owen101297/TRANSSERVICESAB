@@ -11,6 +11,15 @@ import {
 import { prisma } from "@/lib/prisma";
 import { resolveDocumentUrl } from "@/lib/storage/document-storage";
 import { isGoogleDriveConfigured, parseDriveStorageUri } from "@/lib/storage/google-drive";
+import {
+  parseEvidenceType,
+  parseMaterialOrigin,
+  parseValidationType,
+  requiresFormValidation,
+  requiresGeneralEvidence,
+  requiresIndividualEvidence,
+  validHttpsUrl,
+} from "@/lib/event-strategy";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +34,7 @@ export async function GET(_req: Request, context: { params: Promise<{ id: string
       participantes: { orderBy: { personaNombre: "asc" } },
       documentos: { orderBy: { codigo: "asc" } },
       evidencias: { orderBy: { createdAt: "desc" } },
+      validacionesFormulario: { orderBy: { submittedAt: "desc" }, take: 200 },
     },
   });
   if (!evento) {
@@ -120,18 +130,18 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       if (!["presencial", "virtual", "mixta", "remota"].includes(modalidad)) {
         throw new Error("La modalidad seleccionada no es válida.");
       }
-      const materialUrl = textoOpcional(body.materialUrl, 1000);
-      if (materialUrl) {
-        try {
-          const url = new URL(materialUrl);
-          if (url.protocol !== "https:") throw new Error();
-        } catch {
-          throw new Error("El enlace del material debe ser una dirección HTTPS válida.");
-        }
+      const materialOrigen = parseMaterialOrigin(body.materialOrigen, before.materialOrigen as "empresa" | "facilitador_externo" | "no_aplica");
+      const validacionTipo = parseValidationType(body.validacionTipo, before.validacionTipo as "solo_asistencia" | "formulario_enviado" | "formulario_aprobado");
+      const evidenciaTipo = parseEvidenceType(body.evidenciaTipo, before.evidenciaTipo as "individual" | "general" | "ambas" | "no_aplica");
+      if (materialOrigen !== "empresa" && requiresFormValidation(validacionTipo)) {
+        throw new Error("La validación con Google Forms solo aplica cuando el material es gestionado por la empresa.");
       }
-      if (modalidad === "remota" && !materialUrl) {
-        throw new Error("La actividad remota requiere un enlace de material.");
-      }
+      const materialUrl = validHttpsUrl(
+        body.materialUrl,
+        materialOrigen === "empresa" ? "El enlace de Google Forms" : "El enlace del material",
+        materialOrigen === "empresa" && requiresFormValidation(validacionTipo),
+      );
+      const enlaceReunion = validHttpsUrl(body.enlaceReunion, "El enlace de la reunión");
       const updated = await prisma.$transaction(async (tx) => {
         const evento = await tx.eventoAsistencia.update({
           where: { id },
@@ -145,15 +155,24 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
             lugar: textoRequerido(body.lugar, "El lugar", 220),
             proyecto: textoOpcional(body.proyecto, 120),
             responsableNombre: textoRequerido(body.responsableNombre, "El responsable", 160),
+            facilitadorTipo: textoRequerido(body.facilitadorTipo || before.facilitadorTipo, "El tipo de facilitador", 30),
             facilitadorNombre: textoRequerido(body.facilitadorNombre, "El facilitador", 160),
             facilitadorEmpresa: textoOpcional(body.facilitadorEmpresa, 180),
             materialUrl,
+            materialOrigen,
+            validacionTipo,
+            enlaceReunion,
+            evidenciaTipo,
             contenido: textoOpcional(body.contenido, 5000),
             instruccionesRegistro: textoOpcional(body.instruccionesRegistro, 1000),
             permiteExternos: body.permiteExternos === true,
             toleranciaMinutos: Math.max(0, Math.min(180, Number(body.toleranciaMinutos) || 0)),
             permanenciaMinima: Math.max(0, Math.min(100, Number(body.permanenciaMinima) || 0)),
-            requiereFoto: modalidad === "remota",
+            requiereFoto: requiresIndividualEvidence(evidenciaTipo),
+            requiereEvaluacion: validacionTipo === "formulario_aprobado",
+            notaMinima: validacionTipo === "formulario_aprobado"
+              ? Math.max(0, Math.min(100, Number(body.notaMinima) || before.notaMinima || 80))
+              : null,
           },
         });
         const capacitacion = await tx.capacitacion.findUnique({ where: { eventoId: id } });
@@ -227,8 +246,9 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       const obligatorios = before.participantes.filter((p) => p.tipoConvocatoria === "obligatoria");
       const pendientes = obligatorios.filter((p) => !p.resultadoDefinitivo);
       const excepcional = body.cerradoExcepcional === true;
-      const tienePresencial = before.evidencias.some((item) => ["foto_presencial", "practica"].includes(item.categoria));
-      const tieneVirtual = before.evidencias.some((item) => ["captura_virtual", "reporte_virtual"].includes(item.categoria));
+       const tieneGeneral = before.evidencias.some((item) =>
+         !item.participanteId && ["foto_presencial", "practica", "captura_virtual", "reporte_virtual", "evidencia_general"].includes(item.categoria),
+       );
       const asistentesRemotos = before.participantes.filter((participante) =>
         Boolean(participante.firmaAt) && ["presente", "tardanza", "participacion_parcial"].includes(
           participante.resultadoDefinitivo || participante.resultadoPreliminar,
@@ -236,24 +256,21 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
       );
       const participantesConEvidencia = new Set(
         before.evidencias
-          .filter((item) => item.categoria === "selfie_remota" && item.participanteId)
+          .filter((item) => ["selfie_remota", "selfie_individual"].includes(item.categoria) && item.participanteId)
           .map((item) => item.participanteId),
       );
       const remotosSinEvidencia = asistentesRemotos.filter((item) => !participantesConEvidencia.has(item.id));
-      const faltanEvidencias = before.modalidad === "remota"
-        ? asistentesRemotos.length === 0 || remotosSinEvidencia.length > 0
-        : before.modalidad === "mixta"
-        ? !tienePresencial || !tieneVirtual
-        : before.modalidad === "virtual"
-          ? !tieneVirtual
-          : !tienePresencial;
+       const requiereIndividual = requiresIndividualEvidence(before.evidenciaTipo);
+       const requiereGeneral = requiresGeneralEvidence(before.evidenciaTipo);
+       const faltanEvidencias = (requiereIndividual && (asistentesRemotos.length === 0 || remotosSinEvidencia.length > 0)) ||
+         (requiereGeneral && !tieneGeneral);
       if ((pendientes.length > 0 || faltanEvidencias) && !excepcional) {
         const causas = [
           pendientes.length > 0 ? `${pendientes.length} participantes obligatorios sin resultado definitivo` : null,
           faltanEvidencias
-            ? before.modalidad === "remota" && remotosSinEvidencia.length > 0
-              ? `${remotosSinEvidencia.length} asistentes remotos sin collage de evidencia`
-              : `falta la evidencia requerida para modalidad ${before.modalidad}`
+             ? requiereIndividual && remotosSinEvidencia.length > 0
+               ? `${remotosSinEvidencia.length} asistentes sin evidencia individual`
+               : `falta la evidencia general definida para la actividad`
             : null,
         ].filter(Boolean).join(" y ");
         return NextResponse.json(

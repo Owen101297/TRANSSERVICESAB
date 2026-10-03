@@ -11,6 +11,8 @@ interface ParticipantePdf {
   horaEntrada?: string | null;
   observaciones?: string | null;
   firmaUrl?: string | null;
+  calificacion?: number | null;
+  evaluacionEstado?: string | null;
 }
 
 interface EventoPdf {
@@ -24,6 +26,11 @@ interface EventoPdf {
   lugar: string;
   responsableNombre: string;
   facilitadorNombre: string;
+  facilitadorTipo?: string;
+  materialOrigen?: string;
+  validacionTipo?: string;
+  evidenciaTipo?: string;
+  notaMinima?: number | null;
   revision?: number;
   estado: string;
   documentos: Array<{ codigo: string; version: string }>;
@@ -91,8 +98,11 @@ export async function generateEventoAsistenciaPDF(evento: EventoPdf) {
     doc.text(`Facilitador: ${evento.facilitadorNombre}`, margin + 92, 45);
     const objectiveLines = doc.splitTextToSize(`Objetivo: ${evento.objetivo}`, width - margin * 2);
     doc.text(objectiveLines.slice(0, 2), margin, 50);
+    const materialLabel = evento.materialOrigen === "empresa" ? "Empresa / Google Forms" : evento.materialOrigen === "facilitador_externo" ? "Facilitador externo" : "No aplica";
+    const validationLabel = evento.validacionTipo === "formulario_aprobado" ? `Evaluación (${evento.notaMinima || 80}% mínimo)` : evento.validacionTipo === "formulario_enviado" ? "Formulario enviado" : "Solo asistencia";
+    doc.text(`Trazabilidad: material ${materialLabel} · validación ${validationLabel} · evidencia ${(evento.evidenciaTipo || "no_aplica").replaceAll("_", " ")}`, margin, 58);
 
-    const startY = 61;
+    const startY = 64;
     const columns = [10, 18, 70, 95, 125, 150, 174, 215, 269];
     const headers = ["N.º", "Nombre", "Documento", "Convocatoria", "Condición", "Entrada", "Resultado", "Firma"];
     doc.setFillColor(226, 232, 240);
@@ -113,7 +123,7 @@ export async function generateEventoAsistenciaPDF(evento: EventoPdf) {
         p.tipoConvocatoria,
         p.condicionLaboral,
         p.horaEntrada ? fecha(p.horaEntrada).split(", ").pop() || "—" : "—",
-        result.replaceAll("_", " "),
+        `${result.replaceAll("_", " ")}${p.evaluacionEstado ? ` / eval. ${p.evaluacionEstado.replaceAll("_", " ")}${p.calificacion !== null && p.calificacion !== undefined ? ` ${p.calificacion}%` : ""}` : ""}`,
       ];
       doc.setDrawColor(203, 213, 225);
       doc.rect(margin, y, width - margin * 2, 7.6);

@@ -640,6 +640,10 @@ model EventoAsistencia {
   notaMinima              Float?
   contenido               String?
   materialUrl             String?
+  materialOrigen          String    @default("no_aplica") // empresa, facilitador_externo, no_aplica
+  validacionTipo          String    @default("solo_asistencia") // solo_asistencia, formulario_enviado, formulario_aprobado
+  enlaceReunion           String?
+  evidenciaTipo           String    @default("no_aplica") // individual, general, ambas, no_aplica
   tokenRegistro           String?   @unique
   registroAbierto         Boolean   @default(false)
   registroAbiertoAt       DateTime?
@@ -664,6 +668,7 @@ model EventoAsistencia {
   participantes EventoParticipante[]
   documentos    EventoDocumento[]
   evidencias    EventoEvidencia[]
+  validacionesFormulario EventoValidacionFormulario[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -672,6 +677,22 @@ model EventoAsistencia {
   @@index([estado])
   @@index([tipo])
   @@index([proceso])
+}
+
+model EventoValidacionFormulario {
+  id                String           @id @default(cuid())
+  eventoId          String
+  evento            EventoAsistencia @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  personaDocumento  String
+  responseId        String
+  estado            String // enviado, aprobado, no_aprobado
+  calificacion      Float?
+  submittedAt       DateTime
+  syncedAt          DateTime         @default(now())
+
+  @@unique([eventoId, responseId])
+  @@index([eventoId, personaDocumento])
+  @@index([eventoId, estado])
 }
 
 model EventoParticipante {

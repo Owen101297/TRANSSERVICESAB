@@ -246,7 +246,8 @@ test("la creación rápida de actividades conserva aprobación y reglas en el se
   assert.match(source, /estado: aprobarAlCrear \? "programado" : "borrador"/);
   assert.match(source, /objetivo: textoRequerido\(body\.objetivo \|\| objetivoSugerido/);
   assert.match(source, /requiereFirma: true/);
-  assert.match(source, /requiereFoto: modalidad === "remota"/);
+  assert.match(source, /requiereFoto: requiresIndividualEvidence\(evidenciaTipo\)/);
+  assert.match(source, /materialOrigen !== "empresa" && requiresFormValidation\(validacionTipo\)/);
 });
 
 test("la interfaz de asistencia usa creación progresiva e inicio unificado", () => {
@@ -305,18 +306,37 @@ test("las credenciales de Google Drive se normalizan y los errores OAuth son acc
   assert.doesNotMatch(googleDriveAuthenticationMessage("invalid_grant"), /token-seguro/);
 });
 
-test("la modalidad remota exige material y ofrece collage y entrega controlada", () => {
+test("la evidencia individual es independiente de la modalidad y conserva entrega controlada", () => {
   const api = readFileSync(join(process.cwd(), "app/api/eventos-asistencia/route.ts"), "utf8");
   const attendance = readFileSync(
     join(process.cwd(), "components/asistencia/RegistroAsistenciaClient.tsx"),
     "utf8",
   );
 
-  assert.match(api, /modalidad === "remota" && !materialUrl/);
+  assert.match(api, /parseEvidenceType\(/);
+  assert.match(api, /requiresIndividualEvidence\(evidenciaTipo\)/);
   assert.match(attendance, /generateEvidenceCollage\(/);
   assert.match(attendance, /Compartir por WhatsApp/);
   assert.match(attendance, /capture="user"/);
   assert.match(attendance, /La selfie original no se sube por separado/);
+});
+
+test("Google Forms sincroniza trazabilidad mínima y exige secreto compartido", () => {
+  const webhook = readFileSync(
+    join(process.cwd(), "app/api/asistencia/publica/google-forms/respuesta/route.ts"),
+    "utf8",
+  );
+  const publicAttendance = readFileSync(
+    join(process.cwd(), "app/api/asistencia/publica/[token]/route.ts"),
+    "utf8",
+  );
+  const schema = readFileSync(join(process.cwd(), "prisma/schema.prisma"), "utf8");
+
+  assert.match(webhook, /isValidWebhookApiKey\(/);
+  assert.match(webhook, /GOOGLE_FORMS_WEBHOOK_SECRET/);
+  assert.doesNotMatch(schema, /respuestasJson|answersJson|contenidoRespuesta/);
+  assert.match(schema, /model EventoValidacionFormulario/);
+  assert.match(publicAttendance, /Primero completa el Google Forms y verifica la respuesta/);
 });
 
 test("la información pública de Google Drive es accesible sin abrir rutas privadas", () => {

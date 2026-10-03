@@ -42,6 +42,11 @@ type PublicEvent = {
   facilitadorNombre: string;
   facilitadorEmpresa: string | null;
   materialUrl: string | null;
+  materialOrigen: "empresa" | "facilitador_externo" | "no_aplica";
+  validacionTipo: "solo_asistencia" | "formulario_enviado" | "formulario_aprobado";
+  enlaceReunion: string | null;
+  evidenciaTipo: "individual" | "general" | "ambas" | "no_aplica";
+  notaMinima: number | null;
   instruccionesRegistro: string | null;
   declaracionAsistencia: string;
   permiteExternos: boolean;
@@ -74,6 +79,7 @@ type PublicPayload = {
 
 type SuccessRecord = { codigo: string; nombre: string; fecha: string; actividad: string };
 type PendingEvidence = { record: SuccessRecord; token: string };
+type FormValidation = { checked: boolean; completed: boolean; approved: boolean; status: string; score: number | null };
 
 const TYPE_LABELS: Record<string, string> = {
   charla_informativa: "Charla informativa",
@@ -123,6 +129,10 @@ export default function RegistroAsistenciaClient({ token }: { token: string }) {
   const [collageFile, setCollageFile] = useState<File | null>(null);
   const [collagePreview, setCollagePreview] = useState<string | null>(null);
   const [progress, setProgress] = useState("Guardando asistencia…");
+  const [materialOpened, setMaterialOpened] = useState(false);
+  const [checkingForm, setCheckingForm] = useState(false);
+  const [formValidation, setFormValidation] = useState<FormValidation>({ checked: false, completed: false, approved: false, status: "pendiente", score: null });
+  const formRef = useRef<HTMLFormElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const signatureRef = useRef<SignaturePad | null>(null);
 
@@ -135,6 +145,8 @@ export default function RegistroAsistenciaClient({ token }: { token: string }) {
       if (!response.ok) throw new Error(payload.error || "No fue posible abrir la actividad.");
       setData(payload);
       if (!payload.participante.autenticado && payload.evento.permiteExternos) setParticipantType("externo");
+      const stored = window.sessionStorage.getItem(`attendance:${token}:material-opened`);
+      setMaterialOpened(stored === "true");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "No fue posible abrir la actividad.");
     } finally {
@@ -200,6 +212,40 @@ export default function RegistroAsistenciaClient({ token }: { token: string }) {
     setHasSignature(false);
   }
 
+  function openExternalLink(url: string) {
+    setMaterialOpened(true);
+    window.sessionStorage.setItem(`attendance:${token}:material-opened`, "true");
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  async function verifyGoogleForm() {
+    if (!data) return;
+    const formData = formRef.current ? new FormData(formRef.current) : null;
+    const personaDocumento = participantType === "externo" ? formData?.get("personaDocumento") : null;
+    setCheckingForm(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/asistencia/publica/${encodeURIComponent(token)}/validacion-formulario`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ personaDocumento, tipoParticipante: participantType }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "No fue posible verificar Google Forms.");
+      setFormValidation({
+        checked: true,
+        completed: payload.completada === true,
+        approved: payload.aprobada === true,
+        status: payload.estado || "pendiente",
+        score: typeof payload.calificacion === "number" ? payload.calificacion : null,
+      });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "No fue posible verificar Google Forms.");
+    } finally {
+      setCheckingForm(false);
+    }
+  }
+
   async function saveRemoteEvidence(record: SuccessRecord, evidenceToken: string, selectedSelfie: File) {
     if (!data) throw new Error("No fue posible recuperar la información de la actividad.");
     setProgress("Preparando collage uniforme…");
@@ -254,6 +300,10 @@ export default function RegistroAsistenciaClient({ token }: { token: string }) {
     }
     if (!declarationAccepted || !privacyAccepted) {
       setError("Confirma la declaración de asistencia y el tratamiento de datos.");
+      return;
+    }
+    if (data?.evento.materialOrigen === "empresa" && data.evento.validacionTipo !== "solo_asistencia" && !formValidation.completed) {
+      setError("Completa el Google Forms y pulsa “Verificar respuesta” antes de firmar.");
       return;
     }
     if (data?.evento.requiereFoto && !data.evento.driveDisponible) {
@@ -348,6 +398,10 @@ export default function RegistroAsistenciaClient({ token }: { token: string }) {
   const event = data.evento;
   const callbackUrl = `/asistir/${encodeURIComponent(token)}`;
   const canUseLinked = data.participante.autenticado;
+  const hasMaterialStep = event.materialOrigen !== "no_aplica" || Boolean(event.enlaceReunion);
+  const evidenceStep = hasMaterialStep ? "3" : "2";
+  const confirmationStep = String(Number(evidenceStep) + (event.requiereFoto ? 1 : 0));
+  const signatureStep = String(Number(confirmationStep) + 1);
 
   return (
     <main className="min-h-dvh bg-slate-100 px-3 py-4 text-slate-950 sm:px-6 sm:py-8">
@@ -376,11 +430,10 @@ export default function RegistroAsistenciaClient({ token }: { token: string }) {
             <Meta icon={UsersRound} text={`Facilitador: ${event.facilitadorNombre}`} />
           </div>
           {event.documentos.length > 0 && <div className="mt-5 flex flex-wrap gap-2">{event.documentos.map((document) => <span key={document.id} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 font-mono text-[10px] font-bold text-slate-600"><FileText size={13} />{document.codigo} · v{document.version}</span>)}</div>}
-          {event.materialUrl && <a href={event.materialUrl} target="_blank" rel="noreferrer" className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-300 px-3.5 text-sm font-bold text-slate-800 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-100"><ExternalLink size={16} /> Consultar material</a>}
           {event.instruccionesRegistro && <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">{event.instruccionesRegistro}</p>}
         </section>
 
-        <form onSubmit={submit} className="space-y-7 px-5 py-6 sm:px-7">
+        <form ref={formRef} onSubmit={submit} className="space-y-7 px-5 py-6 sm:px-7">
           <section aria-labelledby="identity-title">
             <SectionHeading number="1" title="Identificación" id="identity-title" />
             <div className="mt-3 grid grid-cols-2 gap-2 rounded-2xl bg-slate-100 p-1.5" role="tablist" aria-label="Tipo de participante">
@@ -411,18 +464,32 @@ export default function RegistroAsistenciaClient({ token }: { token: string }) {
             )}
           </section>
 
+          {hasMaterialStep && (
+            <section aria-labelledby="material-title">
+              <SectionHeading number="2" title={event.materialOrigen === "facilitador_externo" ? "Acceso a la actividad" : "Material y validación"} id="material-title" />
+              <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                {event.materialOrigen === "empresa" ? <><p className="text-sm font-bold text-slate-950">Material administrado por TRANS SERVICES A&amp;B</p><p className="mt-1 text-xs leading-5 text-slate-600">Abre Google Forms en una pestaña nueva, revisa el contenido y envía la respuesta usando el mismo documento.</p></> : event.materialOrigen === "facilitador_externo" ? <><p className="text-sm font-bold text-slate-950">Actividad dirigida por un facilitador externo</p><p className="mt-1 text-xs leading-5 text-slate-600">El facilitador gestiona su presentación y la reunión. Aquí registras la misma asistencia y evidencia definida por la empresa.</p></> : <p className="text-sm font-bold text-slate-950">Acceso a la sesión en vivo</p>}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {event.enlaceReunion && <button type="button" onClick={() => openExternalLink(event.enlaceReunion as string)} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-slate-950 px-3.5 text-sm font-bold text-white"><ExternalLink size={16} /> Entrar a la reunión</button>}
+                  {event.materialUrl && <button type="button" onClick={() => openExternalLink(event.materialUrl as string)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-sky-200 bg-white px-3.5 text-sm font-bold text-sky-800"><ExternalLink size={16} /> {event.materialOrigen === "empresa" ? "Abrir Google Forms" : "Abrir material"}</button>}
+                  {event.materialOrigen === "empresa" && event.validacionTipo !== "solo_asistencia" && <button type="button" onClick={() => void verifyGoogleForm()} disabled={checkingForm || !materialOpened} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-sky-600 px-3.5 text-sm font-bold text-white disabled:opacity-45">{checkingForm ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} Verificar respuesta</button>}
+                </div>
+                {event.materialOrigen === "empresa" && event.validacionTipo !== "solo_asistencia" && formValidation.checked && <div className={`mt-3 rounded-xl border p-3 text-xs leading-5 ${formValidation.completed ? formValidation.status === "no_aprobado" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-rose-200 bg-rose-50 text-rose-800"}`}>{formValidation.completed ? formValidation.status === "no_aprobado" ? `Respuesta encontrada${formValidation.score !== null ? ` · ${formValidation.score}%` : ""}. Puedes registrar la asistencia y repetir la evaluación para completar la actividad.` : `Respuesta verificada${formValidation.score !== null ? ` · ${formValidation.score}%` : ""}.` : "Todavía no encontramos una respuesta con este documento. Envíala en Google Forms y vuelve a verificar."}</div>}
+              </div>
+            </section>
+          )}
+
           {event.requiereFoto && (
             <section aria-labelledby="evidence-title">
-              <SectionHeading number="2" title="Evidencia remota" id="evidence-title" />
+              <SectionHeading number={evidenceStep} title="Evidencia individual" id="evidence-title" />
               <div className="mt-3 rounded-2xl border border-sky-200 bg-sky-50 p-4">
                 <div className="flex items-start gap-3">
                   <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-sky-700 shadow-sm"><Camera size={20} /></span>
                   <div>
-                    <p className="text-sm font-bold text-slate-950">Toma una selfie después de revisar el material</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-600">La foto original permanece en este dispositivo. El sistema crea un collage ordenado con tu foto, el material y la constancia, y archiva únicamente ese resultado en Google Drive.</p>
+                    <p className="text-sm font-bold text-slate-950">Toma una fotografía individual de la participación</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-600">La foto original permanece en este dispositivo. El sistema crea un collage ordenado y archiva únicamente ese resultado en Google Drive.</p>
                   </div>
                 </div>
-                {event.materialUrl && <a href={event.materialUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-3.5 text-sm font-bold text-sky-800 shadow-sm ring-1 ring-sky-200"><ExternalLink size={16} /> Abrir material antes de continuar</a>}
               </div>
               {!event.driveDisponible && <div role="alert" className="mt-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm leading-6 text-amber-900">El archivo documental aún no está disponible. El administrador debe conectar Google Drive antes de recibir evidencias remotas.</div>}
               <label className="mt-3 block cursor-pointer rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-4 transition hover:border-sky-400 hover:bg-sky-50/40 focus-within:ring-4 focus-within:ring-sky-100">
@@ -455,7 +522,7 @@ export default function RegistroAsistenciaClient({ token }: { token: string }) {
           )}
 
           <section aria-labelledby="confirmation-title">
-            <SectionHeading number={event.requiereFoto ? "3" : "2"} title="Confirmación" id="confirmation-title" />
+            <SectionHeading number={confirmationStep} title="Confirmación" id="confirmation-title" />
             <div className="mt-3 space-y-3">
               <CheckRow checked={declarationAccepted} onChange={setDeclarationAccepted}>{event.declaracionAsistencia}</CheckRow>
               <CheckRow checked={privacyAccepted} onChange={setPrivacyAccepted}>Autorizo el tratamiento de mis datos y de mi firma para la evidencia interna de SG-SST, PESV, formación y auditoría.</CheckRow>
@@ -463,7 +530,7 @@ export default function RegistroAsistenciaClient({ token }: { token: string }) {
           </section>
 
           <section aria-labelledby="signature-title">
-            <div className="flex items-end justify-between gap-3"><SectionHeading number={event.requiereFoto ? "4" : "3"} title="Firma manuscrita obligatoria" id="signature-title" /><button type="button" onClick={clearSignature} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-xs font-bold text-sky-700 hover:bg-sky-50"><RotateCcw size={14} /> Limpiar</button></div>
+            <div className="flex items-end justify-between gap-3"><SectionHeading number={signatureStep} title="Firma manuscrita obligatoria" id="signature-title" /><button type="button" onClick={clearSignature} className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-xs font-bold text-sky-700 hover:bg-sky-50"><RotateCcw size={14} /> Limpiar</button></div>
             <p className="mt-2 text-sm leading-6 text-slate-600">Firma dentro del recuadro usando el dedo, lápiz táctil o puntero.</p>
             <div className={`mt-3 overflow-hidden rounded-2xl border-2 bg-white transition ${hasSignature ? "border-emerald-400" : "border-slate-300"}`}><canvas ref={canvasRef} className="block touch-none" aria-label="Área para firma manuscrita" /></div>
             <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-slate-500"><PenLine size={14} /> {hasSignature ? "Firma capturada. Puedes limpiarla y repetirla." : "La firma todavía está vacía."}</p>
