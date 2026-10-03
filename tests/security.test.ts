@@ -292,3 +292,22 @@ test("la modalidad remota exige material y ofrece collage y entrega controlada",
   assert.match(attendance, /capture="user"/);
   assert.match(attendance, /La selfie original no se sube por separado/);
 });
+
+test("la información pública de Google Drive es accesible sin abrir rutas privadas", () => {
+  const proxy = readFileSync(join(process.cwd(), "proxy.ts"), "utf8");
+  const privacy = readFileSync(
+    join(process.cwd(), "app/legal/privacidad-google-drive/page.tsx"),
+    "utf8",
+  );
+  const integration = readFileSync(
+    join(process.cwd(), "app/integraciones/google-drive/page.tsx"),
+    "utf8",
+  );
+
+  assert.match(proxy, /pathname === "\/integraciones\/google-drive"/);
+  assert.match(proxy, /pathname === "\/legal\/privacidad-google-drive"/);
+  assert.match(proxy, /pathname === "\/legal\/terminos-google-drive"/);
+  assert.match(privacy, /auth\/drive\.file/);
+  assert.match(privacy, /no solicita ni almacena la contraseña de Google/i);
+  assert.match(integration, /transserviceshseq\.ab@gmail\.com/);
+});

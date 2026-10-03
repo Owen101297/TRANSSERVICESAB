@@ -15,12 +15,18 @@ export async function proxy(req: NextRequest) {
     (pathname === "/api/gps/eventos" && req.method === "POST") ||
     (pathname === "/api/apps/asistencia/config" && req.method === "GET");
 
+  const isPublicInformationPage =
+    pathname === "/integraciones/google-drive" ||
+    pathname === "/legal/privacidad-google-drive" ||
+    pathname === "/legal/terminos-google-drive";
+
   // 1. Ignorar endpoints de API, healthcheck, assets, aplicaciones públicas y archivos estáticos
   if (
     pathname.startsWith("/_next") ||
     isPublicApi ||
     pathname.startsWith("/assets") ||
     pathname.startsWith("/apps") ||
+    isPublicInformationPage ||
     pathname.startsWith("/activar/") ||
     pathname === "/asistir" ||
     pathname.startsWith("/asistir/") ||
