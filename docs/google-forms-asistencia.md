@@ -10,10 +10,11 @@ Esta configuración se realiza una sola vez con `transserviceshseq.ab@gmail.com`
 2. Copia el contenido de `scripts/google-forms-central-connector.gs` en `Código.gs`.
 3. Activa **Mostrar el archivo de manifiesto appsscript.json** en la configuración del proyecto y reemplázalo con `scripts/google-forms-central-appsscript.json`.
 4. En **Configuración del proyecto > Propiedades del script**, crea `CONNECTOR_SECRET` con un valor aleatorio largo. Debe ser igual a `GOOGLE_FORMS_CONNECTOR_SECRET` en Railway.
-5. Selecciona **Implementar > Nueva implementación > Aplicación web**.
-6. Configura **Ejecutar como: Yo** y permite el acceso a quien tenga el enlace. Autoriza Forms y conexiones externas con la cuenta documental.
-7. Copia la URL terminada en `/exec` y guárdala en Railway como `GOOGLE_FORMS_CONNECTOR_URL`.
-8. Configura también `GOOGLE_FORMS_WEBHOOK_SECRET`; el ERP lo entrega cifrado por HTTPS al conector para autenticar las respuestas.
+5. En el editor selecciona `authorizeConnector`, pulsa **Ejecutar** y concede una sola vez los permisos de Forms y conexiones externas con la cuenta documental.
+6. Selecciona **Implementar > Nueva implementación > Aplicación web**.
+7. Configura **Ejecutar como: Yo** y permite el acceso a quien tenga el enlace.
+8. Copia la URL terminada en `/exec` y guárdala en Railway como `GOOGLE_FORMS_CONNECTOR_URL`.
+9. Configura también `GOOGLE_FORMS_WEBHOOK_SECRET`; el ERP lo entrega cifrado por HTTPS al conector para autenticar las respuestas.
 
 En Railway, `PUBLIC_APP_URL` debe corresponder al dominio del ambiente. Para producción:
 

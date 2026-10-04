@@ -34,6 +34,10 @@ yarn-error.log*
 *.pem
 google-oauth-client*.json
 .google-drive-oauth-result.json
+.clasp.json
+.clasprc.json
+scripts/.claspignore
+scripts/appsscript.json
 Thumbs.db
 
 # IDE Files

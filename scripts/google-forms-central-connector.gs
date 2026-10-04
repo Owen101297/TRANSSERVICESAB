@@ -12,11 +12,22 @@
 var CONFIG_PREFIX = 'FORM_CONFIG_';
 var MAX_SYNC_RESPONSES = 300;
 
+/** Concede una sola vez los alcances declarados sin crear ni modificar archivos. */
+function authorizeConnector() {
+  FormApp.getActiveForm();
+  UrlFetchApp.getRequest('https://erp.transservicesab.com/api/health');
+  return { authorized: true };
+}
+
 function doGet() {
+  var configuredSecret = String(
+    PropertiesService.getScriptProperties().getProperty('CONNECTOR_SECRET') || ''
+  ).trim();
   return jsonResponse_({
     success: true,
     service: 'TRANS SERVICES A&B · Google Forms Connector',
-    version: 1
+    version: 2,
+    connectorConfigured: configuredSecret.length >= 32
   });
 }
 
@@ -220,8 +231,11 @@ function getFormConfig_(formId) {
 }
 
 function assertAuthorized_(provided) {
-  var expected = PropertiesService.getScriptProperties().getProperty('CONNECTOR_SECRET');
-  if (!expected || !provided || String(provided) !== expected) throw new Error('Solicitud no autorizada.');
+  var expected = String(
+    PropertiesService.getScriptProperties().getProperty('CONNECTOR_SECRET') || ''
+  ).trim();
+  var normalizedProvided = String(provided || '').trim();
+  if (!expected || !normalizedProvided || normalizedProvided !== expected) throw new Error('Solicitud no autorizada.');
 }
 
 function requireText_(value, label) {
