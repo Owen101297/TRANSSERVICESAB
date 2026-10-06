@@ -46,7 +46,7 @@ export async function getVehiculosDb(): Promise<Vehiculo[]> {
           anio: v.anio,
           capacidad: v.capacidad,
           contratistaId: v.contratistaId || "c_propio",
-          contratistaNombre: v.contratistaNombre || "Propio / Cooperativa",
+          contratistaNombre: v.contratistaNombre || "",
           servicio: (v.servicio as ServicioVehiculo) || "especial",
           estado: (v.estado as EstadoVehiculo) || "activo",
           documentos: {
@@ -88,7 +88,7 @@ export async function getVehiculoByIdDb(id: string): Promise<Vehiculo | undefine
           anio: v.anio,
           capacidad: v.capacidad,
           contratistaId: v.contratistaId || "c_propio",
-          contratistaNombre: v.contratistaNombre || "Propio / Cooperativa",
+          contratistaNombre: v.contratistaNombre || "",
           servicio: (v.servicio as ServicioVehiculo) || "especial",
           estado: (v.estado as EstadoVehiculo) || "activo",
           documentos: {
@@ -122,21 +122,32 @@ export async function createVehiculoAction(
 ): Promise<{ success: boolean; vehiculoId?: string; error?: string }> {
   try {
     const actor = await requireStaffSession();
-    const placa = ((formData.get("placa") as string) || "").toUpperCase().trim();
+    const placa = ((formData.get("placa") as string) || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
     const tipo = (formData.get("tipo") as TipoVehiculo) || "van";
     const marca = (formData.get("marca") as string) || "";
     const modelo = (formData.get("modelo") as string) || "";
-    const anio = parseInt((formData.get("anio") as string) || "2023", 10);
-    const capacidad = parseInt((formData.get("capacidad") as string) || "16", 10);
-    const rawContratista = (formData.get("contratistaNombre") as string) || (formData.get("contratistaId") as string) || "Propio / Cooperativa";
+    const anio = parseInt((formData.get("anio") as string) || "", 10);
+    const capacidad = parseInt((formData.get("capacidad") as string) || "", 10);
+    requireDatabaseInProduction();
+    if (!placa || !marca.trim() || !modelo.trim() || !Number.isInteger(anio) || anio < 1900 || !Number.isInteger(capacidad) || capacidad < 1) {
+      return { success: false, error: "Completa placa, marca, modelo, año y capacidad válidos." };
+    }
+    const rawContratista = (formData.get("contratistaNombre") as string) || (formData.get("contratistaId") as string) || "";
 
+    if (process.env.DATABASE_URL) {
+      const aliases = placa.length === 6 ? [placa, `${placa.slice(0, 3)}-${placa.slice(3)}`] : [placa];
+      const existing = await prisma.vehiculo.findFirst({ where: { placa: { in: aliases, mode: "insensitive" } }, select: { id: true } });
+      if (existing) return { success: false, error: "Esta placa ya está registrada. Abre su expediente para actualizarla." };
+    }
     let contratistaId: string | null = null;
     let contratistaNombre = rawContratista;
 
     try {
-      const cObj = await ensureContratistaExistsDb(rawContratista);
-      contratistaId = cObj.id;
-      contratistaNombre = cObj.razonSocial;
+      if (rawContratista) {
+        const cObj = await ensureContratistaExistsDb(rawContratista);
+        contratistaId = cObj.id;
+        contratistaNombre = cObj.razonSocial;
+      }
     } catch (cErr) {
       console.warn("Aviso resolviendo contratista:", cErr);
     }
@@ -339,19 +350,23 @@ export async function bulkUpsertVehiculosDb(
 ): Promise<{ success: boolean; count: number; error?: string }> {
   try {
     const actor = await requireStaffSession();
+    requireDatabaseInProduction();
+    if (filas.some(row => !row.placa || !row.marca || !row.modelo || !Number.isInteger(row.anio) || row.anio < 1900 || !Number.isInteger(row.capacidad) || row.capacidad < 1)) {
+      return { success: false, count: 0, error: "La importación contiene datos de identificación incompletos." };
+    }
     let count = 0;
 
     const processRows = async (db: Prisma.TransactionClient | null) => {
       for (const f of filas) {
-      const soatDate = f.soatVencimiento ? new Date(f.soatVencimiento) : null;
-      const rtmDate = f.rtmVencimiento ? new Date(f.rtmVencimiento) : null;
-      const polizaDate = f.polizaVencimiento ? new Date(f.polizaVencimiento) : null;
+      const soatDate = f.soatVencimiento ? new Date(f.soatVencimiento) : undefined;
+      const rtmDate = f.rtmVencimiento ? new Date(f.rtmVencimiento) : undefined;
+      const polizaDate = f.polizaVencimiento ? new Date(f.polizaVencimiento) : undefined;
 
       // Auto-asegurar que el contratista exista en el módulo Contratistas
       let contratistaId: string | null = null;
-      let contratistaNombre = f.contratistaNombre || "Flota Propia / Trans Services A&B";
+      let contratistaNombre = f.contratistaNombre || "";
 
-      if (db) {
+      if (db && contratistaNombre) {
         const isOwnFleet = contratistaNombre.toLowerCase().includes("propia") || contratistaNombre.toLowerCase().includes("cooperativa");
         const contractor = await db.contratista.findFirst({
           where: isOwnFleet
@@ -367,8 +382,11 @@ export async function bulkUpsertVehiculosDb(
 
       if (db) {
         try {
+          const cleanPlate = f.placa.toUpperCase().replace(/[^A-Z0-9]/g, "");
+          const variants = cleanPlate.length === 6 ? [cleanPlate, `${cleanPlate.slice(0, 3)}-${cleanPlate.slice(3)}`] : [cleanPlate];
+          const existing = await db.vehiculo.findFirst({ where: { placa: { in: variants, mode: "insensitive" } } });
           await db.vehiculo.upsert({
-            where: { placa: f.placa },
+            where: existing ? { id: existing.id } : { placa: cleanPlate },
             update: {
               marca: f.marca,
               modelo: f.modelo,
@@ -377,14 +395,14 @@ export async function bulkUpsertVehiculosDb(
               servicio: f.servicio,
               capacidad: f.capacidad,
               contratistaId: contratistaId || undefined,
-              contratistaNombre,
+              contratistaNombre: contratistaNombre || undefined,
               soatVencimiento: soatDate,
               rtmVencimiento: rtmDate,
               polizaVencimiento: polizaDate,
               estado: f.estado || "activo",
             },
             create: {
-              placa: f.placa,
+              placa: cleanPlate,
               marca: f.marca,
               modelo: f.modelo,
               anio: f.anio,
@@ -471,8 +489,8 @@ export async function updateVehiculoAction(
     const actor = await requireStaffSession();
     const marca = formData.get("marca") as string;
     const modelo = formData.get("modelo") as string;
-    const anio = parseInt((formData.get("anio") as string) || "2023", 10);
-    const capacidad = parseInt((formData.get("capacidad") as string) || "16", 10);
+    const anio = parseInt((formData.get("anio") as string) || "", 10);
+    const capacidad = parseInt((formData.get("capacidad") as string) || "", 10);
     const tipo = formData.get("tipo") as TipoVehiculo;
     const servicio = formData.get("servicio") as ServicioVehiculo;
     const estado = formData.get("estado") as EstadoVehiculo;
@@ -605,16 +623,9 @@ export async function crearAdjuntoVehiculoDb(
     const nowIso = new Date().toISOString();
 
     if (process.env.DATABASE_URL) {
-      const anteriores = await prisma.documentoAdjunto.findMany({
-        where: { entidadTipo: "vehiculo", entidadId: vehiculoId, tipoDocumento },
-        select: { archivoUrl: true },
-      });
       let created;
       try {
         created = await prisma.$transaction(async (tx) => {
-          await tx.documentoAdjunto.deleteMany({
-            where: { entidadTipo: "vehiculo", entidadId: vehiculoId, tipoDocumento },
-          });
           return tx.documentoAdjunto.create({
             data: {
               entidadTipo: "vehiculo",
@@ -632,7 +643,6 @@ export async function crearAdjuntoVehiculoDb(
         await deleteStoredDocument(stored.uri).catch(() => undefined);
         throw error;
       }
-      await Promise.allSettled(anteriores.map((doc) => deleteStoredDocument(doc.archivoUrl)));
       createdId = created.id;
       await recordAudit({
         action: "CREATE",

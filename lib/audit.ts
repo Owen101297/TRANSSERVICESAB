@@ -28,7 +28,7 @@ interface AuditInput {
 
 function jsonValue(value: unknown) {
   if (value === undefined) return undefined;
-  return JSON.parse(JSON.stringify(value));
+  return JSON.parse(JSON.stringify(value, (key, item) => ["passwordHash", "pin", "password", "token", "tokenHash", "secret", "apiKey"].includes(key) ? "[oculto]" : item));
 }
 
 export async function recordAudit(input: AuditInput, client: Pick<Prisma.TransactionClient, "auditLog"> = prisma): Promise<void> {

@@ -37,7 +37,7 @@ export default function NuevoVehiculoPage() {
   }, []);
 
   const contratistaOptions = [
-    { value: "", label: "Seleccionar contratista..." },
+    { value: "", label: "Flota propia / Sin contratista" },
     ...contratistas.map((c) => ({
       value: c.id,
       label: `${c.nombre} (NIT: ${c.nit})`,
@@ -61,7 +61,7 @@ export default function NuevoVehiculoPage() {
   };
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-3xl space-y-4">
       <Link
         href="/flota"
         className="inline-flex items-center gap-1.5 text-sm text-fog-400 hover:text-paper-50"
@@ -70,7 +70,7 @@ export default function NuevoVehiculoPage() {
       </Link>
 
       <div>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold text-paper-50">
+        <h1 className="font-[family-name:var(--font-display)] text-xl font-bold text-paper-50">
           Nuevo vehículo
         </h1>
         <p className="mt-1 text-sm text-fog-400">
@@ -86,20 +86,20 @@ export default function NuevoVehiculoPage() {
       )}
 
       <Card>
-        <form className="space-y-6" onSubmit={handleSubmit}>
+        <form className="space-y-4" onSubmit={handleSubmit}>
           <FormSection title="Identificación">
             <TextField label="Placa" name="placa" required placeholder="ABC123" />
             <SelectField label="Tipo de vehículo" name="tipo" required options={TIPO_OPTIONS} />
             <TextField label="Marca" name="marca" required placeholder="Chevrolet" />
             <TextField label="Modelo" name="modelo" required placeholder="NPR" />
-            <TextField label="Año" name="anio" type="number" required placeholder="2022" defaultValue="2022" />
+            <TextField label="Año" name="anio" type="number" required placeholder="2022"  />
             <TextField
               label="Capacidad (pasajeros)"
               name="capacidad"
               type="number"
               required
               placeholder="19"
-              defaultValue="19"
+
             />
           </FormSection>
 
@@ -107,32 +107,34 @@ export default function NuevoVehiculoPage() {
             <SelectField
               label="Contratista / Empresa"
               name="contratistaId"
-              required
               options={contratistaOptions}
             />
             <SelectField
               label="Tipo de servicio"
               name="servicio"
+              defaultValue="especial"
               required
               options={SERVICIO_OPTIONS}
             />
           </FormSection>
 
+          <details className="rounded-xl border border-line-600 p-3"><summary className="cursor-pointer text-sm font-semibold text-paper-50">Vencimientos documentales · opcional al registrar</summary><div className="mt-4">
           <FormSection
             title="Documentos"
             description="Fechas de vencimiento — el sistema generará alertas automáticas 30 días antes."
           >
-            <TextField label="Vencimiento SOAT" name="soatVencimiento" type="date" required />
-            <TextField label="Vencimiento RTM" name="rtmVencimiento" type="date" required />
+            <TextField label="Vencimiento SOAT" name="soatVencimiento" type="date" />
+            <TextField label="Vencimiento RTM" name="rtmVencimiento" type="date" />
             <TextField
               label="Vencimiento póliza contractual/extra"
               name="polizaVencimiento"
               type="date"
-              required
               wrapperClassName="sm:col-span-2"
             />
           </FormSection>
 
+          </div></details>
+          <p className="text-xs text-fog-400">Adjunta los documentos después de guardar, en el expediente del vehículo.</p>
           <div className="flex items-center gap-3 pt-2">
             <Button type="submit" variant="primary" disabled={isPending}>
               <Save size={16} /> {isPending ? "Guardando..." : "Guardar vehículo"}

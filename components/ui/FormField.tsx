@@ -46,6 +46,7 @@ export function TextField({ label, required, helperText, wrapperClassName = "", 
       <Label required={required}>{label}</Label>
       <input
         className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all"
+        required={required}
         {...props}
       />
       {helperText && <p className="mt-1 text-[11px] text-slate-500 font-mono">{helperText}</p>}
@@ -74,9 +75,10 @@ export function SelectField({
       <Label required={required}>{label}</Label>
       <select
         className="w-full h-11 rounded-xl border border-slate-200 bg-slate-50 px-3.5 text-sm text-slate-900 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:outline-none transition-all"
+        required={required}
         {...props}
       >
-        <option value="">Seleccionar...</option>
+        {!options.some(option => option.value === "") && <option value="">Seleccionar...</option>}
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
             {opt.label}

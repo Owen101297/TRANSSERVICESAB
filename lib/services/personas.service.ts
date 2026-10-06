@@ -210,16 +210,24 @@ export async function createPersonaAction(formData: FormData): Promise<CreatePer
     const nombres = formData.get("nombres") as string;
     const apellidos = formData.get("apellidos") as string;
     const tipoDocumento = (formData.get("tipoDocumento") as TipoDocumento) || "CC";
-    const numeroDocumento = (formData.get("numeroDocumento") as string)?.trim();
-    const telefono = formData.get("telefono") as string;
+    const numeroDocumento = (formData.get("numeroDocumento") as string)?.replace(/[.\s]/g, "").toUpperCase();
+    const telefono = (formData.get("telefono") as string) || "";
     const email = formData.get("email") as string;
     const perfil = (formData.get("perfil") as PerfilPersona) || "conductor";
     const perfiles: PerfilPersona[] = [perfil];
+    requireDatabaseInProduction();
+    if (!nombres?.trim() || !apellidos?.trim() || !numeroDocumento) {
+      return { success: false, error: "Completa nombres, apellidos y documento." };
+    }
+    if (!["conductor", "empleado", "supervisor", "hseq", "administrativo"].includes(perfil)) {
+      return { success: false, error: "Selecciona un perfil válido." };
+    }
+
 
     // Salud
-    const grupoSanguineoRH = (formData.get("grupoSanguineoRH") as any) || "O+";
-    const eps = (formData.get("eps") as string) || "EPS General";
-    const arl = (formData.get("arl") as string) || "ARL General";
+    const grupoSanguineoRH = (formData.get("grupoSanguineoRH") as any) || "";
+    const eps = (formData.get("eps") as string) || "";
+    const arl = (formData.get("arl") as string) || "";
     const alergias = (formData.get("alergias") as string) || undefined;
 
     // Contacto de emergencia
@@ -256,7 +264,7 @@ export async function createPersonaAction(formData: FormData): Promise<CreatePer
       tipoDocumento,
       numeroDocumento,
       telefono,
-      email: email || `${nombres.toLowerCase().replace(/\s+/g, ".")}@ejemplo.com`,
+      email: email || "",
       perfiles,
       estado: "activo",
       fechaIngreso: new Date().toISOString().split("T")[0],
@@ -279,7 +287,7 @@ export async function createPersonaAction(formData: FormData): Promise<CreatePer
       licenciaConduccion: licenciaNumero && licenciaVencimiento
         ? {
             numero: licenciaNumero,
-            categorias: licenciaCategoria ? [licenciaCategoria] : ["C1"],
+            categorias: licenciaCategoria ? [licenciaCategoria] : [],
             fechaVencimiento: licenciaVencimiento,
             organismoTransito: licenciaOrganismo || undefined,
           }
@@ -289,8 +297,8 @@ export async function createPersonaAction(formData: FormData): Promise<CreatePer
             tipo: "periodico",
             fechaRealizacion: new Date().toISOString().split("T")[0],
             fechaVigencia: emoVigencia,
-            enfasis: ["Visiometría", "Psicosensométrico", "Audiometría"],
-            concepto: conceptoMedico || "apto",
+            enfasis: [],
+            concepto: conceptoMedico || "pendiente",
             restricciones: emoRestricciones || undefined,
           }
         : undefined,
@@ -306,7 +314,7 @@ export async function createPersonaAction(formData: FormData): Promise<CreatePer
             tipoDocumento,
             numeroDocumento,
             telefono,
-            email: email || `${nombres.toLowerCase().replace(/\s+/g, ".")}@ejemplo.com`,
+            email: email || "",
             perfiles: [perfil],
             estado: "activo",
             contratistaId: contratistaId || null,
@@ -333,7 +341,7 @@ export async function createPersonaAction(formData: FormData): Promise<CreatePer
               ? {
                   create: {
                     numero: licenciaNumero,
-                    categorias: licenciaCategoria ? [licenciaCategoria] : ["C1"],
+                    categorias: licenciaCategoria ? [licenciaCategoria] : [],
                     fechaVencimiento: new Date(licenciaVencimiento),
                     organismoTransito: licenciaOrganismo || null,
                   },
@@ -343,10 +351,10 @@ export async function createPersonaAction(formData: FormData): Promise<CreatePer
               ? {
                   create: {
                     tipo: "periodico",
-                    fechaRealizacion: new Date(),
+                    fechaRealizacion: null,
                     fechaVigencia: new Date(emoVigencia),
-                    enfasis: ["Visiometría", "Psicosensométrico", "Audiometría"],
-                    concepto: conceptoMedico || "apto",
+                    enfasis: [],
+                    concepto: conceptoMedico || "pendiente",
                     restricciones: emoRestricciones || null,
                   },
                 }
@@ -408,6 +416,9 @@ export async function updatePersonaAction(
     const contactoNombre = formData.get("contactoEmergenciaNombre") as string;
     const contactoTelefono = formData.get("contactoEmergenciaTelefono") as string;
 
+    const licenciaNumero = (formData.get("licenciaNumero") as string)?.trim();
+    const categoriasLicencia = String(formData.get("licenciaCategorias") || "").toUpperCase().split(/[,\s/]+/).filter(value => ["A1", "A2", "B1", "B2", "B3", "C1", "C2", "C3"].includes(value));
+    const licenciaOrganismo = (formData.get("licenciaOrganismo") as string)?.trim();
     const licenciaVencimiento = formData.get("licenciaVencimiento") as string;
     const emoVigencia = formData.get("emoVigencia") as string;
     const conceptoMedico = (formData.get("conceptoMedico") as string) || "";
@@ -464,7 +475,8 @@ export async function updatePersonaAction(
     // Actualizar en PostgreSQL si DATABASE_URL está activa
     if (process.env.DATABASE_URL) {
       try {
-        await prisma.persona.update({
+        await prisma.$transaction(async tx => {
+        await tx.persona.update({
           where: { id },
           data: {
             nombres: nombres || undefined,
@@ -480,12 +492,30 @@ export async function updatePersonaAction(
             fotoIniciales: nombres && apellidos ? computeInitials(nombres, apellidos) : undefined,
           },
         });
+        if (eps || arl || grupoSanguineoRH) await tx.datosSalud.upsert({ where: { personaId: id },
+          create: { personaId: id, eps: eps || "", arl: arl || "", grupoSanguineoRH: grupoSanguineoRH || "" },
+          update: { eps: eps || undefined, arl: arl || undefined, grupoSanguineoRH: grupoSanguineoRH || undefined } });
+        if (contactoNombre) await tx.contactoEmergencia.upsert({ where: { personaId: id },
+          create: { personaId: id, nombreCompleto: contactoNombre, telefono: contactoTelefono || "", parentesco: "" },
+          update: { nombreCompleto: contactoNombre, telefono: contactoTelefono || undefined } });
+        if (licenciaNumero || licenciaVencimiento) {
+          if (!licenciaNumero && !before?.licenciaConduccion?.numero) throw new Error("Registra el número real de la licencia de conducción.");
+          await tx.licenciaConduccion.upsert({ where: { personaId: id },
+            create: { personaId: id, numero: licenciaNumero || before!.licenciaConduccion!.numero, categorias: categoriasLicencia,
+              fechaVencimiento: licenciaVencimiento ? new Date(licenciaVencimiento) : null, organismoTransito: licenciaOrganismo || null },
+            update: { numero: licenciaNumero || undefined, categorias: categoriasLicencia.length ? categoriasLicencia : undefined,
+              fechaVencimiento: licenciaVencimiento ? new Date(licenciaVencimiento) : undefined, organismoTransito: licenciaOrganismo || undefined } });
+        }
+        if (emoVigencia) await tx.examenMedico.upsert({ where: { personaId: id },
+          create: { personaId: id, fechaVigencia: new Date(emoVigencia), concepto: conceptoMedico || "pendiente", enfasis: [] },
+          update: { fechaVigencia: new Date(emoVigencia), concepto: conceptoMedico || undefined } });
+        await recordAudit({ action: "UPDATE", entityType: "Persona", entityId: id, before,
+          after: await tx.persona.findUnique({ where: { id }, select: { id: true, nombres: true, apellidos: true, numeroDocumento: true, telefono: true, email: true, perfiles: true, estado: true, datosSalud: true, contactoEmergencia: true, licenciaConduccion: true, examenMedico: true } }), actor }, tx);
+        });
       } catch (err) {
         console.warn("No se pudo actualizar directamente en DB:", err);
         rethrowMutationInProduction(err, "No fue posible actualizar la persona");
       }
-      const after = await getPersonaByIdDb(id);
-      await recordAudit({ action: "UPDATE", entityType: "Persona", entityId: id, before, after, actor });
     }
 
     revalidatePath(`/personas/${id}`);
@@ -518,13 +548,14 @@ function parseSafeDate(val: any): Date | null {
  */
 export async function batchUpsertPersonasDb(items: any[]) {
   try {
+    requireDatabaseInProduction();
     const actor = await requireStaffSession();
     let createdCount = 0;
     let updatedCount = 0;
     let failedCount = 0;
     const errorsList: string[] = [];
 
-    const invalidItem = items.find((item) => item.action === "error" || !cleanStr(item.numeroDocumento).replace(/\D/g, ""));
+    const invalidItem = items.find((item) => item.action === "error" || !cleanStr(item.numeroDocumento).replace(/[.\s]/g, "").toUpperCase());
     if (invalidItem) {
       throw new Error("La importación contiene una fila inválida o sin número de documento.");
     }
@@ -536,7 +567,7 @@ export async function batchUpsertPersonasDb(items: any[]) {
         continue;
       }
 
-      const numDoc = cleanStr(item.numeroDocumento).replace(/\D/g, "");
+      const numDoc = cleanStr(item.numeroDocumento).replace(/[.\s]/g, "").toUpperCase();
       if (!numDoc) {
         failedCount++;
         continue;
@@ -577,8 +608,8 @@ export async function batchUpsertPersonasDb(items: any[]) {
                 nombres,
                 apellidos,
                 tipoDocumento: tipoDoc,
-                telefono: telefono !== undefined ? telefono : existing.telefono,
-                email: email !== undefined ? email : existing.email,
+                telefono: telefono || existing.telefono,
+                email: email || existing.email,
                 perfiles,
                 estado,
                 contratistaId: contratistaId || existing.contratistaId,
@@ -599,7 +630,7 @@ export async function batchUpsertPersonasDb(items: any[]) {
                     categorias: item.categoriasLicencia && item.categoriasLicencia.length > 0
                       ? item.categoriasLicencia
                       : existing.licenciaConduccion.categorias,
-                    fechaVencimiento: safeLicVenc !== undefined ? safeLicVenc : existing.licenciaConduccion.fechaVencimiento,
+                    fechaVencimiento: safeLicVenc || existing.licenciaConduccion.fechaVencimiento,
                   },
                 });
               } else if (licNum || safeLicVenc) {
@@ -609,7 +640,7 @@ export async function batchUpsertPersonasDb(items: any[]) {
                     numero: licNum,
                     categorias: item.categoriasLicencia && item.categoriasLicencia.length > 0
                       ? item.categoriasLicencia
-                      : ["C2"],
+                      : [],
                     fechaVencimiento: safeLicVenc || null,
                   },
                 });
@@ -627,10 +658,10 @@ export async function batchUpsertPersonasDb(items: any[]) {
                 await db.datosSalud.update({
                   where: { personaId: existing.id },
                   data: {
-                    eps: eps !== undefined ? eps : existing.datosSalud.eps,
-                    arl: arl !== undefined ? arl : existing.datosSalud.arl,
-                    fondoPensiones: fondo !== undefined ? fondo : existing.datosSalud.fondoPensiones,
-                    grupoSanguineoRH: rh !== undefined ? rh : existing.datosSalud.grupoSanguineoRH,
+                    eps: eps || existing.datosSalud.eps,
+                    arl: arl || existing.datosSalud.arl,
+                    fondoPensiones: fondo || existing.datosSalud.fondoPensiones,
+                    grupoSanguineoRH: rh || existing.datosSalud.grupoSanguineoRH,
                   },
                 });
               } else {
@@ -656,9 +687,9 @@ export async function batchUpsertPersonasDb(items: any[]) {
                 await db.contactoEmergencia.update({
                   where: { personaId: existing.id },
                   data: {
-                    nombreCompleto: nomEm !== undefined ? nomEm : existing.contactoEmergencia.nombreCompleto,
-                    telefono: telEm !== undefined ? telEm : existing.contactoEmergencia.telefono,
-                    parentesco: parEm !== undefined ? parEm : existing.contactoEmergencia.parentesco,
+                    nombreCompleto: nomEm || existing.contactoEmergencia.nombreCompleto,
+                    telefono: telEm || existing.contactoEmergencia.telefono,
+                    parentesco: parEm || existing.contactoEmergencia.parentesco,
                   },
                 });
               } else if (nomEm) {
@@ -702,7 +733,7 @@ export async function batchUpsertPersonasDb(items: any[]) {
                   numero: licNum || numDoc,
                   categorias: item.categoriasLicencia && item.categoriasLicencia.length > 0
                     ? item.categoriasLicencia
-                    : ["C2"],
+                    : [],
                   fechaVencimiento: safeLicVenc || null,
                 },
               });
@@ -1171,16 +1202,9 @@ export async function guardarDocumentoPersonaDb(
     });
     const tamano = formatDocumentSize(stored.size);
     if (process.env.DATABASE_URL) {
-      const anteriores = await prisma.documentoAdjunto.findMany({
-        where: { entidadId: personaId, entidadTipo: "persona", tipoDocumento },
-        select: { id: true, archivoUrl: true },
-      });
       let nuevoDoc;
       try {
         nuevoDoc = await prisma.$transaction(async (tx) => {
-          await tx.documentoAdjunto.deleteMany({
-            where: { entidadId: personaId, entidadTipo: "persona", tipoDocumento },
-          });
           return tx.documentoAdjunto.create({
             data: {
               entidadId: personaId,
@@ -1197,13 +1221,12 @@ export async function guardarDocumentoPersonaDb(
         await deleteStoredDocument(stored.uri).catch(() => undefined);
         throw error;
       }
-      await Promise.allSettled(anteriores.map((doc) => deleteStoredDocument(doc.archivoUrl)));
       await recordAudit({
         action: "CREATE",
         entityType: "DocumentoAdjunto",
         entityId: nuevoDoc.id,
         after: nuevoDoc,
-        metadata: { entidadTipo: "persona", entidadId: personaId, replacedIds: anteriores.map((doc) => doc.id) },
+        metadata: { entidadTipo: "persona", entidadId: personaId, operation: "append_version" },
         actor,
       });
 

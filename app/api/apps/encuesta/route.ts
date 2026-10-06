@@ -114,18 +114,22 @@ export async function POST(req: Request) {
       nombreEncuestado,
       emailEncuestado,
       empresaCliente = "TRANS SERVICES A&B",
-      calificacionGeneral = 5.0,
-      limpiezaVehiculo = 5.0,
-      atencionConductor = 5.0,
-      puntualidad = 5.0,
-      seguridadConfort = 5.0,
-      seriaRecomendado = "SI",
+      calificacionGeneral,
+      limpiezaVehiculo,
+      atencionConductor,
+      puntualidad,
+      seguridadConfort,
+      seriaRecomendado,
       preguntasDetalle = [],
       comentarios,
       firma,
       canal = "qr_movil",
     } = body;
 
+    const ratings = [calificacionGeneral, limpiezaVehiculo, atencionConductor, puntualidad, seguridadConfort];
+    if (tipoEncuesta === "satisfaccion_servicio" && (ratings.some(value => value === undefined || value === null || !Number.isFinite(Number(value)) || Number(value) < 1 || Number(value) > 5) || !["SI", "TAL_VEZ", "NO"].includes(seriaRecomendado))) {
+      return NextResponse.json({ success: false, error: "Completa las calificaciones de 1 a 5 y la recomendación del servicio." }, { status: 400 });
+    }
     const identity = conductorIdentityFromSession(auth.session, {
       name: conductorNombre,
       document: conductorDocumento,
@@ -152,12 +156,12 @@ export async function POST(req: Request) {
         nombreEncuestado: nombreEncuestado ? nombreEncuestado.trim() : "Anónimo / Pasajero",
         emailEncuestado: emailEncuestado ? emailEncuestado.trim() : null,
         empresaCliente: empresaCliente || "TRANS SERVICES A&B",
-        calificacionGeneral: Number(calificacionGeneral) || 5.0,
-        limpiezaVehiculo: Number(limpiezaVehiculo) || 5.0,
-        atencionConductor: Number(atencionConductor) || 5.0,
-        puntualidad: Number(puntualidad) || 5.0,
-        seguridadConfort: Number(seguridadConfort) || 5.0,
-        seriaRecomendado: seriaRecomendado || "SI",
+        calificacionGeneral: calificacionGeneral === undefined || calificacionGeneral === null ? null : Number(calificacionGeneral),
+        limpiezaVehiculo: limpiezaVehiculo === undefined || limpiezaVehiculo === null ? null : Number(limpiezaVehiculo),
+        atencionConductor: atencionConductor === undefined || atencionConductor === null ? null : Number(atencionConductor),
+        puntualidad: puntualidad === undefined || puntualidad === null ? null : Number(puntualidad),
+        seguridadConfort: seguridadConfort === undefined || seguridadConfort === null ? null : Number(seguridadConfort),
+        seriaRecomendado: seriaRecomendado || null,
         preguntasDetalle: preguntasDetalle || [],
         comentarios: comentarios ? comentarios.trim() : null,
         firma: firma || null,

@@ -28,6 +28,7 @@ import {
 import { Card, StatCard } from "@/components/ui/Card";
 import { DataTable, Column } from "@/components/ui/DataTable";
 import { PlateTag } from "@/components/ui/PlateTag";
+import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { AlertasFlotaPanel } from "@/components/flota/AlertasFlotaPanel";
 import { BulkUploadFlotaModal } from "@/components/flota/BulkUploadFlotaModal";
@@ -332,8 +333,8 @@ export function FlotaClientView({
             <Truck size={15} className="text-signal-amber" />
             <span>Gestión del Parque Automotor · FL-FOR-01</span>
           </div>
-          <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight text-paper-50 mt-0.5">
-            Flota de Vehículos
+          <h1 className="font-[family-name:var(--font-display)] text-xl font-bold tracking-tight text-paper-50 mt-0.5">
+            Vehículos
           </h1>
         </div>
 
@@ -363,34 +364,16 @@ export function FlotaClientView({
             />
           )}
 
-          <IconButton
-            icon={<UploadCloud size={15} />}
-            tooltip="Carga Masiva de Flota (Excel / CSV)"
-            variant="secondary"
-            onClick={() => setIsBulkModalOpen(true)}
-          />
-
-          <IconButton
-            icon={<Download size={15} />}
-            tooltip="Exportar Matriz Oficial en Excel (FL-FOR-01)"
-            variant="secondary"
-            onClick={() => exportarFlotaAExcel(vehiculos, asignacionesMap)}
-          />
-
-          <Link href="/flota/nuevo">
-            <IconButton
-              icon={<Plus size={15} />}
-              tooltip="Registrar Nuevo Vehículo"
-              variant="primary"
-            />
-          </Link>
+          <Button variant="secondary" onClick={() => setIsBulkModalOpen(true)}><UploadCloud size={15} />Importar Excel</Button>
+          <Button variant="secondary" onClick={() => exportarFlotaAExcel(filteredVehiculos, asignacionesMap)}><Download size={15} />Exportar</Button>
+          <Link href="/flota/nuevo"><Button><Plus size={15} />Agregar vehículo</Button></Link>
         </div>
       </div>
 
       {/* Barra de Control y Filtros Unificada en 1 Sola Línea */}
       <div className="bg-asphalt-900 border border-line-600 rounded-xl p-2.5 flex flex-wrap items-center justify-between gap-2.5 shadow-sm">
         {/* Buscador Universal */}
-        <div className="relative flex-1 min-w-[220px]">
+        <div className="relative flex-1 min-w-0 w-full sm:min-w-[200px]">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-fog-400" />
           <input
             type="text"
@@ -401,8 +384,7 @@ export function FlotaClientView({
           />
         </div>
 
-        {/* Filtros Dropdown Compactos y Toggle de Alertas */}
-        <div className="flex flex-wrap items-center gap-2">
+        <details className="relative"><summary className="cursor-pointer list-none rounded-lg border border-line-600 px-3 py-2 text-xs font-semibold text-paper-50">Filtros</summary>        <div className="absolute right-0 top-full z-20 mt-2 flex w-72 flex-col items-stretch gap-2 rounded-xl border border-line-600 bg-asphalt-900 p-3 shadow-lg">
           <button
             type="button"
             onClick={() => setFiltroSoloAlertas(!filtroSoloAlertas)}
@@ -440,7 +422,7 @@ export function FlotaClientView({
             <option value="escolar">Escolar</option>
             <option value="turismo">Turismo</option>
           </select>
-        </div>
+        </div></details>
       </div>
 
       {/* Tabla Principal Inmediata */}

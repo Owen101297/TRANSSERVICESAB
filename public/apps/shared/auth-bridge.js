@@ -10,56 +10,30 @@
     _origWarn.apply(console, args);
   };
 
-  // 1. Obtener sesión desde localStorage o parámetros de URL
-  function getSession() {
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      const urlDoc = urlParams.get('documento') || urlParams.get('doc');
-      const urlNombre = urlParams.get('nombre');
-      const urlPlaca = urlParams.get('placa');
-      const urlId = urlParams.get('conductorId') || urlParams.get('id');
-      const urlRol = urlParams.get('rol');
-
-      let sessionObj = null;
-      const raw = localStorage.getItem('transservices_conductor');
-      if (raw) {
-        try { sessionObj = JSON.parse(raw); } catch {}
-      }
-
-      if (urlDoc || urlPlaca || urlRol) {
-        if (!sessionObj) sessionObj = {};
-        if (urlDoc) sessionObj.documento = urlDoc;
-        if (urlNombre) sessionObj.nombre = decodeURIComponent(urlNombre);
-        if (urlPlaca) sessionObj.placa = urlPlaca;
-        if (urlId) sessionObj.id = urlId;
-        if (urlRol) sessionObj.rol = urlRol;
-        if (!sessionObj.nombre) sessionObj.nombre = 'Usuario ' + (urlRol || 'Conductor');
-        localStorage.setItem('transservices_conductor', JSON.stringify(sessionObj));
-      }
-
-      if (sessionObj) {
-        const r = (sessionObj.rol || '').toLowerCase();
-        if (r === 'admin' || r === 'superadmin' || r === 'administrativo') {
-          window.ADMIN_AUDIT_MODE = true;
-        }
-        return sessionObj;
-      }
-    } catch (e) {
-      console.warn('Error al leer sesión del conductor:', e);
-    }
-    return null;
-  }
-
-  const session = getSession();
-
-  // 2. Si no hay sesión iniciada, redirigir al portal
-  if (!session) {
-    const portalUrl = '/portal-conductor';
-    if (!window.location.search.includes('demo=true')) {
-      window.location.href = portalUrl;
-      return;
-    }
-  }
+  // La identidad y la asignación se consultan al servidor en cada apertura.
+  let session = null;
+  window.TransServicesReady = fetch('/api/portal-conductor/contexto', { cache: 'no-store' })
+    .then(async response => {
+      if (!response.ok) throw new Error('No fue posible verificar la sesión.');
+      const data = await response.json();
+      if (!data.success || !data.usuario) throw new Error('La sesión no está activa.');
+      session = { id: data.usuario.id, nombre: data.usuario.nombre, documento: data.usuario.documento,
+        rol: data.usuario.rol, placa: data.asignacion?.placa || null };
+      if (session.rol === 'conductor' && !session.placa) throw new Error('Selecciona tu vehículo en el portal antes de abrir una app.');
+      window.ADMIN_AUDIT_MODE = session.rol !== 'conductor';
+      localStorage.setItem('transservices_conductor', JSON.stringify(session));
+      const render = () => { injectTopBar(); autoFillFields(); };
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', render, { once: true });
+      else render();
+      window.dispatchEvent(new CustomEvent('transservices:session', { detail: session }));
+      return session;
+    }).catch(error => {
+      localStorage.removeItem('transservices_conductor');
+      window.location.replace('/portal-conductor');
+      throw error;
+    });
+  // Los formularios existentes pueden abrirse antes de completar la consulta.
+  window.TransServicesReady.catch(() => {});
 
   // Función universal para normalizar Viewport, eliminar auto-zoom y proteger Safe Area
   function enforceMobileOptimization() {
@@ -71,7 +45,7 @@
         metaVp.name = 'viewport';
         document.head.appendChild(metaVp);
       }
-      metaVp.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
+      metaVp.content = 'width=device-width, initial-scale=1.0, viewport-fit=cover';
 
       // 2. Inyectar regla anti-zoom (16px) y anti-doble tap
       if (!document.getElementById('ts-mobile-anti-zoom')) {
@@ -103,6 +77,12 @@
     // Si la app ya cuenta con su propio header o navbar con enlace al portal, no duplicar
     const existingHeader = document.querySelector('header, nav, .glass-nav, .nav-inner');
     if (existingHeader) {
+      if (!existingHeader.querySelector('a[href*="portal-conductor"]')) {
+        const back = document.createElement('a');
+        back.href = '/portal-conductor'; back.textContent = 'Volver al portal';
+        back.style.cssText = 'display:inline-flex;align-items:center;min-height:44px;padding:8px 12px;font-size:13px;color:#1d4ed8;';
+        existingHeader.appendChild(back);
+      }
       if (window.ADMIN_AUDIT_MODE && !document.getElementById('ts-admin-badge')) {
         const badge = document.createElement('span');
         badge.id = 'ts-admin-badge';
@@ -141,8 +121,9 @@
       overflow-x: hidden;
     `;
 
-    const nombre = session ? session.nombre : 'Conductor';
-    const placa = session && session.placa ? session.placa : 'VEHÍCULO';
+    const escape = value => String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[char]));
+    const nombre = escape(session ? session.nombre : 'Conductor');
+    const placa = escape(session && session.placa ? session.placa : 'VEHÍCULO');
 
     bar.innerHTML = `
       <div style="display:flex; align-items:center; gap:10px; min-width:0;">
@@ -151,7 +132,7 @@
         </a>
         <div style="display:flex; flex-direction:column; min-width:0;">
           <span style="font-size:13px; font-weight:700; color:#0F172A; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px;">${nombre}</span>
-          <span style="font-size:10px; color:#64748B; font-family:ui-monospace, monospace;">C.C. ${session ? session.documento : '—'}</span>
+          <span style="font-size:10px; color:#64748B; font-family:ui-monospace, monospace;">C.C. ${escape(session ? session.documento : '—')}</span>
         </div>
       </div>
       <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
@@ -175,14 +156,14 @@
     const isReadOnly = !window.ADMIN_AUDIT_MODE;
 
     const selectors = {
-      conductor: ['conductor', 'conductor_nombre', 'nombre_conductor', 'conductorNombre', 'driver_name', 'nombre'],
-      documento: ['documento', 'conductor_documento', 'cedula', 'cedula_conductor', 'conductorDocumento', 'numero_documento'],
-      placa: ['placa', 'vehiculo_placa', 'placa_vehiculo', 'vehiculoPlaca', 'plate']
+      conductor: ['inputConductor', 'conductor', 'conductor_nombre', 'nombre_conductor', 'conductorNombre', 'driver_name', 'nombre'],
+      documento: ['inputDocumento', 'documento', 'conductor_documento', 'cedula', 'cedula_conductor', 'conductorDocumento', 'numero_documento'],
+      placa: ['input-placa', 'inputPlaca', 'placa', 'vehiculo_placa', 'placa_vehiculo', 'vehiculoPlaca', 'plate']
     };
 
     selectors.conductor.forEach(id => {
       const el = document.getElementById(id) || document.querySelector(`[name="${id}"]`);
-      if (el && !el.value) {
+      if (el && (!el.value || isReadOnly)) {
         el.value = session.nombre;
         if (el.tagName === 'INPUT' && isReadOnly) el.readOnly = true;
       }
@@ -190,7 +171,7 @@
 
     selectors.documento.forEach(id => {
       const el = document.getElementById(id) || document.querySelector(`[name="${id}"]`);
-      if (el && !el.value) {
+      if (el && (!el.value || isReadOnly)) {
         el.value = session.documento;
         if (el.tagName === 'INPUT' && isReadOnly) el.readOnly = true;
       }
@@ -198,7 +179,7 @@
 
     selectors.placa.forEach(id => {
       const el = document.getElementById(id) || document.querySelector(`[name="${id}"]`);
-      if (el && !el.value && session.placa) {
+      if (el && session.placa && (!el.value || isReadOnly)) {
         el.value = session.placa;
         if (el.tagName === 'INPUT' && isReadOnly) el.readOnly = true;
       }
@@ -225,6 +206,7 @@
       window.location.href = '/portal-conductor';
     },
     submitData: async function (endpoint, data) {
+      await window.TransServicesReady;
       const payload = {
         ...data,
         conductorId: session ? session.id : undefined,

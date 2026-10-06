@@ -4,6 +4,7 @@ import { build } from "esbuild";
 import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { PREOPERACIONAL_SECCIONES } from "../lib/types/preoperacional.ts";
 import { encodeSession } from "../lib/session.ts";
 
 test("las acciones comprueban sesión, rol, identidad y alcance dentro del servidor", async () => {
@@ -20,7 +21,7 @@ test("las acciones comprueban sesión, rol, identidad y alcance dentro del servi
     persona: { findUnique: query("persona.findUnique", () => ({ estado: "activo", perfiles: state.profiles, cuentaAcceso: { estado: "activa", sessionVersion: 1 } })) },
     asignacion: { findFirst: query("asignacion.findFirst", () => state.assigned ? { id: "assignment" } : null) },
     turnoDespacho: { findFirst: query("turno.findFirst", () => state.shift ? { id: "shift" } : null) },
-    vehiculo: { findUnique: query("vehiculo.findUnique", () => ({ id: "vehicle" })) },
+    vehiculo: { findUnique: query("vehiculo.findUnique", () => ({ id: "vehicle" })), findFirst: query("vehiculo.findFirst", () => ({ id: "vehicle" })) },
     inspeccionPreoperacional: {
       count: query("preop.count", () => 0), findMany: query("preop.findMany", () => []),
       create: query("preop.create", (args) => ({ ...args.data, id: "inspection", createdAt: new Date() })),
@@ -81,7 +82,9 @@ test("las acciones comprueban sesión, rol, identidad y alcance dentro del servi
     await assert.rejects(actions.createPreoperacionalDb({ placa: "TST123", checklist: {} }), /abrir la jornada/);
     assert.equal(writes().length, 0);
     state.shift = true;
-    await actions.createPreoperacionalDb({ placa: "TST123", checklist: {}, conductorId: "other", conductorNombre: "Otro", conductorDocumento: "other-document" });
+    const checklist = Object.fromEntries(Object.values(PREOPERACIONAL_SECCIONES).flatMap(section => section.items.map(item => [item.id, "C"])));
+    await assert.rejects(actions.createPreoperacionalDb({ placa: "TST123", checklist: {} }), /Completa todos/);
+    await actions.createPreoperacionalDb({ placa: "TST123", checklist, conductorId: "other", conductorNombre: "Otro", conductorDocumento: "other-document" });
     const inspection = calls.find((c) => c.name === "preop.create")?.args.data;
     assert.equal(inspection.conductorId, driver.id);
     assert.equal(inspection.conductorNombre, driver.nombre);

@@ -1,5 +1,6 @@
 "use server";
 
+import { plateVariants } from "@/lib/operational-day";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { requireServerSession } from "@/lib/auth";
@@ -56,7 +57,7 @@ export async function createPreoperacionalDb(input: CreatePreoperacionalInput) {
   if (session.rolPrincipal === "conductor") {
     const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
     const shift = await prisma.turnoDespacho.findFirst({
-      where: { conductorDocumento: session.documento, placa: { equals: plate, mode: "insensitive" },
+      where: { estado: "activo", conductorDocumento: session.documento, placa: { equals: plate, mode: "insensitive" },
         fecha: { gte: new Date(`${day}T00:00:00-05:00`), lte: new Date(`${day}T23:59:59.999-05:00`) } },
       select: { id: true },
     });
@@ -82,12 +83,17 @@ export async function createPreoperacionalDb(input: CreatePreoperacionalInput) {
 
     // 2. Resolver vehículo
     if (cleanPlaca) {
-      const vehiculo = await prisma.vehiculo.findUnique({
-        where: { placa: cleanPlaca },
+      const vehiculo = await prisma.vehiculo.findFirst({
+        where: { placa: { in: plateVariants(cleanPlaca), mode: "insensitive" } },
       });
       if (vehiculo) {
         vId = vehiculo.id;
       }
+    }
+
+    const expectedItems = Object.values(PREOPERACIONAL_SECCIONES).flatMap(section => section.items);
+    if (expectedItems.some(item => !["C", "NC", "NA"].includes(input.checklist?.[item.id]))) {
+      throw new TripPolicyError("Completa todos los puntos de la inspección antes de guardar.", 400);
     }
 
     // 3. Analizar ítems críticos en checklist
@@ -129,10 +135,10 @@ export async function createPreoperacionalDb(input: CreatePreoperacionalInput) {
           conductorId: cId || "conductor-general",
           conductorNombre: cNombre || "Conductor",
           vehiculoId: vId,
-          placa: cleanPlaca.length === 6 ? `${cleanPlaca.slice(0, 3)}-${cleanPlaca.slice(3)}` : cleanPlaca,
+          placa: cleanPlaca,
           fecha: new Date(),
           kilometraje: km,
-          checklist: checklist as any,
+          checklist: { ...checklist, _evidencia: { firmaConductor: input.signature || null, observaciones: input.observaciones || null } } as any,
           hallazgoDetectado,
           descripcionHallazgo,
           fotoEvidenciaUrl: input.fotoEvidenciaUrl || null,
@@ -179,6 +185,7 @@ export async function createPreoperacionalDb(input: CreatePreoperacionalInput) {
       },
     };
   } catch (error: any) {
+    if (error instanceof TripPolicyError) throw error;
     console.error("Error en createPreoperacionalDb:", error);
     throw new Error(error.message || "Error al registrar inspección preoperacional");
   }

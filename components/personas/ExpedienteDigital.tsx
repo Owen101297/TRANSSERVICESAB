@@ -1,5 +1,6 @@
 "use client";
 
+import { DocumentHistory } from "@/components/ui/DocumentHistory";
 import { useState, useEffect, useRef } from "react";
 import {
   FileText,
@@ -173,6 +174,7 @@ export function ExpedienteDigital({ personaId }: { personaId: string }) {
         </div>
       )}
 
+      <DocumentHistory documents={documentos} />
       {/* Cuadrícula de Casilleros Documentales */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
         {SLOTS_EXPEDIENTE.map((slot) => {

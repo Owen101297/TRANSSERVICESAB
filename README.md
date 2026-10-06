@@ -43,13 +43,14 @@ El diagnóstico local registra la versión comprobada por entorno. Esta fase no 
 
 ## Prioridades actuales
 
-1. Corregir autorizaciones de viajes y acciones del servidor.
-2. Implementar la carga real de evidencias SG-SST y PESV.
-3. Completar Google Drive en producción y distinguir notificación preparada, enviada y confirmada.
-4. Aplicar permisos configurables, transacciones de asignación y fechas de Colombia de forma consistente.
-5. Verificar el flujo completo en pruebas antes de entregar cambios a producción.
+1. Unificar el registro manual y por Excel de personal y vehículos, sin contactos, marcas, fechas o capacidades inventadas; conservar documentos e historial.
+2. Completar el portal por fases: vehículo y siguiente acción; apertura y cierre de jornada; historial propio y estados de envío; validación individual de las siete apps con el usuario.
+3. Entregar a producción únicamente recorridos comprobados, con respaldo y conservación de los datos existentes.
+4. Retomar después las evidencias SG-SST/PESV y Google Drive.
 
-La interfaz actual tiene diferencias respecto de las reglas visuales documentadas. Su unificación requiere una decisión de diseño; esta limpieza no rediseña pantallas.
+Las autorizaciones de viajes de la fase anterior fueron comprobadas y entregadas. La prioridad operativa fue indicada por el usuario el 5 de octubre de 2026.
+
+El usuario autorizó simplificar personal, vehículos y portal: títulos pequeños, filtros desplegables, registro básico y datos complementarios en el expediente. Los controles legales deben contrastarse con normativa vigente aplicable; no presentar módulos pendientes o valores de ejemplo como procesos cumplidos.
 
 ## Desarrollo y validación
 
@@ -65,6 +66,14 @@ npm run build
 Ejecutar estos controles en un entorno de desarrollo con recursos suficientes. Las pruebas de origen público deben aislar `PUBLIC_APP_URL`, `NEXT_PUBLIC_APP_URL` y `RAILWAY_PUBLIC_DOMAIN` de los valores del despliegue. Las pruebas existentes no sustituyen las pruebas de permisos, persistencia y recorridos completos.
 
 `tests/staging-trip-flow.mjs` verifica el recorrido autenticado con personas, vehículo y viajes sintéticos. Solo se habilita explícitamente con `ERP_PHASE1_STAGING_TEST=1` dentro del contenedor cuyo `PUBLIC_APP_URL` es el de staging. Elimina únicamente sus propias filas de prueba al terminar; no se ejecuta como parte de `npm test`.
+
+### Portal del conductor: alcance de esta entrega
+
+El conductor selecciona su vehículo disponible, abre la jornada, realiza el preoperacional y accede al gerenciamiento. El inicio muestra la siguiente acción y explica los requisitos de las apps. Jornada permite registrar odómetro final y fotografía para cerrar, conserva el turno original y bloquea el cierre cuando existe un viaje en curso. El historial personal reúne jornadas, inspecciones, viajes y registros de las otras apps, incluidos turnos anteriores que necesitan cierre.
+
+Los pendientes locales identificados del conductor se muestran como borradores del dispositivo, sin confundirlos con registros confirmados. Esto no constituye funcionamiento completo sin internet: las colas antiguas y los formularios requieren revisión individual. El envío sin duplicados, la recuperación de cada borrador y el flujo detallado de novedades HSEQ se validarán al trabajar cada app con el usuario. No se declara implementado el ciclo completo de mantenimiento, descansos o cumplimiento normativo.
+
+`tests/staging-operational-flow.mjs` requiere `ERP_OPERATIONAL_STAGING_TEST=1` y el origen exacto de staging. Comprueba activación, identidad, selección, ocupación, jornada, preoperacional, cinco apps, historial privado, cierre, odómetro y rechazo de cierre con viaje activo; sus filas sintéticas se retiran al terminar.
 
 ## Organización del código
 

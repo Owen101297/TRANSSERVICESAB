@@ -28,7 +28,7 @@ export function exportarFlotaAExcel(vehiculos: Vehiculo[], asignacionesMap?: Rec
     TIPO_LABELS[v.tipo] || v.tipo,
     v.capacidad || "",
     SERVICIO_LABELS[v.servicio] || v.servicio,
-    v.contratistaNombre || "Flota Propia / Trans Services A&B",
+    v.contratistaNombre || "",
     v.documentos?.soatVencimiento || "",
     v.documentos?.rtmVencimiento || "",
     v.documentos?.polizaVencimiento || "",
@@ -95,7 +95,7 @@ export function descargarPlantillaFlotaExcel() {
     ],
   ];
 
-  const fullData = [FLOTA_EXCEL_COLUMNS, ...ejemploRows];
+  const fullData = [FLOTA_EXCEL_COLUMNS];
   const wsData = XLSX.utils.aoa_to_sheet(fullData);
 
   wsData["!cols"] = [
@@ -117,13 +117,13 @@ export function descargarPlantillaFlotaExcel() {
   const guiaData = [
     ["CAMPO", "OBLIGATORIO", "FORMATO / VALORES VÁLIDOS", "OBSERVACIÓN"],
     ["PLACA", "SÍ", "Texto de 6 caracteres (ej. WLM789 o WLM-789)", "Clave única del vehículo."],
-    ["MARCA", "NO", "Texto libre (ej. Chevrolet, Renault, Nissan)", "Marca comercial."],
-    ["MODELO", "NO", "Texto libre (ej. NPR, Master, Duster)", "Línea o referencia."],
-    ["AÑO", "NO", "Número de 4 dígitos (ej. 2023)", "Año de fabricación."],
-    ["TIPO", "NO", "Bus | Buseta | Microbús | Camioneta | Automóvil | Van", "Clase vehicular."],
-    ["CAPACIDAD", "NO", "Número de pasajeros (ej. 16, 24)", "Capacidad máxima autorizada."],
+    ["MARCA", "SÍ", "Texto libre (ej. Chevrolet, Renault, Nissan)", "Marca comercial."],
+    ["MODELO", "SÍ", "Texto libre (ej. NPR, Master, Duster)", "Línea o referencia."],
+    ["AÑO", "SÍ", "Número de 4 dígitos (ej. 2023)", "Año de fabricación."],
+    ["TIPO", "SÍ", "Bus | Buseta | Microbús | Camioneta | Automóvil | Van", "Clase vehicular."],
+    ["CAPACIDAD", "SÍ", "Número de pasajeros (ej. 16, 24)", "Capacidad máxima autorizada."],
     ["SERVICIO", "NO", "Especial | Escolar | Turismo", "Modalidad de transporte."],
-    ["CONTRATISTA", "NO", "Razón Social o NIT de la empresa", "Si se deja vacío, se asume Flota Propia."],
+    ["CONTRATISTA", "NO", "Razón Social o NIT de la empresa", "Vacío conserva la empresa existente; para altas puede dejarse sin contratista."],
     ["VENCIMIENTO SOAT", "NO", "YYYY-MM-DD o DD/MM/YYYY", "Dejar en blanco si aún no tiene fecha."],
     ["VENCIMIENTO RTM", "NO", "YYYY-MM-DD o DD/MM/YYYY", "Dejar en blanco si aún no tiene fecha."],
     ["VENCIMIENTO POLIZAS", "NO", "YYYY-MM-DD o DD/MM/YYYY", "Dejar en blanco si aún no tiene fecha."],
@@ -134,6 +134,7 @@ export function descargarPlantillaFlotaExcel() {
 
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, wsData, "Plantilla_Flota");
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([FLOTA_EXCEL_COLUMNS, ...ejemploRows]), "Ejemplos_no_importar");
   XLSX.utils.book_append_sheet(workbook, wsGuia, "Guia_Valores");
 
   XLSX.writeFile(workbook, "Plantilla_Carga_Masiva_Flota_TransServicesAB.xlsx");

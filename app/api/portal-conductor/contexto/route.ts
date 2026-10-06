@@ -2,33 +2,22 @@ import { NextResponse } from "next/server";
 import { requireApiSession } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 
-export const dynamic = "force-dynamic";
+import { operationalDay, plateVariants } from "@/lib/operational-day";
 
-function limitesDiaColombia(fecha = new Date()) {
-  const dia = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Bogota",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(fecha);
-  return {
-    inicio: new Date(`${dia}T00:00:00-05:00`),
-    fin: new Date(`${dia}T23:59:59.999-05:00`),
-  };
-}
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   const auth = await requireApiSession();
   if (auth.response) return auth.response;
 
   const session = auth.session;
-  const { inicio, fin } = limitesDiaColombia();
+  const { inicio, fin } = operationalDay();
   const asignacion = await prisma.asignacion.findFirst({
     where: {
       conductorId: session.id,
       estado: "activa",
-      fechaInicio: { lte: fin },
-      OR: [{ fechaFin: null }, { fechaFin: { gte: inicio } }],
+      fechaInicio: { lte: new Date() },
+      OR: [{ fechaFin: null }, { fechaFin: { gte: new Date() } }],
     },
     include: {
       vehiculo: {
@@ -38,19 +27,19 @@ export async function GET() {
     orderBy: { fechaInicio: "desc" },
   });
 
-  const placa = asignacion?.placa || session.placaAsignada || null;
+  const placa = asignacion?.placa || null;
   const [turno, preoperacional, viajeActivo, capacitacionesPendientes] = await Promise.all([
     prisma.turnoDespacho.findFirst({
       where: {
         conductorDocumento: session.documento,
         fecha: { gte: inicio, lte: fin },
-        ...(placa ? { placa: { equals: placa, mode: "insensitive" as const } } : {}),
+        placa: { in: placa ? plateVariants(placa) : [], mode: "insensitive" },
       },
       orderBy: { createdAt: "desc" },
-      select: { id: true, hora: true, estado: true, placa: true, odometroInicial: true },
+      select: { id: true, hora: true, estado: true, placa: true, odometroInicial: true, horaCierre: true },
     }),
     prisma.inspeccionPreoperacional.findFirst({
-      where: { conductorId: session.id, fecha: { gte: inicio, lte: fin } },
+      where: { conductorId: session.id, fecha: { gte: inicio, lte: fin }, placa: { in: placa ? plateVariants(placa) : [], mode: "insensitive" } },
       orderBy: { createdAt: "desc" },
       select: { id: true, estadoConcepto: true, placa: true, fecha: true },
     }),
@@ -100,7 +89,7 @@ export async function GET() {
           vehiculo: asignacion.vehiculo,
         }
       : null,
-    jornada: { turno, preoperacional, viajeActivo },
+    jornada: { turno: turno?.estado === "activo" ? turno : null, cierre: turno?.estado === "cerrado" ? turno : null, preoperacional, viajeActivo },
     formacion: { pendientes: capacitacionesPendientes },
   });
 }

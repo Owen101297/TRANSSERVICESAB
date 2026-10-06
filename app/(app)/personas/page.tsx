@@ -373,8 +373,8 @@ export default function PersonasPage() {
             <Users size={15} className="text-radar-cyan" />
             <span>Talento Humano &amp; Conductores · TH-FOR-01</span>
           </div>
-          <h1 className="font-[family-name:var(--font-display)] text-2xl font-bold tracking-tight text-paper-50 mt-0.5">
-            Personal &amp; Expedientes
+          <h1 className="font-[family-name:var(--font-display)] text-xl font-bold tracking-tight text-paper-50 mt-0.5">
+            Personal
           </h1>
         </div>
 
@@ -392,33 +392,16 @@ export default function PersonasPage() {
 
           <div className="h-4 w-px bg-line-600 mx-1 hidden sm:block" />
 
-          <IconButton
-            icon={<Download size={15} />}
-            tooltip={`Exportar matriz Excel (${filteredPersonas.length} registros)`}
-            variant="secondary"
-            onClick={() => exportPersonasToExcel(filteredPersonas)}
-            disabled={filteredPersonas.length === 0}
-          />
-          <IconButton
-            icon={<UploadCloud size={15} />}
-            tooltip="Carga masiva desde archivo Excel / CSV"
-            variant="secondary"
-            onClick={() => setIsBulkOpen(true)}
-          />
-          <Link href="/personas/nueva">
-            <IconButton
-              icon={<Plus size={15} />}
-              tooltip="Registrar nueva persona / conductor"
-              variant="primary"
-            />
-          </Link>
+          <Button variant="secondary" onClick={() => exportPersonasToExcel(filteredPersonas)} disabled={filteredPersonas.length === 0}><Download size={15} />Exportar</Button>
+          <Button variant="secondary" onClick={() => setIsBulkOpen(true)}><UploadCloud size={15} />Importar Excel</Button>
+          <Link href="/personas/nueva"><Button><Plus size={15} />Agregar persona</Button></Link>
         </div>
       </div>
 
       {/* Barra de Control y Filtros Unificada en 1 Sola Línea */}
       <div className="bg-asphalt-900 border border-line-600 rounded-xl p-2.5 flex flex-wrap items-center justify-between gap-2.5 shadow-sm">
         {/* Buscador Universal */}
-        <div className="relative flex-1 min-w-[220px]">
+        <div className="relative flex-1 min-w-0 w-full sm:min-w-[200px]">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-fog-400" />
           <input
             type="text"
@@ -429,8 +412,7 @@ export default function PersonasPage() {
           />
         </div>
 
-        {/* Píldoras de Estado y Filtros Dropdown */}
-        <div className="flex flex-wrap items-center gap-2">
+        <details className="relative"><summary className="cursor-pointer list-none rounded-lg border border-line-600 px-3 py-2 text-xs font-semibold text-paper-50">Filtros</summary>        <div className="absolute right-0 top-full z-20 mt-2 flex w-72 flex-col items-stretch gap-2 rounded-xl border border-line-600 bg-asphalt-900 p-3 shadow-lg">
           {/* Selector de Estado / Tab */}
           <div className="flex items-center gap-1 bg-asphalt-950 p-0.5 rounded-lg border border-line-600">
             <button
@@ -506,7 +488,7 @@ export default function PersonasPage() {
             <option value="hseq">HSEQ / Seguridad</option>
             <option value="operaciones">Operaciones</option>
           </select>
-        </div>
+        </div></details>
       </div>
 
       {errorMessage && (

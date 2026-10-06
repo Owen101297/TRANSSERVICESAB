@@ -123,6 +123,7 @@
       transform: scale(1.25);
     }
   </style>
+  <script src="../shared/auth-bridge.js"></script>
 </head>
 <body class="min-h-screen pb-32">
 
@@ -323,16 +324,11 @@
   </div>
 
   <script>
-    const ratings = {
-      overall: 5,
-      limpieza: 5,
-      atencion: 5,
-      puntualidad: 5,
-      confort: 5
-    };
-    let recomendacion = "SI";
+    const ratings = { overall: 0, limpieza: 0, atencion: 0, puntualidad: 0, confort: 0 };
+    let recomendacion = "";
 
     document.addEventListener("DOMContentLoaded", () => {
+      setRecomendacion("");
       renderStars("overall");
       renderStars("limpieza");
       renderStars("atencion");
@@ -370,7 +366,7 @@
       `).join("");
 
       const label = document.getElementById(`label-${criterio}`);
-      if (label) label.textContent = `${current}.0 / 5 ⭐`;
+      if (label) label.textContent = current ? `${current}.0 / 5 ⭐` : "Selecciona una calificación";
     }
 
     function setRating(criterio, val) {
@@ -418,6 +414,10 @@
     }
 
     async function enviarEncuesta() {
+      if (Object.values(ratings).some(value => value < 1) || !recomendacion) {
+        alert("Selecciona las cinco calificaciones y si recomendarías el servicio antes de enviar.");
+        return;
+      }
       const placa = document.getElementById("placa").value.trim().toUpperCase();
       const conductorNombre = document.getElementById("conductorNombre").value.trim();
       const comentarios = document.getElementById("comentarios").value.trim();
@@ -454,7 +454,7 @@
         });
 
         const data = await res.json();
-        if (data.success) {
+        if (res.ok && data.success) {
           alert("⭐ ¡Muchas gracias por tu calificación! Tu opinión nos ayuda a seguir mejorando cada día.");
           window.location.reload();
         } else {
@@ -462,12 +462,14 @@
         }
       } catch (err) {
         console.error("Error al enviar encuesta:", err);
-        // Fallback local
-        const pending = JSON.parse(localStorage.getItem("transservices_pending_encuestas") || "[]");
-        pending.push({ ...payload, timestamp: new Date().toISOString() });
-        localStorage.setItem("transservices_pending_encuestas", JSON.stringify(pending));
-        alert("⭐ Calificación registrada localmente. ¡Muchas gracias!");
-        window.location.reload();
+        if (err instanceof TypeError) {
+          const pending = JSON.parse(localStorage.getItem("transservices_pending_encuestas") || "[]");
+          pending.push({ ...payload, timestamp: new Date().toISOString(), pendienteEnvio: true });
+          localStorage.setItem("transservices_pending_encuestas", JSON.stringify(pending));
+          alert("Sin conexión. Se conservó un borrador en este dispositivo, pendiente de enviar al ERP. Puedes intentar nuevamente.");
+        } else {
+          alert("No se guardó en el ERP: " + (err.message || "Intenta nuevamente."));
+        }
       } finally {
         btn.disabled = false;
         btnText.textContent = "Enviar Calificación";

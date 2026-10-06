@@ -1,31 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { quickAsignarConductorVehiculoAction } from "@/lib/services/asignaciones.service";
-import { requireStaff } from "@/lib/api-auth";
-import { recordAudit } from "@/lib/audit";
+import { requireApiSession } from "@/lib/api-auth";
+
 
 export async function GET() {
-  const auth = await requireStaff();
+  const auth = await requireApiSession();
   if (auth.response) return auth.response;
   try {
     const vehiculos = await prisma.vehiculo.findMany({
+      where: { estado: "activo" },
       select: {
         id: true,
         placa: true,
         marca: true,
         modelo: true,
         contratistaNombre: true,
+        asignaciones: { where: { estado: "activa", fechaInicio: { lte: new Date() }, OR: [{ fechaFin: null }, { fechaFin: { gte: new Date() } }] }, select: { conductorId: true } },
       },
       orderBy: { placa: "asc" },
     });
-    return NextResponse.json({ vehiculos });
+    return NextResponse.json({ vehiculos: vehiculos.map(({ asignaciones, ...vehicle }) => ({ ...vehicle,
+      disponible: auth.session.rolPrincipal !== "conductor" || !asignaciones.some(assignment => assignment.conductorId !== auth.session.id),
+    })) });
   } catch (error: any) {
     return NextResponse.json({ vehiculos: [], error: error.message }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireStaff();
+  const auth = await requireApiSession();
   if (auth.response) return auth.response;
   try {
     const body = await req.json();
@@ -35,7 +39,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Debes ingresar una placa válida." }, { status: 400 });
     }
 
-    let targetConductorId = conductorId;
+    let targetConductorId = auth.session.rolPrincipal === "conductor" ? auth.session.id : conductorId;
 
     // Si no vino conductorId pero vino documento, buscar la persona
     if (!targetConductorId && documento) {
@@ -63,14 +67,7 @@ export async function POST(req: NextRequest) {
     if (!res.success) {
       return NextResponse.json({ error: res.error || "No se pudo actualizar el vehículo." }, { status: 400 });
     }
-    await recordAudit({
-      action: "UPDATE",
-      entityType: "Asignacion",
-      entityId: res.asignacionId,
-      after: { conductorId: targetConductorId, placa: res.placa },
-      metadata: { source: "staff-api" },
-      actor: auth.session,
-    });
+
 
     return NextResponse.json({
       success: true,

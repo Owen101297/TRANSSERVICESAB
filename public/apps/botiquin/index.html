@@ -126,6 +126,7 @@
       .print-page { padding: 12px !important; margin: 0 auto !important; width: 100% !important; max-width: 100% !important; box-shadow: none !important; border: none !important; }
     }
   </style>
+  <script src="../shared/auth-bridge.js"></script>
 </head>
 <body class="min-h-screen pb-32">
 
@@ -648,7 +649,7 @@
         });
 
         const data = await res.json();
-        if (data.success) {
+        if (res.ok && data.success) {
           alert("✅ Inspección de botiquín (HSEQ-F-035) guardada exitosamente.");
           window.location.href = "/portal-conductor";
         } else {
@@ -656,12 +657,14 @@
         }
       } catch (err) {
         console.error("Error al guardar en el servidor:", err);
-        // Respaldo en localStorage
-        const pending = JSON.parse(localStorage.getItem("transservices_pending_botiquin") || "[]");
-        pending.push({ ...payload, timestamp: new Date().toISOString() });
-        localStorage.setItem("transservices_pending_botiquin", JSON.stringify(pending));
-        alert("⚠️ Conexión no disponible. Inspección guardada localmente en el dispositivo.");
-        window.location.href = "/portal-conductor";
+        if (err instanceof TypeError) {
+          const pending = JSON.parse(localStorage.getItem("transservices_pending_botiquin") || "[]");
+          pending.push({ ...payload, timestamp: new Date().toISOString(), pendienteEnvio: true });
+          localStorage.setItem("transservices_pending_botiquin", JSON.stringify(pending));
+          alert("Sin conexión. Se conservó un borrador en este dispositivo, pendiente de enviar al ERP. Puedes intentar nuevamente.");
+        } else {
+          alert("No se guardó en el ERP: " + (err.message || "Intenta nuevamente."));
+        }
       } finally {
         btn.disabled = false;
         btnText.textContent = "Guardar Reporte";

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { operationalDay, plateVariants } from "@/lib/operational-day";
 import { prisma } from "@/lib/prisma";
 import { requireApiSession } from "@/lib/api-auth";
 import { canAccessPortalVehicle, normalizeVehiclePlate } from "@/lib/portal-access";
@@ -20,14 +21,13 @@ export async function GET(req: Request) {
     }
 
     // Buscar inspección preoperacional de las últimas 24 horas para este vehículo
-    const hace24Horas = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const { inicio, fin } = operationalDay();
 
     const inspeccion = await prisma.inspeccionPreoperacional.findFirst({
       where: {
-        placa: cleanPlaca,
-        createdAt: {
-          gte: hace24Horas,
-        },
+        placa: { in: plateVariants(cleanPlaca), mode: "insensitive" },
+        ...(auth.session.rolPrincipal === "conductor" ? { conductorId: auth.session.id } : {}),
+        fecha: { gte: inicio, lte: fin },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -36,7 +36,7 @@ export async function GET(req: Request) {
       return NextResponse.json({
         aprobado: false,
         encontrado: false,
-        mensaje: `No se registra inspección preoperacional en las últimas 24 horas para la placa ${cleanPlaca}.`,
+        mensaje: `No se registra inspección preoperacional en la jornada de hoy para la placa ${cleanPlaca}.`,
       });
     }
 

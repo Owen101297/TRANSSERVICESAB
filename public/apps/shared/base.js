@@ -9,27 +9,11 @@
 
 export async function getCurrentUser() {
   try {
-    const raw = localStorage.getItem("transservices_conductor");
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed?.documento || parsed?.id) {
-        return {
-          id: parsed.id || parsed.documento,
-          email: parsed.email || `${parsed.documento}@transservicesab.com`,
-          nombre: parsed.nombre || "Conductor",
-          documento: parsed.documento || "",
-          rol: "conductor",
-        };
-      }
-    }
-  } catch {}
-
-  try {
     const res = await fetch("/api/auth/me");
     if (res.ok) {
       const data = await res.json();
       if (data?.authenticated && data?.user) {
-        return data.user;
+        return { ...data.user, rol: data.user.rolPrincipal };
       }
     }
   } catch (e) {
@@ -67,12 +51,12 @@ export async function hasRole(role) {
 
 export async function isAdmin() {
   const role = await getCurrentRole();
-  return role === "admin" || role === "gerencia";
+  return role === "administrativo";
 }
 
 export async function isHseq() {
   const role = await getCurrentRole();
-  return role === "hseq" || role === "admin";
+  return role === "hseq" || role === "administrativo";
 }
 
 export async function isGerencia() {

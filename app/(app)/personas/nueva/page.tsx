@@ -89,7 +89,7 @@ export default function NuevaPersonaPage() {
   };
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-3xl space-y-4">
       <Link
         href="/personas"
         className="inline-flex items-center gap-1.5 text-sm text-fog-400 hover:text-paper-50"
@@ -98,7 +98,7 @@ export default function NuevaPersonaPage() {
       </Link>
 
       <div>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold text-paper-50">
+        <h1 className="font-[family-name:var(--font-display)] text-xl font-bold text-paper-50">
           Nueva persona
         </h1>
         <p className="mt-1 text-sm text-fog-400">
@@ -115,7 +115,7 @@ export default function NuevaPersonaPage() {
       )}
 
       <Card>
-        <form className="space-y-6" onSubmit={handleSubmit}>
+        <form className="space-y-4" onSubmit={handleSubmit}>
           <FormSection
             title="Información básica"
             description="Datos personales de identificación."
@@ -125,6 +125,7 @@ export default function NuevaPersonaPage() {
             <SelectField
               label="Tipo de documento"
               name="tipoDocumento"
+              defaultValue="CC"
               required
               options={TIPO_DOC_OPTIONS}
             />
@@ -140,7 +141,6 @@ export default function NuevaPersonaPage() {
             <TextField
               label="Teléfono personal"
               name="telefono"
-              required
               placeholder="300 123 4567"
             />
             <TextField
@@ -170,6 +170,9 @@ export default function NuevaPersonaPage() {
             />
           </FormSection>
 
+          <details className="rounded-xl border border-line-600 p-3">
+            <summary className="cursor-pointer text-sm font-semibold text-paper-50">Información complementaria · salud, emergencia y licencia</summary>
+            <div className="mt-4 space-y-4">
           <FormSection
             title="Salud & Seguridad Social"
             description="Información médica básica para respuesta a emergencias y afiliaciones legales."
@@ -177,7 +180,6 @@ export default function NuevaPersonaPage() {
             <SelectField
               label="Grupo Sanguíneo y RH"
               name="grupoSanguineoRH"
-              required
               options={RH_OPTIONS}
             />
             <TextField label="EPS Afiliada" name="eps" placeholder="Sura EPS, Sanitas, etc." />
@@ -251,6 +253,8 @@ export default function NuevaPersonaPage() {
             </FormSection>
           )}
 
+            </div></details>
+          <p className="text-xs text-fog-400">Después de guardar, completa los documentos en el expediente y habilita el acceso desde Administración.</p>
           <div className="flex items-center justify-end gap-3 pt-4">
             <Link href="/personas">
               <Button type="button" variant="ghost" disabled={isPending}>

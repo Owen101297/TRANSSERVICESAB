@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireStaffSession } from "@/lib/auth";
+import { requireStaffSession, requireServerSession } from "@/lib/auth";
 import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction, rethrowMutationInProduction } from "@/lib/production-safety";
 import { recordAudit } from "@/lib/audit";
 import { getPersonaByIdDb } from "@/lib/services/personas.service";
@@ -109,20 +109,37 @@ export async function createAsignacionAction(
       return { success: false, error: "Debes seleccionar un conductor y un vehículo para la asignación." };
     }
 
+    requireDatabaseInProduction();
+    if (!process.env.DATABASE_URL) return { success: false, error: "No hay conexión a la base de datos." };
+    const start = new Date(`${fechaInicio}T00:00:00-05:00`);
+    const end = fechaFin ? new Date(`${fechaFin}T23:59:59.999-05:00`) : null;
+    if (!Number.isFinite(start.getTime()) || (end && (!Number.isFinite(end.getTime()) || end < start))) {
+      return { success: false, error: "Revisa las fechas de la asignación." };
+    }
     // Consultar datos reales de PostgreSQL
     const persona = await getPersonaByIdDb(conductorId);
     const conductorNombre = persona ? `${persona.nombres} ${persona.apellidos}`.trim() : "Conductor Asignado";
 
     const vehiculo = await getVehiculoByIdDb(vehiculoId);
-    const placa = vehiculo ? vehiculo.placa : "PLACA";
-    const contratistaId = (formData.get("contratistaId") as string) || vehiculo?.contratistaId || persona?.contratistaId || "c_propio";
+    if (!persona || persona.estado !== "activo" || !persona.perfiles.includes("conductor")) return { success: false, error: "Selecciona un conductor activo." };
+    if (!vehiculo || vehiculo.estado.toLowerCase() !== "activo") return { success: false, error: "Selecciona un vehículo activo." };
+    const placa = vehiculo.placa;
+    const contratistaId = (formData.get("contratistaId") as string) || vehiculo?.contratistaId || persona?.contratistaId || null;
     const contratistaNombre = vehiculo?.contratistaNombre || persona?.contratistaNombre || "Propio / Cooperativa";
 
     let newId = `asig_${Date.now()}`;
 
     if (process.env.DATABASE_URL) {
       try {
-        const created = await prisma.asignacion.create({
+        const created = await prisma.$transaction(async tx => {
+          const conflict = await tx.asignacion.findFirst({ where: {
+            estado: { in: ["activa", "programada"] },
+            AND: [{ OR: [{ conductorId }, { vehiculoId }] },
+              { OR: [{ fechaFin: null }, { fechaFin: { gte: start } }] },
+              ...(end ? [{ fechaInicio: { lte: end } }] : [])],
+          } });
+          if (conflict) throw new Error("El conductor o vehículo ya tiene una asignación en esas fechas. Usa Cambiar asignación para reemplazarla.");
+          const record = await tx.asignacion.create({
           data: {
             conductorId,
             conductorNombre,
@@ -132,13 +149,16 @@ export async function createAsignacionAction(
             contratistaNombre,
             tipoAsignacion,
             turno: turno || null,
-            fechaInicio: new Date(fechaInicio),
-            fechaFin: fechaFin ? new Date(fechaFin) : null,
+            fechaInicio: start,
+            fechaFin: end,
             estado: "activa",
             observaciones,
             autorizacionOperativa,
           },
         });
+          await recordAudit({ action: "CREATE", entityType: "Asignacion", entityId: record.id, after: record, actor }, tx);
+          return record;
+        }, { isolationLevel: "Serializable" });
         newId = created.id;
       } catch (dbErr) {
         console.error("Error guardando Asignación en PostgreSQL:", dbErr);
@@ -152,7 +172,7 @@ export async function createAsignacionAction(
       conductorNombre,
       vehiculoId,
       placa,
-      contratistaId,
+      contratistaId: contratistaId || "",
       contratistaNombre,
       tipoAsignacion,
       turno,
@@ -163,7 +183,6 @@ export async function createAsignacionAction(
     };
 
     localAsignacionesState.unshift(newAsigObj);
-    await recordAudit({ action: "CREATE", entityType: "Asignacion", entityId: newId, after: newAsigObj, actor });
     revalidatePath("/asignaciones");
     revalidatePath("/personas");
     revalidatePath(`/personas/${conductorId}`);
@@ -263,7 +282,8 @@ export async function quickAsignarConductorVehiculoAction(payload: {
 }): Promise<{ success: boolean; asignacionId?: string; error?: string; conductorNombre?: string; placa?: string }> {
   try {
     const { conductorId, vehiculoIdOrPlaca, observaciones } = payload;
-    const actor = await requireStaffSession();
+    const actor = await requireServerSession();
+    if (actor.rolPrincipal === "conductor" && conductorId !== actor.id) return { success: false, error: "Solo puedes seleccionar tu propio vehículo." };
     if (!conductorId || !vehiculoIdOrPlaca) {
       return { success: false, error: "Debes especificar tanto el conductor como el vehículo." };
     }
@@ -290,78 +310,44 @@ export async function quickAsignarConductorVehiculoAction(payload: {
 
     const vehiculoId = vehiculo.id;
     const placa = vehiculo.placa;
-    const contratistaId = vehiculo.contratistaId || persona.contratistaId || "c_propio";
     const contratistaNombre = vehiculo.contratistaNombre || persona.contratistaNombre || "Propio / Cooperativa";
     const now = new Date();
 
-    // 3. Cerrar asignaciones activas previas tanto para el vehículo como para el conductor
-    let closedAssignments = 0;
-    if (process.env.DATABASE_URL) {
-      try {
-        const closed = await prisma.asignacion.updateMany({
-          where: {
-            OR: [
-              { vehiculoId: vehiculoId, estado: "activa" },
-              { placa: placa, estado: "activa" },
-              { conductorId: conductorId, estado: "activa" },
-            ],
-          },
-          data: {
-            estado: "finalizada",
-            fechaFin: now,
-          },
-        });
-        closedAssignments = closed.count;
-      } catch (closeErr) {
-        console.warn("Aviso cerrando asignaciones anteriores:", closeErr);
+    requireDatabaseInProduction();
+    if (!process.env.DATABASE_URL) return { success: false, error: "No hay conexión a la base de datos." };
+    if (persona.estado !== "activo" || !persona.perfiles.includes("conductor")) {
+      return { success: false, error: "Selecciona una persona activa con perfil conductor." };
+    }
+    if (vehiculo.estado.toLowerCase() !== "activo") {
+      return { success: false, error: "El vehículo debe estar activo para asignarlo." };
+    }
+    // El cierre y la nueva asignación se confirman juntos; un fallo conserva la anterior.
+    const created = await prisma.$transaction(async tx => {
+      if (actor.rolPrincipal === "conductor") {
+        const occupied = await tx.asignacion.findFirst({ where: { vehiculoId, estado: "activa", conductorId: { not: actor.id },
+          fechaInicio: { lte: now }, OR: [{ fechaFin: null }, { fechaFin: { gte: now } }] } });
+        if (occupied) throw new Error("Este vehículo está asignado a otro conductor. Solicita a coordinación liberar la asignación.");
+        const activeTrip = await tx.viaje.findFirst({ where: { conductorId: actor.id, estado: { in: ["en_curso", "con_novedad"] }, vehiculoId: { not: vehiculoId } } });
+        if (activeTrip) throw new Error("Finaliza tu viaje actual antes de cambiar de vehículo.");
+        const same = await tx.asignacion.findFirst({ where: { conductorId, vehiculoId, estado: "activa", autorizacionOperativa: true } });
+        if (same) return same;
       }
-    }
-
-    // 4. Crear la nueva asignación activa
-    let newId = `asig_${Date.now()}`;
-    let createdRecord: unknown;
-    if (process.env.DATABASE_URL) {
-      const created = await prisma.asignacion.create({
-        data: {
-          conductorId,
-          conductorNombre,
-          vehiculoId,
-          placa,
-          contratistaId,
-          contratistaNombre,
-          tipoAsignacion: "fija",
-          fechaInicio: now,
-          fechaFin: null,
-          estado: "activa",
-          observaciones: observaciones || "Asignación rápida directa del sistema",
-          autorizacionOperativa: true,
-        },
+      const closed = await tx.asignacion.updateMany({
+        where: { estado: "activa", OR: [{ vehiculoId }, { placa }, { conductorId }] },
+        data: { estado: "finalizada", fechaFin: now },
       });
-      newId = created.id;
-      createdRecord = created;
-      await recordAudit({
-        action: "CREATE",
-        entityType: "Asignacion",
-        entityId: created.id,
-        after: createdRecord,
-        metadata: { operation: "quick_assign", closedAssignments },
-        actor,
-      });
-    }
-
-    // 5. Vincular retroactivamente eventos de telemetría de esta placa que estuvieran sin conductor
-    try {
-      const { retroasignarEventosPlacaDb } = await import("@/lib/services/gps.service");
-      await retroasignarEventosPlacaDb(
-        placa,
-        conductorId,
-        conductorNombre,
-        persona.telefono || null,
-        persona.email || null
-      );
-    } catch (retroErr) {
-      console.warn("Aviso en retroasignación GPS:", retroErr);
-    }
+      const assignment = await tx.asignacion.create({ data: {
+        conductorId, conductorNombre, vehiculoId, placa,
+        contratistaId: vehiculo.contratistaId || persona.contratistaId || null,
+        contratistaNombre, tipoAsignacion: "fija", fechaInicio: now, fechaFin: null,
+        estado: "activa", observaciones: observaciones || "Asignación rápida directa del sistema",
+        autorizacionOperativa: true,
+      } });
+      await recordAudit({ action: "CREATE", entityType: "Asignacion", entityId: assignment.id,
+        after: assignment, metadata: { operation: "quick_assign", closedAssignments: closed.count }, actor }, tx);
+      return assignment;
+    }, { isolationLevel: "Serializable" });
+    const newId = created.id;
 
     // 6. Revalidar todas las páginas
     revalidatePath("/asignaciones");

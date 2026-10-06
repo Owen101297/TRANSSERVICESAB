@@ -532,12 +532,7 @@
 
         function loadDriverSession() {
             try {
-                const stored = localStorage.getItem('ab_driver_session');
-                if (stored) {
-                    driverSession = JSON.parse(stored);
-                } else if (window.TransServices?.getSession) {
-                    driverSession = window.TransServices.getSession();
-                }
+                driverSession = window.TransServices?.getSession?.() || null;
 
                 if (driverSession) {
                     document.getElementById('display-driver-name').textContent = driverSession.nombre || 'Conductor Registrado';
@@ -550,6 +545,8 @@
                 console.warn("No active session:", e);
             }
         }
+
+        window.addEventListener("transservices:session", loadDriverSession);
 
         // Renderizado de los 24 ítems
         function renderChecklist() {

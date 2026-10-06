@@ -151,7 +151,7 @@ export async function getCurrentProfile() {
 
 export async function isAdmin() {
     const prof = await getCurrentProfile();
-    return prof?.rol === 'admin' || prof?.rol === 'superadmin' || prof?.rol === 'gerente' || prof?.rol === 'hseq';
+    return ['administrativo', 'coordinador', 'hseq'].includes(prof?.rol);
 }
 
 export async function requireAuth() {
@@ -294,7 +294,7 @@ export async function syncOfflineViajes() {
     saveOfflineQueue(remaining);
     if (remaining.length < queue.length) {
         if (typeof window !== 'undefined' && window.TS?.toastSuccess) {
-            window.TS.toastSuccess(`Sincronizados ${queue.length - remaining.length} viajes con Railway.`);
+            window.TS.toastSuccess(`Sincronizados ${queue.length - remaining.length} viajes con el ERP.`);
         }
     }
 }

@@ -5,10 +5,8 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { CalendarCheck, GraduationCap, ListChecks, UserRound, Workflow } from "lucide-react";
 
 const NAV = [
-  { href: "/portal-conductor?vista=hoy", view: "hoy", label: "Hoy", icon: CalendarCheck },
+  { href: "/portal-conductor?vista=hoy", view: "hoy", label: "Inicio", icon: CalendarCheck },
   { href: "/portal-conductor?vista=jornada", view: "jornada", label: "Jornada", icon: Workflow },
-  { href: "/portal-conductor?vista=tareas", view: "tareas", label: "Tareas", icon: ListChecks },
-  { href: "/portal-conductor/capacitaciones", view: "formacion", label: "Formación", icon: GraduationCap },
   { href: "/portal-conductor?vista=perfil", view: "perfil", label: "Perfil", icon: UserRound },
 ] as const;
 
@@ -23,7 +21,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
       {children}
       {!focusedFlow && (
         <nav aria-label="Navegación principal del portal" className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 pb-[max(6px,env(safe-area-inset-bottom))] backdrop-blur-xl">
-          <div className="mx-auto grid max-w-xl grid-cols-5 px-1">
+          <div className="mx-auto grid max-w-2xl grid-cols-3 px-1">
             {NAV.map((item) => {
               const active = currentView === item.view;
               return (

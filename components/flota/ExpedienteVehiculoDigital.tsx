@@ -1,5 +1,6 @@
 "use client";
 
+import { DocumentHistory } from "@/components/ui/DocumentHistory";
 import { useState, useRef } from "react";
 import {
   FileText,
@@ -141,7 +142,7 @@ export function ExpedienteVehiculoDigital({
         if (res.success && res.adjunto) {
           setAdjuntos((prev) => [
             res.adjunto,
-            ...prev.filter((x) => x.tipoDocumento !== casillero.tipo),
+            ...prev,
           ]);
         } else {
           setErrorMessage(res.error || "No se pudo guardar el documento en el servidor.");
@@ -168,6 +169,7 @@ export function ExpedienteVehiculoDigital({
 
   return (
     <div className="space-y-6">
+      <DocumentHistory documents={adjuntos} />
       {/* Input de archivo real oculto */}
       <input
         type="file"

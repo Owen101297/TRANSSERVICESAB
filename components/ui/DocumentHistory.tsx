@@ -1,0 +1,5 @@
+type DocumentVersion = { id: string; nombre: string; tipoDocumento: string; archivoUrl: string; createdAt?: string };
+export function DocumentHistory({ documents }: { documents: DocumentVersion[] }) {
+  if (documents.length <= new Set(documents.map(document => document.tipoDocumento)).size) return null;
+  return <details className="rounded-xl border border-slate-200 bg-white p-3"><summary className="cursor-pointer text-sm font-semibold text-slate-700">Historial de documentos · {documents.length} archivos conservados</summary><ul className="mt-3 divide-y divide-slate-100">{documents.map(document => <li key={document.id} className="flex items-center justify-between gap-3 py-2 text-xs"><a href={document.archivoUrl} target="_blank" rel="noreferrer" className="min-w-0 truncate font-medium text-blue-700">{document.tipoDocumento.replaceAll("_", " ")} · {document.nombre}</a><span className="shrink-0 text-slate-500">{document.createdAt ? new Date(document.createdAt).toLocaleDateString("es-CO", { timeZone: "America/Bogota" }) : ""}</span></li>)}</ul></details>;
+}

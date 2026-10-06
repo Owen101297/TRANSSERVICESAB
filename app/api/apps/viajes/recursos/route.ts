@@ -39,7 +39,7 @@ export async function GET() {
         nombre: nombreCompleto,
         cedula: p.numeroDocumento,
         licencia: p.licenciaConduccion?.numero || p.numeroDocumento,
-        categoria: p.licenciaConduccion?.categorias?.[0] || (p.licenciaConduccion as any)?.categoria || "C2",
+        categoria: p.licenciaConduccion?.categorias?.[0] || (p.licenciaConduccion as any)?.categoria || "",
         vencimiento: p.licenciaConduccion?.fechaVencimiento
           ? p.licenciaConduccion.fechaVencimiento.toISOString().split("T")[0]
           : null,
@@ -53,10 +53,10 @@ export async function GET() {
       id: v.id,
       placa: v.placa,
       tipo: v.tipo || "Camioneta",
-      marca: v.marca || "Toyota",
-      modelo: v.modelo || String(v.anio || "2024"),
-      color: "Blanco", // Color institucional por defecto si no especifica
-      empresa: v.contratistaNombre || "TRANS SERVICES A&B",
+      marca: v.marca || "",
+      modelo: v.modelo || "",
+      color: null,
+      empresa: v.contratistaNombre || "",
       soatVencimiento: v.soatVencimiento ? v.soatVencimiento.toISOString().split("T")[0] : null,
       rtmVencimiento: v.rtmVencimiento ? v.rtmVencimiento.toISOString().split("T")[0] : null,
       polizaVencimiento: v.polizaVencimiento ? v.polizaVencimiento.toISOString().split("T")[0] : null,

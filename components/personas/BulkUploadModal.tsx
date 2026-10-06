@@ -23,7 +23,7 @@ import { Persona } from "@/lib/types/persona";
 import {
   parseExcelOrCSVBuffer,
   analyzePersonaUpsertBatch,
-  generateExcelTemplateBlob,
+
   generateCSVTemplate,
   UpsertPreviewItem,
   UpsertBatchResult,
@@ -115,7 +115,7 @@ export function BulkUploadModal({
     setErrorMessage(null);
 
     try {
-      const res = await batchUpsertPersonasDb(batchResult.previewItems);
+      const res = await batchUpsertPersonasDb(batchResult.previewItems.filter(item => item.action !== "error"));
       if (res.success && res.refreshedList) {
         onSuccess(res.refreshedList);
         handleReset();

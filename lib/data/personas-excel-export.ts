@@ -35,7 +35,7 @@ export function exportPersonasToExcel(personas: Persona[]): void {
     p.nombres,
     p.apellidos,
     (p.perfiles || []).join(", "),
-    p.contratistaNombre || "Trans Services A&B (Flota Propia)",
+    p.contratistaNombre || "",
     p.estado || "activo",
     p.telefono || "",
     p.email || "",
@@ -131,7 +131,7 @@ export function descargarPlantillaPersonasExcel(): void {
     ],
   ];
 
-  const fullData = [PERSONAL_EXCEL_COLUMNS, ...ejemploRows];
+  const fullData = [PERSONAL_EXCEL_COLUMNS];
   const wsData = XLSX.utils.aoa_to_sheet(fullData);
 
   wsData["!cols"] = [
@@ -183,6 +183,7 @@ export function descargarPlantillaPersonasExcel(): void {
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, wsData, "Plantilla_Personal");
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([PERSONAL_EXCEL_COLUMNS, ...ejemploRows]), "Ejemplos_no_importar");
   XLSX.utils.book_append_sheet(wb, wsGuia, "Guia_Valores");
 
   XLSX.writeFile(wb, "Plantilla_Carga_Masiva_Personal_TransServicesAB.xlsx");

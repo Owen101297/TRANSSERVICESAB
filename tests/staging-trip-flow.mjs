@@ -58,7 +58,12 @@ try {
   await prisma.vehiculo.create({ data: { id: prefix, placa: plate, marca: "Prueba", modelo: "Prueba", anio: 2026,
     capacidad: 1, tipo: "automovil", contratistaNombre: "Prueba aislada" } });
   await prisma.asignacion.create({ data: { id: prefix, conductorId: actors.driver.id, conductorNombre: actors.driver.nombre,
-    vehiculoId: prefix, placa: plate, contratistaNombre: "Prueba aislada", tipoAsignacion: "fija", fechaInicio: new Date() } });
+    vehiculoId: prefix, placa: plate, contratistaNombre: "Prueba aislada", tipoAsignacion: "fija", autorizacionOperativa: true, fechaInicio: new Date() } });
+  await prisma.turnoDespacho.create({ data: { conductorId: actors.driver.id, conductorNombre: actors.driver.nombre,
+    conductorDocumento: actors.driver.documento, placa: plate, vehiculoId: prefix, fecha: new Date(), hora: "12:00", odometroInicial: 100,
+    fotoOdometroUrl: "https://example.invalid/test.jpg", fotoVehiculoUrl: "https://example.invalid/test.jpg" } });
+  await prisma.inspeccionPreoperacional.create({ data: { conductorId: actors.driver.id, conductorNombre: actors.driver.nombre,
+    vehiculoId: prefix, placa: plate, fecha: new Date(), checklist: {}, estadoConcepto: "apto" } });
   await request(null, "POST", "/api/apps/viajes", payload(high), 401);
   await request("driver", "POST", "/api/apps/viajes", { ...payload(high), signatures: { hse: "forged" } }, 403);
   await request("driver", "POST", "/api/apps/viajes", { ...payload(high), estado: "Autorizado" }, 409);
@@ -91,7 +96,7 @@ try {
   const mediumTrip = await create(medium);
   await request("hseq", "PUT", `/api/apps/viajes?id=${mediumTrip.id}`, { estado: "Autorizado", signatures: { hse: "hseq-signature" } }, 200);
   await request("driver", "PUT", `/api/apps/viajes?id=${mediumTrip.id}`, { estado: "Finalizado", kmLlegada: 120 }, 200);
-  await request("driver", "POST", "/api/apps/preoperacional", { placa: plate, checklist: {} }, 409);
+  await request("driver", "POST", "/api/apps/preoperacional", { placa: plate, checklist: {} }, 400);
   await request("driver", "GET", "/api/gps/eventos", undefined, 403);
   await prisma.persona.update({ where: { id: actors.admin.id }, data: { perfiles: ["conductor"] } });
   await request("admin", "GET", "/api/gps/eventos", undefined, 403);
@@ -104,6 +109,8 @@ try {
     await tx.novedadViaje.deleteMany({ where: { viajeId: { in: tripIds } } });
     await tx.viaje.deleteMany({ where: { conductorId: { in: ids } } });
     await tx.auditLog.deleteMany({ where: { actorId: { in: ids } } });
+    await tx.inspeccionPreoperacional.deleteMany({ where: { conductorId: { in: ids } } });
+    await tx.turnoDespacho.deleteMany({ where: { conductorId: { in: ids } } });
     await tx.asignacion.deleteMany({ where: { id: prefix } });
     await tx.vehiculo.deleteMany({ where: { id: prefix } });
     await tx.persona.deleteMany({ where: { id: { in: ids } } });

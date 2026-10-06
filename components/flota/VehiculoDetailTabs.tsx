@@ -176,20 +176,8 @@ export function VehiculoDetailTabs({
                 Registro y control de inspecciones periódicas de frenos, suspensión, fluidos y llantas.
               </p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                <div className="rounded-lg border border-line-600 bg-asphalt-950 p-3 text-center">
-                  <p className="text-[10px] text-fog-400 font-mono uppercase">Última Revisión</p>
-                  <p className="font-mono text-sm font-bold text-paper-50">Hace 18 días</p>
-                </div>
-                <div className="rounded-lg border border-line-600 bg-asphalt-950 p-3 text-center">
-                  <p className="text-[10px] text-fog-400 font-mono uppercase">Próximo Mantenimiento</p>
-                  <p className="font-mono text-sm font-bold text-signal-amber">En 42 días</p>
-                </div>
-                <div className="rounded-lg border border-line-600 bg-asphalt-950 p-3 text-center">
-                  <p className="text-[10px] text-fog-400 font-mono uppercase">Estado de Inspección</p>
-                  <p className="font-mono text-sm font-bold text-ok-green">Conforme</p>
-                </div>
-              </div>
+              <p className="rounded-lg border border-line-600 bg-asphalt-950 p-3 text-sm text-fog-400">No hay un plan de mantenimiento registrado en esta vista. Consulta las inspecciones y novedades reales del vehículo.</p>
+              <Link href="/hseq/preoperacionales" className="text-sm font-semibold text-radar-cyan">Ver inspecciones preoperacionales →</Link>
             </Card>
           </div>
         )}

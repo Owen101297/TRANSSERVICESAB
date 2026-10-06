@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { PERSONAL_EXCEL_COLUMNS } from "@/lib/data/personas-excel-export";
 import {
   Persona,
   TipoDocumento,
@@ -303,6 +304,7 @@ function normalizeEstado(val?: string): EstadoPersona {
   const lower = (val || "").toLowerCase().trim();
   if (lower.includes("descanso")) return "descanso";
   if (lower.includes("vaca")) return "vacaciones";
+  if (lower.includes("retir")) return "retirado";
   if (lower.includes("inact")) return "inactivo";
   return "activo";
 }
@@ -351,7 +353,7 @@ export function analyzePersonaUpsertBatch(
 
   rows.forEach((row, index) => {
     const excelRowNum = index + 2; // Fila 1 es el encabezado en Excel
-    const rawCedula = (row.numeroDocumento || "").replace(/\D/g, "");
+    const rawCedula = (row.numeroDocumento || "").replace(/[.\s]/g, "").toUpperCase();
     
     let nombres = (row.nombres || "").trim();
     let apellidos = (row.apellidos || "").trim();
@@ -416,13 +418,18 @@ export function analyzePersonaUpsertBatch(
     // 3. Detección de Cédula repetida en el MISMO archivo
     const duplicateInBatch = seenCedulasInBatch.get(rawCedula);
     if (duplicateInBatch) {
-      const msg = `Fila ${excelRowNum} (${nombres} ${apellidos}): Cédula ${rawCedula} ya figuraba en la Fila ${duplicateInBatch.rowNum} del mismo archivo. Se unificarán los datos.`;
+      const msg = `Fila ${excelRowNum} (${nombres} ${apellidos}): Cédula ${rawCedula} ya figuraba en la Fila ${duplicateInBatch.rowNum} del mismo archivo. Se omitirá la fila repetida.`;
       diagnostico.push(msg);
+      errors++;
+      previewItems.push({ id: `err_${index}`, rowNumber: excelRowNum, numeroDocumento: rawCedula, tipoDocumento: normalizeTipoDoc(row.tipoDocumento),
+        nombres, apellidos, telefono: row.telefono || "", email: row.email || "", perfiles: [], estado: "activo", fotoIniciales: computeInitials(nombres, apellidos),
+        action: "error", errorMessage: `Documento repetido en fila ${duplicateInBatch.rowNum}. Conserva una sola fila por persona.` });
+      return;
     }
     seenCedulasInBatch.set(rawCedula, { rowNum: excelRowNum, nombres: `${nombres} ${apellidos}`.trim() });
 
     const existingPerson = currentPersons.find(
-      (p) => p.numeroDocumento.replace(/\D/g, "") === rawCedula
+      (p) => p.numeroDocumento.replace(/[.\s]/g, "").toUpperCase() === rawCedula
     );
 
     const tipoDoc = normalizeTipoDoc(row.tipoDocumento);
@@ -452,9 +459,8 @@ export function analyzePersonaUpsertBatch(
     const contactoEmergenciaTelefono = row.contactoEmergenciaTelefono || existingPerson?.contactoEmergencia?.telefono;
     const contactoEmergenciaParentesco = row.contactoEmergenciaParentesco || existingPerson?.contactoEmergencia?.parentesco;
 
-    if (existingPerson || duplicateInBatch) {
+    if (existingPerson) {
       const changes: string[] = [];
-      if (duplicateInBatch) changes.push(`Duplicado en Excel (Fila ${duplicateInBatch.rowNum} y Fila ${excelRowNum})`);
       if (telefono && telefono !== existingPerson?.telefono) changes.push(`Teléfono: ${telefono}`);
       if (email && email !== existingPerson?.email) changes.push(`Email: ${email}`);
       if (contratista && contratista !== existingPerson?.contratistaNombre) changes.push(`Contratista: ${contratista}`);
@@ -500,8 +506,8 @@ export function analyzePersonaUpsertBatch(
         tipoDocumento: tipoDoc,
         nombres: finalNombres,
         apellidos: finalApellidos,
-        telefono: telefono || "3000000000",
-        email: email || `${finalNombres.toLowerCase().replace(/\s+/g, ".") || "usuario"}@transservices.com`,
+        telefono: telefono || "",
+        email: email || "",
         perfiles,
         estado,
         contratistaNombre: contratista,
@@ -537,27 +543,7 @@ export function analyzePersonaUpsertBatch(
  * Genera el archivo Excel (.xlsx) estructurado listo para descargar
  */
 export function generateExcelTemplateBlob(): Blob {
-  const headers = [
-    "Tipo_Documento",
-    "Numero_Documento",
-    "Nombres",
-    "Apellidos",
-    "Telefono",
-    "Email",
-    "Perfiles",
-    "Estado",
-    "Contratista",
-    "Numero_Licencia",
-    "Categoria_Licencia",
-    "Vencimiento_Licencia",
-    "EPS",
-    "ARL",
-    "Fondo_Pension",
-    "Grupo_Sanguineo",
-    "Contacto_Emergencia_Nombre",
-    "Contacto_Emergencia_Telefono",
-    "Contacto_Emergencia_Parentesco",
-  ];
+  const headers = PERSONAL_EXCEL_COLUMNS;
 
   const guideRows = [
     { Campo: "Tipo_Documento", Obligatorio: "Sí", ValoresPermitidos: "CC, CE, PA, TI", Descripcion: "Tipo de documento de identidad" },
@@ -621,6 +607,6 @@ export function generateExcelTemplateBlob(): Blob {
  * Genera el archivo CSV listo para descargar (solo encabezados limpios)
  */
 export function generateCSVTemplate(): string {
-  const headers = "Tipo_Documento,Numero_Documento,Nombres,Apellidos,Telefono,Email,Perfiles,Estado,Contratista,Numero_Licencia,Categoria_Licencia,Vencimiento_Licencia,EPS,ARL,Fondo_Pension,Grupo_Sanguineo,Contacto_Emergencia_Nombre,Contacto_Emergencia_Telefono,Contacto_Emergencia_Parentesco";
+  const headers = PERSONAL_EXCEL_COLUMNS.join(",");
   return `\uFEFF${headers}\n`;
 }

@@ -31,11 +31,7 @@ export interface ResultadoAnalisisLoteFlota {
  */
 export function normalizarPlaca(raw: any): string {
   if (!raw) return "";
-  let clean = String(raw).toUpperCase().replace(/[^A-Z0-9]/g, "").trim();
-  if (clean.length === 6) {
-    return `${clean.slice(0, 3)}-${clean.slice(3)}`;
-  }
-  return clean;
+  return String(raw).toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
 /**
@@ -182,10 +178,10 @@ export function analizarArchivoExcelFlota(buffer: ArrayBuffer): ResultadoAnalisi
 
     // Mapear campos con tolerancia a variaciones
     const rawPlaca = rowObj["PLACA"] || rowObj["MATRICULA"] || rowObj["MATRÍCULA"] || rowObj["VEHICULO"] || rowObj["VEHÍCULO"];
-    const rawMarca = rowObj["MARCA"] || "Genérico";
-    const rawModelo = rowObj["MODELO"] || rowObj["LÍNEA"] || rowObj["LINEA"] || "Línea Estándar";
-    const rawAnio = parseInt(rowObj["AÑO"] || rowObj["ANIO"] || rowObj["AÑO MODELO"] || "2023", 10);
-    const rawCapacidad = parseInt(rowObj["CAPACIDAD"] || rowObj["PASAJEROS"] || rowObj["PUESTOS"] || "16", 10);
+    const rawMarca = rowObj["MARCA"] || "";
+    const rawModelo = rowObj["MODELO"] || rowObj["LÍNEA"] || rowObj["LINEA"] || "";
+    const rawAnio = parseInt(rowObj["AÑO"] || rowObj["ANIO"] || rowObj["AÑO MODELO"] || "", 10);
+    const rawCapacidad = parseInt(rowObj["CAPACIDAD"] || rowObj["PASAJEROS"] || rowObj["PUESTOS"] || "", 10);
     const rawTipo = rowObj["TIPO"] || rowObj["TIPO DE VEHÍCULO"] || rowObj["CLASE"] || rowObj["CARROCERÍA"];
     const rawServicio = rowObj["SERVICIO"] || rowObj["MODALIDAD"] || rowObj["MODALIDAD DE SERVICIO"];
     const rawContratista = rowObj["CONTRATISTA"] || rowObj["CONTRATISTA / ALIADO PROPIETARIO"] || rowObj["EMPRESA"] || rowObj["PROPIETARIO"];
@@ -203,12 +199,12 @@ export function analizarArchivoExcelFlota(buffer: ArrayBuffer): ResultadoAnalisi
 
     const marca = String(rawMarca).trim();
     const modelo = String(rawModelo).trim();
-    const anio = isNaN(rawAnio) ? new Date().getFullYear() : rawAnio;
-    const capacidad = isNaN(rawCapacidad) ? 16 : rawCapacidad;
+    const anio = rawAnio;
+    const capacidad = rawCapacidad;
     const tipo = normalizarTipoVehiculo(rawTipo);
     const servicio = normalizarServicioVehiculo(rawServicio);
     const estado = normalizarEstadoVehiculo(rawEstado);
-    const contratistaNombre = String(rawContratista || "Flota Propia / Trans Services A&B").trim();
+    const contratistaNombre = String(rawContratista || "").trim();
 
     // Fechas normalizadas estrictas (undefined si está vacía)
     const soatVencimiento = normalizarFechaISO(rawSoat);
@@ -216,7 +212,7 @@ export function analizarArchivoExcelFlota(buffer: ArrayBuffer): ResultadoAnalisi
     const polizaVencimiento = normalizarFechaISO(rawPoliza);
 
     // Validación básica: Placa obligatoria de al menos 5 caracteres
-    if (placa.length < 5) {
+    if (placa.length < 5 || !marca || !modelo || !Number.isInteger(anio) || anio < 1900 || !Number.isInteger(capacidad) || capacidad < 1 || !rawTipo) {
       filasOmitidas.push({
         filaOriginal,
         placa: placa || "INVÁLIDA",
@@ -229,7 +225,7 @@ export function analizarArchivoExcelFlota(buffer: ArrayBuffer): ResultadoAnalisi
         contratistaNombre,
         estado: "inactivo",
         valido: false,
-        motivo: "Placa incompleta o con formato inválido.",
+        motivo: "Completa placa, marca, modelo, año, tipo y capacidad. No se inventan datos faltantes.",
       });
       continue;
     }

@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
+import { plateVariants } from "@/lib/operational-day";
 import { prisma } from "@/lib/prisma";
 import { procesarAlertaViaje } from "@/lib/services/alertas-viaje.service";
 import { requireApiSession, requireStaff } from "@/lib/api-auth";
 import { recordAudit } from "@/lib/audit";
 import { canAccessPortalVehicle, conductorIdentityFromSession, normalizeVehiclePlate } from "@/lib/portal-access";
 import { applyTripPolicy, jsonObject, TripPolicyError } from "@/lib/trip-policy";
+import { requireDriverOperationalReadiness } from "@/lib/operational-readiness";
 import type { SessionUser } from "@/lib/session";
 
 export async function POST(req: Request) {
@@ -73,8 +75,8 @@ export async function POST(req: Request) {
       if (!(await canAccessPortalVehicle(auth.session, cleanPlaca))) {
         return NextResponse.json({ error: "No autorizado para operar este vehículo." }, { status: 403 });
       }
-      const vehiculo = await prisma.vehiculo.findUnique({
-        where: { placa: cleanPlaca },
+      const vehiculo = await prisma.vehiculo.findFirst({
+        where: { placa: { in: plateVariants(cleanPlaca), mode: "insensitive" } },
       });
       if (vehiculo) vId = vehiculo.id;
     }
@@ -84,6 +86,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Conductor activo requerido." }, { status: 400 });
     }
 
+    await requireDriverOperationalReadiness(auth.session, cleanPlaca);
     const now = new Date();
     const horaLocalCo = now.toLocaleTimeString("es-CO", {
       timeZone: "America/Bogota",

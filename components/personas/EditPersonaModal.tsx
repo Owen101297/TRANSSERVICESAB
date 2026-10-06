@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useEffect, useTransition } from "react";
 import { X, Save, AlertCircle, Shield, Key } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -53,6 +54,7 @@ export function EditPersonaModal({
   isOpen,
   onClose,
 }: EditPersonaModalProps) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -63,6 +65,8 @@ export function EditPersonaModal({
 
   useEffect(() => {
     if (isOpen) {
+      setSavedSuccess(false);
+      setErrorMsg(null);
       getContratistasDb().then((data) => setContratistas(data || []));
       setSelectedPerfil(persona.perfiles[0] || "conductor");
     }
@@ -90,11 +94,8 @@ export function EditPersonaModal({
       const res = await updatePersonaAction(persona.id, formData);
       if (res.success) {
         setSavedSuccess(true);
-        setTimeout(() => {
-          setSavedSuccess(false);
-          onClose();
-          window.location.reload();
-        }, 600);
+        onClose();
+        router.refresh();
       } else {
         setErrorMsg(res.error || "Ocurrió un error al guardar los cambios.");
       }
@@ -103,10 +104,10 @@ export function EditPersonaModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-asphalt-950/80 p-4 backdrop-blur-xs overflow-y-auto">
-      <div className="relative w-full max-w-2xl my-8 rounded-xl border border-line-600 bg-asphalt-900 p-6 shadow-2xl">
+      <div className="relative w-full max-w-3xl my-8 rounded-xl border border-line-600 bg-asphalt-900 p-6 shadow-2xl">
         <div className="flex items-center justify-between border-b border-line-600 pb-4">
           <div>
-            <h2 className="font-[family-name:var(--font-display)] text-2xl font-bold text-paper-50">
+            <h2 className="font-[family-name:var(--font-display)] text-lg font-bold text-paper-50">
               Editar información del usuario
             </h2>
             <p className="mt-0.5 text-xs text-fog-400">
@@ -135,7 +136,7 @@ export function EditPersonaModal({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-5 space-y-6 max-h-[70vh] overflow-y-auto pr-1">
+        <form onSubmit={handleSubmit} className="mt-5 space-y-4 max-h-[70vh] overflow-y-auto pr-1">
           {/* SECCIÓN DE ROL Y ACCESO */}
           <FormSection title="Rol del Sistema & Credenciales">
             <div>
@@ -170,8 +171,8 @@ export function EditPersonaModal({
           <FormSection title="Datos Básicos y Contacto">
             <TextField label="Nombres" name="nombres" defaultValue={persona.nombres} required />
             <TextField label="Apellidos" name="apellidos" defaultValue={persona.apellidos} required />
-            <TextField label="Teléfono" name="telefono" defaultValue={persona.telefono} required />
-            <TextField label="Email" name="email" type="email" defaultValue={persona.email} required />
+            <TextField label="Teléfono" name="telefono" defaultValue={persona.telefono} />
+            <TextField label="Email" name="email" type="email" defaultValue={persona.email} />
             <SelectField
               label="Estado operativo"
               name="estado"
@@ -190,7 +191,7 @@ export function EditPersonaModal({
             <SelectField
               label="Grupo Sanguíneo y RH"
               name="grupoSanguineoRH"
-              defaultValue={persona.datosSalud?.grupoSanguineoRH || "O+"}
+              defaultValue={persona.datosSalud?.grupoSanguineoRH || ""}
               options={RH_OPTIONS}
             />
             <TextField label="EPS" name="eps" defaultValue={persona.datosSalud?.eps || ""} />
@@ -212,6 +213,9 @@ export function EditPersonaModal({
 
           {esConductor && (
             <FormSection title="Expediente de Conducción y EMO">
+              <TextField label="Número de licencia" name="licenciaNumero" defaultValue={persona.licenciaConduccion?.numero || ""} />
+              <TextField label="Categorías de licencia" name="licenciaCategorias" placeholder="C1, C2" defaultValue={persona.licenciaConduccion?.categorias.join(", ") || ""} />
+              <TextField label="Organismo de tránsito" name="licenciaOrganismo" defaultValue={persona.licenciaConduccion?.organismoTransito || ""} />
               <TextField
                 label="Vencimiento de Licencia"
                 name="licenciaVencimiento"
@@ -227,7 +231,7 @@ export function EditPersonaModal({
               <SelectField
                 label="Concepto Médico"
                 name="conceptoMedico"
-                defaultValue={persona.examenMedico?.concepto || "apto"}
+                defaultValue={persona.examenMedico?.concepto || "pendiente"}
                 options={CONCEPTO_OPTIONS}
                 wrapperClassName="sm:col-span-2"
               />

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState, useEffect, useTransition } from "react";
 import { X, Save, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -32,6 +33,7 @@ export function EditVehiculoModal({
   isOpen,
   onClose,
 }: EditVehiculoModalProps) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -63,11 +65,8 @@ export function EditVehiculoModal({
       const res = await updateVehiculoAction(vehiculo.id, formData);
       if (res.success) {
         setSavedSuccess(true);
-        setTimeout(() => {
-          setSavedSuccess(false);
-          onClose();
-          window.location.reload();
-        }, 600);
+        onClose();
+        router.refresh();
       } else {
         setErrorMsg(res.error || "Ocurrió un error al guardar los cambios.");
       }
@@ -76,10 +75,10 @@ export function EditVehiculoModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-asphalt-950/80 p-4 backdrop-blur-xs overflow-y-auto">
-      <div className="relative w-full max-w-2xl my-8 rounded-xl border border-line-600 bg-asphalt-900 p-6 shadow-2xl">
+      <div className="relative w-full max-w-3xl my-8 rounded-xl border border-line-600 bg-asphalt-900 p-6 shadow-2xl">
         <div className="flex items-center justify-between border-b border-line-600 pb-4">
           <div>
-            <h2 className="font-[family-name:var(--font-display)] text-2xl font-bold text-paper-50">
+            <h2 className="font-[family-name:var(--font-display)] text-lg font-bold text-paper-50">
               Editar vehículo
             </h2>
             <p className="mt-0.5 text-xs text-fog-400 font-[family-name:var(--font-mono)]">
@@ -108,7 +107,7 @@ export function EditVehiculoModal({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-5 space-y-6 max-h-[70vh] overflow-y-auto pr-1">
+        <form onSubmit={handleSubmit} className="mt-5 space-y-4 max-h-[70vh] overflow-y-auto pr-1">
           <FormSection title="Datos Técnicos y Estado">
             <TextField label="Marca" name="marca" defaultValue={vehiculo.marca} required />
             <TextField label="Línea / Modelo" name="modelo" defaultValue={vehiculo.modelo} required />

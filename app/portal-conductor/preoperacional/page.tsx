@@ -64,7 +64,7 @@ export default function PreoperacionalDriverPage() {
     const placa = verifiedSession.placa || "";
     setSelectedPlaca(placa);
     if (!placa) {
-      setErrorMessage("No tienes un vehículo asignado. Solicita autorización a coordinación.");
+      setErrorMessage("Selecciona tu vehículo actual desde el inicio del portal antes de realizar la inspección.");
       return;
     }
     fetch(`/api/portal-conductor/turno?placa=${encodeURIComponent(placa)}`)
@@ -540,7 +540,7 @@ export default function PreoperacionalDriverPage() {
           </div>
 
           <p className="text-[10px] text-slate-400 text-center">
-            Certifico bajo juramento que los 32 puntos evaluados corresponden a la condición real del vehículo.
+            Certifico bajo juramento que los {TOTAL_ITEMS_PREOPERACIONAL} puntos evaluados corresponden a la condición real del vehículo.
           </p>
         </div>
 
