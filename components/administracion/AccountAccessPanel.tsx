@@ -26,6 +26,7 @@ type PersonAccount = {
   documento: string;
   email: string;
   perfiles: string[];
+  rolAcceso: "administrativo" | "conductor";
   estadoLaboral: string;
   esUsuarioActual: boolean;
   cuenta: {
@@ -384,7 +385,7 @@ export default function AccountAccessPanel() {
                       )}
                     </div>
                     <p className="font-mono text-xs text-fog-400">{person.documento}</p>
-                    <p className="mt-1 text-xs text-fog-400">{person.perfiles.join(", ")}</p>
+                    <p className="mt-1 text-xs text-fog-400">{person.rolAcceso === "administrativo" ? "Administrador" : "Conductor"}</p>
                   </td>
                   <td className="p-3">
                     <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${STATUS_STYLES[person.cuenta.estado] || "border-line-600 text-mist-200"}`}>

@@ -8,6 +8,8 @@ export interface SessionUser {
   placaAsignada?: string | null;
   mustChangePassword?: boolean;
   sessionVersion?: number;
+  authProvider?: "google";
+  googleAccountId?: string;
 }
 
 export const AUTH_COOKIE_NAME = "transservices_session";
@@ -49,11 +51,10 @@ async function getSigningKey(): Promise<CryptoKey> {
   );
 }
 
-export function getRolPrincipal(perfiles: string[] = []): "conductor" | "coordinador" | "hseq" | "administrativo" {
-  if (perfiles.includes("administrativo") || perfiles.includes("admin")) return "administrativo";
-  if (perfiles.includes("hseq") || perfiles.includes("supervisor")) return "hseq";
-  if (perfiles.includes("coordinador") || perfiles.includes("operaciones")) return "coordinador";
-  return "conductor";
+export type AccessRole = "administrativo" | "conductor";
+export function getRolPrincipal(perfiles: string[] = [], rolAcceso?: string | null): AccessRole {
+  if (rolAcceso === "administrativo" || rolAcceso === "conductor") return rolAcceso;
+  return perfiles.some(role => ["administrativo", "admin", "hseq", "supervisor", "coordinador", "operaciones", "gerente", "logistica"].includes(role)) ? "administrativo" : "conductor";
 }
 
 /**

@@ -13,10 +13,7 @@ import { Contratista } from "@/lib/types/contratista";
 
 const PERFIL_OPTIONS = [
   { value: "conductor", label: "Conductor" },
-  { value: "empleado", label: "Empleado" },
-  { value: "supervisor", label: "Supervisor" },
-  { value: "hseq", label: "HSEQ" },
-  { value: "administrativo", label: "Administrativo" },
+  { value: "administrativo", label: "Administrador" },
 ];
 
 const TIPO_DOC_OPTIONS = [

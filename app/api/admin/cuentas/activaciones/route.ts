@@ -1,3 +1,4 @@
+import { getRolPrincipal } from "@/lib/session";
 import { NextResponse } from "next/server";
 import QRCode from "qrcode";
 import { requireStaff } from "@/lib/api-auth";
@@ -35,6 +36,7 @@ export async function GET() {
         documento: persona.numeroDocumento,
         email: persona.email,
         perfiles: persona.perfiles,
+        rolAcceso: getRolPrincipal(persona.perfiles, persona.rolAcceso),
         estadoLaboral: persona.estado,
         cuenta: persona.cuentaAcceso
           ? {
@@ -114,7 +116,7 @@ export async function POST(req: Request) {
       });
       const { token, tokenHash } = createActivationToken();
       rawTokens.set(persona.id, token);
-      const tipoAcceso = persona.perfiles.some((perfil) => ["administrativo", "admin", "hseq", "supervisor", "coordinador", "operaciones"].includes(perfil))
+      const tipoAcceso = getRolPrincipal(persona.perfiles, persona.rolAcceso) === "administrativo"
         ? "erp"
         : "portal";
       await tx.persona.update({

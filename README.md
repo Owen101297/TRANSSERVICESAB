@@ -41,6 +41,16 @@ Las lecturas y mutaciones de GPS requieren personal autorizado dentro de cada ac
 
 El diagnóstico local registra la versión comprobada por entorno. Esta fase no implementa permisos configurables, envío real de notificaciones ni carga documental SG-SST/PESV.
 
+## Accesos y Google
+
+Solo existen dos roles efectivos: Administrador (`administrativo`) y Conductor. Los perfiles laborales históricos se conservan; el campo opcional `Persona.rolAcceso` permite asignar el acceso explícitamente desde Administración. Sin ese campo, los antiguos accesos HSEQ, supervisor, coordinación, operaciones y administración se interpretan como Administrador. Cambiar el rol invalida las sesiones de la cuenta.
+
+El inicio Google utiliza código de autorización, PKCE, estado firmado y nonce; verifica firma, emisor, audiencia, expiración y correo del ID token. Solo solicita `openid email profile`, no acceso a Gmail ni Drive. No almacena tokens del proveedor. Cada `sub` nuevo genera una solicitud pendiente y nunca se vincula automáticamente por correo. Administración vincula la solicitud con una persona existente, aprueba Administrador o Conductor y puede rechazar o revocar Google. Una cuenta laboral inactiva o suspendida no accede; cada sesión Google se revalida contra su vinculación en la base. PIN y contraseña siguen disponibles.
+
+Configurar `GOOGLE_LOGIN_CLIENT_ID`, `GOOGLE_LOGIN_CLIENT_SECRET` y `PUBLIC_APP_URL` en Coolify. Registrar en Google Cloud las direcciones `https://erp.owenai.uk/api/auth/google/callback` y `https://erp-staging.owenai.uk/api/auth/google/callback`. La página `/integraciones/google-acceso` contiene instrucciones y privacidad. Sin credenciales, el botón Google queda deshabilitado y no se declara la conexión verificada.
+
+La migración añade una columna opcional y una tabla; no modifica perfiles, claves ni registros de negocio. Se aplicará con respaldo previo por entorno. El ingreso real con Google requiere el cliente OAuth externo del propietario y debe comprobarse tras configurarlo.
+
 ## Prioridades actuales
 
 1. Unificar el registro manual y por Excel de personal y vehículos, sin contactos, marcas, fechas o capacidades inventadas; conservar documentos e historial.

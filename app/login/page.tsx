@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertCircle, ArrowRight, Truck, UserRound } from "lucide-react";
 import AuthShell from "@/components/auth/AuthShell";
@@ -21,6 +21,10 @@ function LoginForm() {
   const [showPin, setShowPin] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleReady, setGoogleReady] = useState(false);
+  useEffect(() => { fetch("/api/auth/google/status", { cache: "no-store" }).then(response => response.json()).then(data => setGoogleReady(Boolean(data.configured))).catch(() => {}); }, []);
+  const googleMessages: Record<string, string> = { pendiente: "Tu cuenta Google está pendiente de aprobación administrativa.", denegado: "Esta cuenta Google no tiene acceso autorizado.", cancelado: "Se canceló el inicio de sesión con Google.", error: "No se pudo verificar Google. Intenta nuevamente o usa tu clave.", configuracion: "El inicio de sesión con Google aún no está habilitado." };
+  const googleMessage = googleMessages[searchParams.get("google") || ""];
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(event: React.FormEvent) {
@@ -48,7 +52,9 @@ function LoginForm() {
         }));
       }
 
-      const target = data.user.mustChangePassword
+      const target = data.user.rolPrincipal === "conductor" && !data.user.mustChangePassword
+        ? "/portal-conductor"
+        : data.user.mustChangePassword
         ? "/cambiar-clave"
         : callbackUrl && callbackUrl !== "/login"
           ? callbackUrl
@@ -81,7 +87,7 @@ function LoginForm() {
           onClick={() => selectAccess("admin")}
           className={`flex min-h-12 items-center justify-center gap-2 rounded-xl px-3 text-sm font-bold transition ${activeTab === "admin" ? "bg-white text-slate-950 shadow-sm ring-1 ring-slate-200" : "text-slate-500 hover:text-slate-800"}`}
         >
-          <UserRound size={18} /> Administrativo
+          <UserRound size={18} /> Administrador
         </button>
         <button
           type="button"
@@ -94,6 +100,11 @@ function LoginForm() {
         </button>
       </div>
 
+      <div className="mt-5 space-y-2">
+        {googleReady ? <a href="/api/auth/google/start" className="flex min-h-12 w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800">Continuar con Google</a> : <button disabled className="min-h-12 w-full rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-400">Continuar con Google</button>}
+        {!googleReady && <p className="text-xs text-slate-500">Google estará disponible cuando administración habilite la conexión.</p>}
+        {googleMessage && <p role="status" className="rounded-xl bg-slate-100 p-3 text-sm text-slate-700">{googleMessage}</p>}
+      </div>
       <form onSubmit={handleSubmit} className="mt-7 space-y-5">
         {activeTab === "conductor" ? (
           <>

@@ -108,7 +108,7 @@ export async function POST(req: Request, context: { params: Promise<{ token: str
     nombre: `${activation.persona.nombres} ${activation.persona.apellidos}`.trim(),
     email: activation.persona.email,
     perfiles: activation.persona.perfiles,
-    rolPrincipal: getRolPrincipal(activation.persona.perfiles),
+    rolPrincipal: getRolPrincipal(activation.persona.perfiles, activation.persona.rolAcceso),
   };
   await recordAudit({
     action: "PASSWORD_CHANGE",

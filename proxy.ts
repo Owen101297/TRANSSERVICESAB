@@ -6,6 +6,7 @@ export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   const isPublicApi =
+    pathname.startsWith("/api/auth/google/") ||
     pathname === "/api/auth/login" ||
     pathname === "/api/auth/logout" ||
     pathname.startsWith("/api/auth/activate/") ||
@@ -16,6 +17,7 @@ export async function proxy(req: NextRequest) {
     (pathname === "/api/apps/asistencia/config" && req.method === "GET");
 
   const isPublicInformationPage =
+    pathname === "/integraciones/google-acceso" ||
     pathname === "/integraciones/google-drive" ||
     pathname === "/legal/privacidad-google-drive" ||
     pathname === "/legal/terminos-google-drive";
@@ -64,6 +66,7 @@ export async function proxy(req: NextRequest) {
     const isDriverApi =
       pathname.startsWith("/api/portal-conductor/") ||
       pathname.startsWith("/api/apps/") ||
+      pathname === "/api/auth/me" ||
       pathname === "/api/auth/change-password" ||
       pathname === "/api/capacitaciones/asistir" ||
       (pathname === "/api/capacitaciones" && req.method === "GET");

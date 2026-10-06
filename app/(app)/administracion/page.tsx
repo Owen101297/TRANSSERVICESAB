@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import GoogleAccessPanel from "@/components/administracion/GoogleAccessPanel";
 import { getPersonasDb } from "@/lib/services/personas.service";
-import { getRolesDb } from "@/lib/services/admin.service";
-import { Button } from "@/components/ui/Button";
+
+
 import { Card } from "@/components/ui/Card";
 import AccountAccessPanel from "@/components/administracion/AccountAccessPanel";
 import { requireStaffSession } from "@/lib/auth";
@@ -19,16 +19,16 @@ export default async function AdministracionPage({
   const activeTab = tab ?? "usuarios";
 
   const personas = await getPersonasDb();
-  const roles = await getRolesDb();
+  const roles = [{ id: "administrativo", nombre: "Administrador", descripcion: "Administra el ERP, HSEQ, gerencia, logística y accesos." }, { id: "conductor", nombre: "Conductor", descripcion: "Opera su jornada y apps desde el portal; consulta solo sus registros." }];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-bold text-paper-50">
-          Administración y Control de Acceso (RBAC)
+        <h1 className="font-[family-name:var(--font-display)] text-xl font-bold text-paper-50">
+          Administración y accesos
         </h1>
         <p className="mt-1 text-sm text-fog-400">
-          Gestión de accesos, sesiones, estados de cuenta, roles y permisos por módulo.
+          Dos roles de acceso, autorización Google y control de cuentas.
         </p>
       </div>
 
@@ -55,6 +55,8 @@ export default async function AdministracionPage({
         </Link>
       </div>
 
+      <Card><GoogleAccessPanel /></Card>
+
       {activeTab === "usuarios" && (
         <Card>
           <AccountAccessPanel />
@@ -63,13 +65,6 @@ export default async function AdministracionPage({
 
       {activeTab === "roles" && (
         <>
-          <div className="flex justify-end">
-            <Link href="/administracion/roles/nuevo">
-              <Button variant="primary">
-                <Plus size={16} /> Nuevo rol
-              </Button>
-            </Link>
-          </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {roles.map((r) => (
               <Card key={r.id}>
@@ -77,22 +72,8 @@ export default async function AdministracionPage({
                   <span className="font-[family-name:var(--font-mono)] text-sm font-medium text-paper-50">
                     {r.nombre}
                   </span>
-                  {!r.esConfigurable && (
-                    <span className="rounded border border-line-600 bg-asphalt-800 px-1.5 py-0.5 text-[10px] text-fog-400">
-                      Fijo
-                    </span>
-                  )}
                 </div>
                 <p className="mt-2 text-xs text-fog-400">{r.descripcion}</p>
-                {r.permisos && r.permisos.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1">
-                    {r.permisos.map((p) => (
-                      <span key={p} className="rounded bg-asphalt-800 border border-line-600 px-1.5 py-0.5 text-[10px] text-radar-cyan font-mono">
-                        {p}
-                      </span>
-                    ))}
-                  </div>
-                )}
               </Card>
             ))}
           </div>
@@ -100,7 +81,7 @@ export default async function AdministracionPage({
       )}
 
       <p className="text-xs text-fog-400">
-        Control de acceso basado en roles (RBAC).
+        Los perfiles laborales históricos se conservan; el rol de acceso determina los permisos.
       </p>
     </div>
   );

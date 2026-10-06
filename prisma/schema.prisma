@@ -22,7 +22,8 @@ model Persona {
   numeroDocumento    String   @unique
   telefono           String
   email              String
-  perfiles           String[] // conductor, empleado, supervisor, hseq, administrativo
+  perfiles           String[] // perfiles laborales históricos
+  rolAcceso          String? // administrativo o conductor; nulo conserva compatibilidad
   estado             String   @default("activo") // activo, inactivo, descanso, vacaciones
   fechaIngreso       DateTime @default(now())
   contratistaId      String?
@@ -40,6 +41,7 @@ model Persona {
   asignaciones        Asignacion[]
   eventosConvocados   EventoParticipante[]
   novedadesAsistencia NovedadPersonal[]
+  cuentaGoogle        CuentaGoogle?
   cuentaAcceso        CuentaAcceso?
   enlacesActivacion   EnlaceActivacion[]
 
@@ -92,6 +94,21 @@ model EnlaceActivacion {
 
   @@index([personaId, createdAt])
   @@index([expiraAt])
+}
+
+model CuentaGoogle {
+  id             String   @id @default(cuid())
+  subject        String   @unique
+  email          String
+  nombre         String
+  estado         String   @default("pendiente") // pendiente, aprobada, revocada, rechazada
+  personaId      String?  @unique
+  persona        Persona? @relation(fields: [personaId], references: [id], onDelete: SetNull)
+  aprobadaPorId  String?
+  aprobadaAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@index([estado])
 }
 
 model LicenciaConduccion {

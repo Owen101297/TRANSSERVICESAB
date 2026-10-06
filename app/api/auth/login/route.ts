@@ -129,7 +129,7 @@ export async function POST(req: Request) {
       }
 
       // Validar PIN (si la persona no tiene PIN configurado, el PIN por defecto es 1234 o los últimos 4 dígitos)
-      const expectedPin = persona.pin;
+      const expectedPin = persona.pin || persona.passwordHash;
       if (!(await verifyPassword(inputPin, expectedPin))) {
         await registerFailedAttempt(persona.id, persona.cuentaAcceso?.intentosFallidos || 0);
         return NextResponse.json(
@@ -156,7 +156,7 @@ export async function POST(req: Request) {
         nombre: `${persona.nombres} ${persona.apellidos}`.trim(),
         email: persona.email,
         perfiles: persona.perfiles,
-        rolPrincipal: "conductor" as const,
+        rolPrincipal: getRolPrincipal(persona.perfiles, persona.rolAcceso),
         placaAsignada,
         mustChangePassword,
         sessionVersion: persona.cuentaAcceso?.sessionVersion ?? 1,
@@ -170,7 +170,7 @@ export async function POST(req: Request) {
       const response = NextResponse.json({
         success: true,
         user,
-        redirectUrl: mustChangePassword ? "/cambiar-clave" : "/portal-conductor",
+        redirectUrl: mustChangePassword ? "/cambiar-clave" : user.rolPrincipal === "conductor" ? "/portal-conductor" : "/",
       });
 
       // Guardar cookie HTTP-Only segura por 7 días
@@ -243,7 +243,7 @@ export async function POST(req: Request) {
       });
     }
 
-    const rolPrincipal = getRolPrincipal(persona.perfiles);
+    const rolPrincipal = getRolPrincipal(persona.perfiles, persona.rolAcceso);
     const user = {
       id: persona.id,
       documento: persona.numeroDocumento,

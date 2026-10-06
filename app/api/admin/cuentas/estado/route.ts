@@ -47,6 +47,7 @@ export async function PATCH(req: Request) {
       pin: true,
       passwordHash: true,
       cuentaAcceso: true,
+      cuentaGoogle: { select: { estado: true } },
     },
   });
   if (!persona) {
@@ -68,7 +69,7 @@ export async function PATCH(req: Request) {
   }
 
   const now = new Date();
-  const hasCredential = Boolean(persona.passwordHash || persona.pin);
+  const hasCredential = Boolean(persona.passwordHash || persona.pin || persona.cuentaGoogle?.estado === "aprobada");
   const nextState =
     action === "block"
       ? "bloqueada"

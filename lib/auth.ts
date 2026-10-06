@@ -20,6 +20,7 @@ export async function getServerSession(): Promise<SessionUser | null> {
       select: {
         estado: true,
         perfiles: true,
+        rolAcceso: true,
         cuentaAcceso: { select: { estado: true, sessionVersion: true } },
       },
     });
@@ -29,10 +30,14 @@ export async function getServerSession(): Promise<SessionUser | null> {
     const tokenVersion = session.sessionVersion ?? 1;
     if (tokenVersion !== persona.cuentaAcceso.sessionVersion) return null;
 
+    if (session.authProvider === "google") {
+      const google = session.googleAccountId ? await prisma.cuentaGoogle.findUnique({ where: { id: session.googleAccountId }, select: { estado: true, personaId: true } }) : null;
+      if (!google || google.estado !== "aprobada" || google.personaId !== session.id) return null;
+    }
     return {
       ...session,
       perfiles: persona.perfiles,
-      rolPrincipal: getRolPrincipal(persona.perfiles),
+      rolPrincipal: getRolPrincipal(persona.perfiles, persona.rolAcceso),
       sessionVersion: persona.cuentaAcceso.sessionVersion,
     };
   } catch {

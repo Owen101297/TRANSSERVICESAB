@@ -12,9 +12,9 @@ import { getContratistasDb } from "@/lib/services/contratistas.service";
 
 const PERFIL_OPTIONS = [
   { value: "conductor", label: "Conductor (Portal Conductor / Apps)" },
-  { value: "hseq", label: "HSEQ (Seguridad, PESV, SG-SST)" },
-  { value: "supervisor", label: "Supervisor / Coordinador Operativo" },
-  { value: "administrativo", label: "Administrativo (Acceso Total ERP)" },
+  { value: "hseq", label: "HSEQ" },
+  { value: "supervisor", label: "Supervisor" },
+  { value: "administrativo", label: "Administrativo" },
   { value: "empleado", label: "Empleado General" },
 ];
 
@@ -142,7 +142,7 @@ export function EditPersonaModal({
             <div>
               <label className="block text-xs font-mono font-bold text-fog-400 uppercase mb-1 flex items-center gap-1.5">
                 <Shield size={13} className="text-signal-amber" />
-                Perfil / Rol de Acceso *
+                Perfil laboral *
               </label>
               <select
                 name="perfil"
