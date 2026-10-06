@@ -87,6 +87,8 @@ Los pendientes locales identificados del conductor se muestran como borradores d
 
 `tests/staging-operational-flow.mjs` requiere `ERP_OPERATIONAL_STAGING_TEST=1` y el origen exacto de staging. Comprueba activación, identidad, selección, ocupación, jornada, preoperacional, cinco apps, historial privado, cierre, odómetro y rechazo de cierre con viaje activo; sus filas sintéticas se retiran al terminar.
 
+`tests/staging-google-access.mjs` requiere `ERP_GOOGLE_STAGING_TEST=1` y el origen de staging. Verifica pendientes sin acceso, aprobación, revocación, dos roles, sesiones invalidadas y conservación de perfiles y credenciales con filas sintéticas. No sustituye el ingreso real con el cliente OAuth del propietario.
+
 ## Organización del código
 
 - `app/`: páginas, layouts y API.

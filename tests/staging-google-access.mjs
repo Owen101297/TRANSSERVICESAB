@@ -32,7 +32,7 @@ try{
  const revokedPerson=await prisma.cuentaAcceso.findUniqueOrThrow({where:{personaId:ids[2]}});cookies.revoked=token(2,{authProvider:'google',googleAccountId:googleIds[0]},revokedPerson.sessionVersion);
  await request('revoked','GET','/api/auth/me',undefined,401);
  await request(0,'PATCH','/api/admin/cuentas/acceso',{personaId:ids[2],rolAcceso:'administrativo'});
- const newVersion=await prisma.cuentaAcceso.findUniqueOrThrow({where:{personaId:ids[2]}});cookies.promoted=token(2,{},newVersion.sessionVersion);
+ const newVersion=await prisma.cuentaAcceso.findUniqueOrThrow({where:{personaId:ids[2]}});cookies.promoted=token(2,{rolPrincipal:'administrativo'},newVersion.sessionVersion);
  assert.equal((await request('promoted','GET','/api/auth/me')).data.user.rolPrincipal,'administrativo');checks++;
  await request('promoted','GET','/api/admin/cuentas/google');
  const preserved=await prisma.persona.findUniqueOrThrow({where:{id:ids[2]}});assert.deepEqual(preserved.perfiles,['conductor']);assert.equal(preserved.pin,'fixture-pin-preserved');checks++;
