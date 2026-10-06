@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { quickAsignarConductorVehiculoAction } from "@/lib/services/asignaciones.service";
+import { encodeSession, AUTH_COOKIE_NAME } from "@/lib/session";
+import { normalizeVehiclePlate } from "@/lib/portal-validation";
+import { plateVariants } from "@/lib/operational-day";
 import { requireApiSession } from "@/lib/api-auth";
 
 
@@ -37,6 +40,16 @@ export async function POST(req: NextRequest) {
 
     if (!placa) {
       return NextResponse.json({ error: "Debes ingresar una placa válida." }, { status: 400 });
+    }
+
+    // Personal administrativo selecciona un vehículo para su sesión, sin sustituir conductores.
+    if (auth.session.rolPrincipal !== "conductor" && !conductorId && !documento) {
+      const vehicle = await prisma.vehiculo.findFirst({ where: { placa: { in: plateVariants(normalizeVehiclePlate(placa)), mode: "insensitive" }, estado: "activo" }, select: { placa: true } });
+      if (!vehicle) return NextResponse.json({ error: "Selecciona un vehículo activo." }, { status: 400 });
+      const token = await encodeSession({ ...auth.session, placaAsignada: vehicle.placa });
+      const response = NextResponse.json({ success: true, placa: vehicle.placa, mode: "seleccion_administrativa" });
+      response.cookies.set(AUTH_COOKIE_NAME, token, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 7 });
+      return response;
     }
 
     let targetConductorId = auth.session.rolPrincipal === "conductor" ? auth.session.id : conductorId;

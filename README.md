@@ -69,6 +69,8 @@ Ejecutar estos controles en un entorno de desarrollo con recursos suficientes. L
 
 ### Portal del conductor: alcance de esta entrega
 
+El personal administrativo puede seleccionar un vehículo para su propia sesión y abrir las apps, sin crear una asignación ni sustituir la de otro conductor. La placa se conserva en la sesión firmada; los registros enviados conservan la identidad administrativa.
+
 El conductor selecciona su vehículo disponible, abre la jornada, realiza el preoperacional y accede al gerenciamiento. El inicio muestra la siguiente acción y explica los requisitos de las apps. Jornada permite registrar odómetro final y fotografía para cerrar, conserva el turno original y bloquea el cierre cuando existe un viaje en curso. El historial personal reúne jornadas, inspecciones, viajes y registros de las otras apps, incluidos turnos anteriores que necesitan cierre.
 
 Los pendientes locales identificados del conductor se muestran como borradores del dispositivo, sin confundirlos con registros confirmados. Esto no constituye funcionamiento completo sin internet: las colas antiguas y los formularios requieren revisión individual. El envío sin duplicados, la recuperación de cada borrador y el flujo detallado de novedades HSEQ se validarán al trabajar cada app con el usuario. No se declara implementado el ciclo completo de mantenimiento, descansos o cumplimiento normativo.

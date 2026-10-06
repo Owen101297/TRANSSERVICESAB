@@ -128,7 +128,7 @@ export async function getCurrentUser() {
                     nombre: data.usuario.nombre,
                     documento: data.usuario.documento,
                     rol: data.usuario.rol,
-                    placa: data.asignacion?.placa || null
+                    placa: data.vehiculoActual?.placa || data.asignacion?.placa || null
                 };
                 localStorage.setItem("transservices_conductor", JSON.stringify(user));
                 return user;

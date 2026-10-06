@@ -18,7 +18,7 @@
       const data = await response.json();
       if (!data.success || !data.usuario) throw new Error('La sesión no está activa.');
       session = { id: data.usuario.id, nombre: data.usuario.nombre, documento: data.usuario.documento,
-        rol: data.usuario.rol, placa: data.asignacion?.placa || null };
+        rol: data.usuario.rol, placa: data.vehiculoActual?.placa || data.asignacion?.placa || null };
       if (session.rol === 'conductor' && !session.placa) throw new Error('Selecciona tu vehículo en el portal antes de abrir una app.');
       window.ADMIN_AUDIT_MODE = session.rol !== 'conductor';
       localStorage.setItem('transservices_conductor', JSON.stringify(session));

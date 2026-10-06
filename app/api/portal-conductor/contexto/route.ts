@@ -27,7 +27,11 @@ export async function GET() {
     orderBy: { fechaInicio: "desc" },
   });
 
-  const placa = asignacion?.placa || null;
+  const selectedVehicle = session.rolPrincipal !== "conductor" && session.placaAsignada
+    ? await prisma.vehiculo.findFirst({ where: { placa: { in: plateVariants(session.placaAsignada), mode: "insensitive" }, estado: "activo" }, select: { id: true, placa: true, marca: true, modelo: true, estado: true } })
+    : null;
+  const vehiculoActual = selectedVehicle || asignacion?.vehiculo || null;
+  const placa = vehiculoActual?.placa || null;
   const [turno, preoperacional, viajeActivo, capacitacionesPendientes] = await Promise.all([
     prisma.turnoDespacho.findFirst({
       where: {
@@ -78,6 +82,8 @@ export async function GET() {
       rol: session.rolPrincipal,
       perfiles: session.perfiles,
     },
+    vehiculoActual,
+    seleccionAdministrativa: Boolean(selectedVehicle),
     asignacion: asignacion
       ? {
           id: asignacion.id,

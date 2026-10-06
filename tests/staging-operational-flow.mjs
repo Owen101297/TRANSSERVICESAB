@@ -42,6 +42,14 @@ try {
   assert.equal((await request('driver', 'GET', '/api/portal-conductor/contexto')).data.asignacion, null);
   await request('driver', 'POST', '/api/portal-conductor/cambiar-vehiculo', { placa: plates[0], conductorId: ids[2] });
   assert.equal((await prisma.asignacion.findFirstOrThrow({ where: { placa: plates[0], estado: 'activa' } })).conductorId, ids[1]); checks++;
+  const beforeAdminSelection = await prisma.asignacion.findFirstOrThrow({ where: { placa: plates[0], estado: 'activa' } });
+  const adminSelection = await request('admin', 'POST', '/api/portal-conductor/cambiar-vehiculo', { placa: plates[0] });
+  cookies.admin = adminSelection.response.headers.get('set-cookie').split(';')[0];
+  const adminContext = (await request('admin', 'GET', '/api/portal-conductor/contexto')).data;
+  assert.equal(adminContext.vehiculoActual.placa, plates[0]); assert.equal(adminContext.asignacion, null); assert.equal(adminContext.seleccionAdministrativa, true); checks++;
+  assert.equal((await prisma.asignacion.findUniqueOrThrow({ where: { id: beforeAdminSelection.id } })).estado, 'activa'); checks++;
+  assert.equal(await prisma.asignacion.count({ where: { conductorId: ids[0] } }), 0); checks++;
+  assert.equal((await request('driver', 'GET', '/api/portal-conductor/contexto')).data.vehiculoActual.placa, plates[0]); checks++;
   await request('other', 'POST', '/api/portal-conductor/cambiar-vehiculo', { placa: plates[0] }, 400);
   await request('driver', 'POST', '/api/apps/viajes', { placa: plates[0], riskInputs: risk }, 409);
   const shift = await request('driver', 'POST', '/api/portal-conductor/turno', payload(plates[0]));

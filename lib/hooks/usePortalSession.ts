@@ -29,7 +29,7 @@ export function usePortalSession() {
           nombre: data.usuario.nombre,
           documento: data.usuario.documento,
           rol: data.usuario.rol,
-          placa: data.asignacion?.placa || null,
+          placa: data.vehiculoActual?.placa || data.asignacion?.placa || null,
         };
         setSession(value);
         // Compatibilidad temporal para microapps. La API sigue siendo la autoridad.
