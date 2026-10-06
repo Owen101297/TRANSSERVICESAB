@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   AlertTriangle,
   Clock,
-  CheckCircle2,
   ChevronDown,
   ChevronUp,
   Filter,
@@ -37,14 +36,14 @@ export function AlertasVencimientoPanel({
 
   if (resumen.totalConAlertas === 0) {
     return (
-      <div className="flex items-center justify-between rounded-lg border border-ok-green/30 bg-ok-green-dim/40 px-4 py-2.5 text-xs text-paper-50 animate-fadeIn">
-        <div className="flex items-center gap-2 text-ok-green">
-          <CheckCircle2 size={16} />
+      <div className="flex items-center justify-between rounded-lg border border-line-600/70 bg-asphalt-900/30 px-4 py-2.5 text-xs text-paper-50 animate-fadeIn">
+        <div className="flex items-center gap-2 text-fog-400">
+          <Clock size={16} />
           <span className="font-semibold">
-            Semáforo Preventivo HSEQ 100% al día
+            Sin alertas de vencimiento registradas
           </span>
           <span className="text-fog-400 font-normal">
-            — Todos los conductores activos cuentan con licencias y exámenes médicos vigentes.
+            — Completa las fechas de licencias y exámenes médicos para revisar su vigencia.
           </span>
         </div>
       </div>

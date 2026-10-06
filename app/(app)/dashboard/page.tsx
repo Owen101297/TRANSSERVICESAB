@@ -7,7 +7,6 @@ import {
   AlertTriangle,
   FileText,
   ShieldCheck,
-  CheckCircle2,
   ChevronRight,
   Clock,
   Zap,
@@ -207,9 +206,11 @@ export default async function DashboardPage() {
             {/* Listado de Documentos en Riesgo */}
             <div className="mt-3.5 space-y-2.5 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
               {alertasVencimiento.length === 0 ? (
-                <div className="rounded-xl border border-ok-green/30 bg-ok-green-dim/10 p-6 text-center text-xs text-ok-green flex items-center justify-center gap-2">
-                  <CheckCircle2 size={16} />
-                  <span>Todos los documentos de la flota y conductores se encuentran 100% al día.</span>
+                <div className="rounded-xl border border-line-600/70 bg-asphalt-900/30 p-6 text-center text-xs text-fog-400 flex items-center justify-center gap-2">
+                  <FileText size={16} />
+                  <span>{totalVehiculos === 0 && totalConductores === 0
+                    ? "Aún no hay vehículos ni conductores registrados. Agrega personal y flota para revisar los vencimientos."
+                    : "Sin alertas de vencimiento en las fechas registradas. Completa la documentación para evaluar su vigencia."}</span>
                 </div>
               ) : (
                 alertasVencimiento.slice(0, 6).map((alerta) => (

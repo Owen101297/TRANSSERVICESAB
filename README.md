@@ -51,6 +51,8 @@ Configurar `GOOGLE_LOGIN_CLIENT_ID`, `GOOGLE_LOGIN_CLIENT_SECRET` y `PUBLIC_APP_
 
 Las migraciones añaden una columna y una tabla e inicializan únicamente el nuevo rol de las cuentas existentes. El registro manual y Excel define el rol al crear una persona; editar perfiles laborales no cambia el acceso. No modifican perfiles, claves ni registros de negocio. Se aplicará con respaldo previo por entorno. El ingreso real con Google requiere el cliente OAuth externo del propietario y debe comprobarse tras configurarlo.
 
+Para empezar personal y flota desde cero se conserva un respaldo completo y un archivo privado de las tablas anteriores, se valida la operación en una copia aislada y staging, y se mantienen las cuentas administrativas ya verificadas. Los historiales del personal y la flota anterior se retiran de la operación activa, conservando su recuperación; no se eliminan archivos externos ni catálogos de otros módulos. Las cuentas administrativas corporativas pueden usar un identificador interno de Google, claramente marcado como `CUENTA`, sin inventar una cédula o un teléfono. Una pantalla sin registros o fechas no acredita cumplimiento documental.
+
 ## Prioridades actuales
 
 1. Unificar el registro manual y por Excel de personal y vehículos, sin contactos, marcas, fechas o capacidades inventadas; conservar documentos e historial.
