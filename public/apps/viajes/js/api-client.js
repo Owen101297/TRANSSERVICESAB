@@ -271,14 +271,22 @@ function saveOfflineQueue(queue) {
     } catch (e) { console.warn('Error guardando cola offline:', e); }
 }
 
+let syncingOffline = false;
 export async function syncOfflineViajes() {
+    if (syncingOffline) return;
+    const user = await getCurrentUser();
+    if (!user || (user.rolPrincipal || user.rol) !== "conductor") return;
     const queue = getOfflineQueue();
     if (!queue.length) return;
 
+    syncingOffline = true;
     console.log(`[Offline Sync] Sincronizando ${queue.length} viajes pendientes...`);
     const remaining = [];
 
     for (const item of queue) {
+        if (item.payload?.conductorId !== user.id || item.payload?.conductorDocumento !== user.documento) {
+            remaining.push(item); continue;
+        }
         try {
             const res = await fetch('/api/apps/viajes', {
                 method: item.method || 'POST',
@@ -292,6 +300,7 @@ export async function syncOfflineViajes() {
     }
 
     saveOfflineQueue(remaining);
+    syncingOffline = false;
     if (remaining.length < queue.length) {
         if (typeof window !== 'undefined' && window.TS?.toastSuccess) {
             window.TS.toastSuccess(`Sincronizados ${queue.length - remaining.length} viajes con el ERP.`);
@@ -306,6 +315,7 @@ if (typeof window !== 'undefined') {
 class ApiRequestError extends Error {}
 
 export async function createViaje(viaje) {
+    const identity = typeof window !== "undefined" && window.TransServicesReady ? await window.TransServicesReady : null;
     const payload = {
         conductorId: viaje.conductor_id || viaje.conductorId,
         conductorNombre: viaje.conductor_nombre || viaje.conductorNombre,
@@ -345,6 +355,9 @@ export async function createViaje(viaje) {
         observaciones: viaje.observaciones
     };
 
+    if (identity?.rol === 'conductor') {
+        payload.conductorId = identity.id; payload.conductorDocumento = identity.documento; payload.conductorNombre = identity.nombre;
+    }
     try {
         const res = await fetch('/api/apps/viajes', {
             method: 'POST',

@@ -414,6 +414,7 @@
     }
 
     async function enviarEncuesta() {
+      const identity = window.TransServicesReady ? await window.TransServicesReady : null;
       if (Object.values(ratings).some(value => value < 1) || !recomendacion) {
         alert("Selecciona las cinco calificaciones y si recomendarías el servicio antes de enviar.");
         return;
@@ -425,6 +426,7 @@
       const emailEncuestado = document.getElementById("emailEncuestado").value.trim();
 
       const payload = {
+        conductorDocumento: identity?.documento || null,
         tipoEncuesta: "satisfaccion_servicio",
         titulo: "Encuesta de Satisfacción y Calidad de Ruta",
         placa: placa || null,
