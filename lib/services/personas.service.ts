@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import { getRolPrincipal } from "@/lib/session";
 import { hashPassword } from "@/lib/password";
 import { requireStaffSession } from "@/lib/auth";
 import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction, rethrowMutationInProduction } from "@/lib/production-safety";
@@ -316,6 +317,7 @@ export async function createPersonaAction(formData: FormData): Promise<CreatePer
             telefono,
             email: email || "",
             perfiles: [perfil],
+            rolAcceso: getRolPrincipal([perfil]),
             estado: "activo",
             contratistaId: contratistaId || null,
             contratistaNombre: contratistaNombre || null,
@@ -716,6 +718,7 @@ export async function batchUpsertPersonasDb(items: any[]) {
                 telefono: telefono || "",
                 email: email || "",
                 perfiles,
+                rolAcceso: getRolPrincipal(perfiles),
                 estado,
                 contratistaId,
                 contratistaNombre: contratistaNombre || undefined,

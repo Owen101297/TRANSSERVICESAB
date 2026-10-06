@@ -49,7 +49,7 @@ El inicio Google utiliza código de autorización, PKCE, estado firmado y nonce;
 
 Configurar `GOOGLE_LOGIN_CLIENT_ID`, `GOOGLE_LOGIN_CLIENT_SECRET` y `PUBLIC_APP_URL` en Coolify. Registrar en Google Cloud las direcciones `https://erp.owenai.uk/api/auth/google/callback` y `https://erp-staging.owenai.uk/api/auth/google/callback`. La página `/integraciones/google-acceso` contiene instrucciones y privacidad. Sin credenciales, el botón Google queda deshabilitado y no se declara la conexión verificada.
 
-La migración añade una columna opcional y una tabla; no modifica perfiles, claves ni registros de negocio. Se aplicará con respaldo previo por entorno. El ingreso real con Google requiere el cliente OAuth externo del propietario y debe comprobarse tras configurarlo.
+Las migraciones añaden una columna y una tabla e inicializan únicamente el nuevo rol de las cuentas existentes. El registro manual y Excel define el rol al crear una persona; editar perfiles laborales no cambia el acceso. No modifican perfiles, claves ni registros de negocio. Se aplicará con respaldo previo por entorno. El ingreso real con Google requiere el cliente OAuth externo del propietario y debe comprobarse tras configurarlo.
 
 ## Prioridades actuales
 
