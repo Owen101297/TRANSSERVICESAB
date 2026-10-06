@@ -153,7 +153,7 @@ export default function CapacitacionesPage() {
       ? `\n📝 *1. Ver Material y Responder Evaluación:*\n👉 ${cap.materialUrl}\n`
       : "";
 
-    const linkFirma = `\n✍️ *${cap.materialUrl ? "2. " : ""}Registrar Asistencia Legal (TH-FOR-03):*\n👉 https://erp.transservicesab.com/asistir?tema=${encodeURIComponent(cap.nombre)}`;
+    const linkFirma = `\n✍️ *${cap.materialUrl ? "2. " : ""}Registrar Asistencia Legal (TH-FOR-03):*\n👉 ${window.location.origin}/asistir?tema=${encodeURIComponent(cap.nombre)}`;
 
     const mensaje = 
 `🎓 *TRANS SERVICES S.A.S. - CAPACITACIÓN & EVALUACIÓN*
@@ -169,7 +169,7 @@ _Cumplimiento Normativo PESV Res. 40595/2022 y SG-SST Dec. 1072_`;
 
   const handleCopyLink = (cap: Capacitacion) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
-      const link = `https://erp.transservicesab.com/asistir?tema=${encodeURIComponent(cap.nombre)}`;
+      const link = `${window.location.origin}/asistir?tema=${encodeURIComponent(cap.nombre)}`;
       navigator.clipboard.writeText(link);
       setCopiedCapId(cap.id);
       setTimeout(() => setCopiedCapId(null), 2500);

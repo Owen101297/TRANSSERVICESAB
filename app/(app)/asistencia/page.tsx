@@ -305,7 +305,7 @@ export function AsistenciaAdminPage({ initialDate }: { initialDate?: string } = 
       day: "numeric",
     });
 
-    const linkAsistir = `https://erp.transservicesab.com/asistir?tema=${encodeURIComponent(temaActivo)}&lugar=${encodeURIComponent(lugarActivo)}`;
+    const linkAsistir = `${window.location.origin}/asistir?tema=${encodeURIComponent(temaActivo)}&lugar=${encodeURIComponent(lugarActivo)}`;
 
     const mensaje = 
 `🚚 *TRANS SERVICES S.A.S. - REGISTRO DE ASISTENCIA DIARIA*
@@ -324,7 +324,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
   // Copiar Enlace Corto con Parámetros Inmutables
   const handleCopyLink = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
-      const linkAsistir = `https://erp.transservicesab.com/asistir?tema=${encodeURIComponent(temaActivo)}&lugar=${encodeURIComponent(lugarActivo)}`;
+      const linkAsistir = `${window.location.origin}/asistir?tema=${encodeURIComponent(temaActivo)}&lugar=${encodeURIComponent(lugarActivo)}`;
       navigator.clipboard.writeText(linkAsistir);
       setCopiedLinkFeedback(true);
       setTimeout(() => setCopiedLinkFeedback(false), 2500);
@@ -912,7 +912,7 @@ _Cumplimiento SG-SST y PESV Res. 40595/2022_`;
                 className="px-2 py-0.5 bg-asphalt-950 hover:bg-asphalt-800 border border-line-600 hover:border-radar-cyan text-radar-cyan rounded-md cursor-pointer transition-colors"
                 title="Hacer clic para copiar enlace corto"
               >
-                https://erp.transservicesab.com/asistir
+                /asistir
               </code>
             </div>
             <span className="text-fog-400/80 italic">

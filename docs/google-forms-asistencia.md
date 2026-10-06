@@ -9,17 +9,17 @@ Esta configuración se realiza una sola vez con `transserviceshseq.ab@gmail.com`
 1. Crea un proyecto independiente en [Google Apps Script](https://script.google.com/).
 2. Copia el contenido de `scripts/google-forms-central-connector.gs` en `Código.gs`.
 3. Activa **Mostrar el archivo de manifiesto appsscript.json** en la configuración del proyecto y reemplázalo con `scripts/google-forms-central-appsscript.json`.
-4. En **Configuración del proyecto > Propiedades del script**, crea `CONNECTOR_SECRET` con un valor aleatorio largo. Debe ser igual a `GOOGLE_FORMS_CONNECTOR_SECRET` en Railway.
+4. En **Configuración del proyecto > Propiedades del script**, crea `CONNECTOR_SECRET` con un valor aleatorio largo. Debe ser igual a `GOOGLE_FORMS_CONNECTOR_SECRET` en Coolify.
 5. En el editor selecciona `authorizeConnector`, pulsa **Ejecutar** y concede una sola vez los permisos de Forms y conexiones externas con la cuenta documental.
 6. Selecciona **Implementar > Nueva implementación > Aplicación web**.
 7. Configura **Ejecutar como: Yo** y permite el acceso a quien tenga el enlace.
-8. Copia la URL terminada en `/exec` y guárdala en Railway como `GOOGLE_FORMS_CONNECTOR_URL`.
+8. Copia la URL terminada en `/exec` y guárdala en Coolify como `GOOGLE_FORMS_CONNECTOR_URL`.
 9. Configura también `GOOGLE_FORMS_WEBHOOK_SECRET`; el ERP lo entrega cifrado por HTTPS al conector para autenticar las respuestas.
 
-En Railway, `PUBLIC_APP_URL` debe corresponder al dominio del ambiente. Para producción:
+En Coolify, `PUBLIC_APP_URL` debe corresponder al dominio del ambiente. Para producción:
 
 ```text
-PUBLIC_APP_URL=https://erp.transservicesab.com
+PUBLIC_APP_URL=https://erp.owenai.uk
 GOOGLE_FORMS_CONNECTOR_URL=https://script.google.com/macros/s/.../exec
 GOOGLE_FORMS_CONNECTOR_SECRET=<secreto-del-conector>
 GOOGLE_FORMS_WEBHOOK_SECRET=<secreto-del-webhook>
@@ -41,3 +41,7 @@ La cuenta del conector debe ser propietaria o editora de cada formulario. Cada f
 - **Respuesta no encontrada:** confirma que se utilizó el mismo documento y pulsa **Sincronizar respuestas**. Google Forms continúa siendo la fuente original aunque una entrega al ERP falle temporalmente.
 
 `scripts/google-forms-attendance.gs` se conserva únicamente para formularios heredados que todavía tengan un activador manual.
+
+## Entornos actuales
+
+Producción usa `https://erp.owenai.uk` y pruebas `https://erp-staging.owenai.uk`. Configurar `PUBLIC_APP_URL` según el recurso de Coolify correspondiente. El dominio empresarial se conectará al terminar el proyecto. Las variables del conector están presentes en ambos entornos; la configuración no equivale a una sincronización real verificada.

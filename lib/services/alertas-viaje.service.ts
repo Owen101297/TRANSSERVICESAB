@@ -39,7 +39,11 @@ export function procesarAlertaViaje(payload: AlertaViajePayload): AlertaResultad
   } = payload;
 
   const esAltoRiesgo = riskScore >= 24 || riskLevel?.toLowerCase() === "alto";
-  const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://erptransservices-production.up.railway.app";
+  const baseUrl = (
+    process.env.PUBLIC_APP_URL ||
+    process.env.NEXTAUTH_URL ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")
+  ).replace(/\/+$/, "");
   const urlVerificacion = `${baseUrl}/verificar/viaje/${viajeId}`;
 
   if (esAltoRiesgo || esNocturno || !preopAprobado) {

@@ -44,3 +44,6 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Diagnostico operativo privado, conservado localmente
+docs/diagnostico.json
