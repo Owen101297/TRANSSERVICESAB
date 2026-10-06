@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { createPreoperacionalDb, getPreoperacionalesDb } from "@/lib/services/preoperacional.service";
 import { requireApiSession } from "@/lib/api-auth";
-import { recordAudit } from "@/lib/audit";
 import { canAccessPortalVehicle, conductorIdentityFromSession, normalizeVehiclePlate } from "@/lib/portal-access";
-import { prisma } from "@/lib/prisma";
+import { TripPolicyError } from "@/lib/trip-policy";
 
 export async function POST(req: Request) {
   const auth = await requireApiSession();
@@ -19,28 +18,6 @@ export async function POST(req: Request) {
     if (!(await canAccessPortalVehicle(auth.session, cleanPlaca))) {
       return NextResponse.json({ error: "No autorizado para operar este vehículo." }, { status: 403 });
     }
-    if (auth.session.rolPrincipal === "conductor") {
-      const dia = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit",
-      }).format(new Date());
-      const turno = await prisma.turnoDespacho.findFirst({
-        where: {
-          conductorDocumento: auth.session.documento,
-          placa: { equals: cleanPlaca, mode: "insensitive" },
-          fecha: {
-            gte: new Date(`${dia}T00:00:00-05:00`),
-            lte: new Date(`${dia}T23:59:59.999-05:00`),
-          },
-        },
-        select: { id: true },
-      });
-      if (!turno) {
-        return NextResponse.json(
-          { success: false, error: "Primero debes abrir la jornada para este vehículo." },
-          { status: 409 }
-        );
-      }
-    }
 
     const result = await createPreoperacionalDb({
       conductorId: identity.id || undefined,
@@ -53,7 +30,6 @@ export async function POST(req: Request) {
       signature: body.signature || body.firmaConductor,
       fotoEvidenciaUrl: body.fotoEvidenciaUrl,
     });
-    await recordAudit({ action: "CREATE", entityType: "InspeccionPreoperacional", entityId: result.data?.id, after: result.data, actor: auth.session });
 
     return NextResponse.json({
       success: true,
@@ -61,6 +37,7 @@ export async function POST(req: Request) {
       data: result.data,
     });
   } catch (error: any) {
+    if (error instanceof TripPolicyError) return NextResponse.json({ error: error.message }, { status: error.status });
     console.error("Error al registrar preoperacional desde App:", error);
     return NextResponse.json(
       { success: false, error: error.message || "Error al registrar preoperacional" },
@@ -103,6 +80,7 @@ export async function GET(req: Request) {
       ...data,
     });
   } catch (error: any) {
+    if (error instanceof TripPolicyError) return NextResponse.json({ error: error.message }, { status: error.status });
     console.error("Error al obtener preoperacionales:", error);
     return NextResponse.json(
       { success: false, error: error.message || "Error al consultar preoperacionales" },

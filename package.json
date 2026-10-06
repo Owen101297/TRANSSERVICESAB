@@ -18,7 +18,7 @@
     "db:migrate": "tsx scripts/migrate-db.ts",
     "documents:migrate": "tsx scripts/migrate-document-blobs.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --test --experimental-strip-types tests/security.test.ts"
+    "test": "node --test --experimental-strip-types tests/*.test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -45,6 +45,7 @@
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "esbuild": "^0.28.2",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
     "railway": "^3.11.0",

@@ -4,12 +4,14 @@ import { procesarAlertaViaje } from "@/lib/services/alertas-viaje.service";
 import { requireApiSession, requireStaff } from "@/lib/api-auth";
 import { recordAudit } from "@/lib/audit";
 import { canAccessPortalVehicle, conductorIdentityFromSession, normalizeVehiclePlate } from "@/lib/portal-access";
+import { applyTripPolicy, jsonObject, TripPolicyError } from "@/lib/trip-policy";
+import type { SessionUser } from "@/lib/session";
 
 export async function POST(req: Request) {
   const auth = await requireApiSession();
   if (auth.response) return auth.response;
   try {
-    const body = await req.json();
+    const body = jsonObject(await req.json());
 
     const {
       conductorId,
@@ -42,11 +44,7 @@ export async function POST(req: Request) {
       previaje,
       fatiga,
       control,
-      riskScore,
-      riskLevel,
       riskInputs,
-      signatures,
-      estado,
       observaciones,
     } = body;
 
@@ -60,7 +58,7 @@ export async function POST(req: Request) {
     let vId = undefined;
     const cleanPlaca = normalizeVehiclePlate(placa);
 
-    if (auth.session.rolPrincipal === "conductor" && !cleanPlaca) {
+    if (!cleanPlaca) {
       return NextResponse.json({ error: "La placa del vehículo es obligatoria." }, { status: 400 });
     }
 
@@ -80,6 +78,11 @@ export async function POST(req: Request) {
       });
       if (vehiculo) vId = vehiculo.id;
     }
+    if (!vId) return NextResponse.json({ error: "Vehículo no registrado." }, { status: 400 });
+    const conductor = cId ? await prisma.persona.findUnique({ where: { id: cId } }) : null;
+    if (!conductor || ["inactivo", "retirado"].includes(conductor.estado)) {
+      return NextResponse.json({ error: "Conductor activo requerido." }, { status: 400 });
+    }
 
     const now = new Date();
     const horaLocalCo = now.toLocaleTimeString("es-CO", {
@@ -91,8 +94,8 @@ export async function POST(req: Request) {
     const horaFinal = horaSalida && horaSalida !== "06:00" ? horaSalida : horaLocalCo;
 
     // Empaquetar datos adicionales en riskInputs y signatures estructurados
-    const finalRiskInputs = {
-      ...(typeof riskInputs === "object" ? riskInputs : {}),
+    const finalRiskInputs: Record<string, any> = {
+      ...(riskInputs === undefined ? {} : jsonObject(riskInputs)),
       origenDivipola: origenDivipola || null,
       destinoDivipola: destinoDivipola || null,
       puntosControl: puntosControl || [],
@@ -115,14 +118,14 @@ export async function POST(req: Request) {
       vehiculoEmpresa: vehiculoEmpresa || null,
     };
 
-    const finalSignatures = typeof signatures === "object" ? signatures : {};
-
-    const viaje = await prisma.viaje.create({
+    const policy = applyTripPolicy(auth.session, { ...body, riskInputs: finalRiskInputs });
+    const viaje = await prisma.$transaction(async (tx) => {
+      const created = await tx.viaje.create({
       data: {
-        conductorId: cId || "conductor-general",
-        conductorNombre: identity.name || "Conductor Asignado",
-        vehiculoId: vId || "vehiculo-general",
-        placa: cleanPlaca || "WGM212",
+        conductorId: conductor.id,
+        conductorNombre: `${conductor.nombres} ${conductor.apellidos}`,
+        vehiculoId: vId,
+        placa: cleanPlaca,
         contratistaNombre: body.contratistaNombre || "TRANS SERVICES COOPERATIVA A&B",
         origen: origen || "Base Operativa",
         destino: destino || "Destino Operativo",
@@ -130,13 +133,12 @@ export async function POST(req: Request) {
         horaSalida: horaFinal,
         distanciaKm: distanciaKm ? Number(distanciaKm) : null,
         duracionEstimadaHoras: duracionEstimadaHoras ? Number(duracionEstimadaHoras) : 2.0,
-        estado: estado || "en_curso",
-        riskScore: riskScore !== undefined && riskScore !== null ? Number(riskScore) : null,
-        riskLevel: riskLevel || null,
-        riskInputs: finalRiskInputs,
-        signatures: finalSignatures,
+        ...policy,
         observaciones: observaciones || null,
       },
+      });
+      await recordAudit({ action: "CREATE", entityType: "Viaje", entityId: created.id, after: created, actor: auth.session }, tx);
+      return created;
     });
 
     const alerta = procesarAlertaViaje({
@@ -150,9 +152,8 @@ export async function POST(req: Request) {
       horaSalida: viaje.horaSalida || "08:00",
       riskScore: viaje.riskScore || 0,
       riskLevel: viaje.riskLevel || "Bajo",
-      esNocturno: Boolean(finalRiskInputs.esNocturno),
+      esNocturno: policy.riskInputs.rHora === 4,
     });
-    await recordAudit({ action: "CREATE", entityType: "Viaje", entityId: viaje.id, after: viaje, actor: auth.session });
 
     return NextResponse.json({
       success: true,
@@ -162,9 +163,11 @@ export async function POST(req: Request) {
       viaje,
     });
   } catch (error: any) {
+    if (error instanceof TripPolicyError) return NextResponse.json({ error: error.message }, { status: error.status });
+    if (error instanceof SyntaxError) return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
     console.error("Error al registrar viaje desde App:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Error al registrar el viaje" },
+      { success: false, error: "No fue posible registrar el viaje." },
       { status: 500 }
     );
   }
@@ -236,146 +239,62 @@ export async function GET(req: Request) {
 export async function PUT(req: Request) {
   const auth = await requireApiSession();
   if (auth.response) return auth.response;
-  try {
-    const { searchParams } = new URL(req.url);
-    const body = await req.json().catch(() => ({}));
-    const id = searchParams.get("id") || body.id;
-
-    if (!id) {
-      return NextResponse.json({ error: "ID de viaje requerido" }, { status: 400 });
-    }
-
-    const existing = await prisma.viaje.findUnique({ where: { id } });
-    if (!existing) {
-      return NextResponse.json({ error: "Viaje no encontrado" }, { status: 404 });
-    }
-    if (
-      auth.session.rolPrincipal === "conductor" &&
-      (existing.conductorId !== auth.session.id ||
-        body.estado === "Autorizado" ||
-        body.signatures?.hse ||
-        body.signatures?.gerencia)
-    ) {
-      return NextResponse.json({ error: "No autorizado." }, { status: 403 });
-    }
-
-    const currentRiskInputs = (existing.riskInputs as Record<string, any>) || {};
-    const currentSignatures = (existing.signatures as Record<string, any>) || {};
-
-    const updatedRiskInputs = {
-      ...currentRiskInputs,
-      ...(body.riskInputs || body.risk_inputs || {}),
-      ...(body.origenDivipola ? { origenDivipola: body.origenDivipola } : {}),
-      ...(body.destinoDivipola ? { destinoDivipola: body.destinoDivipola } : {}),
-      ...(body.kmLlegada !== undefined ? { kmLlegada: Number(body.kmLlegada) } : {}),
-      ...(body.gpsLlegada ? { gpsLlegada: body.gpsLlegada } : {}),
-      ...(body.puntosControl || body.puntos_control ? { puntosControl: body.puntosControl || body.puntos_control } : {}),
-    };
-
-    const updatedSignatures = {
-      ...currentSignatures,
-      ...(body.signatures || {}),
-    };
-
-    const updateData: any = {
-      signatures: updatedSignatures,
-      riskInputs: updatedRiskInputs,
-    };
-
-    if (body.estado) updateData.estado = body.estado;
-    if (body.observaciones !== undefined) updateData.observaciones = body.observaciones;
-    if (body.horaLlegada || body.hora_llegada) updateData.horaLlegada = body.horaLlegada || body.hora_llegada;
-    if (body.kmLlegada !== undefined || body.km_llegada !== undefined) {
-      const km = body.kmLlegada !== undefined ? body.kmLlegada : body.km_llegada;
-      if (km !== null && km !== "") {
-        updateData.fechaLlegadaReal = new Date();
-      }
-    }
-    if (body.riskScore !== undefined || body.risk_score !== undefined) {
-      updateData.riskScore = Number(body.riskScore ?? body.risk_score);
-    }
-    if (body.riskLevel || body.risk_level) {
-      updateData.riskLevel = body.riskLevel || body.risk_level;
-    }
-
-    const viaje = await prisma.viaje.update({
-      where: { id },
-      data: updateData,
-    });
-    await recordAudit({ action: "UPDATE", entityType: "Viaje", entityId: viaje.id, before: existing, after: viaje, actor: auth.session });
-
-    return NextResponse.json({
-      success: true,
-      id: viaje.id,
-      message: "Viaje actualizado exitosamente",
-      viaje: mapViajeResponse(viaje),
-    });
-  } catch (error: any) {
-    console.error("Error al actualizar viaje (PUT):", error);
-    return NextResponse.json({ error: error.message || "Error al actualizar viaje" }, { status: 500 });
-  }
+  return updateTrip(req, auth.session, false);
 }
 
 export async function PATCH(req: Request) {
   const auth = await requireApiSession();
   if (auth.response) return auth.response;
+  return updateTrip(req, auth.session, true);
+}
+
+async function updateTrip(req: Request, session: SessionUser, closeByDefault: boolean) {
   try {
-    const { searchParams } = new URL(req.url);
-    const body = await req.json().catch(() => ({}));
-    const id = searchParams.get("id") || body.id;
-
-    if (!id) {
-      return NextResponse.json({ error: "ID de viaje requerido" }, { status: 400 });
+    const body = jsonObject(await req.json());
+    const id = new URL(req.url).searchParams.get("id") || body.id;
+    if (typeof id !== "string" || !id.trim()) {
+      throw new TripPolicyError("ID de viaje requerido.", 400);
     }
-
-    const existingTrip = await prisma.viaje.findUnique({ where: { id } });
-    if (
-      !existingTrip ||
-      (auth.session.rolPrincipal === "conductor" &&
-        existingTrip.conductorId !== auth.session.id)
-    ) {
-      return NextResponse.json(
-        { error: existingTrip ? "No autorizado." : "Viaje no encontrado" },
-        { status: existingTrip ? 403 : 404 }
-      );
-    }
-
-    const now = new Date();
-    const horaLlegadaCo = now.toLocaleTimeString("es-CO", {
-      timeZone: "America/Bogota",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-
-    const updateData: any = {
-      estado: body.estado || "finalizado",
-      fechaLlegadaReal: now,
-      horaLlegada: body.horaLlegada || horaLlegadaCo,
+    const existing = await prisma.viaje.findUnique({ where: { id } });
+    if (!existing) throw new TripPolicyError("Viaje no encontrado.", 404);
+    if (closeByDefault && body.estado === undefined) body.estado = "finalizado";
+    const policy = applyTripPolicy(session, body, existing);
+    const mergedInputs: Record<string, any> = { ...policy.riskInputs,
+      ...(body.origenDivipola ? { origenDivipola: body.origenDivipola } : {}),
+      ...(body.destinoDivipola ? { destinoDivipola: body.destinoDivipola } : {}),
+      ...(body.gpsLlegada ? { gpsLlegada: body.gpsLlegada } : {}),
+      ...(body.puntosControl || body.puntos_control ? { puntosControl: body.puntosControl || body.puntos_control } : {}),
     };
-
-    if (body.observaciones !== undefined) updateData.observaciones = body.observaciones;
-    if (body.signatures) {
-      const existing = await prisma.viaje.findUnique({ where: { id } });
-      const currentSignatures = (existing?.signatures as Record<string, any>) || {};
-      updateData.signatures = { ...currentSignatures, ...body.signatures };
+    const km = body.kmLlegada ?? body.km_llegada;
+    if (km !== undefined && km !== null && km !== "") {
+      if (!Number.isFinite(Number(km)) || Number(km) < 0) throw new TripPolicyError("Kilometraje inválido.", 400);
+      mergedInputs.kmLlegada = Number(km);
     }
-
-    const viaje = await prisma.viaje.update({
-      where: { id },
-      data: updateData,
+    const now = new Date();
+    const data = { ...policy, riskInputs: mergedInputs,
+      ...(body.observaciones !== undefined ? { observaciones: body.observaciones } : {}),
+      ...(policy.estado === "finalizado" ? {
+        fechaLlegadaReal: now,
+        horaLlegada: body.horaLlegada || body.hora_llegada || now.toLocaleTimeString("es-CO", {
+          timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit", hour12: true,
+        }),
+      } : {}),
+    };
+    const viaje = await prisma.$transaction(async (tx) => {
+      // Evitar que dos solicitudes sobrescriban una autorización o un cierre concurrente.
+      const result = await tx.viaje.updateMany({ where: { id, updatedAt: existing.updatedAt }, data });
+      if (result.count !== 1) throw new TripPolicyError("El viaje cambió; recarga antes de continuar.", 409);
+      const updated = await tx.viaje.findUniqueOrThrow({ where: { id } });
+      await recordAudit({ action: existing.estado === updated.estado ? "UPDATE" : "STATUS_CHANGE",
+        entityType: "Viaje", entityId: id, before: existing, after: updated, actor: session }, tx);
+      return updated;
     });
-    await recordAudit({ action: "STATUS_CHANGE", entityType: "Viaje", entityId: viaje.id, before: existingTrip, after: viaje, actor: auth.session });
-
-    return NextResponse.json({
-      success: true,
-      id: viaje.id,
-      message: "Viaje actualizado exitosamente",
-      viaje: mapViajeResponse(viaje),
-    });
+    return NextResponse.json({ success: true, id, message: "Viaje actualizado exitosamente", viaje: mapViajeResponse(viaje) });
   } catch (error: any) {
-    console.error("Error al actualizar viaje (PATCH):", error);
-    return NextResponse.json({ error: error.message || "Error al actualizar viaje" }, { status: 500 });
+    if (error instanceof TripPolicyError) return NextResponse.json({ error: error.message }, { status: error.status });
+    if (error instanceof SyntaxError) return NextResponse.json({ error: "JSON inválido." }, { status: 400 });
+    console.error("Error al actualizar viaje:", error);
+    return NextResponse.json({ error: "No fue posible actualizar el viaje." }, { status: 500 });
   }
 }
 

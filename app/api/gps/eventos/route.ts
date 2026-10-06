@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  registrarEventoGPSDb,
   getEventosGPSDb,
   getResumenAlertasGPSDb,
 } from "@/lib/services/gps.service";
+import { registrarEventoGPSDb } from "@/lib/gps-data";
 import { TipoEventoGPS, PrioridadEventoGPS } from "@/lib/types/gps";
 import { requireStaff } from "@/lib/api-auth";
 import { recordAudit } from "@/lib/audit";

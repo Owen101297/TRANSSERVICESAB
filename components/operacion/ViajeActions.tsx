@@ -17,7 +17,11 @@ export function ViajeActions({ viajeId }: { viajeId: string }) {
     e.preventDefault();
     startTransition(async () => {
       const kmNum = kmLlegada ? parseFloat(kmLlegada) : undefined;
-      await finalizarViajeAction(viajeId, kmNum, horaLlegada || undefined);
+      const result = await finalizarViajeAction(viajeId, kmNum, horaLlegada || undefined);
+      if (!result.success) {
+        window.alert(result.error || "No fue posible finalizar el viaje.");
+        return;
+      }
       setIsFinalizarOpen(false);
       window.location.reload();
     });

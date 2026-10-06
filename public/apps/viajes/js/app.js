@@ -1214,6 +1214,11 @@ async function handleSubmit(e) {
 
     try {
         const savedTrip = await db.saveTrip(formData);
+        if (savedTrip.offline) {
+            TS.toastWarning("Guardado en el móvil, pendiente de validación del servidor. Todavía no autoriza el viaje.");
+            resetFormAndExit();
+            return;
+        }
         const tripId = savedTrip.id || savedTrip.viaje?.id;
 
         if (!tripId) {
@@ -1350,12 +1355,9 @@ window.submitPinAuth = async function() {
         return;
     }
 
+    const cb = pinAuthCallback;
     closePinAuthModal();
-    if (pinAuthCallback) {
-        const cb = pinAuthCallback;
-        pinAuthCallback = null;
-        await cb();
-    }
+    if (cb) await cb();
 };
 
 // ============================================================

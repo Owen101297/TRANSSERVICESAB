@@ -303,6 +303,8 @@ if (typeof window !== 'undefined') {
     window.addEventListener('online', syncOfflineViajes);
 }
 
+class ApiRequestError extends Error {}
+
 export async function createViaje(viaje) {
     const payload = {
         conductorId: viaje.conductor_id || viaje.conductorId,
@@ -321,10 +323,10 @@ export async function createViaje(viaje) {
         origenDivipola: viaje.origen_divipola || viaje.origenDivipola,
         destino: viaje.destino,
         destinoDivipola: viaje.destino_divipola || viaje.destinoDivipola,
-        fechaSalida: viaje.fecha_salida || viaje.fecha,
+        fechaSalida: viaje.fechaSalida || viaje.fecha_salida || viaje.fecha,
         horaSalida: viaje.hora_salida || viaje.horaSalida,
-        distanciaKm: viaje.distancia_km || viaje.distanciaEstimada,
-        duracionEstimadaHoras: viaje.duracion_estimada_horas || 2.0,
+        distanciaKm: viaje.distanciaKm ?? viaje.distancia_km ?? viaje.distanciaEstimada,
+        duracionEstimadaHoras: viaje.duracionEstimadaHoras ?? viaje.duracion_estimada_horas ?? 2.0,
         kmSalida: viaje.km_salida || viaje.kmSalida,
         kmLlegada: viaje.km_llegada || viaje.kmLlegada,
         gpsSalida: viaje.gps_salida || viaje.gpsSalida,
@@ -335,9 +337,9 @@ export async function createViaje(viaje) {
         previaje: viaje.previaje || {},
         fatiga: viaje.fatiga || {},
         control: viaje.control || {},
-        riskScore: viaje.risk_score || viaje.risk?.score,
-        riskLevel: viaje.risk_level || viaje.risk?.level,
-        riskInputs: viaje.risk_inputs || viaje.risk || {},
+        riskScore: viaje.riskScore ?? viaje.risk_score ?? viaje.risk?.score,
+        riskLevel: viaje.riskLevel ?? viaje.risk_level ?? viaje.risk?.level,
+        riskInputs: viaje.riskInputs ?? viaje.risk_inputs ?? viaje.risk ?? {},
         signatures: viaje.signatures || {},
         estado: viaje.estado || 'en_curso',
         observaciones: viaje.observaciones
@@ -352,7 +354,7 @@ export async function createViaje(viaje) {
 
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || `Error del servidor HTTP ${res.status}`);
+            throw new ApiRequestError(err.error || `Error del servidor HTTP ${res.status}`);
         }
         const data = await res.json();
         return {
@@ -361,6 +363,7 @@ export async function createViaje(viaje) {
             alerta: data.alerta
         };
     } catch (error) {
+        if (error instanceof ApiRequestError || !(error instanceof TypeError)) throw error;
         console.warn('Aviso de red al registrar viaje, guardando en cola offline:', error);
         const queue = getOfflineQueue();
         const offlineId = 'offline_' + Date.now();
@@ -379,6 +382,7 @@ export async function createViaje(viaje) {
         return {
             id: offlineId,
             ...payload,
+            estado: "Pendiente",
             offline: true
         };
     }
@@ -402,7 +406,7 @@ export async function updateViaje(id, updates) {
         };
     } catch (error) {
         console.warn('Error de red al actualizar viaje:', error);
-        return { id, ...updates, offline: true };
+        throw error;
     }
 }
 

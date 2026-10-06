@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { prisma } from "./prisma";
 import { getServerSession } from "./auth";
 import type { SessionUser } from "./session";
+import type { Prisma } from "@prisma/client";
 
 export type AuditAction =
   | "CREATE"
@@ -30,7 +31,7 @@ function jsonValue(value: unknown) {
   return JSON.parse(JSON.stringify(value));
 }
 
-export async function recordAudit(input: AuditInput): Promise<void> {
+export async function recordAudit(input: AuditInput, client: Pick<Prisma.TransactionClient, "auditLog"> = prisma): Promise<void> {
   const actor = input.actor ?? (await getServerSession());
   if (!actor) throw new Error("No se pudo identificar al actor de auditoría.");
 
@@ -40,7 +41,7 @@ export async function recordAudit(input: AuditInput): Promise<void> {
     requestHeaders.get("x-real-ip") ||
     null;
 
-  await prisma.auditLog.create({
+  await client.auditLog.create({
     data: {
       actorId: actor.id,
       actorName: actor.nombre,

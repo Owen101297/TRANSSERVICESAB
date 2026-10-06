@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireSelfOrStaff } from "@/lib/auth";
+import { requireSelfOrStaff, requireServerSession } from "@/lib/auth";
 import { getPersonaByIdDb } from "@/lib/services/personas.service";
 import { getAsignacionesDb } from "@/lib/services/asignaciones.service";
 import { getViajesDb } from "@/lib/services/operacion.service";
@@ -17,6 +17,7 @@ let localNovedadesConductorState: NovedadConductor[] = [];
  * Obtiene la información consolidada del portal del conductor
  */
 export async function getPortalConductorInfo(conductorId: string) {
+  await requireSelfOrStaff(conductorId);
   const persona = await getPersonaByIdDb(conductorId);
   const asignaciones = await getAsignacionesDb();
   const asignacionActiva = asignaciones.find(
@@ -46,18 +47,21 @@ export async function getPortalConductorInfo(conductorId: string) {
  * Obtiene todas las inspecciones preoperacionales registradas
  */
 export async function getPreoperacionalesDb(): Promise<InspeccionPreoperacional[]> {
+  const session = await requireServerSession();
+  const local = localPreoperacionalesState.filter((p) => session.rolPrincipal !== "conductor" || p.conductorId === session.id);
   requireDatabaseInProduction();
   try {
     if (!process.env.DATABASE_URL) {
-      return isProductionRuntime() ? [] : localPreoperacionalesState;
+      return isProductionRuntime() ? [] : local;
     }
 
     const dbPreops = await (prisma as any).inspeccionPreoperacional.findMany({
+      where: session.rolPrincipal === "conductor" ? { conductorId: session.id } : {},
       orderBy: { fecha: "desc" },
     });
 
     if (!dbPreops || dbPreops.length === 0) {
-      return localPreoperacionalesState;
+      return local;
     }
 
     return dbPreops.map((p: any) => ({
@@ -76,7 +80,7 @@ export async function getPreoperacionalesDb(): Promise<InspeccionPreoperacional[
     }));
   } catch (error) {
     console.warn("Aviso DB Preoperacionales (usando fallback local):", error);
-    return fallbackOrThrow(error, localPreoperacionalesState, "No fue posible consultar preoperacionales");
+    return fallbackOrThrow(error, local, "No fue posible consultar preoperacionales");
   }
 }
 

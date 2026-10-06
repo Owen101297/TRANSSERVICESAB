@@ -2,11 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireStaffSession } from "@/lib/auth";
+import { requireServerSession, requireStaffSession } from "@/lib/auth";
 import { fallbackOrThrow, isProductionRuntime, requireDatabaseInProduction, rethrowMutationInProduction } from "@/lib/production-safety";
 import { getPersonaByIdDb } from "@/lib/services/personas.service";
 import { getVehiculoByIdDb } from "@/lib/services/vehiculos.service";
 import { Viaje, EstadoViaje, ServicioViaje, Novedad } from "@/lib/types/viaje";
+
+import { applyTripPolicy, TripPolicyError } from "@/lib/trip-policy";
+import { recordAudit } from "@/lib/audit";
 
 let localViajesState: Viaje[] = [];
 
@@ -14,13 +17,16 @@ let localViajesState: Viaje[] = [];
  * Obtiene todos los viajes operacionales desde DB (o fallback local)
  */
 export async function getViajesDb(): Promise<Viaje[]> {
+  const session = await requireServerSession();
+  const local = localViajesState.filter((v) => session.rolPrincipal !== "conductor" || v.conductorId === session.id);
   try {
     requireDatabaseInProduction();
     if (!process.env.DATABASE_URL) {
-      return localViajesState;
+      return local;
     }
 
     const dbViajes = await (prisma as any).viaje.findMany({
+      where: session.rolPrincipal === "conductor" ? { conductorId: session.id } : {},
       include: {
         novedades: {
           orderBy: { fecha: "desc" },
@@ -55,7 +61,7 @@ export async function getViajesDb(): Promise<Viaje[]> {
     }));
   } catch (error) {
     console.warn("Aviso de conexión DB Viajes (usando almacén local):", error);
-    return fallbackOrThrow(error, localViajesState, "No fue posible consultar viajes");
+    return fallbackOrThrow(error, local, "No fue posible consultar viajes");
   }
 }
 
@@ -63,14 +69,16 @@ export async function getViajesDb(): Promise<Viaje[]> {
  * Obtiene un viaje por ID
  */
 export async function getViajeByIdDb(id: string): Promise<Viaje | undefined> {
+  const session = await requireServerSession();
+  const local = localViajesState.find((v) => v.id === id && (session.rolPrincipal !== "conductor" || v.conductorId === session.id));
   try {
     requireDatabaseInProduction();
     if (!process.env.DATABASE_URL) {
-      return localViajesState.find((v) => v.id === id);
+      return local;
     }
 
-    const v = await (prisma as any).viaje.findUnique({
-      where: { id },
+    const v = await (prisma as any).viaje.findFirst({
+      where: { id, ...(session.rolPrincipal === "conductor" ? { conductorId: session.id } : {}) },
       include: {
         novedades: {
           orderBy: { fecha: "desc" },
@@ -79,7 +87,7 @@ export async function getViajeByIdDb(id: string): Promise<Viaje | undefined> {
     });
 
     if (!v) {
-      return isProductionRuntime() ? undefined : localViajesState.find((viaje) => viaje.id === id);
+      return isProductionRuntime() ? undefined : local;
     }
 
     return {
@@ -111,7 +119,7 @@ export async function getViajeByIdDb(id: string): Promise<Viaje | undefined> {
       })),
     };
   } catch (error) {
-    return fallbackOrThrow(error, localViajesState.find((v) => v.id === id), "No fue posible consultar el viaje");
+    return fallbackOrThrow(error, local, "No fue posible consultar el viaje");
   }
 }
 
@@ -123,6 +131,7 @@ export async function createViajeAction(
 ): Promise<{ success: boolean; viajeId?: string; error?: string }> {
   try {
     await requireStaffSession();
+    requireDatabaseInProduction();
     const conductorId = formData.get("conductorId") as string;
     const vehiculoId = formData.get("vehiculoId") as string;
     const origen = formData.get("origen") as string;
@@ -153,7 +162,7 @@ export async function createViajeAction(
       servicio,
       fechaSalida: fechaSalida || new Date().toISOString(),
       duracionEstimadaHoras,
-      estado: "en_curso",
+      estado: "programado",
       observaciones,
       novedades: [],
     };
@@ -172,7 +181,7 @@ export async function createViajeAction(
             servicio,
             fechaSalida: new Date(fechaSalida || new Date()),
             duracionEstimadaHoras,
-            estado: "en_curso",
+            estado: "programado",
             observaciones,
           },
         });
@@ -200,37 +209,27 @@ export async function registrarNovedadViajeAction(
   descripcion: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireStaffSession();
-    const novedadObj: Novedad = {
-      id: `nov_${Date.now()}`,
-      fecha: new Date().toISOString(),
-      descripcion,
-    };
-
-    const index = localViajesState.findIndex((v) => v.id === viajeId);
-    if (index >= 0) {
-      localViajesState[index].novedades.unshift(novedadObj);
-      localViajesState[index].estado = "con_novedad";
-    }
-
+    const session = await requireStaffSession();
+    requireDatabaseInProduction();
+    const existing = process.env.DATABASE_URL
+      ? await prisma.viaje.findUnique({ where: { id: viajeId } })
+      : localViajesState.find((v) => v.id === viajeId);
+    if (!existing) throw new TripPolicyError("Viaje no encontrado.", 404);
+    const policy = applyTripPolicy(session, { estado: "con_novedad" }, existing);
+    if (!descripcion.trim()) throw new TripPolicyError("Describe la novedad.", 400);
     if (process.env.DATABASE_URL) {
-      try {
-        await (prisma as any).novedadViaje.create({
-          data: {
-            viajeId,
-            descripcion,
-          },
-        });
-        await (prisma as any).viaje.update({
-          where: { id: viajeId },
-          data: { estado: "con_novedad" },
-        });
-      } catch (err) {
-        console.warn("No se pudo registrar novedad en DB:", err);
-        rethrowMutationInProduction(err, "No fue posible registrar la novedad del viaje");
-      }
+      await prisma.$transaction(async (tx) => {
+        const result = await tx.viaje.updateMany({ where: { id: viajeId, updatedAt: (existing as { updatedAt: Date }).updatedAt }, data: policy });
+        if (result.count !== 1) throw new TripPolicyError("El viaje cambió; recarga antes de continuar.", 409);
+        await tx.novedadViaje.create({ data: { viajeId, descripcion } });
+        await recordAudit({ action: "UPDATE", entityType: "Viaje", entityId: viajeId, before: existing,
+          after: await tx.viaje.findUniqueOrThrow({ where: { id: viajeId } }), metadata: { novedad: descripcion }, actor: session }, tx);
+      });
+    } else {
+      const index = localViajesState.findIndex((v) => v.id === viajeId);
+      localViajesState[index].estado = "con_novedad";
+      localViajesState[index].novedades.unshift({ id: `nov_${Date.now()}`, fecha: new Date().toISOString(), descripcion });
     }
-
     revalidatePath(`/operacion/${viajeId}`);
     revalidatePath("/operacion");
     return { success: true };
@@ -239,52 +238,40 @@ export async function registrarNovedadViajeAction(
   }
 }
 
-/**
- * Server Action para finalizar un viaje en curso
- */
+/** Finalización con la misma política de autorización y auditoría que la API. */
 export async function finalizarViajeAction(
   viajeId: string,
   kmLlegada?: number,
   horaLlegada?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireStaffSession();
+    const session = await requireStaffSession();
+    requireDatabaseInProduction();
+    const existing = process.env.DATABASE_URL
+      ? await prisma.viaje.findUnique({ where: { id: viajeId } })
+      : localViajesState.find((v) => v.id === viajeId);
+    if (!existing) throw new TripPolicyError("Viaje no encontrado.", 404);
+    if (kmLlegada !== undefined && (!Number.isFinite(kmLlegada) || kmLlegada < 0)) {
+      throw new TripPolicyError("Kilometraje inválido.", 400);
+    }
     const now = new Date();
-    const hoy = now.toISOString();
-    const horaLocal = horaLlegada || now.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false });
-    const index = localViajesState.findIndex((v) => v.id === viajeId);
-    if (index >= 0) {
-      localViajesState[index].estado = "finalizado";
-      localViajesState[index].fechaLlegadaReal = hoy;
-      localViajesState[index].horaLlegada = horaLocal;
-    }
-
+    const policy = applyTripPolicy(session, { estado: "finalizado",
+      riskInputs: kmLlegada === undefined ? {} : { kmLlegada } }, existing, now);
+    const horaLocal = horaLlegada || now.toLocaleTimeString("es-CO", {
+      timeZone: "America/Bogota", hour: "2-digit", minute: "2-digit", hour12: false,
+    });
     if (process.env.DATABASE_URL) {
-      try {
-        const viajeActual = await (prisma as any).viaje.findUnique({
-          where: { id: viajeId },
-        });
-
-        const currentRiskInputs = (viajeActual?.riskInputs as any) || {};
-        if (kmLlegada !== undefined && kmLlegada !== null) {
-          currentRiskInputs.kmLlegada = Number(kmLlegada);
-        }
-
-        await (prisma as any).viaje.update({
-          where: { id: viajeId },
-          data: {
-            estado: "finalizado",
-            fechaLlegadaReal: now,
-            horaLlegada: horaLocal,
-            riskInputs: currentRiskInputs,
-          },
-        });
-      } catch (err) {
-        console.warn("No se pudo finalizar viaje en DB:", err);
-        rethrowMutationInProduction(err, "No fue posible finalizar el viaje");
-      }
+      await prisma.$transaction(async (tx) => {
+        const result = await tx.viaje.updateMany({ where: { id: viajeId, updatedAt: (existing as { updatedAt: Date }).updatedAt },
+          data: { ...policy, fechaLlegadaReal: now, horaLlegada: horaLocal } });
+        if (result.count !== 1) throw new TripPolicyError("El viaje cambió; recarga antes de continuar.", 409);
+        await recordAudit({ action: "STATUS_CHANGE", entityType: "Viaje", entityId: viajeId, before: existing,
+          after: await tx.viaje.findUniqueOrThrow({ where: { id: viajeId } }), actor: session }, tx);
+      });
+    } else {
+      const index = localViajesState.findIndex((v) => v.id === viajeId);
+      localViajesState[index] = { ...localViajesState[index], estado: "finalizado", fechaLlegadaReal: now.toISOString(), horaLlegada: horaLocal };
     }
-
     revalidatePath(`/operacion/${viajeId}`);
     revalidatePath("/operacion");
     return { success: true };

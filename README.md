@@ -11,7 +11,7 @@ Este README es la entrada al proyecto. Cada documento tiene una función distint
 - [Proceso común de desarrollo](/home/owen/Projects/README.md): ubicaciones de trabajo, ramas, validación y entrega.
 - [Operación de Coolify](/home/owen/centro/plataforma/migraciones/servicios-coolify/OPERACION.md): despliegues, monitoreo, respaldo y recuperación.
 
-El plan maestro se localizó en `/run/media/owen/EXTERNO/B - DASHBOARD-TRANSSERVICES/transservices/docs/MASTER_IMPLEMENTATION_PLAN.md`. Corresponde a la arquitectura histórica Vite/Supabase y está pendiente de reconciliar con Next.js/Prisma. La copia actual del disco, `ERP-TRANSSERVICES`, contiene además `docs/matriz-laboral-asistencia.md`, una especificación pendiente de aprobación y fuera de Git. Los originales se conservaron intactos; la comparación con GitHub está registrada en el diagnóstico.
+El plan maestro se localizó en `/run/media/owen/EXTERNO/B - DASHBOARD-TRANSSERVICES/transservices/docs/MASTER_IMPLEMENTATION_PLAN.md`. Corresponde a la arquitectura histórica Vite/Supabase y está pendiente de reconciliar con Next.js/Prisma. La especificación `docs/matriz-laboral-asistencia.md` de la copia actual del disco, `ERP-TRANSSERVICES`, ya fue incorporada al repositorio. Los originales se conservaron intactos; la comparación con GitHub está registrada en el diagnóstico.
 
 La especificación de [matriz laboral](docs/matriz-laboral-asistencia.md) está pendiente de aprobación; no equivale a una funcionalidad implementada.
 
@@ -29,7 +29,17 @@ Los documentos generales usan almacenamiento S3 privado. Las evidencias de asist
 
 ## Flujo de negocio
 
-La relación conductor y vehículo se mantiene en asignaciones con historial. Un cambio debe cerrar la anterior y abrir la nueva sin perder datos. Los viajes integran el análisis de riesgo, las autorizaciones y el cierre; la implementación actual necesita reforzar las validaciones del servidor. Las inspecciones pueden originar hallazgos HSEQ. Formación y asistencia conservan actividad, participantes, firma, validación y evidencia.
+La relación conductor y vehículo se mantiene en asignaciones con historial. Un cambio debe cerrar la anterior y abrir la nueva sin perder datos. Los viajes integran el análisis de riesgo, las autorizaciones y el cierre. Las inspecciones pueden originar hallazgos HSEQ. Formación y asistencia conservan actividad, participantes, firma, validación y evidencia.
+
+### Fase 1: autorización de viajes y acciones del servidor
+
+La política compartida de API y acciones calcula el riesgo con los siete factores del catálogo existente. Hasta 15 puntos admite autorización automática; de 16 a 23 exige HSEQ o administración; desde 24 exige el perfil administrativo, que actualmente representa la autorización gerencial. El conductor solo consulta y modifica sus propios viajes y no firma como HSEQ o gerencia.
+
+La identidad y fecha del autorizador se registran en el servidor. Si cambian los factores, la firma anterior se conserva, pero deja de autorizar el viaje. Las firmas históricas sin identidad verificada requieren una nueva autorización. Los viajes cerrados no se sobrescriben. Programar desde Operación sin evaluar riesgo crea un viaje `programado`; la evaluación y autorización se completan antes de activarlo o cerrarlo.
+
+Las lecturas y mutaciones de GPS requieren personal autorizado dentro de cada acción. La recepción GPS por webhook conserva su clave independiente y utiliza un módulo interno sin exponerlo como acción pública. Los preoperacionales vinculan identidad, vehículo asignado y jornada abierta en el servicio, además de los controles de la API. Los perfiles se vuelven a consultar en la base al validar la sesión.
+
+El diagnóstico local registra la versión comprobada por entorno. Esta fase no implementa permisos configurables, envío real de notificaciones ni carga documental SG-SST/PESV.
 
 ## Prioridades actuales
 
@@ -53,6 +63,8 @@ npm run build
 ```
 
 Ejecutar estos controles en un entorno de desarrollo con recursos suficientes. Las pruebas de origen público deben aislar `PUBLIC_APP_URL`, `NEXT_PUBLIC_APP_URL` y `RAILWAY_PUBLIC_DOMAIN` de los valores del despliegue. Las pruebas existentes no sustituyen las pruebas de permisos, persistencia y recorridos completos.
+
+`tests/staging-trip-flow.mjs` verifica el recorrido autenticado con personas, vehículo y viajes sintéticos. Solo se habilita explícitamente con `ERP_PHASE1_STAGING_TEST=1` dentro del contenedor cuyo `PUBLIC_APP_URL` es el de staging. Elimina únicamente sus propias filas de prueba al terminar; no se ejecuta como parte de `npm test`.
 
 ## Organización del código
 

@@ -2,6 +2,10 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { requireServerSession } from "@/lib/auth";
+import { canAccessPortalVehicle, conductorIdentityFromSession, normalizeVehiclePlate } from "@/lib/portal-access";
+import { TripPolicyError } from "@/lib/trip-policy";
+import { recordAudit } from "@/lib/audit";
 import {
   EstadoConceptoPreoperacional,
   InspeccionPreoperacionalDto,
@@ -38,6 +42,26 @@ export interface GetPreoperacionalesFilters {
 }
 
 export async function createPreoperacionalDb(input: CreatePreoperacionalInput) {
+  const session = await requireServerSession();
+  const identity = conductorIdentityFromSession(session, {
+    id: input.conductorId, name: input.conductorNombre, document: input.conductorDocumento,
+  });
+  input = { ...input, conductorId: identity.id || undefined,
+    conductorNombre: identity.name || undefined, conductorDocumento: identity.document || undefined };
+  const plate = normalizeVehiclePlate(input.placa);
+  if (!plate) throw new TripPolicyError("La placa del vehículo es obligatoria.", 400);
+  if (!(await canAccessPortalVehicle(session, plate))) {
+    throw new TripPolicyError("No autorizado para operar este vehículo.", 403);
+  }
+  if (session.rolPrincipal === "conductor") {
+    const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    const shift = await prisma.turnoDespacho.findFirst({
+      where: { conductorDocumento: session.documento, placa: { equals: plate, mode: "insensitive" },
+        fecha: { gte: new Date(`${day}T00:00:00-05:00`), lte: new Date(`${day}T23:59:59.999-05:00`) } },
+      select: { id: true },
+    });
+    if (!shift) throw new TripPolicyError("Primero debes abrir la jornada para este vehículo.", 409);
+  }
   try {
     requireDatabaseInProduction();
     const cleanPlaca = (input.placa || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -134,6 +158,8 @@ export async function createPreoperacionalDb(input: CreatePreoperacionalInput) {
         });
       }
 
+      await recordAudit({ action: "CREATE", entityType: "InspeccionPreoperacional",
+        entityId: inspection.id, after: inspection, actor: session }, tx);
       return inspection;
     });
 
@@ -159,6 +185,8 @@ export async function createPreoperacionalDb(input: CreatePreoperacionalInput) {
 }
 
 export async function getPreoperacionalesDb(filters: GetPreoperacionalesFilters = {}) {
+  const session = await requireServerSession();
+  if (session.rolPrincipal === "conductor") filters = { ...filters, conductorId: session.id };
   try {
     requireDatabaseInProduction();
     const page = filters.page || 1;

@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { prisma } from "./prisma";
-import { decodeSession, AUTH_COOKIE_NAME, SessionUser } from "./session";
+import { decodeSession, AUTH_COOKIE_NAME, SessionUser, getRolPrincipal } from "./session";
 
 export * from "./session";
 
@@ -19,6 +19,7 @@ export async function getServerSession(): Promise<SessionUser | null> {
       where: { id: session.id },
       select: {
         estado: true,
+        perfiles: true,
         cuentaAcceso: { select: { estado: true, sessionVersion: true } },
       },
     });
@@ -28,7 +29,12 @@ export async function getServerSession(): Promise<SessionUser | null> {
     const tokenVersion = session.sessionVersion ?? 1;
     if (tokenVersion !== persona.cuentaAcceso.sessionVersion) return null;
 
-    return { ...session, sessionVersion: persona.cuentaAcceso.sessionVersion };
+    return {
+      ...session,
+      perfiles: persona.perfiles,
+      rolPrincipal: getRolPrincipal(persona.perfiles),
+      sessionVersion: persona.cuentaAcceso.sessionVersion,
+    };
   } catch {
     return null;
   }
